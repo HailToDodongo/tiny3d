@@ -1,5 +1,7 @@
 # Tiny3D
-3D microcode & library for the N64 with [libdragon](https://github.com/DragonMinded/libdragon/tree/preview).<br>
+![Tiny3D Logo](logo.png)
+
+3D microcode & library for the N64 using [libdragon](https://github.com/DragonMinded/libdragon/tree/preview).<br>
 The motivation of this project is to provide a fast and minimal API while having all the features needed for 3D applications.<br>
 
 ## Features

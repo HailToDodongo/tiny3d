@@ -15,7 +15,7 @@
    xmlns:svg="http://www.w3.org/2000/svg">
   <sodipodi:namedview
      id="namedview1"
-     pagecolor="#000000"
+     pagecolor="#797979"
      bordercolor="#eeeeee"
      borderopacity="1"
      inkscape:showpageshadow="0"
@@ -23,9 +23,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="8"
-     inkscape:cx="199.125"
-     inkscape:cy="377"
+     inkscape:zoom="5.6568543"
+     inkscape:cx="179.42835"
+     inkscape:cy="311.48054"
      inkscape:window-width="1920"
      inkscape:window-height="1030"
      inkscape:window-x="1920"
@@ -100,69 +100,79 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1">
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.08717px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=556';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 556;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1.15362;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
+       x="53.628437"
+       y="96.167343"
+       id="text21"
+       inkscape:export-filename="text11.png"
+       inkscape:export-xdpi="167.97485"
+       inkscape:export-ydpi="167.97485"><tspan
+         sodipodi:role="line"
+         id="tspan21"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.08717px;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=556';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 556;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1.15362;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
+         x="53.628437"
+         y="96.167343">3D</tspan></text>
     <path
-       id="path36"
-       style="font-variation-settings:'wght' 255;opacity:0.997;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.155155;stroke-dasharray:none;paint-order:markers stroke fill"
-       inkscape:transform-center-x="-0.58966748"
-       inkscape:transform-center-y="-0.46101986"
-       d="m 41.941305,97.076641 3.367748,-4.467764 1.96657,2.789024 z"
+       d="m 52.577939,96.163245 c -0.507787,0 -0.907295,-0.14561 -1.198524,-0.43684 -0.283764,-0.29123 -0.425644,-0.68701 -0.425644,-1.18732 V 91.18762 h 0.67207 v 3.261845 c 0,0.35844 0.0896,0.63847 0.268827,0.84009 0.186686,0.19416 0.459248,0.29124 0.817685,0.29124 h 0.43755 v 0.58245 z m -1.544229,-2.95942 v -0.582457 h 2.149798 v 0.582457 z"
+       style="font-size:8.46667px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1.16413;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
+       id="path22"
+       sodipodi:nodetypes="scsccscsccsccccc" />
+    <path
+       id="path2-5"
+       style="font-variation-settings:'wght' 255;opacity:0.997;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.138755;stroke-dasharray:none;paint-order:markers stroke fill"
+       inkscape:transform-center-x="-0.5273394"
+       inkscape:transform-center-y="-0.41229004"
+       d="m 45.184142,95.246197 3.011775,-3.995519 1.758702,2.494223 z"
        sodipodi:nodetypes="cccc"
        inkscape:export-filename="text11.png"
        inkscape:export-xdpi="622.19678"
        inkscape:export-ydpi="622.19678" />
     <path
        sodipodi:type="star"
-       style="opacity:0.997;fill:none;fill-opacity:1;stroke:none;stroke-width:0.844353;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1"
-       id="path17"
+       style="font-variation-settings:'wght' 450;opacity:0.997;fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.212051;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:markers stroke fill"
+       id="path3-3"
        inkscape:flatsided="true"
        sodipodi:sides="5"
-       sodipodi:cx="57.101307"
-       sodipodi:cy="81.372192"
-       sodipodi:r1="11.034104"
-       sodipodi:r2="8.9267778"
-       sodipodi:arg1="-1.5707963"
-       sodipodi:arg2="-0.9424778"
+       sodipodi:cx="71.88308"
+       sodipodi:cy="80.255775"
+       sodipodi:r1="1.3159914"
+       sodipodi:r2="1.0646594"
+       sodipodi:arg1="1.5707963"
+       sodipodi:arg2="2.1991149"
        inkscape:rounded="0"
        inkscape:randomized="0"
-       d="m 57.101307,70.338088 10.494057,7.624379 -4.008374,12.336503 -12.971367,0 -4.008373,-12.336504 z"
-       transform="matrix(0.1815877,0.05506006,-0.05506006,0.1815877,47.843208,64.619908)"
-       inkscape:transform-center-y="-0.012782702"
-       inkscape:transform-center-x="-0.18773984" />
+       d="m 71.88308,81.571767 -1.251583,-0.909328 0.478062,-1.471323 1.547041,0 0.478062,1.471323 z"
+       inkscape:transform-center-y="0.010878476"
+       transform="matrix(-1.2387021,1.6593841,-1.6593841,-1.2387021,269.51211,73.88538)"
+       inkscape:export-filename="text11.png"
+       inkscape:export-xdpi="622.19678"
+       inkscape:export-ydpi="622.19678"
+       inkscape:transform-center-x="-0.2498219" />
+    <rect
+       style="font-variation-settings:'wght' 556;opacity:0.997;fill:#0d1117;fill-opacity:1;stroke:#0d1117;stroke-width:2.03156;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       id="rect2"
+       width="22.098625"
+       height="7.366209"
+       x="39.302288"
+       y="71.758751"
+       inkscape:export-filename="text11.png"
+       inkscape:export-xdpi="1576.5156"
+       inkscape:export-ydpi="1576.5156" />
     <path
-       d="m 47.124797,87.995552 v -3.766831 h 0.508001 v 3.766831 z"
-       id="text1"
-       style="font-size:8.46667px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:#ffffff;stroke-width:0.5;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       aria-label="tiny"
-       sodipodi:nodetypes="ccccc" />
-    <text
-       xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.29684px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:#ffffff;stroke-width:0.5;stroke-opacity:1;stroke-dasharray:none;paint-order:markers stroke fill"
-       x="56.146221"
-       y="85.795349"
-       id="text2"><tspan
-         sodipodi:role="line"
-         id="tspan2"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.88056px;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=450';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 450;stroke-width:0.5;fill:#000000;fill-opacity:1;stroke:#ffffff;stroke-opacity:1;stroke-dasharray:none;paint-order:markers stroke fill"
-         x="56.146221"
-         y="85.795349">3D</tspan></text>
-    <path
-       id="path1-2"
-       style="font-size:8.46667px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;stroke-width:0.5;fill:#000000;fill-opacity:1;paint-order:markers stroke fill;stroke:#ffffff;stroke-opacity:1;stroke-dasharray:none"
-       d="m 52.61436,84.24137 v 2.531628 c 0,0.378178 0.107455,0.677487 0.321944,0.89762 0.208081,0.20808 0.489538,0.31727 0.843876,0.328662 0.283861,0.0044 0.580494,0.0015 0.867647,0.0015 v -0.0015 c 0.260306,-0.0084 0.481047,-0.06961 0.662492,-0.183968 v 0.223759 c 0,0.270932 -0.06813,0.482186 -0.203605,0.634586 -0.141111,0.146756 -0.347118,0.220142 -0.61805,0.220142 l -1.366706,0 v 0.440283 l 1.468508,0 c 0.383823,0 0.685755,-0.11008 0.905888,-0.330212 0.214489,-0.220133 0.321944,-0.518926 0.321944,-0.897103 l -0.0023,-3.453536 -0.0023,-0.411861 h -0.507979 v 2.463932 c 0,0.270933 -0.06814,0.482703 -0.203605,0.635103 -0.141111,0.146755 -0.347117,0.220142 -0.61805,0.220142 h -0.540019 c -0.270932,0 -0.476939,-0.07339 -0.61805,-0.220142 -0.13547,-0.1524 -0.203605,-0.36417 -0.203605,-0.635103 V 84.24137 Z"
-       sodipodi:nodetypes="cscccccscsccscscccscsscscc" />
-    <path
-       id="path1-2-3"
-       style="font-size:8.46667px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;stroke-width:0.5;fill:#000000;fill-opacity:1;stroke:#ffffff;stroke-opacity:1;stroke-dasharray:none;paint-order:markers stroke fill"
-       d="m 48.652634,87.992167 0,-2.522013 c 0,-0.378178 0.107455,-0.677487 0.321944,-0.89762 0.208081,-0.208081 0.489538,-0.31727 0.843876,-0.328662 0.283861,-0.0044 0.580494,-0.0015 0.867647,-0.0015 v 0.0015 c 0.354338,0.01139 0.635796,0.120581 0.843877,0.328662 0.214488,0.220133 0.321944,0.519442 0.321944,0.89762 l 0,2.522013 h -0.50798 l 0,-2.454317 c 0,-0.270933 -0.06814,-0.482704 -0.203605,-0.635104 -0.141111,-0.146755 -0.347117,-0.220141 -0.61805,-0.220141 h -0.540019 c -0.270932,0 -0.476939,0.07339 -0.61805,0.220141 -0.13547,0.1524 -0.203605,0.364171 -0.203605,0.635104 l 0,2.454317 z"
-       sodipodi:nodetypes="cscccccsccscsscscc" />
-    <path
-       d="m 45.585374,87.995554 c -0.383823,0 -0.685801,-0.110067 -0.905934,-0.3302 -0.214489,-0.220133 -0.321733,-0.519289 -0.321733,-0.897467 v -3.622898 h 0.508 v 3.555165 c 0,0.270933 0.06773,0.4826 0.2032,0.635 0.141111,0.146756 0.347134,0.220134 0.618067,0.220134 h 0.538364 v 0.440266 z M 44.441786,84.66899 v -0.440267 h 1.808952 v 0.440267 z"
-       style="font-size:8.46667px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:#ffffff;stroke-width:0.5;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       id="path1"
-       sodipodi:nodetypes="scsccscsccsccccc" />
+       id="path36"
+       style="font-variation-settings:'wght' 255;opacity:0.997;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.155155;stroke-dasharray:none;paint-order:markers stroke fill"
+       inkscape:transform-center-x="-0.58966748"
+       inkscape:transform-center-y="-0.46101986"
+       d="m 40.142678,77.092439 3.367748,-4.467764 1.96657,2.789024 z"
+       sodipodi:nodetypes="cccc"
+       inkscape:export-filename="text11.png"
+       inkscape:export-xdpi="1576.5156"
+       inkscape:export-ydpi="1576.5156" />
     <path
        sodipodi:type="star"
-       style="font-variation-settings:'wght' 450;opacity:0.997;fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.21205093;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:markers stroke fill"
+       style="font-variation-settings:'wght' 450;opacity:0.997;fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.212051;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:markers stroke fill"
        id="path5"
        inkscape:flatsided="true"
        sodipodi:sides="5"
@@ -176,13 +186,13 @@
        inkscape:randomized="0"
        d="m 71.88308,81.571767 -1.251583,-0.909328 0.478062,-1.471323 1.547041,0 0.478062,1.471323 z"
        inkscape:transform-center-y="0.012159845"
-       transform="matrix(-1.3851089,1.8555128,-1.8555128,-1.3851089,292.78342,73.19111)"
+       transform="matrix(-1.3851089,1.8555128,-1.8555128,-1.3851089,290.98479,53.206908)"
        inkscape:export-filename="text11.png"
        inkscape:export-xdpi="622.19678"
        inkscape:export-ydpi="622.19678"
        inkscape:transform-center-x="-0.27934951" />
     <path
-       d="m 50.622684,97.394751 v -3.50538 h 0.472741 v 3.50538 z"
+       d="m 48.824057,77.410549 v -3.50538 h 0.472741 v 3.50538 z"
        id="path10"
        style="font-size:8.46667px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
        aria-label="tiny"
@@ -190,92 +200,42 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.8598px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0.093;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       x="58.763618"
-       y="95.478157"
+       x="56.964993"
+       y="75.49395"
        id="text10"><tspan
          sodipodi:role="line"
          id="tspan10"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.61122px;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=450';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 450;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0.093;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-         x="58.763618"
-         y="95.478157">3D</tspan></text>
+         x="56.964993"
+         y="75.49395">3D</tspan></text>
     <path
        id="path11"
        style="font-size:8.46667px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       d="m 55.49935,93.982358 v 2.355908 c 0,0.35193 0.100003,0.63047 0.299599,0.83532 0.19364,0.19363 0.455561,0.29525 0.785305,0.30585 0.264159,0.003 0.35625,0.002 0.623473,0.002 v -0.002 c 0.242238,-0.008 0.447658,-0.0648 0.61651,-0.1712 v 0.20823 c 0,0.25213 -0.0634,0.44872 -0.189474,0.59055 -0.131316,0.13656 -0.323026,0.20486 -0.575153,0.20486 h -1.021092 v 0.40971 h 1.115829 c 0.357182,0 0.638158,-0.10238 0.843013,-0.30728 0.199602,-0.20486 0.299598,-0.48292 0.299598,-0.83484 l -0.0022,-3.213834 -0.0022,-0.383274 h -0.472722 v 2.292908 c 0,0.25214 -0.06341,0.44921 -0.189473,0.59103 -0.131317,0.13657 -0.323025,0.20486 -0.575153,0.20486 h -0.318584 c -0.252127,0 -0.443836,-0.0684 -0.575152,-0.20486 -0.126068,-0.14182 -0.189473,-0.33889 -0.189473,-0.59103 v -2.292908 z"
+       d="m 53.700723,73.998156 v 2.355908 c 0,0.35193 0.100003,0.63047 0.299599,0.83532 0.19364,0.19363 0.455561,0.29525 0.785305,0.30585 0.264159,0.003 0.35625,0.002 0.623473,0.002 v -0.002 c 0.242238,-0.008 0.447658,-0.0648 0.61651,-0.1712 v 0.20823 c 0,0.25213 -0.0634,0.44872 -0.189474,0.59055 -0.131316,0.13656 -0.323026,0.20486 -0.575153,0.20486 h -1.021092 v 0.40971 h 1.115829 c 0.357182,0 0.638158,-0.10238 0.843013,-0.30728 0.199602,-0.20486 0.299598,-0.48292 0.299598,-0.83484 l -0.0022,-3.213834 -0.0022,-0.383274 h -0.472722 v 2.292908 c 0,0.25214 -0.06341,0.44921 -0.189473,0.59103 -0.131317,0.13657 -0.323025,0.20486 -0.575153,0.20486 h -0.318584 c -0.252127,0 -0.443836,-0.0684 -0.575152,-0.20486 -0.126068,-0.14182 -0.189473,-0.33889 -0.189473,-0.59103 v -2.292908 z"
        sodipodi:nodetypes="cscccccscsccscscccscsscscc" />
     <path
        id="path19"
        style="font-size:8.46667px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       d="m 52.044477,97.391601 v -2.34697 c 0,-0.351922 0.100003,-0.630456 0.299599,-0.835309 0.193638,-0.19364 0.45556,-0.29525 0.785305,-0.305851 0.264159,-0.0041 0.366757,-0.0014 0.63398,-0.0014 v 0.0014 c 0.329745,0.01058 0.591667,0.112211 0.785305,0.305851 0.199601,0.204853 0.2996,0.483387 0.2996,0.835309 v 2.34697 h -0.472724 v -2.28397 c 0,-0.25213 -0.06341,-0.44919 -0.189473,-0.591017 -0.131316,-0.136569 -0.323024,-0.204862 -0.575152,-0.204862 h -0.329092 c -0.252127,0 -0.443836,0.0683 -0.575153,0.204862 -0.126067,0.141827 -0.189473,0.338887 -0.189473,0.591017 v 2.28397 z"
+       d="m 50.24585,77.407399 v -2.34697 c 0,-0.351922 0.100003,-0.630456 0.299599,-0.835309 0.193638,-0.19364 0.45556,-0.29525 0.785305,-0.305851 0.264159,-0.0041 0.366757,-0.0014 0.63398,-0.0014 v 0.0014 c 0.329745,0.01058 0.591667,0.112211 0.785305,0.305851 0.199601,0.204853 0.2996,0.483387 0.2996,0.835309 v 2.34697 h -0.472724 v -2.28397 c 0,-0.25213 -0.06341,-0.44919 -0.189473,-0.591017 C 52.256126,74.395843 52.064418,74.32755 51.81229,74.32755 h -0.329092 c -0.252127,0 -0.443836,0.0683 -0.575153,0.204862 -0.126067,0.141827 -0.189473,0.338887 -0.189473,0.591017 v 2.28397 z"
        sodipodi:nodetypes="cscccccsccscsscscc" />
     <path
-       d="m 49.190107,97.394751 c -0.357182,0 -0.638201,-0.10238 -0.843056,-0.30728 -0.199602,-0.20486 -0.299402,-0.48324 -0.299402,-0.83517 v -3.371443 h 0.472741 v 3.308403 c 0,0.25213 0.06303,0.4491 0.189097,0.59092 0.131317,0.13658 0.323041,0.20487 0.575169,0.20487 h 0.500997 v 0.4097 z m -1.064214,-3.095669 v -0.409709 h 1.683398 v 0.409709 z"
+       d="m 47.39148,77.410549 c -0.357182,0 -0.638201,-0.10238 -0.843056,-0.30728 -0.199602,-0.20486 -0.299402,-0.48324 -0.299402,-0.83517 v -3.371443 h 0.472741 v 3.308403 c 0,0.25213 0.06303,0.4491 0.189097,0.59092 0.131317,0.13658 0.323041,0.20487 0.575169,0.20487 h 0.500997 v 0.4097 z M 46.327266,74.31488 v -0.409709 h 1.683398 v 0.409709 z"
        style="font-size:8.46667px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
        id="path20"
        sodipodi:nodetypes="scsccscsccsccccc" />
-    <text
-       xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.08717px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=556';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 556;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1.15362;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       x="71.80687"
-       y="97.422722"
-       id="text21"
-       inkscape:export-filename="text11.png"
-       inkscape:export-xdpi="167.97485"
-       inkscape:export-ydpi="167.97485"><tspan
-         sodipodi:role="line"
-         id="tspan21"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.08717px;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=556';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 556;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1.15362;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-         x="71.80687"
-         y="97.422722">3D</tspan></text>
-    <path
-       d="m 70.756371,97.418625 c -0.507787,0 -0.907295,-0.14561 -1.198524,-0.43684 -0.283764,-0.29123 -0.425644,-0.68701 -0.425644,-1.18732 V 92.443 h 0.67207 v 3.261845 c 0,0.35844 0.0896,0.63847 0.268827,0.84009 0.186686,0.19416 0.459248,0.29124 0.817685,0.29124 h 0.43755 v 0.58245 z m -1.544229,-2.95942 v -0.582457 h 2.149798 v 0.582457 z"
-       style="font-size:8.46667px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:1.16413;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       id="path22"
-       sodipodi:nodetypes="scsccscsccsccccc" />
-    <path
-       id="path37"
-       style="font-variation-settings:'wght' 255;opacity:0.997;fill:#f9f9f9;fill-opacity:1;stroke:none;stroke-width:0.0846175;paint-order:markers stroke fill"
-       inkscape:transform-center-x="-0.32149137"
-       inkscape:transform-center-y="-0.25135158"
-       d="m 78.462069,95.074605 1.836121,-2.435854 1.07219,1.520604 z"
-       sodipodi:nodetypes="cccc"
-       inkscape:export-filename="text11.png"
-       inkscape:export-xdpi="622.19678"
-       inkscape:export-ydpi="622.19678" />
-    <path
-       sodipodi:type="star"
-       style="font-variation-settings:'wght' 450;opacity:0.997;fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.145248;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:markers stroke fill"
-       id="path38"
-       inkscape:flatsided="true"
-       sodipodi:sides="5"
-       sodipodi:cx="71.88308"
-       sodipodi:cy="80.255775"
-       sodipodi:r1="1.3159914"
-       sodipodi:r2="1.0646594"
-       sodipodi:arg1="1.5707963"
-       sodipodi:arg2="2.1991149"
-       inkscape:rounded="0"
-       inkscape:randomized="0"
-       d="m 71.88308,81.571767 -1.251583,-0.909328 0.478062,-1.471323 1.547041,0 0.478062,1.471323 z"
-       inkscape:transform-center-y="0.0066267732"
-       transform="matrix(-0.75517194,1.0116397,-1.0116397,-0.75517194,215.2231,82.052036)"
-       inkscape:export-filename="text11.png"
-       inkscape:export-xdpi="622.19678"
-       inkscape:export-ydpi="622.19678"
-       inkscape:transform-center-x="-0.1523001" />
     <path
        id="path2"
        style="font-variation-settings:'wght' 255;opacity:0.997;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.155155;stroke-dasharray:none;paint-order:markers stroke fill"
        inkscape:transform-center-x="-0.58966748"
        inkscape:transform-center-y="-0.46101986"
-       d="m 41.941305,97.076641 3.367748,-4.467764 1.96657,2.789024 z"
+       d="m 40.142678,77.092439 3.367748,-4.467764 1.96657,2.789024 z"
        sodipodi:nodetypes="cccc"
        inkscape:export-filename="text11.png"
        inkscape:export-xdpi="622.19678"
        inkscape:export-ydpi="622.19678" />
     <path
        sodipodi:type="star"
-       style="font-variation-settings:'wght' 450;opacity:0.997;fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.21205093;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:markers stroke fill"
+       style="font-variation-settings:'wght' 450;opacity:0.997;fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.212051;stroke-linejoin:round;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;paint-order:markers stroke fill"
        id="path3"
        inkscape:flatsided="true"
        sodipodi:sides="5"
@@ -289,13 +249,13 @@
        inkscape:randomized="0"
        d="m 71.88308,81.571767 -1.251583,-0.909328 0.478062,-1.471323 1.547041,0 0.478062,1.471323 z"
        inkscape:transform-center-y="0.012159845"
-       transform="matrix(-1.3851089,1.8555128,-1.8555128,-1.3851089,292.78342,73.19111)"
+       transform="matrix(-1.3851089,1.8555128,-1.8555128,-1.3851089,290.98479,53.206908)"
        inkscape:export-filename="text11.png"
        inkscape:export-xdpi="622.19678"
        inkscape:export-ydpi="622.19678"
        inkscape:transform-center-x="-0.27934951" />
     <path
-       d="m 50.622684,97.394751 v -3.50538 h 0.472741 v 3.50538 z"
+       d="m 48.824057,77.410549 v -3.50538 h 0.472741 v 3.50538 z"
        id="path4"
        style="font-size:8.46667px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
        aria-label="tiny"
@@ -303,26 +263,26 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.8598px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0.093;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       x="58.763618"
-       y="95.478157"
+       x="56.964993"
+       y="75.49395"
        id="text4"><tspan
          sodipodi:role="line"
          id="tspan4"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:3.61122px;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=450';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'wght' 450;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0.093;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-         x="58.763618"
-         y="95.478157">3D</tspan></text>
+         x="56.964993"
+         y="75.49395">3D</tspan></text>
     <path
        id="path6"
        style="font-size:8.46667px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       d="m 55.49935,93.982358 v 2.355908 c 0,0.35193 0.100003,0.63047 0.299599,0.83532 0.19364,0.19363 0.455561,0.29525 0.785305,0.30585 0.264159,0.003 0.35625,0.002 0.623473,0.002 v -0.002 c 0.242238,-0.008 0.447658,-0.0648 0.61651,-0.1712 v 0.20823 c 0,0.25213 -0.0634,0.44872 -0.189474,0.59055 -0.131316,0.13656 -0.323026,0.20486 -0.575153,0.20486 h -1.021092 v 0.40971 h 1.115829 c 0.357182,0 0.638158,-0.10238 0.843013,-0.30728 0.199602,-0.20486 0.299598,-0.48292 0.299598,-0.83484 l -0.0022,-3.213834 -0.0022,-0.383274 h -0.472722 v 2.292908 c 0,0.25214 -0.06341,0.44921 -0.189473,0.59103 -0.131317,0.13657 -0.323025,0.20486 -0.575153,0.20486 h -0.318584 c -0.252127,0 -0.443836,-0.0684 -0.575152,-0.20486 -0.126068,-0.14182 -0.189473,-0.33889 -0.189473,-0.59103 v -2.292908 z"
+       d="m 53.700723,73.998156 v 2.355908 c 0,0.35193 0.100003,0.63047 0.299599,0.83532 0.19364,0.19363 0.455561,0.29525 0.785305,0.30585 0.264159,0.003 0.35625,0.002 0.623473,0.002 v -0.002 c 0.242238,-0.008 0.447658,-0.0648 0.61651,-0.1712 v 0.20823 c 0,0.25213 -0.0634,0.44872 -0.189474,0.59055 -0.131316,0.13656 -0.323026,0.20486 -0.575153,0.20486 h -1.021092 v 0.40971 h 1.115829 c 0.357182,0 0.638158,-0.10238 0.843013,-0.30728 0.199602,-0.20486 0.299598,-0.48292 0.299598,-0.83484 l -0.0022,-3.213834 -0.0022,-0.383274 h -0.472722 v 2.292908 c 0,0.25214 -0.06341,0.44921 -0.189473,0.59103 -0.131317,0.13657 -0.323025,0.20486 -0.575153,0.20486 h -0.318584 c -0.252127,0 -0.443836,-0.0684 -0.575152,-0.20486 -0.126068,-0.14182 -0.189473,-0.33889 -0.189473,-0.59103 v -2.292908 z"
        sodipodi:nodetypes="cscccccscsccscscccscsscscc" />
     <path
        id="path7"
        style="font-size:8.46667px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
-       d="m 52.044477,97.391601 v -2.34697 c 0,-0.351922 0.100003,-0.630456 0.299599,-0.835309 0.193638,-0.19364 0.45556,-0.29525 0.785305,-0.305851 0.264159,-0.0041 0.366757,-0.0014 0.63398,-0.0014 v 0.0014 c 0.329745,0.01058 0.591667,0.112211 0.785305,0.305851 0.199601,0.204853 0.2996,0.483387 0.2996,0.835309 v 2.34697 h -0.472724 v -2.28397 c 0,-0.25213 -0.06341,-0.44919 -0.189473,-0.591017 -0.131316,-0.136569 -0.323024,-0.204862 -0.575152,-0.204862 h -0.329092 c -0.252127,0 -0.443836,0.0683 -0.575153,0.204862 -0.126067,0.141827 -0.189473,0.338887 -0.189473,0.591017 v 2.28397 z"
+       d="m 50.24585,77.407399 v -2.34697 c 0,-0.351922 0.100003,-0.630456 0.299599,-0.835309 0.193638,-0.19364 0.45556,-0.29525 0.785305,-0.305851 0.264159,-0.0041 0.366757,-0.0014 0.63398,-0.0014 v 0.0014 c 0.329745,0.01058 0.591667,0.112211 0.785305,0.305851 0.199601,0.204853 0.2996,0.483387 0.2996,0.835309 v 2.34697 h -0.472724 v -2.28397 c 0,-0.25213 -0.06341,-0.44919 -0.189473,-0.591017 C 52.256126,74.395843 52.064418,74.32755 51.81229,74.32755 h -0.329092 c -0.252127,0 -0.443836,0.0683 -0.575153,0.204862 -0.126067,0.141827 -0.189473,0.338887 -0.189473,0.591017 v 2.28397 z"
        sodipodi:nodetypes="cscccccsccscsscscc" />
     <path
-       d="m 49.190107,97.394751 c -0.357182,0 -0.638201,-0.10238 -0.843056,-0.30728 -0.199602,-0.20486 -0.299402,-0.48324 -0.299402,-0.83517 v -3.371443 h 0.472741 v 3.308403 c 0,0.25213 0.06303,0.4491 0.189097,0.59092 0.131317,0.13658 0.323041,0.20487 0.575169,0.20487 h 0.500997 v 0.4097 z m -1.064214,-3.095669 v -0.409709 h 1.683398 v 0.409709 z"
+       d="m 47.39148,77.410549 c -0.357182,0 -0.638201,-0.10238 -0.843056,-0.30728 -0.199602,-0.20486 -0.299402,-0.48324 -0.299402,-0.83517 v -3.371443 h 0.472741 v 3.308403 c 0,0.25213 0.06303,0.4491 0.189097,0.59092 0.131317,0.13658 0.323041,0.20487 0.575169,0.20487 h 0.500997 v 0.4097 z M 46.327266,74.31488 v -0.409709 h 1.683398 v 0.409709 z"
        style="font-size:8.46667px;line-height:1.25;font-family:MuseoModerno;-inkscape-font-specification:'MuseoModerno, @wght=255';font-variation-settings:'wght' 255;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:#ffffff;stroke-width:0;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
        id="path8"
        sodipodi:nodetypes="scsccscsccsccccc" />
