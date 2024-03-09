@@ -128,13 +128,13 @@ int main()
     t3d_screen_clear_color(RGBA32(111, 20, 20, 0xFF));
     t3d_screen_clear_depth();
 
-    t3d_projection_perspective(T3D_DEG_TO_RAD(85.0f), 10.0f, 200.0f);
+    t3d_projection_perspective(T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
     t3d_camera_look_at(&camPos, &camTarget);
     t3d_light_set_count(0);
 
     t3d_matrix_set_mul(modelMatFP, 1, 0);
 
-    t3d_fog_set_range(0.4f, -30.0f);
+    t3d_fog_set_range(0.4f, 80.0f);
     t3d_light_set_ambient(colorAmbient);
     rspq_block_run(dplRoom);
 

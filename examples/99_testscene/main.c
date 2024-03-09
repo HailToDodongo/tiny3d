@@ -142,9 +142,6 @@ int main()
   bool requestDisplayMetrics = false;
   bool displayMetrics = false;
 
-  float fogScale  = 0.8544f;
-  float fogOffset = 11.4570f;
-
   for(uint64_t frame = 0;; ++frame)
   {
     uint64_t timeDraw = get_ticks_us();
@@ -180,24 +177,12 @@ int main()
         camPos.v[2] -= camDir.v[0] * (float)joypad.stick_x * camSpeed;
       }
 
+      if(joypad.btn.c_up)camPos.v[1] += camSpeed * 15.0f;
+      if(joypad.btn.c_down)camPos.v[1] -= camSpeed * 15.0f;
+
       camTarget.v[0] = camPos.v[0] + camDir.v[0];
       camTarget.v[1] = camPos.v[1] + camDir.v[1];
       camTarget.v[2] = camPos.v[2] + camDir.v[2];
-    }
-
-    // change fog with C buttons
-    float fogSpeed = deltaTime * 0.005f;
-    if(joypad.btn.c_down) {
-      fogScale -= fogSpeed;
-    }
-    if(joypad.btn.c_up) {
-      fogScale += fogSpeed;
-    }
-    if(joypad.btn.c_left) {
-      fogOffset -= fogSpeed * 10.0f;
-    }
-    if(joypad.btn.c_right) {
-      fogOffset += fogSpeed * 10.0f;
     }
 
     if(joypad.btn.b) {
@@ -239,14 +224,10 @@ int main()
     t3d_screen_clear_color(RGBA32(0, 0, 0, 0xFF));
     t3d_screen_clear_depth();
 
-    t3d_projection_perspective(T3D_DEG_TO_RAD(85.0f), 2.0f, 100.0f);
+    t3d_projection_perspective(T3D_DEG_TO_RAD(85.0f), 2.0f, 150.0f);
     t3d_camera_look_at(&camPos, &camTarget); // convenience function to set camera matrix and related settings
 
-    if(fogScale < 0.1f || fogScale > 10.0f) {
-      t3d_fog_set_range(0.0f, 0.0f);
-    } else {
-      t3d_fog_set_range(fogScale, fogOffset);
-    }
+    t3d_fog_set_range(17.0f, 100.0f);
 
     t3d_light_set_ambient(colorAmbient); // one global ambient light, always active
     t3d_light_set_directional(0, colorDir, &lightDirVec); // optional directional light, can be disabled
@@ -298,8 +279,6 @@ int main()
 
       t3d_debug_print_start();
 
-      // show fog values
-      debug_printf_screen(24, 180, "Fog s/o: %.4f %.4f", fogScale, fogOffset);
       // show pos / rot
       //debug_printf_screen(24, 190, "Pos: %.4f %.4f %.4f", camPos.v[0], camPos.v[1], camPos.v[2]);
       //debug_printf_screen(24, 200, "Rot: %.4f %.4f", camRotX, camRotY);

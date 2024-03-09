@@ -6,6 +6,8 @@ include $(T3D_INST)/t3d.mk
 
 N64_CFLAGS += -std=gnu2x -O2
 
+PROJECT_NAME=t3d_99_testscene
+
 src = main.c
 assets_png = $(wildcard assets/*.png)
 assets_gltf = $(wildcard assets/*.glb)
@@ -15,7 +17,7 @@ assets_conv = $(addprefix filesystem/,$(notdir $(assets_png:%.png=%.sprite))) \
 			  $(addprefix filesystem/,$(notdir $(assets_ttf:%.ttf=%.font64))) \
 			  $(addprefix filesystem/,$(notdir $(assets_gltf:%.glb=%.t3dm)))
 
-all: t3d_02_freecam.z64
+all: $(PROJECT_NAME).z64
 
 filesystem/%.sprite: assets/%.png
 	@mkdir -p $(dir $@)
@@ -32,11 +34,11 @@ filesystem/%.t3dm: assets/%.glb
 	@echo "    [T3D-MODEL] $@"
 	$(T3D_GLTF_TO_3D) "$<" $@
 
-$(BUILD_DIR)/t3d_02_freecam.dfs: $(assets_conv)
-$(BUILD_DIR)/t3d_02_freecam.elf: $(src:%.c=$(BUILD_DIR)/%.o)
+$(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
+$(BUILD_DIR)/$(PROJECT_NAME).elf: $(src:%.c=$(BUILD_DIR)/%.o)
 
-t3d_02_freecam.z64: N64_ROM_TITLE="Tiny3D - Freecam"
-t3d_02_freecam.z64: $(BUILD_DIR)/t3d_02_freecam.dfs
+$(PROJECT_NAME).z64: N64_ROM_TITLE="Tiny3D - Testscene"
+$(PROJECT_NAME).z64: $(BUILD_DIR)/$(PROJECT_NAME).dfs
 
 clean:
 	rm -rf $(BUILD_DIR) *.z64

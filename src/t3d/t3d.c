@@ -252,20 +252,26 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
 }
 
 void t3d_fog_set_range(float near, float far) {
-  if(near == 0.0f) {
+  // implicitly disable at 0,0
+  if(near == 0.0f && far == 0.0f) {
     rspq_write(T3D_RSP_ID, T3D_CMD_FOG_RANGE, 0, 0);
     return;
   }
 
-  //float scale = 1.0f / (far - near);
-  //float offset = near;// * scale;
-  float scale = near * 2.0f * 100.0f;
-  float offset = -far * 2.0f;
+  // prevent diff by zero and weird values
+  float diff = far - near;
+  if(fabsf(diff) < 1.5f) {
+    diff = 1.5f;
+  }
 
-  scale  = fm_floorf(scale   * 1.0f);
-  scale  = CLAMP(scale,  -32768.0f, 32767.0f);
+  // @TODO: refactor in the ucode (right now it's offset and then scale)
+  float scale = 16384.0f / diff;
+  float offset = -near * 2.0f;
 
-  uint16_t fogMul16    = (int16_t)scale & 0xFFFF;
+  scale = fm_floorf(scale);
+  scale = CLAMP(scale,  -32768.0f, 32767.0f);
+
+  uint16_t fogMul16   = (int16_t)scale & 0xFFFF;
   int32_t fogOffset32 = T3D_F32_TO_FIXED(offset);
 
   rspq_write(T3D_RSP_ID, T3D_CMD_FOG_RANGE,
