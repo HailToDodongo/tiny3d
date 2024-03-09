@@ -157,7 +157,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
 
     for (int p = 0; p < obj->numParts; p++) {
       const T3DObjectPart *part = &obj->parts[p];
-      t3d_vert_load(part->vert, 0, part->vertLoadCount);
+      t3d_vert_load(part->vert, part->vertLoadCount);
 
       T3DMaterial *matMain = obj->materialA;
       T3DMaterial *matSecond = obj->materialB;

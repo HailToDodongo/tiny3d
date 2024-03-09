@@ -10,23 +10,23 @@
 #define T3D_DEG_TO_RAD(deg) (deg * 0.01745329252f)
 #define T3D_F32_TO_FIXED(val) (int32_t)((val) * (float)(1<<16))
 
+// 3D float vector
 typedef struct {
   float v[3];
 } T3DVec3;
 
-typedef struct {
-  float v[4];
-} T3DVec4;
-
+// 4D float vector
 typedef struct {
   float m[4][4];
 } T3DMat4;
 
+// 3D s16.16 fixed-point vector, used as-is by the RSP.
 typedef struct {
   int16_t i[4];
   uint16_t f[4];
 } T3DVec4FP;
 
+// 4x4 Matrix of 16.16 fixed-point numbers, used as-is by the RSP.
 typedef struct {
   T3DVec4FP m[4];
 } __attribute__((aligned(16))) T3DMat4FP;
@@ -37,12 +37,6 @@ inline static float s1616_to_float(int16_t partI, uint16_t partF)
   float res = (float)partI;
   res += (float)partF / 65536.f;
   return res;
-}
-
-/// @brief Converts a .16 fixed-point (aka fraction) number to a float
-inline static float s1p16_to_float(int16_t partI)
-{
-  return (float)partI / 32767.0f;
 }
 
 /// @brief Sets 'res' to 'a + b'
@@ -203,7 +197,6 @@ inline static void t3d_mat4fp_set_float(T3DMat4FP *mat, uint32_t y, uint32_t x, 
   mat->m[y].f[x] = fixed & 0xFFFF;
 }
 
-
 inline static void t3d_mat4fp_identity(T3DMat4FP *mat)
 {
   *mat = (T3DMat4FP){{
@@ -257,22 +250,6 @@ inline static void t3d_mat4_mul(T3DMat4 *matRes, const T3DMat4 *matA, const T3DM
                         matA->m[2][i] * matB->m[j][2] +
                         matA->m[3][i] * matB->m[j][3];
     }
-  }
-}
-
-/**
- * Multiplies a 4x4 matrix with a 4D vector
- * @param vecOut result
- * @param mat matrix
- * @param vec input-vector
- */
-inline static void t3d_mat4_mul_vec4(T3DVec4* vecOut, const T3DMat4 *mat, const T3DVec4* vec)
-{
-  for(uint32_t i=0; i<4; i++) {
-    vecOut->v[i] = mat->m[0][i] * vec->v[0] +
-                   mat->m[1][i] * vec->v[1] +
-                   mat->m[2][i] * vec->v[2] +
-                   mat->m[3][i] * vec->v[3];
   }
 }
 

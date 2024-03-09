@@ -83,7 +83,7 @@ int main()
       rspq_block_begin();
 
       t3d_matrix_set_mul(modelMatFP, 1, 0); // Matrix load can be recorded as they DMA the data in internally
-      t3d_vert_load(vertices, 0, 4); // load 4 vertices...
+      t3d_vert_load(vertices, 4); // load 4 vertices...
       t3d_tri_draw(0, 1, 2); // ...then draw 2 triangles
       t3d_tri_draw(2, 3, 0);
 

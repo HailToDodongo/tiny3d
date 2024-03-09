@@ -14,7 +14,7 @@ enum T3DCmd {
   T3D_CMD_TRI_DRAW     = 0x0,
   T3D_CMD_SCREEN_SIZE  = 0x1,
   T3D_CMD_MAT_SET      = 0x2,
-  T3D_CMD_MAT_READ     = 0x3,
+  T3D_CMD_DEBUG_READ   = 0x3,
   T3D_CMD_VERT_LOAD    = 0x4,
   T3D_CMD_LIGHT_SET    = 0x5,
   T3D_CMD_DRAWFLAGS    = 0x6,
@@ -56,9 +56,15 @@ void t3d_init(void);
  */
 void t3d_destroy(void);
 
+/**
+ * @brief Starts a new frame, this will setup some default states
+ */
 void t3d_frame_start(void);
 
+/// @brief Clears the screen with a given color
 void t3d_screen_clear_color(color_t color);
+
+/// @brief Clears the depth buffer with a fixed value (0xFFFC)
 void t3d_screen_clear_depth();
 
 /**
@@ -79,10 +85,18 @@ void t3d_screen_set_size(uint32_t width, uint32_t height, int guardBandScale, in
 __attribute__((unused))
 void t3d_camera_look_at(const T3DVec3 *eye, const T3DVec3 *target);
 
+/// @brief Returns the current camera matrix (floating-point)
 const T3DMat4 *t3d_camera_get_matrix();
 
+/**
+ * Constructs and sets a perspective projection matrix.
+ * @param fov fov in radians
+ * @param near near plane distance
+ * @param far far plane distance
+ */
 void t3d_projection_perspective(float fov, float near, float far);
 
+/// @brief Returns the current projection matrix (floating-point)
 const T3DMat4 *t3d_projection_get_matrix();
 
 /**
@@ -93,8 +107,6 @@ const T3DMat4 *t3d_projection_get_matrix();
  * @param v2 vertex index 2
  */
 void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2);
-
-void t3d_matrix_push(T3DMat4FP *mat, bool multiply);
 
 /**
  * Directly loads a matrix into a slot, outside of the stack management.
@@ -119,24 +131,62 @@ void t3d_matrix_set_mul(T3DMat4FP *mat, uint32_t idxDst, uint32_t  idxMul);
  */
 void t3d_mat_proj_set(T3DMat4FP *mat);
 
-void t3d_mat_read(void *mat);
+/**
+ * Loads a vertex buffer with a given size, this can then be used to draw triangles.
+ *
+ * @param vertices vertex buffer
+ * @param count how many vertices to load (2-64), must be multiple of 2!
+ */
+void t3d_vert_load(const T3DVertPacked *vertices, uint32_t count);
 
-void t3d_vert_load(const T3DVertPacked *vertices, uint32_t offsetSrc, uint32_t count);
-
+/**
+ * Sets the global ambient light color.
+ * This color is always active and applied to all objects.
+ * To disable the ambient light, set the color to black.
+ * @param color color in RGBA8 format
+ */
 void t3d_light_set_ambient(const uint8_t *color);
 
+/**
+ * Sets a directional light.
+ * You can set up to 8 directional lights, the amount can be set with 't3d_light_set_count'.
+ *
+ * @param index index (0-7)
+ * @param color color in RGBA8 format
+ * @param dir direction vector
+ */
 void t3d_light_set_directional(int index, const uint8_t *color, const T3DVec3 *dir);
 
+/**
+ * Sets the amount of active lights (excl. ambient light).
+ * @param count amount of lights (0-7)
+ */
 static inline void t3d_light_set_count(int count) {
   rspq_write(T3D_RSP_ID, T3D_CMD_LIGHT_COUNT, count * 16);
 }
 
+/**
+ * Sets the range of the fog.
+ * To disable fog, use 't3d_fog_disable' or set 'near' and 'far' to 0.
+ * Note: in order for fog itself to work, make sure to setup the needed RSPQ commands.
+ *
+ * @param near start of the fog effect
+ * @param far end of the fog effect
+ */
 void t3d_fog_set_range(float near, float far);
 
+/// @brief Disables fog
 static inline void t3d_fog_disable() {
   t3d_fog_set_range(0.0f, 0.0f);
 }
 
+/**
+ * Sets up a matrix for the camera from a given pos/direction.
+ * This matrix is then also applied as the current view matrix.
+ *
+ * @param pos world-space camera position
+ * @param dir world-space camera direction
+ */
 static inline void t3d_set_camera(const T3DVec3 *pos, const T3DVec3 *dir)
 {
   int16_t posFP[3] = {
@@ -158,24 +208,62 @@ static inline void t3d_set_camera(const T3DVec3 *pos, const T3DVec3 *dir)
   );
 }
 
+/**
+ * Packs a floating-point normal into the internal 5.6.5 format.
+ * @param normal normal vector
+ * @return packed normal
+ */
 uint16_t t3d_vert_pack_normal(const T3DVec3 *normal);
 
+/**
+ * Sets various draw flags, this will affect how triangles are drawn.
+ * @param drawFlags
+ */
 void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags);
 
 // Vertex-buffer helpers:
 
+/**
+ * Returns the pointer to a position of a vertex in a buffer
+ * @param vert vertex buffer
+ * @param idx vertex index
+ */
 static inline int16_t* t3d_vertbuffer_get_pos(T3DVertPacked vert[], int idx) {
   return (idx & 1) ? vert[idx/2].posB : vert[idx/2].posA;
 }
+
+/**
+ * Returns the pointer to the UV of a vertex in a buffer
+ * @param vert vertex buffer
+ * @param idx vertex index
+ */
 static inline int16_t* t3d_vertbuffer_get_uv(T3DVertPacked vert[], int idx) {
   return (idx & 1) ? vert[idx/2].stB : vert[idx/2].stA;
 }
+
+/**
+ * Returns the pointer to the color (as a u32) of a vertex in a buffer
+ * @param vert vertex buffer
+ * @param idx vertex index
+ */
 static inline uint32_t* t3d_vertbuffer_get_color(T3DVertPacked vert[], int idx) {
   return (idx & 1) ? &vert[idx/2].rgbaB : &vert[idx/2].rgbaA;
 }
+
+/**
+ * Returns the pointer to the color (as a u8[4]) of a vertex in a buffer
+ * @param vert vertex buffer
+ * @param idx vertex index
+ */
 static inline uint8_t* t3d_vertbuffer_get_rgba(T3DVertPacked vert[], int idx) {
   return (idx & 1) ? (uint8_t*)&vert[idx/2].rgbaB : (uint8_t*)&vert[idx/2].rgbaA;
 }
+
+/**
+ * Returns the pointer to the packed normal of a vertex in a buffer
+ * @param vert vertex buffer
+ * @param idx vertex index
+ */
 static inline uint16_t* t3d_vertbuffer_get_norm(T3DVertPacked vert[], int idx) {
   return (idx & 1) ? &vert[idx/2].normB : &vert[idx/2].normA;
 }

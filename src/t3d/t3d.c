@@ -94,30 +94,25 @@ void t3d_matrix_set_mul(T3DMat4FP *mat, uint32_t idxDst, uint32_t idxMul) {
   );
 }
 
-void t3d_matrix_push(T3DMat4FP *mat, bool multiply) {
-  //dump_backtrace();
-  assertf(0, "t3d_matrix_push() Not implemented!");
-}
-
 void t3d_mat_proj_set(T3DMat4FP *mat) {
   rspq_write(T3D_RSP_ID, T3D_CMD_PROJ_SET, PhysicalAddr(mat));
 }
 
-void t3d_mat_read(void *mat) {
-  rspq_write(T3D_RSP_ID, T3D_CMD_MAT_READ,
+/*void t3d_debug_read(void *mat) {
+  rspq_write(T3D_RSP_ID, T3D_CMD_DEBUG_READ,
     0,
     PhysicalAddr(mat)
   );
-}
+}*/
 
-void t3d_vert_load(const T3DVertPacked *vertices, uint32_t offsetSrc, uint32_t count) {
+void t3d_vert_load(const T3DVertPacked *vertices, uint32_t count) {
   uint8_t offsetDst = 0;
   count &= ~1; // always load in pairs of 2
   count *= 0x10;
 
   rspq_write(T3D_RSP_ID, T3D_CMD_VERT_LOAD,
     (offsetDst << 16) | count,
-    PhysicalAddr(vertices) + (offsetSrc * 0x10)
+    PhysicalAddr(vertices)
   );
 }
 
