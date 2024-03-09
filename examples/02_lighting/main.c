@@ -15,18 +15,15 @@ int main()
 {
 	debug_init_isviewer();
 	debug_init_usblog();
+	asset_init_compression(2);
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS_DEDITHER);
   rdpq_init();
-  //rdpq_debug_start();
-  //rdpq_debug_log(true);
 
-  t3d_init(); // Init library itself
+  t3d_init();
 
-  T3DMat4 modelMat; // matrix for our model, this is a "normal" float matrix
-  t3d_mat4_identity(&modelMat);
   // Now allocate a fixed-point matrix, this is what t3d uses internally.
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
   T3DMat4FP* lightMatFP = malloc_uncached(sizeof(T3DMat4FP) * 4);
@@ -45,7 +42,6 @@ int main()
   T3DVec3 lightDirVec = {{1.0f, 1.0f, 0.0f}};
   t3d_vec3_norm(&lightDirVec);
 
-  // Load a model-file, this contains the geometry and some metadata
   T3DModel *model = t3d_model_load("rom:/model.t3dm");
   T3DModel *modelLight = t3d_model_load("rom:/light.t3dm");
 
@@ -59,23 +55,21 @@ int main()
   rspq_block_t *dplLight = rspq_block_end();
 
   float rotAngle = 0.0f;
+  float lightCountTimer = 0.5f;
 
   for(;;)
   {
     // ======== Update ======== //
     rotAngle += 0.02f;
     float modelScale = 0.08f;
+    lightCountTimer += 0.003f;
 
     // Model Matrix
-    t3d_mat4_identity(&modelMat);
-    t3d_mat4_rotate(&modelMat, &(T3DVec3){{0.0f, 0.0f, 1.0f}}, rotAngle);
-    t3d_mat4_scale(&modelMat, modelScale, modelScale, modelScale);
-    t3d_mat4_translate(&modelMat,
-      dirLights[0].dir.v[0] * 2.0f,
-      dirLights[1].dir.v[1] * 2.0f,
-      dirLights[0].dir.v[2] * 2.0f
+    t3d_mat4fp_from_srt_euler(modelMatFP,
+      (float[3]){modelScale, modelScale, modelScale},
+      (float[3]){0.0f, rotAngle*0.2f, rotAngle},
+      (float[3]){0,0,0}
     );
-    t3d_mat4_to_fixed(modelMatFP, &modelMat);
 
     // Lamp Model Matrix
     for(int i = 0; i < 4; i++) {
@@ -90,16 +84,21 @@ int main()
         dirLights[i].dir.v[1] = 0.0f;
       }
 
-      t3d_mat4_identity(&modelMat);
-      t3d_mat4_rotate(&modelMat, &dirLights[i].dir, 180.0f);
-      t3d_mat4_scale(&modelMat, 0.02f, 0.02f, 0.02f);
-      t3d_mat4_translate(&modelMat,
-        dirLights[i].dir.v[0] * 20.0f + i,
-        dirLights[i].dir.v[1] * 20.0f + i,
-        dirLights[i].dir.v[2] * 20.0f + i
+      t3d_mat4fp_from_srt_euler(&lightMatFP[i],
+        (float[3]){0.02f, 0.02f, 0.02f},
+        dirLights[i].dir.v,
+        (float[3]){
+          dirLights[i].dir.v[0] * 20.0f + i,
+          dirLights[i].dir.v[1] * 20.0f + i,
+          dirLights[i].dir.v[2] * 20.0f + i
+        }
       );
-      t3d_mat4_to_fixed(&lightMatFP[i], &modelMat);
     }
+
+    // cycle through 0-4 lights over time
+    int lightCount = fm_sinf(lightCountTimer) * 5.0f;
+    lightCount = abs(lightCount);
+    if(lightCount > 4)lightCount = 4;
 
     // ======== Draw ======== //
     t3d_frame_start(); // call this once per frame at the beginning of your draw function
@@ -108,14 +107,14 @@ int main()
     t3d_screen_clear_color(RGBA32(25, 10, 40, 0xFF));
     t3d_screen_clear_depth();
 
-    t3d_light_set_count(4);
+    t3d_light_set_count(lightCount);
 
     t3d_projection_perspective(T3D_DEG_TO_RAD(65.0f), 10.0f, 250.0f);
     t3d_camera_look_at(&camPos, &camTarget); // convenience function to set camera matrix and related settings
 
     t3d_light_set_ambient(colorAmbient);
 
-    for(int i = 0; i < 4; i++) {
+    for(int i = 0; i < lightCount; i++) {
       t3d_light_set_directional(i, &dirLights[i].color.r, &dirLights[i].dir);
       t3d_matrix_set_mul(&lightMatFP[i], 1, 0);
 

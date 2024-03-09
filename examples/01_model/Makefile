@@ -25,6 +25,7 @@ filesystem/%.t3dm: assets/%.glb
 	@mkdir -p $(dir $@)
 	@echo "    [T3D-MODEL] $@"
 	$(T3D_GLTF_TO_3D) "$<" $@
+	$(N64_BINDIR)/mkasset -c 2 -o filesystem $@
 
 $(BUILD_DIR)/t3d_01_model.dfs: $(assets_conv)
 $(BUILD_DIR)/t3d_01_model.elf: $(src:%.c=$(BUILD_DIR)/%.o)

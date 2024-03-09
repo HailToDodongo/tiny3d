@@ -76,6 +76,7 @@ int main()
 {
 	debug_init_isviewer();
 	debug_init_usblog();
+	asset_init_compression(2);
 
   dfs_init(DFS_DEFAULT_LOCATION);
 

@@ -3,6 +3,12 @@
 #include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 
+color_t get_rainbow_color(float s) {
+  float r = fm_sinf(s + 0.0f) * 127.0f + 128.0f;
+  float g = fm_sinf(s + 2.0f) * 127.0f + 128.0f;
+  float b = fm_sinf(s + 4.0f) * 127.0f + 128.0f;
+  return RGBA32(r, g, b, 255);
+}
 
 /**
  * Simple example with a 3d-model file created in blender.
@@ -12,25 +18,23 @@ int main()
 {
 	debug_init_isviewer();
 	debug_init_usblog();
+	asset_init_compression(2);
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
   rdpq_init();
-  //rdpq_debug_start();
-  //rdpq_debug_log(true);
-
-  t3d_init(); // Init library itself
+  t3d_init();
 
   T3DMat4 modelMat; // matrix for our model, this is a "normal" float matrix
-  T3DMat4 modelMatGear;
-  T3DMat4 modelMatRot;
   t3d_mat4_identity(&modelMat);
+
   // Now allocate a fixed-point matrix, this is what t3d uses internally.
+  // Note: this gets DMA'd to the RSP, so it needs to be uncached.
+  // If you can't allocate uncached memory, remember to flush the cache after writing to it instead.
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
 
-  T3DVec3 camPos = {{0,10.0f,40.0f}};
-
+  const T3DVec3 camPos = {{0,10.0f,40.0f}};
   const T3DVec3 camTarget = {{0,0,0}};
 
   uint8_t colorAmbient[4] = {80, 80, 100, 0xFF};
@@ -43,9 +47,6 @@ int main()
   T3DModel *model = t3d_model_load("rom:/model.t3dm");
 
   float rotAngle = 0.0f;
-  T3DVec3 rotAxis = {{0.0f, 0.0f, 1.0f}};
-  T3DVec3 rotAxisB = {{0.0f, 1.0f, 0.0f}};
-
   rspq_block_t *dplDraw = NULL;
 
   for(;;)
@@ -54,19 +55,17 @@ int main()
     rotAngle += 0.02f;
     float modelScale = 0.1f;
 
-    // Model-Matrix, t3d offers some basic matrix functions
-    t3d_mat4_identity(&modelMatGear);
-    t3d_mat4_rotate(&modelMatGear, &rotAxis, rotAngle);
-    t3d_mat4_scale(&modelMatGear, modelScale, modelScale, modelScale);
-
-    t3d_mat4_identity(&modelMatRot);
-    t3d_mat4_rotate(&modelMatRot, &rotAxisB, rotAngle * 0.2f);
-    t3d_mat4_mul(&modelMat, &modelMatRot, &modelMatGear);
-
+    // slowly rotate model, for more information on matrices and how to draw objects
+    // see the example: "03_objects"
+    t3d_mat4_from_srt_euler(&modelMat,
+      (float[3]){modelScale, modelScale, modelScale},
+      (float[3]){0.0f, rotAngle*0.2f, rotAngle},
+      (float[3]){0,0,0}
+    );
     t3d_mat4_to_fixed(modelMatFP, &modelMat);
 
     // ======== Draw ======== //
-    t3d_frame_start(); // call this once per frame at the beginning of your draw function
+    t3d_frame_start();
 
     t3d_screen_set_size(display_get_width(), display_get_height(), 1, true);
     t3d_screen_clear_color(RGBA32(100, 80, 80, 0xFF));
@@ -79,18 +78,27 @@ int main()
     t3d_light_set_directional(0, colorDir, &lightDirVec);
     t3d_light_set_count(1);
 
-    rdpq_set_prim_color(RGBA32(255, 200, 0, 255));
+    // you can use the regular rdpq_* functions with t3d.
+    // In this example, the colored-band in the 3d-model is using the prim-color,
+    // even though the model is recorded, you change it here dynamically.
+    rdpq_set_prim_color(get_rainbow_color(rotAngle * 0.42f));
 
     if(!dplDraw) {
       rspq_block_begin();
 
+      // set which matrix to load and use.
+      // This call means: load matrix into slot 1, and multiply it with slot 0 before that.
+      // Slot 0 is reserved for the view matrix (aka the camera).
       t3d_matrix_set_mul(modelMatFP, 1, 0);
-      // Draw the model, material settings (e.g. color-combiner) are handled internally
+
+      // Draw the model, material settings (e.g. textures, color-combiner) are handled internally
       t3d_model_draw(model);
       dplDraw = rspq_block_end();
     }
 
+    // for the actual draw, you can use the generic rspq-api.
     rspq_block_run(dplDraw);
+
     rdpq_detach_show();
   }
 

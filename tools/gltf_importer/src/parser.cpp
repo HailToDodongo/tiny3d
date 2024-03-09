@@ -169,10 +169,6 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
 
           model.materialA.drawFlags = DrawFlags::DEPTH;
 
-          if(isUsingShade(cc1) || isUsingShade(cc2)) {
-            model.materialA.drawFlags |= DrawFlags::SHADED;
-          }
-
           if(f3dData.contains("rdp_settings"))
           {
             auto &rdpSettings = f3dData["rdp_settings"];
@@ -190,7 +186,11 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
             is2Cycle = rdpSettings["g_mdsft_cycletype"].get<uint32_t>() != 0;
           }
 
-          if(isCCUsingTexture(cc1) || isCCUsingTexture(cc2)) {
+           if(isUsingShade(cc1) || (is2Cycle && isUsingShade(cc2))) {
+            model.materialA.drawFlags |= DrawFlags::SHADED;
+          }
+
+          if(isCCUsingTexture(cc1) || (is2Cycle && isCCUsingTexture(cc2))) {
             model.materialA.drawFlags |= DrawFlags::TEXTURED;
 
             if(f3dData.contains("tex0"))readMaterialFromJson(model.materialA, f3dData["tex0"], gltfBasePath);

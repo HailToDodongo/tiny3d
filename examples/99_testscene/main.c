@@ -329,10 +329,8 @@ int main()
       frame = 0;
       rspq_profile_reset();
     }
-
   }
 
   t3d_destroy();
   return 0;
 }
-
