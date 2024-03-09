@@ -180,6 +180,16 @@ void t3d_mat4_from_srt(T3DMat4 *mat, float scale[3], float rot[4], float transla
 void t3d_mat4_from_srt_euler(T3DMat4 *mat, float scale[3], float rot[3], float translate[3]);
 
 /**
+ * Directly constructs a matrix from scale, rotation (euler) and translation
+ * Same as 't3d_mat4_from_srt_euler', but instead directly writes to a fixed-point matrix.
+ * @param mat
+ * @param scale
+ * @param rot
+ * @param translate
+ */
+void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, float scale[3], float rot[3], float translate[3]);
+
+/**
  * @brief Sets a value in a fixed-point matrix
  * @param mat matrix to be changed
  * @param y row
@@ -193,6 +203,16 @@ inline static void t3d_mat4fp_set_float(T3DMat4FP *mat, uint32_t y, uint32_t x, 
   mat->m[y].f[x] = fixed & 0xFFFF;
 }
 
+
+inline static void t3d_mat4fp_identity(T3DMat4FP *mat)
+{
+  *mat = (T3DMat4FP){{
+    {{1, 0, 0, 0}},
+    {{0, 1, 0, 0}},
+    {{0, 0, 1, 0}},
+    {{0, 0, 0, 1}},
+  }};
+}
 /**
  * Converts a float matrix to a fixed-point matrix.
  * @param matOut result

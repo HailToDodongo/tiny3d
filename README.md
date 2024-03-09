@@ -4,7 +4,7 @@
 <img src="logo.png" height="200">
 </p>
 
-3D ucode & library for the N64 using [libdragon](https://github.com/DragonMinded/libdragon/tree/preview).<br>
+3D ucode/library for the N64 using [libdragon](https://github.com/DragonMinded/libdragon/tree/preview).<br>
 The motivation of this project is to provide a fast and minimal API while having all the features needed for 3D applications.<br>
 
 ## Features
@@ -38,10 +38,34 @@ To start out, take a look at `examples/01_quad` which is the most basic setup dr
 
 (@TODO: generate docs from comments, add github page for it)
 
+
+## Build
+Tiny3D requires [libdragon](https://github.com/DragonMinded/libdragon/tree/preview), specifically the `preview` branch.<br>
+Make sure you have that project setup first.
+
+To build Tiny3D, simply run the `build.sh` script in the root directory of the project.
+```sh
+./build.sh
+```
+This will build the library itself, tools related to it, and all examples.<br>
+If you need to build specific parts, run the Makefile present in each directory.<br>
+After building, you can use the project as described in the Usage section.
+
+### Customization
+You will notice that Tiny3D does not install itself in any system-wide location.<br>
+This is done on purpose, as it allows you to easily modify the library.<br>
+Use-cases can be wanting to specialize the API for your project, or to modify the ucode.<br>
+
+### RSP ucode
+The ucode of Tiny3D is written in [RSPL](https://gitlab.com/mbeboek/rspl), a high level language that has been worked on in parallel with this project.<br>
+By default, the generated ASM is included to avoid any additional dependencies.<br>
+If you plan on modifying the ucode, you will need to either install the RSPL transpiler or use the [WebUI](https://mbeboek.gitlab.io/rspl/).<br>
+Keep in mind to enable reordering within RSPL to get maximum performance.<br> 
+
 ## Differences to OpenGL 
 If you are already familiar with OpenGL in libdragon, you will notice some key differences in Tiny3D.<br>
 With an existing codebase, this may require changes to the way models are handled and drawn.<br>
-Here are the most important differences:
+Here are the most important ones:
 
 ### Matrices and Vertices are DMA'd in
 Even when recorded into a display-list, matrices and vertices are DMA'd into the RSP each time.<br>
@@ -67,29 +91,6 @@ A matching C struct `T3DVertPacked` can be found in `t3d.h`.<br>
 
 If you plan on using your own custom model format, take a look at the GLTF importer on how to normalize data properly.<br>
 A full description of the builtin model-format layout can be found in `docs/modelFormat.md` too.<br>
-
-## Build
-Tiny3D requires [libdragon](https://github.com/DragonMinded/libdragon/tree/preview), specifically the `preview` branch.<br>
-Make sure you have that project setup first.
-
-To build Tiny3D, simply run the `build.sh` script in the root directory of the project.
-```sh
-./build.sh
-```
-This will build the library itself, tools related to it, and all examples.<br>
-If you need to build specific parts, run the Makefile present in each directory.<br>
-After building, you can use the project as described in the Usage section.
-
-### Customization
-You will notice that Tiny3D does not install itself in any system-wide location.<br>
-This is done on purpose, as it allows you to easily modify the library.<br>
-The use-cases for that can be wanting to specialize the library for your project, or to modify the ucode.<br>
-
-### RSP ucode
-The ucode of Tiny3D is written in [RSPL](https://gitlab.com/mbeboek/rspl), a high level language that has been worked on in conjunction with this project.<br>
-By default, the generated ASM is included to avoid any additional dependencies.<br>
-If you plan on modifying the ucode, you will need to either install the RSPL transpiler or use the [WebUI](https://mbeboek.gitlab.io/rspl/).<br>
-Keep in mind to enable reordering within RSPL to get maximum performance.<br> 
 
 ## Support
 If you need any help, feel free to ask me (`@HailToDodongo`) in the [N64brew Discord](https://discord.gg/WqFgNWf).

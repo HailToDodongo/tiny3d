@@ -133,7 +133,7 @@ ModelChunked chunkUpModel(const Model &model)
   // We start with the most connected triangles and emit any other triangle
   // that is constructable with the current vertices.
   // This should lead to less duplicated vertices / loads.
-  for(int t=0; t<=model.triangles.size(); ++t)
+  for(int t=0; t<model.triangles.size(); ++t)
   {
     if(triangleIsEmitted[t])continue;
 

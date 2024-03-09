@@ -2,8 +2,8 @@
 #include <rspq_profile.h>
 
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
+#include <t3d/t3ddebug.h>
 
 #include <stdarg.h>
 
@@ -11,26 +11,6 @@
 #define PERCENT(fraction, total) ((total) > 0 ? (float)(fraction) * 100.0f / (float)(total) : 0.0f)
 
 static rspq_profile_data_t profile_data;
-
-static void debug_print_screen(float x, float y, const char* str)
-{
-  int width = 8;
-  int height = 12;
-  int s = 0;
-
-  while(*str) {
-    char c = *str;
-    if(c != ' ' && c != '\n')
-    {
-           if(c >= 'A' && c <= '_')s = (c - 'A' + 27) * width;
-      else if(c >= 'a' && c <= 'z')s = (c - 'a' + 27+31) * width;
-      else if(c >= '!' && c <= '@')s = (c - '!') * width;
-      rdpq_texture_rectangle_raw(TILE0, x, y, x+width, y+height, s, 0, 1, 1);
-    }
-    ++str;
-    x += 8;
-  }
-}
 
 static void debug_printf_screen(float x, float y, const char* str, ...)
 {
@@ -42,7 +22,7 @@ static void debug_printf_screen(float x, float y, const char* str, ...)
     char *buf2 = vasnprintf(buf, &n, str, va);
     va_end(va);
 
-    debug_print_screen(x, y, buf2);
+    t3d_debug_print(x, y, buf2);
 }
 
 static void rspq_profile_dump_overlay_screen(size_t index, uint64_t frame_avg, const char *name, float *posY)
@@ -125,7 +105,7 @@ int main()
   joypad_init();
   t3d_init(); // Init library itself
 
-  sprite_t *spriteFont = sprite_load("rom:/font.ia4.sprite");
+  t3d_debug_print_init();
   sprite_t *spriteLogo = sprite_load("rom:/logo.ia8.sprite");
   T3DModel *model = t3d_model_load("rom://scene.t3dm");
 
@@ -203,9 +183,6 @@ int main()
       camTarget.v[0] = camPos.v[0] + camDir.v[0];
       camTarget.v[1] = camPos.v[1] + camDir.v[1];
       camTarget.v[2] = camPos.v[2] + camDir.v[2];
-
-      //if(joypad.btn.c_down){camPos.v[1] -= camSpeed*50.0f;}
-      //if(joypad.btn.c_up  ){camPos.v[1] += camSpeed*50.0f;}
     }
 
     // change fog with C buttons
@@ -319,15 +296,7 @@ int main()
       //rspq_wait();
       //t3d_mat_read(buffDebug);
 
-      rdpq_sync_pipe();
-      rdpq_sync_load();
-
-      rdpq_set_mode_standard();
-      rdpq_mode_antialias(AA_NONE);
-      rdpq_mode_combiner(RDPQ_COMBINER1((TEX0,0,PRIM,0), (TEX0,0,PRIM,0)));
-      rdpq_mode_alphacompare(1);
-
-      rdpq_sprite_upload(TILE0, spriteFont, NULL);
+      t3d_debug_print_start();
 
       // show fog values
       debug_printf_screen(24, 180, "Fog s/o: %.4f %.4f", fogScale, fogOffset);

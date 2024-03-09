@@ -9,9 +9,7 @@ typedef struct {
 } DirLight;
 
 /**
- * Simple example with a spinning quad.
- * This shows how to manually generate geometry and draw it,
- * although most o the time you should use the builtin model format.
+ * Example showing off the lighting API.
  */
 int main()
 {
@@ -51,12 +49,16 @@ int main()
   T3DModel *model = t3d_model_load("rom:/model.t3dm");
   T3DModel *modelLight = t3d_model_load("rom:/light.t3dm");
 
-  float rotAngle = 0.0f;
-  T3DVec3 rotAxis = {{0.0f, 0.0f, 1.0f}};
-  T3DVec3 rotAxisB = {{0.0f, 1.0f, 0.0f}};
+  rspq_block_begin();
+  t3d_matrix_set_mul(modelMatFP, 1, 0);
+  t3d_model_draw(model);
+  rspq_block_t *dplModel = rspq_block_end();
 
-  rspq_block_t *dplModel = NULL;
-  rspq_block_t *dplLight = NULL;
+  rspq_block_begin();
+  t3d_model_draw(modelLight);
+  rspq_block_t *dplLight = rspq_block_end();
+
+  float rotAngle = 0.0f;
 
   for(;;)
   {
@@ -113,21 +115,12 @@ int main()
 
     t3d_light_set_ambient(colorAmbient);
 
-    if(!dplModel) {
-      rspq_block_begin();
-
-      t3d_matrix_set_mul(modelMatFP, 1, 0);
-      t3d_model_draw(model);
-
-      dplModel = rspq_block_end();
-    }
-
     for(int i = 0; i < 4; i++) {
       t3d_light_set_directional(i, &dirLights[i].color.r, &dirLights[i].dir);
       t3d_matrix_set_mul(&lightMatFP[i], 1, 0);
 
       rdpq_set_prim_color(dirLights[i].color);
-      t3d_model_draw(modelLight);
+      rspq_block_run(dplLight);
     }
 
     rspq_block_run(dplModel);

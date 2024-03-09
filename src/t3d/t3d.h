@@ -133,6 +133,10 @@ static inline void t3d_light_set_count(int count) {
 
 void t3d_fog_set_range(float near, float far);
 
+static inline void t3d_fog_disable() {
+  t3d_fog_set_range(0.0f, 0.0f);
+}
+
 static inline void t3d_set_camera(const T3DVec3 *pos, const T3DVec3 *dir)
 {
   int16_t posFP[3] = {

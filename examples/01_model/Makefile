@@ -41,10 +41,6 @@ build_lib:
 	make -C $(T3D_INST)
 	make all
 
-sc64: build_lib
-	sc64deployer --remote 192.168.0.6:9064 upload --tv ntsc *.z64
-	curl 192.168.0.6:9065/reset
-
 -include $(wildcard $(BUILD_DIR)/*.d)
 
 .PHONY: all clean

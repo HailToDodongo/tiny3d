@@ -6,7 +6,7 @@ include $(T3D_INST)/t3d.mk
 
 N64_CFLAGS += -std=gnu2x -Og -g
 
-PROJECT_NAME=t3d_02_light
+PROJECT_NAME=t3d_03_objects
 
 src = main.c
 
@@ -30,7 +30,7 @@ filesystem/%.t3dm: assets/%.glb
 $(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
 $(BUILD_DIR)/$(PROJECT_NAME).elf: $(src:%.c=$(BUILD_DIR)/%.o)
 
-$(PROJECT_NAME).z64: N64_ROM_TITLE="Tiny3D - Light"
+$(PROJECT_NAME).z64: N64_ROM_TITLE="Tiny3D - Obj"
 $(PROJECT_NAME).z64: $(BUILD_DIR)/$(PROJECT_NAME).dfs
 
 clean:

@@ -19,10 +19,14 @@ src := src/t3d/t3d.c src/t3d/t3dmath.c src/t3d/t3dmodel.c src/t3d/rsp/rsp_tiny3d
 # N64_CFLAGS += -std=gnu2x -DNDEBUG
 N64_CFLAGS += -std=gnu2x -Os -Isrc
 
+OBJ = $(BUILD_DIR)/t3dmath.o $(BUILD_DIR)/t3d.o \
+	$(BUILD_DIR)/t3dmodel.o $(BUILD_DIR)/t3ddebug.o \
+	$(BUILD_DIR)/rsp/rsp_tiny3d.o
+
 all: $(BUILD_DIR)/t3d.a
 
 # Static Library
-$(BUILD_DIR)/t3d.a: $(BUILD_DIR)/t3dmath.o $(BUILD_DIR)/t3d.o $(BUILD_DIR)/t3dmodel.o $(BUILD_DIR)/rsp/rsp_tiny3d.o
+$(BUILD_DIR)/t3d.a: $(OBJ)
 	@mkdir -p $(dir $@)
 	@echo "    [LD_LIB] $<"
 	$(N64_LD) -r -o $(BUILD_DIR)/t3d.a $^

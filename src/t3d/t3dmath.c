@@ -41,78 +41,31 @@ void t3d_mat4_perspective(T3DMat4 *mat, float fov, float aspect, float near, flo
 
 void t3d_mat4_from_srt(T3DMat4 *mat, float scale[3], float rot[4], float translate[3])
 {
-  float x = rot[0];
-  float y = rot[1];
-  float z = rot[2];
-  float w = rot[3];
-
-  float x2 = x + x;
-  float y2 = y + y;
-  float z2 = z + z;
-  float xx = x * x2;
-  float xy = x * y2;
-  float xz = x * z2;
-  float yy = y * y2;
-  float yz = y * z2;
-  float zz = z * z2;
-  float wx = w * x2;
-  float wy = w * y2;
-  float wz = w * z2;
-
-  float sx = scale[0];
-  float sy = scale[1];
-  float sz = scale[2];
-
-  mat->m[0][0] = (1.0f - (yy + zz)) * sx;
-  mat->m[0][1] = (xy + wz) * sx;
-  mat->m[0][2] = (xz - wy) * sx;
-  mat->m[0][3] = 0.0f;
-
-  mat->m[1][0] = (xy - wz) * sy;
-  mat->m[1][1] = (1.0f - (xx + zz)) * sy;
-  mat->m[1][2] = (yz + wx) * sy;
-  mat->m[1][3] = 0.0f;
-
-  mat->m[2][0] = (xz + wy) * sz;
-  mat->m[2][1] = (yz - wx) * sz;
-  mat->m[2][2] = (1.0f - (xx + yy)) * sz;
-  mat->m[2][3] = 0.0f;
-
-  mat->m[3][0] = translate[0];
-  mat->m[3][1] = translate[1];
-  mat->m[3][2] = translate[2];
-  mat->m[3][3] = 1.0f;
+  assertf(false, "TODO: implement t3d_mat4_from_srt()");
 }
 
 void t3d_mat4_from_srt_euler(T3DMat4 *mat, float scale[3], float rot[3], float translate[3])
 {
-  float sx = scale[0];
-  float sy = scale[1];
-  float sz = scale[2];
+  float cosR0 = fm_cosf(rot[0]);
+  float cosR2 = fm_cosf(rot[2]);
+  float cosR1 = fm_cosf(rot[1]);
 
-  float cx = cosf(rot[0]);
-  float cy = cosf(rot[1]);
-  float cz = cosf(rot[2]);
+  float sinR0 = fm_sinf(rot[0]);
+  float sinR1 = fm_sinf(rot[1]);
+  float sinR2 = fm_sinf(rot[2]);
 
-  mat->m[0][0] = cy * cz * sx;
-  mat->m[0][1] = cy * cz * cx;
-  mat->m[0][2] = -cy * sz;
-  mat->m[0][3] = 0.0f;
+  *mat = (T3DMat4){{
+    {scale[0] * cosR2 * cosR1, scale[0] * (cosR2 * sinR1 * sinR0 - sinR2 * cosR0), scale[0] * (cosR2 * sinR1 * cosR0 + sinR2 * sinR0), 0.0f},
+    {scale[1] * sinR2 * cosR1, scale[1] * (sinR2 * sinR1 * sinR0 + cosR2 * cosR0), scale[1] * (sinR2 * sinR1 * cosR0 - cosR2 * sinR0), 0.0f},
+    {-scale[2] * sinR1, scale[2] * cosR1 * sinR0, scale[2] * cosR1 * cosR0, 0.0f},
+    {translate[0], translate[1], translate[2], 1.0f}
+  }};
+}
 
-  mat->m[1][0] = (sx * sy * cz) - (sz * cx);
-  mat->m[1][1] = (sx * sy * sz) + (cz * cx);
-  mat->m[1][2] = sx * cy;
-  mat->m[1][3] = 0.0f;
-
-  mat->m[2][0] = (cx * sy * cz) + (sz * sx);
-  mat->m[2][1] = (cx * sy * sz) - (cz * sx);
-  mat->m[2][2] = cx * cy;
-  mat->m[2][3] = 0.0f;
-
-  mat->m[3][0] = translate[0];
-  mat->m[3][1] = translate[1];
-  mat->m[3][2] = translate[2];
-  mat->m[3][3] = 1.0f;
+void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, float scale[3], float rot[3], float translate[3]) {
+  T3DMat4 matF; // @TODO: avoid temp matrix
+  t3d_mat4_from_srt_euler(&matF, scale, rot, translate);
+  t3d_mat4_to_fixed(mat, &matF);
 }
 
 void t3d_mat4_rotate(T3DMat4 *mat, const T3DVec3* axis, float angleRad)
