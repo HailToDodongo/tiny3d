@@ -61,6 +61,9 @@ typedef struct {
   char magic[4];
   uint32_t chunkCount;
 
+  uint16_t totalVertCount;
+  uint16_t totalIndexCount;
+
   uint32_t chunkIdxVertices;
   uint32_t chunkIdxIndices;
   uint32_t chunkIdxMaterials;
@@ -71,8 +74,24 @@ typedef struct {
 
 T3DModel* t3d_model_load(const void *path);
 
+typedef void (*T3DModelTileCb)(void* userData, rdpq_texparms_t *tileParams, rdpq_tile_t tile);
+
+typedef struct {
+  void* userData;
+  T3DModelTileCb tileCb;
+} T3DModelDrawConf;
+
 void t3d_model_free(T3DModel* model);
 
-void t3d_model_draw(const T3DModel* model);
+void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf);
+
+static inline void t3d_model_draw(const T3DModel* model) {
+  t3d_model_draw_custom(model, (T3DModelDrawConf){});
+}
+
+static inline T3DVertPacked* t3d_model_get_vertices(const T3DModel *model) {
+  uint32_t offset = model->chunkOffsets[model->chunkIdxVertices].offset & 0x00FFFFFF;
+  return (void*)model + offset;
+}
 
 #endif

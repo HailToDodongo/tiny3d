@@ -9,11 +9,13 @@ It starts with a header containing the number of chunks and their offsets.
 |--------|-----------------|--------------------------------|
 | 0x00   | `char[4]`       | Magic (`T3DM`)                 |
 | 0x04   | `u32`           | Chunk count                    |
-| 0x08   | `u32`           | First Vertex-chunk index       |
-| 0x0C   | `u32`           | First Indices-chunk index      |
-| 0x10   | `u32`           | First Material-chunk index     |
-| 0x14   | `u32`           | String table offset (in bytes) |
-| 0x18   | `ChunkOffset[]` | Chunk offsets/types            |
+| 0x08   | `u16`           | Total vertex count             |
+| 0x0A   | `u16`           | Total index count              |
+| 0x0C   | `u32`           | First Vertex-chunk index       |
+| 0x10   | `u32`           | First Indices-chunk index      |
+| 0x14   | `u32`           | First Material-chunk index     |
+| 0x18   | `u32`           | String table offset (in bytes) |
+| 0x1C   | `ChunkOffset[]` | Chunk offsets/types            |
 
 ### ChunkOffset
 
@@ -28,7 +30,8 @@ Chunks are sorted by type and may be aligned.<br>
 The first chunk type must be `O` (Object).
 
 ### Vertices (`V`)
-Vertex buffer, this is a shared buffer across all model/parts.
+Vertex buffer, this is a shared buffer across all model/parts.<br>
+This chunk must only appear once.
 
 | Offset | Type       | Description                 |
 |--------|------------|-----------------------------|
@@ -89,8 +92,8 @@ Model data consisting of multiple parts, can exist multiple times in a file.
 | Offset | Type     | Description               |
 |--------|----------|---------------------------|
 | 0x00   | `u32`    | Part count                |
-| 0x08   | `u32`    | Material A, chunk index   |
-| 0x0A   | `u32`    | Material B, chunk index   |
+| 0x04   | `u32`    | Material A, chunk index   |
+| 0x08   | `u32`    | Material B, chunk index   |
 | 0x0C   | `Part[]` | Parts                     |
 
 #### Part

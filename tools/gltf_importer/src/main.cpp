@@ -51,6 +51,9 @@ int main(int argc, char* argv[])
   file.writeChars("T3DM", 4);
   file.write(chunkCount); // chunk count
 
+  file.write<uint16_t>(0); // total vertex count (set later)
+  file.write<uint16_t>(0); // total index count (set later)
+
   uint32_t offsetChunkTypeTable = file.getPos();
   file.skip(3 * sizeof(uint32_t)); // chunk type indices (filled later)
 
@@ -86,6 +89,8 @@ int main(int argc, char* argv[])
   // now write out each model (aka. collection of mesh-parts + materials)
   int m=0;
   uint32_t materialIndex = 0;
+  uint16_t totalVertCount = 0;
+  uint16_t totalIndexCount = 0;
 
   file.align(8);
   for(auto &model : models)
@@ -171,6 +176,7 @@ int main(int argc, char* argv[])
       for(uint8_t index : chunk.indices) {
         chunkIndices.write(index);
       }
+      totalIndexCount += chunk.indices.size();
     }
 
     // vertex buffer
@@ -199,6 +205,7 @@ int main(int argc, char* argv[])
       chunkVerts.write(vertB.s);
       chunkVerts.write(vertB.t);
     }
+    totalVertCount += chunks.vertices.size();
 
     ++m;
   }
@@ -229,4 +236,9 @@ int main(int argc, char* argv[])
 
   file.setPos(offsetStringTablePtr);
   file.write(stringTableOffset);
+
+  // patch vertex/index count
+  file.setPos(0x08);
+  file.write(totalVertCount);
+  file.write(totalIndexCount);
 }

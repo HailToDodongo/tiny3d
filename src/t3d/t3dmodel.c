@@ -67,7 +67,7 @@ static void texture_cache_free(uint32_t hash)
   }
 }
 
-static void set_texture(T3DMaterial *mat, rdpq_tile_t tile)
+static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *conf)
 {
   if(mat->texPath)
   {
@@ -86,9 +86,15 @@ static void set_texture(T3DMaterial *mat, rdpq_tile_t tile)
     rdpq_texparms_t tex = (rdpq_texparms_t){};
     tex.s.mirror = mat->s.mirror;
     tex.s.repeats = mat->s.clamp ? 1 : REPEAT_INFINITE;
+    tex.s.scale_log = (int)mat->s.shift;
 
     tex.t.mirror = mat->t.mirror;
     tex.t.repeats = mat->t.clamp ? 1 : REPEAT_INFINITE;
+    tex.t.scale_log = (int)mat->t.shift;
+
+    if(conf->tileCb) {
+      conf->tileCb(conf->userData, &tex, tile);
+    }
 
     // @TODO: don't upload texture if only the tile settings differ
     rdpq_sprite_upload(tile, mat->texture, &tex);
@@ -137,7 +143,7 @@ T3DModel *t3d_model_load(const void *path) {
   return model;
 }
 
-void t3d_model_draw(const T3DModel *model)
+void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
 {
   uint32_t lastTextureHashA = 0;
   uint32_t lastTextureHashB = 0;
@@ -167,8 +173,8 @@ void t3d_model_draw(const T3DModel *model)
           rdpq_sync_pipe();
 
           rdpq_tex_multi_begin();
-            set_texture(matMain, TILE0);
-            set_texture(matSecond, TILE1);
+            set_texture(matMain, TILE0, &conf);
+            set_texture(matSecond, TILE1, &conf);
           rdpq_tex_multi_end();
         }
 

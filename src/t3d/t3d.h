@@ -162,4 +162,22 @@ uint16_t t3d_vert_pack_normal(const T3DVec3 *normal);
 
 void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags);
 
+// Vertex-buffer helpers:
+
+static inline int16_t* t3d_vertbuffer_get_pos(T3DVertPacked vert[], int idx) {
+  return (idx & 1) ? vert[idx/2].posB : vert[idx/2].posA;
+}
+static inline int16_t* t3d_vertbuffer_get_uv(T3DVertPacked vert[], int idx) {
+  return (idx & 1) ? vert[idx/2].stB : vert[idx/2].stA;
+}
+static inline uint32_t* t3d_vertbuffer_get_color(T3DVertPacked vert[], int idx) {
+  return (idx & 1) ? &vert[idx/2].rgbaB : &vert[idx/2].rgbaA;
+}
+static inline uint8_t* t3d_vertbuffer_get_rgba(T3DVertPacked vert[], int idx) {
+  return (idx & 1) ? (uint8_t*)&vert[idx/2].rgbaB : (uint8_t*)&vert[idx/2].rgbaA;
+}
+static inline uint16_t* t3d_vertbuffer_get_norm(T3DVertPacked vert[], int idx) {
+  return (idx & 1) ? &vert[idx/2].normB : &vert[idx/2].normA;
+}
+
 #endif //TINY3D_T3D_H

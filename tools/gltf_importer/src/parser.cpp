@@ -96,6 +96,13 @@ namespace {
 
     return false;
   }
+
+  bool isUsingShade(const ColorCombiner &cc)
+  {
+    if(cc.a == CC::SHADE || cc.b == CC::SHADE || cc.c == CC::SHADE || cc.d == CC::SHADE)return true;
+    if(cc.aAlpha == CC::SHADE || cc.bAlpha == CC::SHADE || cc.cAlpha == CC::SHADE || cc.dAlpha == CC::SHADE)return true;
+    return false;
+  }
 }
 
 std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
@@ -137,9 +144,18 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
       if(prim->material) {
 
         printf("     Material: %s\n", prim->material->name);
+        if(prim->material->extras.data == nullptr) {
+          throw std::runtime_error(
+            "\n\n"
+            "Material has no fast64 data! (@TODO: implement fallback)\n"
+            "If you are using fast64, make sure to enable 'Include -> Custom Properties' during GLTF export\n"
+            "\n\n"
+          );
+        }
+
         auto data = json::parse(prim->material->extras.data);
         if(!prim->material->extras.data) {
-          printf("Empty extras.data!\n");
+          printf("Empty fast64 extras.data!\n");
         }
         auto &f3dData = data["f3d_mat"];
 
@@ -151,7 +167,11 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
           auto cc2 = readCCFromJson(f3dData["combiner2"]);
           bool is2Cycle = true;
 
-          model.materialA.drawFlags = DrawFlags::DEPTH | DrawFlags::SHADED;
+          model.materialA.drawFlags = DrawFlags::DEPTH;
+
+          if(isUsingShade(cc1) || isUsingShade(cc2)) {
+            model.materialA.drawFlags |= DrawFlags::SHADED;
+          }
 
           if(f3dData.contains("rdp_settings"))
           {
@@ -320,6 +340,9 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
 
         vT3D.s = (int16_t)(int32_t)(v.uv[0] * texSizeX * 32.0f);
         vT3D.t = (int16_t)(int32_t)(v.uv[1] * texSizeY * 32.0f);
+
+        vT3D.s -= 16.0f; // bi-linear offset (@TODO: do this in ucode?)
+        vT3D.t -= 16.0f;
 
         // Generate hash for faster lookup later in the optimizer
         vT3D.hash = ((uint64_t)(uint16_t)vT3D.pos[0] << 48)

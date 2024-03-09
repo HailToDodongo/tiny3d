@@ -79,8 +79,6 @@ int main()
     t3d_light_set_directional(0, colorDir, &lightDirVec);
     t3d_light_set_count(1);
 
-    t3d_state_set_drawflags(T3D_FLAG_SHADED | T3D_FLAG_TEXTURED | T3D_FLAG_DEPTH | T3D_FLAG_CULL_BACK);
-
     rdpq_set_prim_color(RGBA32(255, 200, 0, 255));
 
     if(!dplDraw) {
