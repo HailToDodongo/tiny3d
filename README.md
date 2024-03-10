@@ -38,6 +38,16 @@ To start out, take a look at `examples/01_quad` which is the most basic setup dr
 
 (@TODO: generate docs from comments, add github page for it)
 
+### GLTF Model import
+Tiny3D comes with a build-in model format and an importer for GLTF files.<br>
+In order to best use the N64 hardware, it is recommended to use [Fast64](https://github.com/Fast-64/fast64).<br>
+Note that at the moment only fast64 materials are supported (@TODO: add support for normal materials).<br>
+For this to work, custom properties export must be enabled.<br>
+This can be set during export:
+
+<img src="docs/fast64_export.png" height="200">
+
+
 
 ## Build
 Tiny3D requires [libdragon](https://github.com/DragonMinded/libdragon/tree/preview), specifically the `preview` branch.<br>
@@ -95,7 +105,7 @@ This is done to maximize performance and to simplify the API.<br>
 A matching C struct `T3DVertPacked` can be found in `t3d.h`.<br>
 
 If you plan on using your own custom model format, take a look at the GLTF importer on how to normalize data properly.<br>
-A full description of the builtin model-format layout can be found in `docs/modelFormat.md` too.<br>
+A full description of the builtin model-format layout can be found in [docs/modelFormat.md](docs/modelFormat.md) too.<br>
 
 ## Support
 If you need any help, feel free to ask me (`@HailToDodongo`) in the [N64brew Discord](https://discord.gg/WqFgNWf).
