@@ -67,15 +67,34 @@ void t3d_screen_clear_depth() {
 
 void t3d_screen_set_size(uint32_t width, uint32_t height, int guardBandScale, int isReject)
 {
-  //int16_t sheight = (int)0 - (int16_t)height;
-  int16_t sheight = (int16_t)height;
   aspectRatio = (float)width / (float)height;
-  uint32_t screenSize2x = (width << 17) | (height<<1);
-  uint32_t screenSize4x = (width << 18) | ((uint16_t)(sheight<<2) & 0xFFFF);
+  uint32_t screenOffset = (width << 17) | (height<<1);
+  uint32_t screenScale = (width << 18) | ((uint16_t)(height<<2) & 0xFFFF);
 
   guardBandScale &= 0xF;
   rspq_write(T3D_RSP_ID, T3D_CMD_SCREEN_SIZE,
-    guardBandScale | (isReject << 16), screenSize2x, screenSize4x
+    guardBandScale | (isReject << 16), screenOffset, screenScale
+  );
+}
+
+void t3d_screen_set_rect(
+  int posStartX, int posStartY, int posEndX, int posEndY,
+  int guardBandScale, int isReject
+) {
+  int32_t width = (int32_t)(posEndX - posStartX);
+  int32_t height = (int32_t)(posEndY - posStartY);
+  int32_t offsetX = (int32_t)(posStartX*2) + width;
+  int32_t offsetY = (int32_t)(posStartY*2) + height;
+
+  aspectRatio = (float)width / (float)height;
+  int32_t screenOffset = (offsetX << 17) | (offsetY<<1);
+  int32_t screenScale = (width << 18) | ((uint16_t)(height<<2) & 0xFFFF);
+
+  rdpq_set_scissor(posStartX, posStartY, posEndX, posEndY);
+
+  guardBandScale &= 0xF;
+  rspq_write(T3D_RSP_ID, T3D_CMD_SCREEN_SIZE,
+    guardBandScale | (isReject << 16), screenOffset, screenScale
     //,wFactor
   );
 }
@@ -138,7 +157,7 @@ void t3d_camera_look_at(const T3DVec3 *eye, const T3DVec3 *target) {
   t3d_mat4_look_at(&matCamera, eye, target);
   t3d_mat4_to_fixed(&matCameraFP, &matCamera);
 
-  data_cache_hit_writeback_invalidate(&matCameraFP, sizeof(matCameraFP));
+  data_cache_hit_writeback(&matCameraFP, sizeof(matCameraFP));
   t3d_mat_set(&matCameraFP, 0);
 
   T3DVec3 camDir;
@@ -278,3 +297,4 @@ void t3d_fog_set_range(float near, float far) {
     fogMul16, fogOffset32
   );
 }
+

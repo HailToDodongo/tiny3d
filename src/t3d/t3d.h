@@ -76,6 +76,11 @@ void t3d_screen_clear_depth();
  */
 void t3d_screen_set_size(uint32_t width, uint32_t height, int guardBandScale, int isReject);
 
+void t3d_screen_set_rect(
+  int posStartX, int posStartY, int posEndX, int posEndY,
+  int guardBandScale, int isReject
+);
+
 /**
  * Sets a new camera position and direction.
  * This will update the internal camera matrix and sends a command to the RSP.
