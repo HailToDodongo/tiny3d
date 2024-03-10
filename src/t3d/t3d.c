@@ -94,7 +94,7 @@ void t3d_matrix_set_mul(T3DMat4FP *mat, uint32_t idxDst, uint32_t idxMul) {
   );
 }
 
-void t3d_mat_proj_set(T3DMat4FP *mat) {
+void t3d_matrix_set_proj(T3DMat4FP *mat) {
   rspq_write(T3D_RSP_ID, T3D_CMD_PROJ_SET, PhysicalAddr(mat));
 }
 
@@ -187,7 +187,7 @@ void t3d_projection_perspective(float fov, float near, float far) {
   t3d_mat4_to_fixed(&matProjFP, &matProj);
 
   data_cache_hit_writeback_invalidate(&matProjFP, sizeof(matProjFP));
-  t3d_mat_proj_set(&matProjFP);
+  t3d_matrix_set_proj(&matProjFP);
 }
 
 const T3DMat4 *t3d_projection_get_matrix() {

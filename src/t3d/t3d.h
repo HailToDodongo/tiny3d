@@ -129,7 +129,7 @@ void t3d_matrix_set_mul(T3DMat4FP *mat, uint32_t idxDst, uint32_t  idxMul);
  * Sets the projection matrix
  * @param mat address to load matrix from
  */
-void t3d_mat_proj_set(T3DMat4FP *mat);
+void t3d_matrix_set_proj(T3DMat4FP *mat);
 
 /**
  * Loads a vertex buffer with a given size, this can then be used to draw triangles.
