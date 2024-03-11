@@ -26,10 +26,10 @@ enum T3DCmd {
 
 // Internal vertex format, interleaves two vertices
 typedef struct {
-  /* 0x00 */ int16_t posA[3]; // 16.0 fixed point
+  /* 0x00 */ int16_t posA[3]; // s16 (used in the ucode as the int. part of a s16.16)
   /* 0x06 */ uint16_t normA;  // 5,5,5 packed normal
-  /* 0x08 */ int16_t posB[3]; // 16.0 fixed point
-  /* 0x0E */ uint16_t normB;  // 5,5,5 packed normal
+  /* 0x08 */ int16_t posB[3]; // s16 (used in the ucode as the int. part of a s16.16)
+  /* 0x0E */ uint16_t normB;  // 5,6,5 packed normal
   /* 0x10 */ uint32_t rgbaA; // RGBA8 color
   /* 0x14 */ uint32_t rgbaB; // RGBA8 color
   /* 0x18 */ int16_t stA[2]; // UV fixed point 10.5 (pixel coords)
