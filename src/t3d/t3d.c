@@ -15,7 +15,6 @@ uint32_t T3D_RSP_ID = 0;
 #define MODEL_MATRIX_SIZE 0x40
 
 // Screen-Data
-static surface_t zbuffer;
 static float aspectRatio;
 
 // Camera Data
@@ -41,8 +40,6 @@ void t3d_init(void)
   void* state = UncachedAddr(rspq_overlay_get_state(&rsp_tiny3d));
   memset(state, 0, 0x400);
   T3D_RSP_ID = rspq_overlay_register(&rsp_tiny3d);
-
-  zbuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
 
   // It's very common to run into under-flows, to avoid costly checks
   // and keep the same behavior as other platforms (e.g. x86) disable it
@@ -117,8 +114,6 @@ void t3d_vert_load(const T3DVertPacked *vertices, uint32_t count) {
 }
 
 void t3d_frame_start(void) {
-  rdpq_attach(display_get(), &zbuffer);
-
   // Reset render state
   rdpq_mode_begin();
     rdpq_set_mode_standard();

@@ -48,6 +48,15 @@ $(BUILD_DIR)/%.o: src/t3d/%.c
 	@echo "    [CC_LIB] $<"
 	$(N64_CC) -c $(CFLAGS) $(N64_CFLAGS) -o $@ $<
 
+# Runs all demos after each other in the given emulator
+run_examples:
+	$(EMU_PATH) examples/00_quad/*.z64
+	$(EMU_PATH) examples/01_model/*.z64
+	$(EMU_PATH) examples/02_lighting/*.z64
+	$(EMU_PATH) examples/03_objects/*.z64
+	$(EMU_PATH) examples/04_dynamic/*.z64
+	$(EMU_PATH) examples/99_testscene/*.z64
+
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -f $(SOURCE_DIR)/rsp/rsp_tiny3d.h

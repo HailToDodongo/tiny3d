@@ -97,13 +97,15 @@ int main()
   dfs_init(DFS_DEFAULT_LOCATION);
 
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  surface_t depthBuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
+
   rdpq_init();
   rspq_profile_start();
   //rdpq_debug_start();
   //rdpq_debug_log(true);
 
   joypad_init();
-  t3d_init(); // Init library itself
+  t3d_init();
 
   t3d_debug_print_init();
   sprite_t *spriteLogo = sprite_load("rom:/logo.ia8.sprite");
@@ -214,6 +216,9 @@ int main()
     //t3d_mat4_rotate(&modelMat, &rotAxis, rotAngle);
     t3d_mat4_scale(&modelMat, modelScale, modelScale, modelScale);
     t3d_mat4_to_fixed(modelMatFP, &modelMat);
+
+    // ----------- DRAW ------------ //
+    rdpq_attach(display_get(), &depthBuffer);
 
     t3d_frame_start(); // call this once per frame at the beginning of your draw function
     rdpq_set_prim_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});

@@ -14,6 +14,7 @@ int main()
 	debug_init_usblog();
 
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE);
+  surface_t depthBuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
   rdpq_init();
 
   t3d_init(); // Init library itself
@@ -54,6 +55,7 @@ int main()
 
   for(;;)
   {
+    // ======== Update ======== //
     rotAngle += 0.03f;
 
     // Model-Matrix, t3d offers some basic matrix functions
@@ -61,6 +63,9 @@ int main()
     t3d_mat4_rotate(&modelMat, &rotAxis, rotAngle);
     t3d_mat4_scale(&modelMat, 0.4f, 0.4f, 0.4f);
     t3d_mat4_to_fixed(modelMatFP, &modelMat);
+
+    // ======== Draw (3D) ======== //
+    rdpq_attach(display_get(), &depthBuffer); // set the target to draw to
 
     t3d_frame_start(); // call this once per frame at the beginning of your draw function
     rdpq_mode_combiner(RDPQ_COMBINER_SHADE);
