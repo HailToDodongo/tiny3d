@@ -17,6 +17,7 @@ using json = nlohmann::json;
 #include "math/vec3.h"
 
 #include "lib/meshopt/meshoptimizer.h"
+#include "math/mat4.h"
 
 namespace fs = std::filesystem;
 
@@ -127,10 +128,13 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
   cgltf_load_buffers(&options, data, gltfPath);
   std::vector<Model> models{};
 
-  printf("Mesh count: %d\n", data->meshes_count);
-  for(int i = 0; i < data->meshes_count; i++)
+  printf("Node count: %d\n", data->nodes_count);
+  for(int i=0; i<data->nodes_count; ++i)
   {
-    auto mesh = &data->meshes[i];
+    auto node = &data->nodes[i];
+    auto mesh = node->mesh;
+    if(!mesh)continue;
+
     printf(" - Mesh %d: %s\n", i, mesh->name);
 
     for(int j = 0; j < mesh->primitives_count; j++)
@@ -331,7 +335,27 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
         auto &v = vertices[k];
         auto &vT3D = verticesT3D[k];
 
-        auto posInt = (v.pos * modelScale).round();
+        // calc. matrix, the included one seems to be always NULL (why?)
+        // @TODO: dont bake this for skinned meshes!
+        Mat4 matScale{};
+        if(node->has_scale)matScale.setScale({node->scale[0], node->scale[1], node->scale[2]});
+
+        Mat4 matRot{};
+        if(node->has_rotation)matRot.setRot({
+          node->rotation[3],
+          node->rotation[0],
+          node->rotation[1],
+          node->rotation[2]
+        });
+
+        Mat4 matTrans{};
+        if(node->has_translation)matTrans.setPos({node->translation[0], node->translation[1], node->translation[2]});
+
+        // apply matrix and base model scale (for fixes point accuracy)
+        Mat4 mat = matTrans * matRot * matScale;
+        auto posInt = mat * v.pos * modelScale;
+
+        posInt = posInt.round();
         vT3D.pos[0] = -(int16_t)posInt.x();
         vT3D.pos[1] = (int16_t)posInt.y();
         vT3D.pos[2] = (int16_t)posInt.z();
