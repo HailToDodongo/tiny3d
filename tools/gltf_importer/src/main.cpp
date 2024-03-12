@@ -6,6 +6,7 @@
 #include <string>
 #include <memory>
 #include <filesystem>
+#include <algorithm>
 
 #include "structs.h"
 #include "parser.h"
@@ -36,6 +37,11 @@ int main(int argc, char* argv[])
 
   auto models = parseGLTF(gltfPath, MODEL_SCALE);
   fs::path gltfBasePath{gltfPath};
+
+  // sort models by transparency mode (opaque -> cutout -> transparent)
+  std::sort(models.begin(), models.end(), [](const Model &a, const Model &b) {
+    return a.materialA.alphaMode < b.materialA.alphaMode;
+  });
 
   uint32_t chunkIndex = 0;
   uint32_t chunkCount = 2; // vertices + indices
@@ -102,6 +108,10 @@ int main(int argc, char* argv[])
       auto f = std::make_shared<BinaryFile>(DEFAULT_CHUCK_SIZE);
       f->write(material.colorCombiner);
       f->write(material.drawFlags);
+
+      f->write(material.alphaMode);
+      f->write(material.fogMode);
+      f->skip(2); // reserved/padding
 
       std::string texPath = fs::relative(material.texPath, std::filesystem::current_path());
 

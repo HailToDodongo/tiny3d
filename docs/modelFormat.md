@@ -68,12 +68,15 @@ only the first materials CC and draw flags are used.
 |--------|----------------------|-------------------------------|
 | 0x00   | `u64`                | Color-Combiner                |
 | 0x08   | `u32`                | T3D Draw flags                |
-| 0x0C   | `u32`                | Texture path offset           |
-| 0x10   | `u32`                | Texture hash / ID             |
-| 0x14   | `u32`                | Runtime texture pointer (`0`) |
-| 0x18   | `u16`                | Texture width                 |
-| 0x1A   | `u16`                | Texture height                |
-| 0x1C   | `T3DMaterialAxis[2]` | Setting per UV axis           |
+| 0x0C   | `u8 (AlphaMode)`     | Alpha mode                    |
+| 0x0D   | `u8 (FogMode)`       | Fog mode                      |
+| 0x0E   | `u8[2]`              | _reserved_                    |
+| 0x10   | `u32`                | Texture path offset           |
+| 0x14   | `u32`                | Texture hash / ID             |
+| 0x18   | `u32`                | Runtime texture pointer (`0`) |
+| 0x1C   | `u16`                | Texture width                 |
+| 0x1E   | `u16`                | Texture height                |
+| 0x20   | `T3DMaterialAxis[2]` | Setting per UV axis           |
 
 #### `T3DMaterialAxis`
 
@@ -85,6 +88,21 @@ only the first materials CC and draw flags are used.
 | 0x09   | `s8`  | Shift       |
 | 0x0A   | `u8`  | Mirror      |
 | 0x0B   | `u8`  | Clamp       |
+
+#### `AlphaMode`
+```
+0 - Default (no change applied)
+1 - Opaque
+2 - Cutout
+3 - Transparent
+```
+
+#### `FogMode`
+```
+0 - Default (no change applied)
+1 - Fog Disabled
+2 - Fog Active
+```
 
 ### Object (`O`)
 Model data consisting of multiple parts, can exist multiple times in a file.

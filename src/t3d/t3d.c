@@ -247,7 +247,6 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
 }
 
 void t3d_fog_set_range(float near, float far) {
-  // implicitly disable at 0,0
   if(near == 0.0f && far == 0.0f) {
     rspq_write(T3D_RSP_ID, T3D_CMD_FOG_RANGE, 0, 0);
     return;

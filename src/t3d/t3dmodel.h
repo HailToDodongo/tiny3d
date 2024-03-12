@@ -20,8 +20,13 @@ typedef struct {
   uint64_t colorCombiner;
   uint32_t renderFlags;
 
+  uint8_t alphaMode;
+  uint8_t fogMode;
+  uint8_t _reserved[2];
+
   char* texPath;
   uint32_t textureHash;
+
   sprite_t* texture;
 
   uint16_t texWidth;

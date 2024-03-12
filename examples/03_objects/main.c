@@ -159,7 +159,6 @@ int main()
     t3d_light_set_ambient(colorAmbient);
     t3d_light_set_directional(0, lightDirColor, &lightDirVec);
     t3d_light_set_count(1);
-    t3d_fog_disable();
 
     for(int i=0; i<actorCount; ++i) {
       actor_draw(&actors[i]);

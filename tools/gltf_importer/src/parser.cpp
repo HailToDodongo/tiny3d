@@ -11,6 +11,7 @@ using json = nlohmann::json;
 
 #include "lib/lodepng.h"
 #include "parser.h"
+#include "fast64Types.h"
 
 #include "math/vec2.h"
 #include "math/vec3.h"
@@ -20,7 +21,6 @@ using json = nlohmann::json;
 namespace fs = std::filesystem;
 
 namespace {
-
   constexpr uint64_t RDPQ_COMBINER_2PASS = (uint64_t)(1) << 63;
 
   #define rdpq_1cyc_comb_rgb(suba, subb, mul, add) \
@@ -172,6 +172,7 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
           if(f3dData.contains("rdp_settings"))
           {
             auto &rdpSettings = f3dData["rdp_settings"];
+            is2Cycle = rdpSettings["g_mdsft_cycletype"].get<uint32_t>() != 0;
 
             if(rdpSettings["g_cull_back"].get<uint32_t>() != 0) {
               model.materialA.drawFlags |= DrawFlags::CULL_BACK;
@@ -180,13 +181,27 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
               model.materialA.drawFlags |= DrawFlags::CULL_FRONT;
             }
 
-            //rdpSettings["g_cull_front"].get<uint32_t>();
-            //rdpSettings["g_fog"].get<uint32_t>();
+            model.materialA.fogMode = rdpSettings["g_fog"].get<uint32_t>() + 1;
+            model.materialB.fogMode = model.materialA.fogMode;
 
-            is2Cycle = rdpSettings["g_mdsft_cycletype"].get<uint32_t>() != 0;
+            bool setRenderMode = rdpSettings["set_rendermode"].get<uint32_t>() != 0;
+            if(setRenderMode) {
+              int renderMode1Raw = rdpSettings["rendermode_preset_cycle_1"].get<uint32_t>();
+              int renderMode2Raw = rdpSettings["rendermode_preset_cycle_2"].get<uint32_t>();
+              uint8_t alphaMode1 = F64_RENDER_MODE_1_TO_ALPHA[renderMode1Raw];
+              uint8_t alphaMode2 = F64_RENDER_MODE_2_TO_ALPHA[renderMode2Raw];
+
+              if(alphaMode1 == AlphaMode::INVALID || alphaMode2 == AlphaMode::INVALID) {
+                printf("\n\nInvalid render-modes: %d, please only use Opaque, Cutout, Transparent, Fog-Shade\n", renderMode1Raw);
+                throw std::runtime_error("Invalid render-modes!");
+              }
+
+              model.materialA.alphaMode = is2Cycle ? alphaMode2 : alphaMode1;
+              model.materialB.alphaMode = alphaMode2;
+            }
           }
 
-           if(isUsingShade(cc1) || (is2Cycle && isUsingShade(cc2))) {
+          if(isUsingShade(cc1) || (is2Cycle && isUsingShade(cc2))) {
             model.materialA.drawFlags |= DrawFlags::SHADED;
           }
 

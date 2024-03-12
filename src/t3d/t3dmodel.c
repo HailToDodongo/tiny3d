@@ -5,6 +5,15 @@
 
 #include "t3dmodel.h"
 
+#define ALPHA_MODE_DEFAULT 0
+#define ALPHA_MODE_OPAQUE  1
+#define ALPHA_MODE_CUTOUT  2
+#define ALPHA_MODE_TRANSP  3
+
+#define FOG_MODE_DEFAULT  0
+#define FOG_MODE_DISABLED 1
+#define FOG_MODE_ACTIVE   2
+
 static inline void* patch_pointer(void *ptr, uint32_t offset) {
   return (void*)(offset + (int32_t)ptr);
 }
@@ -145,8 +154,14 @@ T3DModel *t3d_model_load(const void *path) {
 
 void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
 {
+  // keeps track of various states to not emit useless RSP commands
+  // all defaults are chosen to cause a call in the first iteration
   uint32_t lastTextureHashA = 0;
   uint32_t lastTextureHashB = 0;
+  uint8_t lastFogMode = 0xFF;
+  uint8_t lastAlphaMode = 0xFF;
+  uint32_t lastRenderFlags = 0;
+  uint64_t lastCC = 0;
 
   for(int c = 0; c < model->chunkCount; c++) {
     char chunkType = model->chunkOffsets[c].type;
@@ -155,22 +170,41 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
     uint32_t offset = model->chunkOffsets[c].offset & 0x00FFFFFF;
     const T3DObject *obj = (void*)model + offset;
 
+    T3DMaterial *matMain = obj->materialA;
+    T3DMaterial *matSecond = obj->materialB;
+
+    // first change t3d settings, this avoids an overlay-switch.
+    // settings here also influence how 't3d_vert_load' will load vertices
+    if(matMain)
+    {
+      if(obj->materialA->renderFlags != lastRenderFlags) {
+        t3d_state_set_drawflags(obj->materialA->renderFlags);
+      }
+
+      if(matMain->fogMode != FOG_MODE_DEFAULT && matMain->fogMode != lastFogMode) {
+        lastFogMode = matMain->fogMode;
+        t3d_fog_set_enabled(matMain->fogMode == FOG_MODE_ACTIVE);
+      }
+    }
+
     for (int p = 0; p < obj->numParts; p++) {
       const T3DObjectPart *part = &obj->parts[p];
+
+      // load vertices, this will already do T&L (so matrices/fog/lighting must be set before)
       t3d_vert_load(part->vert, part->vertLoadCount);
 
-      T3DMaterial *matMain = obj->materialA;
-      T3DMaterial *matSecond = obj->materialB;
+      // now apply rdpq settings, these are independent of the t3d state
+      // and only need to happen before a `t3d_tri_draw` call
       if(p == 0 && matMain && matMain->colorCombiner)
       {
-        t3d_state_set_drawflags(obj->materialA->renderFlags);
-
+        bool hadPipeSync = false;
         if(lastTextureHashA != matMain->textureHash || lastTextureHashB != matSecond->textureHash) {
           lastTextureHashA = matMain->textureHash;
           lastTextureHashB = matSecond->textureHash;
 
           rdpq_sync_tile();
           rdpq_sync_pipe();
+          hadPipeSync = true;
 
           rdpq_tex_multi_begin();
             set_texture(matMain, TILE0, &conf);
@@ -178,13 +212,47 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
           rdpq_tex_multi_end();
         }
 
-        rdpq_sync_pipe();
-        rdpq_mode_combiner(obj->materialA->colorCombiner);
+        if(matMain->colorCombiner != lastCC)
+        {
+          lastCC = matMain->colorCombiner;
+          if(!hadPipeSync) {
+            rdpq_sync_pipe();
+            hadPipeSync = true;
+          }
+          rdpq_mode_combiner(obj->materialA->colorCombiner);
+        }
+
+        if(matMain->alphaMode != lastAlphaMode)
+        {
+          if(!hadPipeSync) {
+            rdpq_sync_pipe();
+            hadPipeSync = true;
+          }
+
+          switch (matMain->alphaMode) {
+            case ALPHA_MODE_TRANSP:
+              rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY);
+              rdpq_mode_alphacompare(0); // always zero in fast64?
+            break;
+            case ALPHA_MODE_CUTOUT:
+              rdpq_mode_blender(0);
+              rdpq_mode_alphacompare(128);
+            break;
+            case ALPHA_MODE_OPAQUE:
+              rdpq_mode_blender(0);
+              rdpq_mode_alphacompare(0);
+            break;
+          }
+          lastAlphaMode = matMain->alphaMode;
+        }
       }
 
+      // now draw all triangles of the part
       for(int i = 0; i < part->numIndices; i+=3) {
         t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
       }
+
+      // at this point the RDP may already process triangles, in the next iteration we therefore may need syncs
     }
   }
 }

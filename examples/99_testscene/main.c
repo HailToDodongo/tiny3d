@@ -233,6 +233,7 @@ int main()
     t3d_camera_look_at(&camPos, &camTarget); // convenience function to set camera matrix and related settings
 
     t3d_fog_set_range(17.0f, 100.0f);
+    t3d_fog_set_enabled(true);
 
     t3d_light_set_ambient(colorAmbient); // one global ambient light, always active
     t3d_light_set_directional(0, colorDir, &lightDirVec); // optional directional light, can be disabled

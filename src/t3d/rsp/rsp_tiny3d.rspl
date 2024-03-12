@@ -105,7 +105,7 @@ state
     0b00000'111111'00000,
     0b00000'000000'11111,
     0,
-    // And the shift to transform them into a fraction (.XYZW)
+    // And the mul. factor to shift them into a fraction (.XYZW)
     1, 32, 2048, 0
   };
 
@@ -394,8 +394,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts)
 
     undef posClip;
 
-    // copy UV over,we re-use "color" here to prevent any wrong reordering,
-    // color overlaps UV during a save
+    // copy UV over, color overlaps UV during a save so add a barrier here
     vec16 uv = load(prt3d, 0x18).xyzw;
     @Barrier("uv") store(uv.xy, ptrBuffA, VTX_ATTR_ST);
     @Barrier("uv") store(uv.zw, ptrBuffB, VTX_ATTR_ST);
@@ -646,7 +645,7 @@ function triToScreenSpace(u32<$s6> ptr)
  *
  * @param buffer RDP buffer start (DMEM)
  * @param buffEnd RDP buffer end (DMEM)
- * @param arraySize size in bytes of the list to draw (multiple of 0x20)
+ * @param arraySize size in bytes of the list to draw (multiple of TRI_SIZE)
  */
 macro drawTrianglesClipped(u32<$s3> buffEnd, u32<$t0> arraySize)
 {
@@ -819,19 +818,24 @@ command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 scre
 }
 
 /**
- * Sets the range of fog, or disables it.
+ * Sets the range of fog.
  *
- * @param fogScale 16.16 scale factor (set to 0 to disable fog)
+ * @param fogScale 16.16 scale factor
  * @param fogOffset 16.16 offset
  */
 command<10> T3DCmd_SetFogRange(s16 fogScale, s32 fogOffset)
 {
   store(fogScale,  FOG_SCALE_OFFSET, 0x00);
   store(fogOffset, FOG_SCALE_OFFSET, 0x02);
+}
 
-  u8 useFog = fogScale >> 16;
-  useFog |= fogScale;
-  store(useFog, USE_FOG);
+/**
+ * Enables or disables fog.
+ * @param enabled 1=enabled, 0=disabled
+ */
+command<11> T3DCmd_SetFogState(u8 enabled)
+{
+  store(enabled, USE_FOG);
 }
 
 /**

@@ -22,6 +22,11 @@ enum T3DCmd {
   T3D_CMD_PROJ_SET     = 0x8,
   T3D_CMD_LIGHT_COUNT  = 0x9,
   T3D_CMD_FOG_RANGE    = 0xA,
+  T3D_CMD_FOG_STATE    = 0xB,
+  //                   = 0xC,
+  //                   = 0xD,
+  //                   = 0xE,
+  //                   = 0xF,
 };
 
 // Internal vertex format, interleaves two vertices
@@ -175,9 +180,12 @@ static inline void t3d_light_set_count(int count) {
  */
 void t3d_fog_set_range(float near, float far);
 
-/// @brief Disables fog
-static inline void t3d_fog_disable() {
-  t3d_fog_set_range(0.0f, 0.0f);
+/**
+ * Enables or disables fog, this can be set independently from the range.
+ * @param isEnabled
+ */
+static inline void t3d_fog_set_enabled(bool isEnabled) {
+  rspq_write(T3D_RSP_ID, T3D_CMD_FOG_STATE, (uint8_t)isEnabled);
 }
 
 /**

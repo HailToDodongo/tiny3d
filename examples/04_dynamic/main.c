@@ -138,11 +138,12 @@ int main()
     t3d_matrix_set_mul(modelMatFP, 1, 0);
 
     t3d_fog_set_range(0.4f, 80.0f);
+    t3d_fog_set_enabled(true);
+
     t3d_light_set_ambient(colorAmbient);
     rspq_block_run(dplRoom);
 
     t3d_light_set_ambient((uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF});
-    t3d_fog_disable();
 
     /**
      * To draw a dynamic mesh you can use a recorded block.

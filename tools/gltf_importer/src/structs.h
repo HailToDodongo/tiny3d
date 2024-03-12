@@ -20,7 +20,7 @@ namespace DrawFlags {
   constexpr uint32_t SHADED     = 1 << 2;
   constexpr uint32_t CULL_FRONT = 1 << 3;
   constexpr uint32_t CULL_BACK  = 1 << 4;
-};
+}
 
 namespace CC {
   constexpr uint32_t COMBINED = 0;
@@ -32,7 +32,24 @@ namespace CC {
   constexpr uint32_t NOISE    = 6;
   constexpr uint32_t TEX0_ALPHA = 8;
   constexpr uint32_t TEX1_ALPHA = 9;
-};
+}
+
+namespace AlphaMode {
+  constexpr uint8_t DEFAULT = 0;
+  constexpr uint8_t OPAQUE  = 1;
+  constexpr uint8_t CUTOUT  = 2;
+  constexpr uint8_t TRANSP  = 3;
+
+  constexpr uint8_t INVALID = 0xFF;
+}
+
+namespace FogMode {
+  constexpr uint8_t DEFAULT  = 0;
+  constexpr uint8_t DISABLED = 1;
+  constexpr uint8_t ACTIVE   = 2;
+
+  constexpr uint8_t INVALID = 0xFF;
+}
 
 // Normalized vertex, this is then used to generate the final vertex data
 struct VertexNorm {
@@ -98,6 +115,8 @@ struct Material {
   std::string texPath{};
   uint32_t texWidth{};
   uint32_t texHeight{};
+  uint8_t alphaMode{};
+  uint8_t fogMode{};
 };
 
 struct MeshChunk {
