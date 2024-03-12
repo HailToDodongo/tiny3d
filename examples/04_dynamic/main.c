@@ -137,12 +137,7 @@ int main()
 
     t3d_matrix_set_mul(modelMatFP, 1, 0);
 
-    t3d_fog_set_range(0.4f, 80.0f);
-    t3d_fog_set_enabled(true);
-
-    t3d_light_set_ambient(colorAmbient);
-    rspq_block_run(dplRoom);
-
+    // Draw lava:
     t3d_light_set_ambient((uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF});
 
     /**
@@ -159,6 +154,13 @@ int main()
     } else {
       rspq_block_run(dplLava);
     }
+
+    // Draw room:
+    t3d_fog_set_range(0.4f, 80.0f);
+    t3d_fog_set_enabled(true);
+
+    t3d_light_set_ambient(colorAmbient);
+    rspq_block_run(dplRoom);
 
     // ======== Draw (2D) ======== //
     t3d_debug_print_start();

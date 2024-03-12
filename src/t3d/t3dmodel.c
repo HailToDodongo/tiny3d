@@ -5,15 +5,6 @@
 
 #include "t3dmodel.h"
 
-#define ALPHA_MODE_DEFAULT 0
-#define ALPHA_MODE_OPAQUE  1
-#define ALPHA_MODE_CUTOUT  2
-#define ALPHA_MODE_TRANSP  3
-
-#define FOG_MODE_DEFAULT  0
-#define FOG_MODE_DISABLED 1
-#define FOG_MODE_ACTIVE   2
-
 static inline void* patch_pointer(void *ptr, uint32_t offset) {
   return (void*)(offset + (int32_t)ptr);
 }
@@ -170,6 +161,11 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
     uint32_t offset = model->chunkOffsets[c].offset & 0x00FFFFFF;
     const T3DObject *obj = (void*)model + offset;
 
+    // check a user-provided object filter
+    if(conf.filterCb && !conf.filterCb(conf.userData, obj)) {
+      continue;
+    }
+
     T3DMaterial *matMain = obj->materialA;
     T3DMaterial *matSecond = obj->materialB;
 
@@ -181,9 +177,9 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
         t3d_state_set_drawflags(obj->materialA->renderFlags);
       }
 
-      if(matMain->fogMode != FOG_MODE_DEFAULT && matMain->fogMode != lastFogMode) {
+      if(matMain->fogMode != T3D_FOG_MODE_DEFAULT && matMain->fogMode != lastFogMode) {
         lastFogMode = matMain->fogMode;
-        t3d_fog_set_enabled(matMain->fogMode == FOG_MODE_ACTIVE);
+        t3d_fog_set_enabled(matMain->fogMode == T3D_FOG_MODE_ACTIVE);
       }
     }
 
@@ -230,15 +226,15 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
           }
 
           switch (matMain->alphaMode) {
-            case ALPHA_MODE_TRANSP:
+            case T3D_ALPHA_MODE_TRANSP:
               rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY);
               rdpq_mode_alphacompare(0); // always zero in fast64?
             break;
-            case ALPHA_MODE_CUTOUT:
+            case T3D_ALPHA_MODE_CUTOUT:
               rdpq_mode_blender(0);
               rdpq_mode_alphacompare(128);
             break;
-            case ALPHA_MODE_OPAQUE:
+            case T3D_ALPHA_MODE_OPAQUE:
               rdpq_mode_blender(0);
               rdpq_mode_alphacompare(0);
             break;

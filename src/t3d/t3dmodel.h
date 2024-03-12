@@ -7,6 +7,15 @@
 
 #include "t3d.h"
 
+#define T3D_ALPHA_MODE_DEFAULT 0
+#define T3D_ALPHA_MODE_OPAQUE  1
+#define T3D_ALPHA_MODE_CUTOUT  2
+#define T3D_ALPHA_MODE_TRANSP  3
+
+#define T3D_FOG_MODE_DEFAULT  0
+#define T3D_FOG_MODE_DISABLED 1
+#define T3D_FOG_MODE_ACTIVE   2
+
 typedef struct {
   float low;
   float height;
@@ -20,8 +29,8 @@ typedef struct {
   uint64_t colorCombiner;
   uint32_t renderFlags;
 
-  uint8_t alphaMode;
-  uint8_t fogMode;
+  uint8_t alphaMode; // see: T3D_ALPHA_MODE_xxx
+  uint8_t fogMode; // see: T3D_FOG_MODE_xxx
   uint8_t _reserved[2];
 
   char* texPath;
@@ -88,11 +97,13 @@ T3DModel* t3d_model_load(const void *path);
 
 // callback for custom drawing, this hooks into the tile-setting section
 typedef void (*T3DModelTileCb)(void* userData, rdpq_texparms_t *tileParams, rdpq_tile_t tile);
+typedef bool (*T3DModelFilterCb)(void* userData, const T3DObject *obj);
 
 // Defines settings and callbacks for custom drawing
 typedef struct {
   void* userData;
-  T3DModelTileCb tileCb;
+  T3DModelTileCb tileCb; // callback to modify tile settings
+  T3DModelFilterCb filterCb; // callback to filter parts
 } T3DModelDrawConf;
 
 /**
@@ -115,7 +126,11 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf);
  * @param model model to draw
  */
 static inline void t3d_model_draw(const T3DModel* model) {
-  t3d_model_draw_custom(model, (T3DModelDrawConf){});
+  t3d_model_draw_custom(model, (T3DModelDrawConf){
+    .userData = NULL,
+    .tileCb = NULL,
+    .filterCb = NULL
+  });
 }
 
 /**
