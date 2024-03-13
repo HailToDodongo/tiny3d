@@ -97,13 +97,15 @@ int main()
   dfs_init(DFS_DEFAULT_LOCATION);
 
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  surface_t depthBuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
+
   rdpq_init();
   rspq_profile_start();
   //rdpq_debug_start();
   //rdpq_debug_log(true);
 
   joypad_init();
-  t3d_init(); // Init library itself
+  t3d_init();
 
   t3d_debug_print_init();
   sprite_t *spriteLogo = sprite_load("rom:/logo.ia8.sprite");
@@ -215,6 +217,9 @@ int main()
     t3d_mat4_scale(&modelMat, modelScale, modelScale, modelScale);
     t3d_mat4_to_fixed(modelMatFP, &modelMat);
 
+    // ----------- DRAW ------------ //
+    rdpq_attach(display_get(), &depthBuffer);
+
     t3d_frame_start(); // call this once per frame at the beginning of your draw function
     rdpq_set_prim_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
     rdpq_mode_fog(RDPQ_FOG_STANDARD);
@@ -228,6 +233,7 @@ int main()
     t3d_camera_look_at(&camPos, &camTarget); // convenience function to set camera matrix and related settings
 
     t3d_fog_set_range(17.0f, 100.0f);
+    t3d_fog_set_enabled(true);
 
     t3d_light_set_ambient(colorAmbient); // one global ambient light, always active
     t3d_light_set_directional(0, colorDir, &lightDirVec); // optional directional light, can be disabled

@@ -30,6 +30,8 @@ int main()
   dfs_init(DFS_DEFAULT_LOCATION);
 
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  surface_t depthBuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
+
   rdpq_init();
   joypad_init();
 
@@ -119,6 +121,7 @@ int main()
     }
 
     // ======== Draw (3D) ======== //
+    rdpq_attach(display_get(), &depthBuffer);
     t3d_frame_start();
 
     rdpq_mode_fog(RDPQ_FOG_STANDARD);
@@ -134,12 +137,8 @@ int main()
 
     t3d_matrix_set_mul(modelMatFP, 1, 0);
 
-    t3d_fog_set_range(0.4f, 80.0f);
-    t3d_light_set_ambient(colorAmbient);
-    rspq_block_run(dplRoom);
-
+    // Draw lava:
     t3d_light_set_ambient((uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF});
-    t3d_fog_disable();
 
     /**
      * To draw a dynamic mesh you can use a recorded block.
@@ -155,6 +154,13 @@ int main()
     } else {
       rspq_block_run(dplLava);
     }
+
+    // Draw room:
+    t3d_fog_set_range(0.4f, 80.0f);
+    t3d_fog_set_enabled(true);
+
+    t3d_light_set_ambient(colorAmbient);
+    rspq_block_run(dplRoom);
 
     // ======== Draw (2D) ======== //
     t3d_debug_print_start();

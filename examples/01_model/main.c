@@ -23,6 +23,8 @@ int main()
   dfs_init(DFS_DEFAULT_LOCATION);
 
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  surface_t depthBuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
+
   rdpq_init();
   t3d_init();
 
@@ -65,6 +67,7 @@ int main()
     t3d_mat4_to_fixed(modelMatFP, &modelMat);
 
     // ======== Draw ======== //
+    rdpq_attach(display_get(), &depthBuffer);
     t3d_frame_start();
 
     t3d_screen_set_size(display_get_width(), display_get_height(), 1, true);

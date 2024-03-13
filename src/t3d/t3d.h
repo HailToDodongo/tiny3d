@@ -22,14 +22,19 @@ enum T3DCmd {
   T3D_CMD_PROJ_SET     = 0x8,
   T3D_CMD_LIGHT_COUNT  = 0x9,
   T3D_CMD_FOG_RANGE    = 0xA,
+  T3D_CMD_FOG_STATE    = 0xB,
+  //                   = 0xC,
+  //                   = 0xD,
+  //                   = 0xE,
+  //                   = 0xF,
 };
 
 // Internal vertex format, interleaves two vertices
 typedef struct {
-  /* 0x00 */ int16_t posA[3]; // 16.0 fixed point
+  /* 0x00 */ int16_t posA[3]; // s16 (used in the ucode as the int. part of a s16.16)
   /* 0x06 */ uint16_t normA;  // 5,5,5 packed normal
-  /* 0x08 */ int16_t posB[3]; // 16.0 fixed point
-  /* 0x0E */ uint16_t normB;  // 5,5,5 packed normal
+  /* 0x08 */ int16_t posB[3]; // s16 (used in the ucode as the int. part of a s16.16)
+  /* 0x0E */ uint16_t normB;  // 5,6,5 packed normal
   /* 0x10 */ uint32_t rgbaA; // RGBA8 color
   /* 0x14 */ uint32_t rgbaB; // RGBA8 color
   /* 0x18 */ int16_t stA[2]; // UV fixed point 10.5 (pixel coords)
@@ -180,9 +185,12 @@ static inline void t3d_light_set_count(int count) {
  */
 void t3d_fog_set_range(float near, float far);
 
-/// @brief Disables fog
-static inline void t3d_fog_disable() {
-  t3d_fog_set_range(0.0f, 0.0f);
+/**
+ * Enables or disables fog, this can be set independently from the range.
+ * @param isEnabled
+ */
+static inline void t3d_fog_set_enabled(bool isEnabled) {
+  rspq_write(T3D_RSP_ID, T3D_CMD_FOG_STATE, (uint8_t)isEnabled);
 }
 
 /**

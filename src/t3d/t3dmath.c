@@ -70,8 +70,12 @@ void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, float scale[3], float rot[3], flo
 
 void t3d_mat4_rotate(T3DMat4 *mat, const T3DVec3* axis, float angleRad)
 {
-  float c = fm_cosf(angleRad);
-  float s = fm_sinf(angleRad);
+  float s, c;
+  // @TODO: currently buggy in libdragon, use once fixed
+  // fm_sincosf(angleRad, &s, &c);
+  s = fm_sinf(angleRad);
+  c = fm_cosf(angleRad);
+
   float t = 1.0f - c;
 
   float x = axis->v[0];

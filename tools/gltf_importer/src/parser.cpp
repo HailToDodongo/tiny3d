@@ -11,16 +11,17 @@ using json = nlohmann::json;
 
 #include "lib/lodepng.h"
 #include "parser.h"
+#include "fast64Types.h"
 
 #include "math/vec2.h"
 #include "math/vec3.h"
 
 #include "lib/meshopt/meshoptimizer.h"
+#include "math/mat4.h"
 
 namespace fs = std::filesystem;
 
 namespace {
-
   constexpr uint64_t RDPQ_COMBINER_2PASS = (uint64_t)(1) << 63;
 
   #define rdpq_1cyc_comb_rgb(suba, subb, mul, add) \
@@ -127,10 +128,13 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
   cgltf_load_buffers(&options, data, gltfPath);
   std::vector<Model> models{};
 
-  printf("Mesh count: %d\n", data->meshes_count);
-  for(int i = 0; i < data->meshes_count; i++)
+  printf("Node count: %d\n", data->nodes_count);
+  for(int i=0; i<data->nodes_count; ++i)
   {
-    auto mesh = &data->meshes[i];
+    auto node = &data->nodes[i];
+    auto mesh = node->mesh;
+    if(!mesh)continue;
+
     printf(" - Mesh %d: %s\n", i, mesh->name);
 
     for(int j = 0; j < mesh->primitives_count; j++)
@@ -172,6 +176,7 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
           if(f3dData.contains("rdp_settings"))
           {
             auto &rdpSettings = f3dData["rdp_settings"];
+            is2Cycle = rdpSettings["g_mdsft_cycletype"].get<uint32_t>() != 0;
 
             if(rdpSettings["g_cull_back"].get<uint32_t>() != 0) {
               model.materialA.drawFlags |= DrawFlags::CULL_BACK;
@@ -180,13 +185,27 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
               model.materialA.drawFlags |= DrawFlags::CULL_FRONT;
             }
 
-            //rdpSettings["g_cull_front"].get<uint32_t>();
-            //rdpSettings["g_fog"].get<uint32_t>();
+            model.materialA.fogMode = rdpSettings["g_fog"].get<uint32_t>() + 1;
+            model.materialB.fogMode = model.materialA.fogMode;
 
-            is2Cycle = rdpSettings["g_mdsft_cycletype"].get<uint32_t>() != 0;
+            bool setRenderMode = rdpSettings["set_rendermode"].get<uint32_t>() != 0;
+            if(setRenderMode) {
+              int renderMode1Raw = rdpSettings["rendermode_preset_cycle_1"].get<uint32_t>();
+              int renderMode2Raw = rdpSettings["rendermode_preset_cycle_2"].get<uint32_t>();
+              uint8_t alphaMode1 = F64_RENDER_MODE_1_TO_ALPHA[renderMode1Raw];
+              uint8_t alphaMode2 = F64_RENDER_MODE_2_TO_ALPHA[renderMode2Raw];
+
+              if(alphaMode1 == AlphaMode::INVALID || alphaMode2 == AlphaMode::INVALID) {
+                printf("\n\nInvalid render-modes: %d, please only use Opaque, Cutout, Transparent, Fog-Shade\n", renderMode1Raw);
+                throw std::runtime_error("Invalid render-modes!");
+              }
+
+              model.materialA.alphaMode = is2Cycle ? alphaMode2 : alphaMode1;
+              model.materialB.alphaMode = alphaMode2;
+            }
           }
 
-           if(isUsingShade(cc1) || (is2Cycle && isUsingShade(cc2))) {
+          if(isUsingShade(cc1) || (is2Cycle && isUsingShade(cc2))) {
             model.materialA.drawFlags |= DrawFlags::SHADED;
           }
 
@@ -316,7 +335,27 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
         auto &v = vertices[k];
         auto &vT3D = verticesT3D[k];
 
-        auto posInt = (v.pos * modelScale).round();
+        // calc. matrix, the included one seems to be always NULL (why?)
+        // @TODO: dont bake this for skinned meshes!
+        Mat4 matScale{};
+        if(node->has_scale)matScale.setScale({node->scale[0], node->scale[1], node->scale[2]});
+
+        Mat4 matRot{};
+        if(node->has_rotation)matRot.setRot({
+          node->rotation[3],
+          node->rotation[0],
+          node->rotation[1],
+          node->rotation[2]
+        });
+
+        Mat4 matTrans{};
+        if(node->has_translation)matTrans.setPos({node->translation[0], node->translation[1], node->translation[2]});
+
+        // apply matrix and base model scale (for fixes point accuracy)
+        Mat4 mat = matTrans * matRot * matScale;
+        auto posInt = mat * v.pos * modelScale;
+
+        posInt = posInt.round();
         vT3D.pos[0] = -(int16_t)posInt.x();
         vT3D.pos[1] = (int16_t)posInt.y();
         vT3D.pos[2] = (int16_t)posInt.z();

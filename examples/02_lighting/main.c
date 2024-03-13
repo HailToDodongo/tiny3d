@@ -20,8 +20,9 @@ int main()
   dfs_init(DFS_DEFAULT_LOCATION);
 
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS_DEDITHER);
-  rdpq_init();
+  surface_t depthBuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
 
+  rdpq_init();
   t3d_init();
 
   // Now allocate a fixed-point matrix, this is what t3d uses internally.
@@ -101,6 +102,7 @@ int main()
     if(lightCount > 4)lightCount = 4;
 
     // ======== Draw ======== //
+    rdpq_attach(display_get(), &depthBuffer);
     t3d_frame_start(); // call this once per frame at the beginning of your draw function
 
     t3d_screen_set_size(display_get_width(), display_get_height(), 2, false);
