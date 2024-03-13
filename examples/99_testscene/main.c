@@ -106,6 +106,7 @@ int main()
 
   joypad_init();
   t3d_init();
+  T3DViewport viewport = t3d_viewport_create();
 
   t3d_debug_print_init();
   sprite_t *spriteLogo = sprite_load("rom:/logo.ia8.sprite");
@@ -203,34 +204,33 @@ int main()
       lightDirVec.v[1] = 0.0f;//fm_sinf(time * 0.002f);
       lightDirVec.v[2] = fm_sinf(time * 0.002f);
       t3d_vec3_norm(&lightDirVec);
-
     }
 
     bool useReject = !joypad.btn.z;
 
     rotAngle += 0.03f;
 
-    // Model-Matrix, t3d offers some basic matrix functions
     float modelScale = 0.15f;
     t3d_mat4_identity(&modelMat);
     //t3d_mat4_rotate(&modelMat, &rotAxis, rotAngle);
     t3d_mat4_scale(&modelMat, modelScale, modelScale, modelScale);
     t3d_mat4_to_fixed(modelMatFP, &modelMat);
 
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 2.0f, 150.0f);
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget);
+
     // ----------- DRAW ------------ //
     rdpq_attach(display_get(), &depthBuffer);
 
-    t3d_frame_start(); // call this once per frame at the beginning of your draw function
+    t3d_frame_start();
+    t3d_viewport_apply(&viewport);
+
     rdpq_set_prim_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
     rdpq_mode_fog(RDPQ_FOG_STANDARD);
     rdpq_set_fog_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
 
-    t3d_screen_set_size(display_get_width(), display_get_height(), 2, false);
     t3d_screen_clear_color(RGBA32(0, 0, 0, 0xFF));
     t3d_screen_clear_depth();
-
-    t3d_projection_perspective(T3D_DEG_TO_RAD(85.0f), 2.0f, 150.0f);
-    t3d_camera_look_at(&camPos, &camTarget); // convenience function to set camera matrix and related settings
 
     t3d_fog_set_range(17.0f, 100.0f);
     t3d_fog_set_enabled(true);

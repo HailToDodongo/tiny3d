@@ -10,6 +10,7 @@
 
 extern uint32_t T3D_RSP_ID;
 
+// RSP commands, must match with the commands defined in `rsp/rsp_tiny3d.rspl`
 enum T3DCmd {
   T3D_CMD_TRI_DRAW     = 0x0,
   T3D_CMD_SCREEN_SIZE  = 0x1,
@@ -52,6 +53,25 @@ enum T3DDrawFlags {
 };
 
 /**
+ * Viewport, combines several settings which are usually used together.
+ * This includes the screen-rect, camera-matrix and projection-matrix.
+ *
+ * Note: members considered private are prefixed with an underscore.
+ */
+typedef struct {
+  T3DMat4FP _matCameraFP; // calculated from 'matCamera' by 't3d_viewport_look_at'
+  T3DMat4FP _matProjFP;   // calculated from 'matProj' by 't3d_viewport_set_projection'
+
+  T3DMat4 matCamera; // view matrix, can be set via `t3d_viewport_look_at`
+  T3DMat4 matProj;   // projection matrix, can be set via `t3d_viewport_set_projection`
+
+  int32_t offset[2];  // screen offset in pixel, [0,0] by default
+  int32_t size[2];    // screen size in pixel, same as the allocated framebuffer size by default
+  int guardBandScale; // guard band for clipping, 2 by default
+  int useRejection;   // use rejection instead of clipping, false by default
+} T3DViewport;
+
+/**
  * @brief Initializes the tiny3d library
  */
 void t3d_init(void);
@@ -66,48 +86,73 @@ void t3d_destroy(void);
  */
 void t3d_frame_start(void);
 
-/// @brief Clears the screen with a given color
+
+/// @brief Clears the entire screen with a given color
 void t3d_screen_clear_color(color_t color);
 
-/// @brief Clears the depth buffer with a fixed value (0xFFFC)
+/// @brief Clears the entire depth buffer with a fixed value (0xFFFC)
 void t3d_screen_clear_depth();
 
 /**
- * Sets current screensize and guard-band/clipping settings
- * @param width width in pixels
- * @param height height in pixels
- * @param guardBandScale guard-band scale (1-4)
- * @param isReject if true, enables rejection, if false use clipping
+ * Creates a viewport struct, this only creates a struct and doesn't change any setting.
+ * Note: Nothing in this struct needs any cleanup/free.
+ *
+ * @return struct with the documented default values
  */
-void t3d_screen_set_size(uint32_t width, uint32_t height, int guardBandScale, int isReject);
-
-void t3d_screen_set_rect(
-  int posStartX, int posStartY, int posEndX, int posEndY,
-  int guardBandScale, int isReject
-);
+inline static T3DViewport t3d_viewport_create() {
+  return (T3DViewport){
+    .offset = {0, 0},
+    .size = {(int32_t)display_get_width(), (int32_t)display_get_height()},
+    .guardBandScale = 2,
+    .useRejection = false,
+  };
+}
 
 /**
- * Sets a new camera position and direction.
- * This will update the internal camera matrix and sends a command to the RSP.
- * @param eye camera position
- * @param target camera target/look-at
+ * Uses the given viewport for further rendering and applies its settings.
+ * This will set the visible screen-rect, and apply the camera and projection matrix.
+ *
+ * Note that you may have to re-apply directional lights if you are using multiple viewports,
+ * as they are depend on the view matrix.
+ *
+ * @param viewport viewport, pointer must be valid until the next `t3d_viewport_use` call
  */
-__attribute__((unused))
-void t3d_camera_look_at(const T3DVec3 *eye, const T3DVec3 *target);
-
-/// @brief Returns the current camera matrix (floating-point)
-const T3DMat4 *t3d_camera_get_matrix();
+void t3d_viewport_apply(T3DViewport *viewport);
 
 /**
- * Constructs and sets a perspective projection matrix.
+ * Convenience function to set the area of a viewport.
+ * @param viewport
+ * @param x position (0 by default)
+ * @param y
+ * @param width size (display width by default)
+ * @param height
+ */
+inline static void t3d_viewport_set_area(T3DViewport *viewport, int32_t x, int32_t y, int32_t width, int32_t height) {
+  viewport->offset[0] = x;
+  viewport->offset[1] = y;
+  viewport->size[0] = width;
+  viewport->size[1] = height;
+}
+
+/**
+ * Updates the projection matrix of the given viewport.
+ * The proj. matrix gets auto. applied at the next `t3d_viewport_use` call.
+ *
+ * @param viewport
  * @param fov fov in radians
  * @param near near plane distance
  * @param far far plane distance
  */
-void t3d_projection_perspective(float fov, float near, float far);
+void t3d_viewport_set_projection(T3DViewport *viewport, float fov, float near, float far);
 
-/// @brief Returns the current projection matrix (floating-point)
-const T3DMat4 *t3d_projection_get_matrix();
+/**
+ * Sets a new camera position and direction for the given viewport.
+ * The view matrix gets auto. applied at the next `t3d_viewport_use` call.
+ *
+ * @param eye camera position
+ * @param target camera target/look-at
+ */
+void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVec3 *target);
 
 /**
  * @brief Draws a single triangle, referencing loaded vertices
@@ -124,7 +169,7 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2);
  * @param mat address to load matrix from
  * @param idxDst slot index (0-7)
  */
-void t3d_mat_set(T3DMat4FP *mat, uint32_t idxDst);
+void t3d_matrix_set(const T3DMat4FP *mat, uint32_t idxDst);
 
 /**
  * Multiplies a matrix with another matrix and loads it into a slot.
@@ -133,13 +178,13 @@ void t3d_mat_set(T3DMat4FP *mat, uint32_t idxDst);
  * @param idxDst slot index (0-7)
  * @param idxMul slot index of matrix to multiply with (0-7)
  */
-void t3d_matrix_set_mul(T3DMat4FP *mat, uint32_t idxDst, uint32_t  idxMul);
+void t3d_matrix_set_mul(const T3DMat4FP *mat, uint32_t idxDst, uint32_t  idxMul);
 
 /**
  * Sets the projection matrix
  * @param mat address to load matrix from
  */
-void t3d_matrix_set_proj(T3DMat4FP *mat);
+void t3d_matrix_set_proj(const T3DMat4FP *mat);
 
 /**
  * Loads a vertex buffer with a given size, this can then be used to draw triangles.

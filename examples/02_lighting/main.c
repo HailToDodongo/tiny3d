@@ -24,6 +24,7 @@ int main()
 
   rdpq_init();
   t3d_init();
+  T3DViewport viewport = t3d_viewport_create();
 
   // Now allocate a fixed-point matrix, this is what t3d uses internally.
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
@@ -65,6 +66,9 @@ int main()
     float modelScale = 0.08f;
     lightCountTimer += 0.003f;
 
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(65.0f), 10.0f, 250.0f);
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget);
+
     // Model Matrix
     t3d_mat4fp_from_srt_euler(modelMatFP,
       (float[3]){modelScale, modelScale, modelScale},
@@ -104,15 +108,13 @@ int main()
     // ======== Draw ======== //
     rdpq_attach(display_get(), &depthBuffer);
     t3d_frame_start(); // call this once per frame at the beginning of your draw function
+    t3d_viewport_apply(&viewport);
 
-    t3d_screen_set_size(display_get_width(), display_get_height(), 2, false);
     t3d_screen_clear_color(RGBA32(25, 10, 40, 0xFF));
     t3d_screen_clear_depth();
 
     t3d_light_set_count(lightCount);
 
-    t3d_projection_perspective(T3D_DEG_TO_RAD(65.0f), 10.0f, 250.0f);
-    t3d_camera_look_at(&camPos, &camTarget); // convenience function to set camera matrix and related settings
 
     t3d_light_set_ambient(colorAmbient);
 

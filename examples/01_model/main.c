@@ -26,7 +26,9 @@ int main()
   surface_t depthBuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
 
   rdpq_init();
+
   t3d_init();
+  T3DViewport viewport = t3d_viewport_create();
 
   T3DMat4 modelMat; // matrix for our model, this is a "normal" float matrix
   t3d_mat4_identity(&modelMat);
@@ -57,6 +59,9 @@ int main()
     rotAngle += 0.02f;
     float modelScale = 0.1f;
 
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 400.0f);
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget);
+
     // slowly rotate model, for more information on matrices and how to draw objects
     // see the example: "03_objects"
     t3d_mat4_from_srt_euler(&modelMat,
@@ -69,13 +74,10 @@ int main()
     // ======== Draw ======== //
     rdpq_attach(display_get(), &depthBuffer);
     t3d_frame_start();
+    t3d_viewport_apply(&viewport);
 
-    t3d_screen_set_size(display_get_width(), display_get_height(), 1, true);
     t3d_screen_clear_color(RGBA32(100, 80, 80, 0xFF));
     t3d_screen_clear_depth();
-
-    t3d_projection_perspective(T3D_DEG_TO_RAD(85.0f), 10.0f, 400.0f);
-    t3d_camera_look_at(&camPos, &camTarget); // convenience function to set camera matrix and related settings
 
     t3d_light_set_ambient(colorAmbient);
     t3d_light_set_directional(0, colorDir, &lightDirVec);

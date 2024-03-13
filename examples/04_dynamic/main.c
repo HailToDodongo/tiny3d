@@ -36,6 +36,7 @@ int main()
   joypad_init();
 
   t3d_init();
+  T3DViewport viewport = t3d_viewport_create();
   t3d_debug_print_init();
 
   T3DMat4 modelMat;
@@ -82,6 +83,9 @@ int main()
 
     T3DVec3 camPos = {{sinf(camAngle) * 45.0f, 35.0f, cosf(camAngle) * 60.0f}};
 
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget);
+
     // transform mesh
     if(transformEnabled)
     {
@@ -123,16 +127,14 @@ int main()
     // ======== Draw (3D) ======== //
     rdpq_attach(display_get(), &depthBuffer);
     t3d_frame_start();
+    t3d_viewport_apply(&viewport);
 
     rdpq_mode_fog(RDPQ_FOG_STANDARD);
     rdpq_set_fog_color((color_t){140, 50, 20, 0xFF});
 
-    t3d_screen_set_size(display_get_width(), display_get_height(), 1, true);
     t3d_screen_clear_color(RGBA32(111, 20, 20, 0xFF));
     t3d_screen_clear_depth();
 
-    t3d_projection_perspective(T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
-    t3d_camera_look_at(&camPos, &camTarget);
     t3d_light_set_count(0);
 
     t3d_matrix_set_mul(modelMatFP, 1, 0);

@@ -87,6 +87,7 @@ int main()
   joypad_init();
 
   t3d_init();
+  T3DViewport viewport = t3d_viewport_create();
   t3d_debug_print_init();
 
   // Load a some models
@@ -144,17 +145,18 @@ int main()
     }
     timeUpdate = get_time_ms() - timeUpdate;
 
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(65.0f), 15.0f, 90.0f);
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget);
+
     // ======== Draw (3D) ======== //
     rdpq_attach(display_get(), &depthBuffer);
     t3d_frame_start();
+    t3d_viewport_apply(&viewport);
+
     rdpq_set_prim_color(RGBA32(0, 0, 0, 0xFF));
 
-    t3d_screen_set_size(display_get_width(), display_get_height(), 2, false);
     t3d_screen_clear_color(RGBA32(100, 120, 160, 0xFF));
     t3d_screen_clear_depth();
-
-    t3d_projection_perspective(T3D_DEG_TO_RAD(65.0f), 15.0f, 90.0f);
-    t3d_camera_look_at(&camPos, &camTarget);
 
     t3d_light_set_ambient(colorAmbient);
     t3d_light_set_directional(0, lightDirColor, &lightDirVec);

@@ -51,12 +51,20 @@ int main()
   T3DVec3 rotAxis = {{1.0f, 2.5f, 0.25f}};
   t3d_vec3_norm(&rotAxis);
 
+  // create a viewport, this defines the section to draw to (by default the whole screen)
+  // and contains the projection & view (camera) matrices
+  T3DViewport viewport = t3d_viewport_create();
+
   rspq_block_t *dplDraw = NULL;
 
   for(;;)
   {
     // ======== Update ======== //
     rotAngle += 0.03f;
+
+    // we can set up our viewport settings beforehand here
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 100.0f);
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget);
 
     // Model-Matrix, t3d offers some basic matrix functions
     t3d_mat4_identity(&modelMat);
@@ -66,16 +74,14 @@ int main()
 
     // ======== Draw (3D) ======== //
     rdpq_attach(display_get(), &depthBuffer); // set the target to draw to
-
     t3d_frame_start(); // call this once per frame at the beginning of your draw function
-    rdpq_mode_combiner(RDPQ_COMBINER_SHADE);
 
-    t3d_screen_set_size(display_get_width(), display_get_height(), 2, true);
+    t3d_viewport_apply(&viewport); // now use the viewport, this applies proj/view matrices and sets scissoring
+
+    rdpq_mode_combiner(RDPQ_COMBINER_SHADE);
+    // this cleans the entire screen (even if out viewport is smaller)
     t3d_screen_clear_color(RGBA32(100, 0, 100, 0));
     t3d_screen_clear_depth();
-
-    t3d_projection_perspective(T3D_DEG_TO_RAD(85.0f), 10.0f, 100.0f);
-    t3d_camera_look_at(&camPos, &camTarget); // convenience function to set camera matrix and related settings
 
     t3d_light_set_ambient(colorAmbient); // one global ambient light, always active
     t3d_light_set_directional(0, colorDir, &lightDirVec); // optional directional light, can be disabled
