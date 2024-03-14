@@ -175,6 +175,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
     {
       if(obj->materialA->renderFlags != lastRenderFlags) {
         t3d_state_set_drawflags(obj->materialA->renderFlags);
+        lastRenderFlags = obj->materialA->renderFlags;
       }
 
       if(matMain->fogMode != T3D_FOG_MODE_DEFAULT && matMain->fogMode != lastFogMode) {
@@ -194,12 +195,15 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
       if(p == 0 && matMain && matMain->colorCombiner)
       {
         bool hadPipeSync = false;
+        bool hadTexLoad = false;
+
         if(lastTextureHashA != matMain->textureHash || lastTextureHashB != matSecond->textureHash) {
           lastTextureHashA = matMain->textureHash;
           lastTextureHashB = matSecond->textureHash;
+          hadTexLoad = true;
 
-          rdpq_sync_tile();
           rdpq_sync_pipe();
+          rdpq_sync_load();
           hadPipeSync = true;
 
           rdpq_tex_multi_begin();
@@ -218,7 +222,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
           rdpq_mode_combiner(obj->materialA->colorCombiner);
         }
 
-        if(matMain->alphaMode != lastAlphaMode)
+        if(matMain->alphaMode != lastAlphaMode || hadTexLoad) // @TODO: why 'hadTexLoad'?
         {
           if(!hadPipeSync) {
             rdpq_sync_pipe();
@@ -239,6 +243,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
               rdpq_mode_alphacompare(0);
             break;
           }
+
           lastAlphaMode = matMain->alphaMode;
         }
       }

@@ -74,7 +74,7 @@ int main()
     // ======== Draw ======== //
     rdpq_attach(display_get(), &depthBuffer);
     t3d_frame_start();
-    t3d_viewport_apply(&viewport);
+    t3d_viewport_attach(&viewport);
 
     t3d_screen_clear_color(RGBA32(100, 80, 80, 0xFF));
     t3d_screen_clear_depth();

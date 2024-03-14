@@ -224,7 +224,7 @@ void t3d_fog_set_range(float near, float far) {
   );
 }
 
-void t3d_viewport_apply(T3DViewport *viewport) {
+void t3d_viewport_attach(T3DViewport *viewport) {
   assertf(viewport != NULL, "Viewport is NULL!");
   currentViewport = viewport;
 

@@ -115,9 +115,9 @@ inline static T3DViewport t3d_viewport_create() {
  * Note that you may have to re-apply directional lights if you are using multiple viewports,
  * as they are depend on the view matrix.
  *
- * @param viewport viewport, pointer must be valid until the next `t3d_viewport_use` call
+ * @param viewport viewport, pointer must be valid until the next `t3d_viewport_attach` call
  */
-void t3d_viewport_apply(T3DViewport *viewport);
+void t3d_viewport_attach(T3DViewport *viewport);
 
 /**
  * Convenience function to set the area of a viewport.
@@ -136,7 +136,7 @@ inline static void t3d_viewport_set_area(T3DViewport *viewport, int32_t x, int32
 
 /**
  * Updates the projection matrix of the given viewport.
- * The proj. matrix gets auto. applied at the next `t3d_viewport_use` call.
+ * The proj. matrix gets auto. applied at the next `t3d_viewport_attach` call.
  *
  * @param viewport
  * @param fov fov in radians
@@ -147,7 +147,7 @@ void t3d_viewport_set_projection(T3DViewport *viewport, float fov, float near, f
 
 /**
  * Sets a new camera position and direction for the given viewport.
- * The view matrix gets auto. applied at the next `t3d_viewport_use` call.
+ * The view matrix gets auto. applied at the next `t3d_viewport_attach` call.
  *
  * @param eye camera position
  * @param target camera target/look-at

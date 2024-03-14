@@ -151,7 +151,7 @@ int main()
     // ======== Draw (3D) ======== //
     rdpq_attach(display_get(), &depthBuffer);
     t3d_frame_start();
-    t3d_viewport_apply(&viewport);
+    t3d_viewport_attach(&viewport);
 
     rdpq_set_prim_color(RGBA32(0, 0, 0, 0xFF));
 

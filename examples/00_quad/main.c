@@ -76,7 +76,7 @@ int main()
     rdpq_attach(display_get(), &depthBuffer); // set the target to draw to
     t3d_frame_start(); // call this once per frame at the beginning of your draw function
 
-    t3d_viewport_apply(&viewport); // now use the viewport, this applies proj/view matrices and sets scissoring
+    t3d_viewport_attach(&viewport); // now use the viewport, this applies proj/view matrices and sets scissoring
 
     rdpq_mode_combiner(RDPQ_COMBINER_SHADE);
     // this cleans the entire screen (even if out viewport is smaller)

@@ -127,7 +127,7 @@ int main()
     // ======== Draw (3D) ======== //
     rdpq_attach(display_get(), &depthBuffer);
     t3d_frame_start();
-    t3d_viewport_apply(&viewport);
+    t3d_viewport_attach(&viewport);
 
     rdpq_mode_fog(RDPQ_FOG_STANDARD);
     rdpq_set_fog_color((color_t){140, 50, 20, 0xFF});

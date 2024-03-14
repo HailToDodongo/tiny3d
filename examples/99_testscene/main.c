@@ -223,7 +223,7 @@ int main()
     rdpq_attach(display_get(), &depthBuffer);
 
     t3d_frame_start();
-    t3d_viewport_apply(&viewport);
+    t3d_viewport_attach(&viewport);
 
     rdpq_set_prim_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
     rdpq_mode_fog(RDPQ_FOG_STANDARD);
