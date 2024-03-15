@@ -71,12 +71,13 @@ only the first materials CC and draw flags are used.
 | 0x0C   | `u8 (AlphaMode)`     | Alpha mode                    |
 | 0x0D   | `u8 (FogMode)`       | Fog mode                      |
 | 0x0E   | `u8[2]`              | _reserved_                    |
-| 0x10   | `u32`                | Texture path offset           |
-| 0x14   | `u32`                | Texture hash / ID             |
-| 0x18   | `u32`                | Runtime texture pointer (`0`) |
-| 0x1C   | `u16`                | Texture width                 |
-| 0x1E   | `u16`                | Texture height                |
-| 0x20   | `T3DMaterialAxis[2]` | Setting per UV axis           |
+| 0x10   | `u32`                | Texture reference (offscreen) |
+| 0x14   | `u32`                | Texture path offset           |
+| 0x18   | `u32`                | Texture hash / ID             |
+| 0x1C   | `u32`                | Runtime texture pointer (`0`) |
+| 0x20   | `u16`                | Texture width                 |
+| 0x22   | `u16`                | Texture height                |
+| 0x24   | `T3DMaterialAxis[2]` | Setting per UV axis           |
 
 #### `T3DMaterialAxis`
 

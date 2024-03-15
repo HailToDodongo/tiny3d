@@ -1,7 +1,7 @@
 # Tiny3D
 
 <p align="center">
-<img src="logo.png" height="200">
+<img src="logo.png" width="530">
 </p>
 
 3D ucode/library for the N64 using [libdragon](https://github.com/DragonMinded/libdragon/tree/preview).<br>

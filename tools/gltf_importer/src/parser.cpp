@@ -49,8 +49,36 @@ namespace {
 
   void readMaterialFromJson(Material &material, const json &tex, const fs::path &gltfPath)
   {
-    //printf("tex: %s\n", tex.dump(2).c_str());
-    if(tex.contains("tex") && tex["tex"].contains("name")) {
+    if(tex.contains("S"))readMaterialTileAxisFromJson(material.s, tex["S"]);
+    if(tex.contains("T"))readMaterialTileAxisFromJson(material.t, tex["T"]);
+
+    // default texture size, can be overwritten by a texture or reference later
+    material.texWidth = material.s.high - material.s.low + 1;
+    material.texHeight = material.t.high - material.t.low + 1;
+
+    bool isRef = false;
+    if(tex.contains("use_tex_reference")) {
+      isRef = tex["use_tex_reference"].get<uint32_t>() == 1;
+    }
+
+    // a texture can either be an image loaded from a sprite,
+    // or a "reference" which doesn't actively load an image itself
+    if(isRef) {
+      if(tex.contains("tex_reference")) {
+        std::string refAddress = tex["tex_reference"].get<std::string>();
+
+        // try to parse it as a hex string or decimal
+        int base = (refAddress.size() > 2 && refAddress[0] == '0' && refAddress[1] == 'x') ? 16 : 10;
+        material.texReference = std::stoul(refAddress, nullptr, base);
+      }
+
+      if(tex.contains("tex_reference_size")) {
+        material.texWidth = tex["tex_reference_size"][0].get<uint32_t>();
+        material.texHeight = tex["tex_reference_size"][1].get<uint32_t>();
+      }
+    }
+    else if(tex.contains("tex") && tex["tex"].contains("name"))
+    {
       material.texPath = tex["tex"]["name"].get<std::string>();
       if(material.texPath[0] != '/') {
         material.texPath = gltfPath.string() / fs::path(material.texPath);
@@ -63,8 +91,6 @@ namespace {
       }
       printf("Loaded Texture %s, size: %dx%d\n", material.texPath.c_str(), material.texWidth, material.texHeight);
     }
-    if(tex.contains("S"))readMaterialTileAxisFromJson(material.s, tex["S"]);
-    if(tex.contains("T"))readMaterialTileAxisFromJson(material.t, tex["T"]);
   }
 
   ColorCombiner readCCFromJson(const json &cc)

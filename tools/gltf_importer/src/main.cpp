@@ -113,6 +113,8 @@ int main(int argc, char* argv[])
       f->write(material.fogMode);
       f->skip(2); // reserved/padding
 
+      f->write(material.texReference);
+
       std::string texPath = fs::relative(material.texPath, std::filesystem::current_path());
 
       if(texPath.find("assets/") == 0) {
@@ -138,7 +140,9 @@ int main(int argc, char* argv[])
 
       } else {
         f->write(0);
-        f->write(0);
+        // if no texture is set, use the reference as hash
+        // this is needed to force a reevaluation of the texture state
+        f->write(material.texReference);
       }
 
       f->write((uint32_t)0); // runtime pointer

@@ -33,6 +33,7 @@ typedef struct {
   uint8_t fogMode; // see: T3D_FOG_MODE_xxx
   uint8_t _reserved[2];
 
+  uint32_t texReference; // dynamic/offscreen texture if non-zero, can be set in fast64
   char* texPath;
   uint32_t textureHash;
 
@@ -98,12 +99,17 @@ T3DModel* t3d_model_load(const void *path);
 // callback for custom drawing, this hooks into the tile-setting section
 typedef void (*T3DModelTileCb)(void* userData, rdpq_texparms_t *tileParams, rdpq_tile_t tile);
 typedef bool (*T3DModelFilterCb)(void* userData, const T3DObject *obj);
+typedef void (*T3DModelDynTextureCb)(
+  void* userData, const T3DMaterial *material, rdpq_texparms_t *tileParams,
+  rdpq_tile_t tile, uint32_t texReference
+);
 
 // Defines settings and callbacks for custom drawing
 typedef struct {
   void* userData;
   T3DModelTileCb tileCb; // callback to modify tile settings
   T3DModelFilterCb filterCb; // callback to filter parts
+  T3DModelDynTextureCb dynTextureCb; // callback to set dynamic textures, aka "Texture Reference" in fast64
 } T3DModelDrawConf;
 
 /**

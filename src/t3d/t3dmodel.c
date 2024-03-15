@@ -69,9 +69,10 @@ static void texture_cache_free(uint32_t hash)
 
 static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *conf)
 {
-  if(mat->texPath)
+
+  if(mat->texPath || mat->texReference)
   {
-    if(!mat->texture) {
+    if(mat->texPath && !mat->texture) {
       debugf("Load Texture: %s (%08lX)\n", mat->texPath, mat->textureHash);
       mat->texture = texture_cache_get(mat->textureHash);
       if(mat->texture == NULL) {
@@ -97,7 +98,12 @@ static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *co
     }
 
     // @TODO: don't upload texture if only the tile settings differ
-    rdpq_sprite_upload(tile, mat->texture, &tex);
+    if(mat->texReference) {
+      if(conf->dynTextureCb)conf->dynTextureCb(conf->userData, mat, &tex, tile, mat->texReference);
+    } else {
+    rdpq_sync_tile();
+      rdpq_sprite_upload(tile, mat->texture, &tex);
+    }
   }
 }
 
@@ -197,6 +203,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
         bool hadPipeSync = false;
         bool hadTexLoad = false;
 
+        debugf("TexA: %08lX (ref: %08lX), TexB: %08lX (ref: %08lX)\n", matMain->textureHash, matMain->texReference, matSecond->textureHash, matSecond->texReference);
         if(lastTextureHashA != matMain->textureHash || lastTextureHashB != matSecond->textureHash) {
           lastTextureHashA = matMain->textureHash;
           lastTextureHashB = matSecond->textureHash;
