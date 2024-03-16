@@ -160,7 +160,7 @@ int main()
       t3d_debug_printf(8, 8, "%.1f FPS\n", display_get_fps());
     }
 
-    rdpq_detach_wait(); // to finish, detach and wait for the RDP to render the offscreen buffer
+    rdpq_detach(); // to finish, simply detach (no explicit wait is needed)
 
     // ======== Draw (Onscreen) ======== //
     // For our main scene we now attach the screen buffer again,
