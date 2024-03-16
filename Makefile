@@ -56,6 +56,7 @@ run_examples:
 	$(EMU_PATH) examples/03_objects/*.z64
 	$(EMU_PATH) examples/04_dynamic/*.z64
 	$(EMU_PATH) examples/05_splitscreen/*.z64
+	$(EMU_PATH) examples/06_offscreen/*.z64
 	$(EMU_PATH) examples/99_testscene/*.z64
 
 clean:
