@@ -111,13 +111,16 @@ int main(int argc, char* argv[])
 
       f->write(material.texReference);
 
-      std::string texPath = fs::relative(material.texPath, std::filesystem::current_path());
+      std::string texPath = "";
+      if(!material.texPath.empty()) {
+        texPath = fs::relative(material.texPath, std::filesystem::current_path());
 
-      if(texPath.find("assets/") == 0) {
-        texPath.replace(0, 7, "rom:/");
-      }
-      if(texPath.find(".png") != std::string::npos) {
-        texPath.replace(texPath.find(".png"), 4, ".sprite");
+        if(texPath.find("assets/") == 0) {
+          texPath.replace(0, 7, "rom:/");
+        }
+        if(texPath.find(".png") != std::string::npos) {
+          texPath.replace(texPath.find(".png"), 4, ".sprite");
+        }
       }
 
       if(!texPath.empty()) {
