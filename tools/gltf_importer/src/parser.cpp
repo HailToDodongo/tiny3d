@@ -12,6 +12,7 @@ using json = nlohmann::json;
 #include "lib/lodepng.h"
 #include "parser.h"
 #include "fast64Types.h"
+#include "hash.h"
 
 #include "math/vec2.h"
 #include "math/vec3.h"
@@ -173,7 +174,12 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
 
       if(prim->material) {
 
+        model.materialA.uuid = j*1000+i;
+        if(prim->material->name) {
+          model.materialA.uuid = stringHash(prim->material->name);
+        }
         printf("     Material: %s\n", prim->material->name);
+
         if(prim->material->extras.data == nullptr) {
           throw std::runtime_error(
             "\n\n"
@@ -259,6 +265,7 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
         }
         model.materialB.colorCombiner = model.materialA.colorCombiner;
         model.materialB.drawFlags = model.materialA.drawFlags;
+        model.materialB.uuid = model.materialA.uuid ^ 0x12345678;
       }
 
       // find vertex count

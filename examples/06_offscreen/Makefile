@@ -14,7 +14,8 @@ assets_png = $(wildcard assets/*.png)
 assets_gltf = $(wildcard assets/*.glb)
 assets_conv = $(addprefix filesystem/,$(notdir $(assets_png:%.png=%.sprite))) \
 			  $(addprefix filesystem/,$(notdir $(assets_ttf:%.ttf=%.font64))) \
-			  $(addprefix filesystem/,$(notdir $(assets_gltf:%.glb=%.t3dm)))
+			  $(addprefix filesystem/,$(notdir $(assets_gltf:%.glb=%.t3dm))) \
+			  filesystem/video.m1v
 
 all: $(PROJECT_NAME).z64
 
@@ -28,6 +29,13 @@ filesystem/%.t3dm: assets/%.glb
 	@echo "    [T3D-MODEL] $@"
 	$(T3D_GLTF_TO_3D) "$<" $@
 	$(N64_BINDIR)/mkasset -c 2 -o filesystem $@
+
+# For a proper conversion of an input video, see the "videoplayer" example in libdragon
+filesystem/video.m1v: assets/video.m1v
+	@mkdir -p $(dir $@)
+	@echo "    [VIDEO] $@"
+	cp assets/video.m1v filesystem/video.m1v
+
 
 $(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
 $(BUILD_DIR)/$(PROJECT_NAME).elf: $(src:%.c=$(BUILD_DIR)/%.o)

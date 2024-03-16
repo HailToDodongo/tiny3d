@@ -6,13 +6,12 @@
 
 /**
  * Showcase for offscreen rendering.
- * This renders a scene into a texture which then can be used by 3D models.
+ * This renders a scene & video into a texture which then can be used by 3D models.
  */
-
 #define OFFSCREEN_SIZE 80
 
 // This is a callback for t3d_model_draw_custom, it is used when a texture in a model is set to dynamic/"reference"
-void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t *tileParams, rdpq_tile_t tile, uint32_t texReference) {
+void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t *tileParams, rdpq_tile_t tile) {
   if(tile != TILE0)return; // this callback can happen 2 times per mesh, you are allowed to skip calls
 
   surface_t *offscreenSurf = (surface_t*)userData;
@@ -24,20 +23,12 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
   // upload a slice of the offscreen-buffer, the screen in the TV model is split into 4 materials for each section
   // if you are working with a small enough single texture, you can ofc use a normal sprite upload.
   // the quadrant is determined by the texture reference set in fast64, which can be used as an arbitrary value
-  switch(texReference) {
+  switch(material->texReference) { // Note: TILE1 is used here due to CC shenanigans
     case 1: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  0,     0,     sHalf, sHalf); break;
     case 2: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  sHalf, 0,     sFull, sHalf); break;
     case 3: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  0,     sHalf, sHalf, sFull); break;
     case 4: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  sHalf, sHalf, sFull, sFull); break;
   }
-}
-
-static float random_flicker(float time) {
-  float flickrMain = fm_sinf(time) * 0.5f + 0.5f;
-  float flickrSub = fm_sinf(time * 0.5f) * 0.5f + 0.5f;
-
-  flickrMain = (flickrMain + flickrSub) * 0.5f;
-  return 1.0f - fminf(flickrMain, 1.0f);
 }
 
 int main()
@@ -57,7 +48,7 @@ int main()
   surface_t offscreenSurfZ = surface_alloc(FMT_RGBA16, OFFSCREEN_SIZE, OFFSCREEN_SIZE);
 
   rdpq_init();
-  //rdpq_debug_start();
+  joypad_init();
 
   t3d_init();
   t3d_debug_print_init();
@@ -68,79 +59,106 @@ int main()
   T3DViewport viewportOffscreen = t3d_viewport_create();
   t3d_viewport_set_area(&viewportOffscreen, 0, 0, OFFSCREEN_SIZE, OFFSCREEN_SIZE);
 
-  T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
-  T3DMat4FP* modelTargetMatFP = malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP* matrixBox = malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP* matrixCRT = malloc_uncached(sizeof(T3DMat4FP));
 
-  const T3DVec3 camPos = {{0,5.0f,40.0f}};
-  const T3DVec3 camTarget = {{0,0,0}};
-
-  uint8_t colorAmbient[4] = {80, 80, 110, 0xFF};
-  uint8_t colorDir[4]     = {90, 80, 80, 0xFF};
+  t3d_mat4fp_from_srt_euler(matrixCRT,
+    (float[3]){0.02f, 0.02f, 0.02f},
+    (float[3]){0,0,0}, (float[3]){0,-1,0}
+  );
 
   T3DVec3 lightDirVec = {{1.0f, 1.0f, 1.0f}};
   t3d_vec3_norm(&lightDirVec);
 
-  T3DModel *model = t3d_model_load("rom:/box.t3dm");
-  T3DModel *target = t3d_model_load("rom:/target.t3dm");
+  T3DModel *modelBox = t3d_model_load("rom:/box.t3dm");
+  T3DModel *modelCRT = t3d_model_load("rom:/target.t3dm");
+
+  mpeg2_t mp2;
+  mpeg2_open(&mp2, "rom:/video.m1v", OFFSCREEN_SIZE, OFFSCREEN_SIZE);
 
   rspq_block_begin();
-  t3d_matrix_set_mul(modelMatFP, 1, 0);
-  t3d_model_draw(model);
-  rspq_block_t *dplDraw = rspq_block_end();
+  t3d_matrix_set_mul(matrixBox, 1, 0);
+  t3d_model_draw(modelBox);
+  rspq_block_t *dplBox = rspq_block_end();
 
   rspq_block_begin();
-  t3d_matrix_set_mul(modelTargetMatFP, 1, 0);
-  t3d_model_draw_custom(target, (T3DModelDrawConf){
+  t3d_matrix_set_mul(matrixCRT, 1, 0);
+  t3d_model_draw_custom(modelCRT, (T3DModelDrawConf){
     .userData = &offscreenSurf,
     .dynTextureCb = dynamic_tex_cb,
   });
-  rspq_block_t *dplTarget = rspq_block_end();
+  rspq_block_t *dplCRT = rspq_block_end();
 
   float rotAngle = -2.4f;
+  float noiseStrength = 1.0f;
+  float camDist = 20.0f;
+  float lastTime = 0.0f;
+  float videoFrameTime = 0.0f;
+  bool offscreen3D = false;
 
   for(;;)
   {
     // ======== Update ======== //
-    rotAngle += 0.005f;
+    float timeMs = (float)((double)get_ticks_us() / 1000.0);
+    float deltaTime = (timeMs - lastTime) / 1000.0f;
+    lastTime = timeMs;
+    videoFrameTime += deltaTime;
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 200.0f);
-    t3d_viewport_look_at(&viewport, &(T3DVec3){{0,10.0f,85.0f}}, &camTarget);
+    joypad_poll();
+    joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
 
-    t3d_viewport_set_projection(&viewportOffscreen, T3D_DEG_TO_RAD(85.0f), 10.0f, 400.0f);
-    t3d_viewport_look_at(&viewportOffscreen, &camPos, &camTarget);
+    if(joypad_get_buttons_pressed(JOYPAD_PORT_1).a)offscreen3D = !offscreen3D;
 
-    t3d_mat4fp_from_srt_euler(modelMatFP,
+    // camera rotation (+ noise falloff)
+    float manualRot = ((float)joypad.stick_x) * deltaTime * 0.7f;
+    rotAngle += (deltaTime*0.3f) + (manualRot * 0.05f);
+    noiseStrength = fminf(fmaxf(noiseStrength, fabsf(manualRot)), 1.0f) * 0.96f;
+
+    // zoom-in / out
+    camDist = fmaxf(14.0f, fminf(30.0f, camDist + (float)joypad.stick_y * -deltaTime * 0.6f));
+    T3DVec3 camPos = {{sinf(rotAngle) * camDist, 1.5f, cosf(rotAngle) * camDist}};
+
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 2.0f, 18.0f);
+    t3d_viewport_look_at(&viewport, &camPos, &(T3DVec3){{0,0,0}});
+
+    t3d_viewport_set_projection(&viewportOffscreen, T3D_DEG_TO_RAD(85.0f), 10.0f, 100.0f);
+    t3d_viewport_look_at(&viewportOffscreen, &(T3DVec3){{0,5.0f,40.0f}}, &(T3DVec3){{0,0,0}});
+
+    t3d_mat4fp_from_srt_euler(matrixBox,
       (float[3]){0.2f, 0.2f, 0.2f},
       (float[3]){rotAngle*1.3f, rotAngle*1.6f, rotAngle*1.0f},
       (float[3]){0,0,0}
     );
 
-    t3d_mat4fp_from_srt_euler(modelTargetMatFP,
-      (float[3]){0.1f, 0.1f, 0.1f},
-      (float[3]){0.0f, rotAngle*0.5f, 0.0f},
-      (float[3]){0,-7,0}
-    );
-
     // ======== Draw (Offscreen) ======== //
-
     // Render the offscreen-scene first, for that we attach the extra buffer instead of the screen one
     rdpq_attach_clear(&offscreenSurf, &offscreenSurfZ);
 
-    rdpq_set_mode_fill(RGBA32(0x33, 0x33, 0x99, 0xFF));
-    rdpq_fill_rectangle(0, 0, OFFSCREEN_SIZE, OFFSCREEN_SIZE);
+    // while it is a bit outside the scope of t3d, we can draw other things like videos into buffers too.
+    // For more information on how to use the mpeg2 library, see the "videoplayer" example in libdragon
+    if(videoFrameTime > 0.025f) {
+      videoFrameTime = 0.0f;
+      if(!mpeg2_next_frame(&mp2)) {
+        mpeg2_rewind(&mp2);
+        mpeg2_next_frame(&mp2);
+      }
+    }
+    mpeg2_draw_frame(&mp2, &offscreenSurf);
 
-    // after that is done, the rendering part is exactly the same as before
-    t3d_frame_start();
-    t3d_viewport_attach(&viewportOffscreen);
+    // the 3D rendering part itself is exactly the same as before
+    // just attach the offscreen-viewport instead and draw the scene
+    if(offscreen3D) {
+      t3d_frame_start();
+      t3d_viewport_attach(&viewportOffscreen);
 
-    t3d_light_set_ambient((uint8_t[4]){0xFF, 0xFF, 0xFF, 0xFF});
-    t3d_light_set_count(0);
+      t3d_light_set_ambient((uint8_t[4]){0xFF, 0xFF, 0xFF, 0xFF});
+      t3d_light_set_count(0);
 
-    rspq_block_run(dplDraw);
+      rspq_block_run(dplBox);
 
-    // we can also draw 2D elements as usual
-    t3d_debug_print_start();
-    t3d_debug_printf(8, 8, "%.1f FPS\n", display_get_fps());
+      t3d_debug_print_start();
+      t3d_debug_printf(8, 8, "%.1f FPS\n", display_get_fps());
+    }
 
     rdpq_detach_wait(); // to finish, detach and wait for the RDP to render the offscreen buffer
 
@@ -152,21 +170,20 @@ int main()
     t3d_frame_start();
     t3d_viewport_attach(&viewport);
 
-    t3d_screen_clear_color(RGBA32(100, 80, 80, 0xFF));
+    t3d_screen_clear_color(RGBA32(170, 140, 140, 0xFF));
     t3d_screen_clear_depth();
 
-    t3d_light_set_ambient(colorAmbient);
-    t3d_light_set_directional(0, colorDir, &lightDirVec);
+    t3d_light_set_ambient((uint8_t[4]){180, 150, 150, 0xFF});
+    t3d_light_set_directional(0, (uint8_t[4]){100, 100, 120, 0xFF}, &lightDirVec);
     t3d_light_set_count(1);
 
     // the model uses the prim. color to blend between the offscreen-texture and white-noise
-    uint8_t blendA = random_flicker(rotAngle * 6.5f) * 255.4f;
-    uint8_t blendB = 255 - blendA;
-    rdpq_set_prim_color(RGBA32(blendA, blendA, blendA, blendB));
+    uint8_t blend = (uint8_t)(noiseStrength * 255.4f);
+    rdpq_set_prim_color(RGBA32(blend, blend, blend, 255 - blend));
 
     // this block here will render the model that uses the offscreen texture
     // at this point everything was already baked into the DPL, so no extra costs are involved for drawing it
-    rspq_block_run(dplTarget);
+    rspq_block_run(dplCRT);
 
     rdpq_detach_show();
   }
@@ -174,4 +191,3 @@ int main()
   t3d_destroy();
   return 0;
 }
-

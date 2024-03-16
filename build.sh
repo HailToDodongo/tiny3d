@@ -10,6 +10,7 @@ if [ $1 = "clean" ] ; then
   make -C examples/03_objects clean
   make -C examples/04_dynamic clean
   make -C examples/05_splitscreen clean
+  make -C examples/06_offscreen clean
   make -C examples/99_testscene clean
 fi
 
@@ -29,6 +30,7 @@ make -C examples/02_lighting -j4
 make -C examples/03_objects -j4
 make -C examples/04_dynamic -j4
 make -C examples/05_splitscreen -j4
+make -C examples/06_offscreen -j4
 make -C examples/99_testscene -j4
 
 echo "Build done!"

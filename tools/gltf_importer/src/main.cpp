@@ -10,6 +10,7 @@
 
 #include "structs.h"
 #include "parser.h"
+#include "hash.h"
 
 #include "binaryFile.h"
 #include "converter.h"
@@ -19,15 +20,6 @@ namespace fs = std::filesystem;
 namespace {
   constexpr std::size_t DEFAULT_CHUCK_SIZE = 1024*1024*4;
   constexpr float MODEL_SCALE = 64.0f;
-
-  uint32_t stringHash(const std::string &str)
-  {
-    uint32_t hash = 0x7E81C0E9;
-    for(char c : str) {
-      hash = (hash >> 8) ^ (hash << 24) ^ c;
-    }
-    return hash;
-  }
 }
 
 int main(int argc, char* argv[])
@@ -39,7 +31,11 @@ int main(int argc, char* argv[])
   fs::path gltfBasePath{gltfPath};
 
   // sort models by transparency mode (opaque -> cutout -> transparent)
+  // within the same transparency mode, sort by material
   std::sort(models.begin(), models.end(), [](const Model &a, const Model &b) {
+    if(a.materialA.alphaMode == b.materialA.alphaMode) {
+      return a.materialA.uuid < b.materialA.uuid;
+    }
     return a.materialA.alphaMode < b.materialA.alphaMode;
   });
 

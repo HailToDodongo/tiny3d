@@ -100,8 +100,7 @@ T3DModel* t3d_model_load(const void *path);
 typedef void (*T3DModelTileCb)(void* userData, rdpq_texparms_t *tileParams, rdpq_tile_t tile);
 typedef bool (*T3DModelFilterCb)(void* userData, const T3DObject *obj);
 typedef void (*T3DModelDynTextureCb)(
-  void* userData, const T3DMaterial *material, rdpq_texparms_t *tileParams,
-  rdpq_tile_t tile, uint32_t texReference
+  void* userData, const T3DMaterial *material, rdpq_texparms_t *tileParams, rdpq_tile_t tile
 );
 
 // Defines settings and callbacks for custom drawing
