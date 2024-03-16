@@ -1,0 +1,40 @@
+# Fast64 Support
+
+When exporting models from blender to GLTF, any data from fast64 will be included.<br>
+A lot of these (non-game-specific) values will be re-used by the tiny3d model format.<br>
+Here is a full list of all settings currently supported:
+
+## Material Settings
+
+- Combiner
+  - Color-Combiner
+- Sources
+  - Use Texture-Reference
+  - Texture Reference
+  - Texture Size 
+  - Texture Image Path
+  - Clamp S/T
+  - Mirror S/T   
+  - Mask S/T
+  - Shift S/T
+  - Low S/T
+  - High S/T   
+- Geo
+  - Shade-Alpha = Fog
+  - Cull Front
+  - Cull Back
+- Upper
+  - Cycle Type (1 Cycle, 2 Cycle)
+- Lower
+  - Set Render Mode? 
+  - Render Mode (Opaque, Cutout, Transparent)
+
+### Libragon Mapping
+Most Settings will behave as expected, there are some exceptions which will be mapped to the closest libdragon equivalent.<br>
+
+"Texture-Reference" will mark the given texture as a placeholder, a real texture can be loaded at runtime in the C code.<br>
+The address you can set has no meaning in t3d, it will be used as a arbitrary value you can later read from the material.<br>
+For a full example making use of this, see `06_offscreen`.
+
+The "Render Mode" will map to one of the abstract "alpha modes" in t3d (Opaque, Cutout, Transparent).<br>
+Other settings usually contained in the render mode can be set as usual with te RDPQ API on top.

@@ -47,7 +47,7 @@ This can be set during export:
 
 <img src="docs/fast64_export.png" height="200">
 
-
+For a full list of supported settings, see [docs/fast64Settings.md](docs/fast64Settings.md).<br>
 
 ## Build
 Tiny3D requires [libdragon](https://github.com/DragonMinded/libdragon/tree/preview), specifically the `preview` branch.<br>
