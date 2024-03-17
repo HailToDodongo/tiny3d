@@ -62,7 +62,7 @@ state
   extern u16 RSPQ_Loop;
   extern u16 RSPQCmd_RdpAppendBuffer;
   extern u16 RSPQCmd_RdpSetBuffer;
-  extern u16 SCRATCH_MEM;
+  extern u16 RSPQ_SCRATCH_MEM;
 
   vec16 MAT_MODEL_DATA[MATRIX_STACK_SIZE][4]; // model matrices
 
@@ -655,7 +655,7 @@ macro drawTrianglesClipped(u32<$s3> buffEnd, u32<$t0> arraySize)
 
   // we need to save the vertex-addresses to memory for RDPQ_Triangle.
   // set the first one here (is constant) the rest is set in each loop iteration
-  store(ptrVertIn:u16, SCRATCH_MEM, 0);
+  store(ptrVertIn:u16, RSPQ_SCRATCH_MEM, 0);
 
   // convert the base-vertex and the one from the first iteration
   // for each triangle-fan part we then only need to convert one new vert
@@ -673,9 +673,9 @@ macro drawTrianglesClipped(u32<$s3> buffEnd, u32<$t0> arraySize)
     vert2 = ptrVertIn;
     vert1 = ptrVertIn + TRI_SIZE;
 
-    u32<$v1> vertAddr = SCRATCH_MEM;
-    store(vert2:u16, SCRATCH_MEM, 2);
-    store(vert1:u16, SCRATCH_MEM, 4);
+    u32<$v1> vertAddr = RSPQ_SCRATCH_MEM;
+    store(vert2:u16, RSPQ_SCRATCH_MEM, 2);
+    store(vert1:u16, RSPQ_SCRATCH_MEM, 4);
 
     #ifdef DRAW_TRIS
       u32<$sp> cullDest = CLIP_AFTER_EMIT;

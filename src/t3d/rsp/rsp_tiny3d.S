@@ -447,7 +447,7 @@ T3DCmd_TriDraw:
   vsub $v20, $v24, $v26.v
   lpv $v18, 0, 0, $s5
   vxor $v19, $v00, $v00.e0
-  ori $at, $zero, %lo(SCRATCH_MEM) ## Barrier: 0x8
+  ori $at, $zero, %lo(RSPQ_SCRATCH_MEM) ## Barrier: 0x8
   vmudl $v19, $v19, $v31.e7
   vmadm $v18, $v18, $v31.e7
   sdv $v18, 0, 0, $at ## Barrier: 0x8
@@ -518,7 +518,7 @@ T3DCmd_TriDraw:
   CLIP_END:
   ori $s6, $zero, %lo(CLIP_BUFFER_RESULT)
   addu $s5, $s6, $t0
-  sh $s6, %lo(0 + SCRATCH_MEM)($zero)
+  sh $s6, %lo(0 + RSPQ_SCRATCH_MEM)($zero)
   jal triToScreenSpace
   addiu $s5, $s5, 65464
   jal triToScreenSpace
@@ -529,11 +529,11 @@ T3DCmd_TriDraw:
   or $a2, $zero, $s6
   ori $a0, $zero, %lo(CLIP_BUFFER_RESULT)
   ori $sp, $zero, %lo(CLIP_AFTER_EMIT)
-  sh $a2, %lo(2 + SCRATCH_MEM)($zero)
-  ori $v1, $zero, %lo(SCRATCH_MEM)
+  sh $a2, %lo(2 + RSPQ_SCRATCH_MEM)($zero)
+  ori $v1, $zero, %lo(RSPQ_SCRATCH_MEM)
   addiu $a1, $s6, 36
   jal RDPQ_Tri
-  sh $a1, %lo(4 + SCRATCH_MEM)($zero)
+  sh $a1, %lo(4 + RSPQ_SCRATCH_MEM)($zero)
   bne $v1, $zero, CLIP_AFTER_EMIT
   nop
   jal EmitTriangle
