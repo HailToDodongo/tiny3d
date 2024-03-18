@@ -5,6 +5,8 @@
 #pragma once
 
 // Note: compat for gcc-11 which doesn't have std::byteswap() yet
+#include <cstring>
+
 namespace Bit
 {
   constexpr uint8_t byteswap(uint8_t val) { return val; }
@@ -42,5 +44,13 @@ namespace Bit
 
   constexpr int64_t byteswap(int64_t val) {
     return (int64_t)byteswap((uint64_t)val);
+  }
+
+  template <class OUT, class IN>
+  OUT bit_cast(IN val) {
+    static_assert(sizeof(IN) == sizeof(OUT), "Non matching size");
+    OUT res;
+    std::memcpy(std::addressof(res), std::addressof(val), sizeof(IN));
+    return res;
   }
 }

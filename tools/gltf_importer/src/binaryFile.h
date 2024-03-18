@@ -7,31 +7,31 @@
 #include <cstdio>
 #include <unordered_map>
 #include "types.h"
-#include "byteswap.h"
+#include "bit.h"
 
 class BinaryFile
 {
   private:
-    FILE* fp{nullptr};
     std::unordered_map<std::string, uint32_t> patchMap{};
     std::vector<uint32_t> posStack{};
     std::vector<uint8_t> data{};
+    uint32_t dataPos{};
+    uint32_t dataSize{};
+
+    void writeRaw(const uint8_t* ptr, size_t size) {
+      if(dataPos+size > data.size()) {
+        data.resize(data.size() + size);
+      }
+      for(size_t i=0; i<size; ++i) {
+        data[dataPos++] = ptr[i];
+      }
+      dataSize = std::max(dataSize, dataPos);
+    }
 
   public:
-    explicit BinaryFile(const char* path) {
-      fp = fopen(path, "wb");
-    }
 
     explicit BinaryFile(std::size_t size) {
       data.resize(size);
-      fp = fmemopen(data.data(), size, "wb");
-    }
-
-    ~BinaryFile() { close(); }
-
-    void close() {
-      if(fp)fclose(fp);
-      fp = nullptr;
     }
 
     void skip(u32 bytes) {
@@ -43,44 +43,24 @@ class BinaryFile
     template<typename T>
     void write(T value) {
       if constexpr (std::is_same_v<T, float>) {
-        uint32_t val = Bit::byteswap(std::bit_cast<uint32_t>(value));
-        fwrite(&val, sizeof(T), 1, fp);
+        uint32_t val = Bit::byteswap(Bit::bit_cast<uint32_t>(value));
+        writeRaw(reinterpret_cast<uint8_t*>(&val), sizeof(T));
       } else {
         auto val = Bit::byteswap(value);
-        fwrite(&val, sizeof(T), 1, fp);
+        writeRaw(reinterpret_cast<uint8_t*>(&val), sizeof(T));
       }
     }
 
     void write(const std::string &str) {
-      fwrite(str.data(), 1, str.size(), fp);
+      writeChars(str.c_str(), str.size());
     }
 
     void writeChars(const char* str, size_t len) {
-      fwrite(str, 1, len, fp);
+      for(size_t i=0; i<len; ++i)write<u8>(str[i]);
     }
 
     void writeMemFile(BinaryFile& memFile) {
-      fflush(memFile.fp);
-      fwrite(memFile.data.data(), 1, memFile.getPos(), fp);
-    }
-
-    void writePlaceholder(const std::string& name) {
-      patchMap[name] = ftell(fp);
-      write<u32>(0);
-    }
-
-    void patchPlaceholder(const std::string& name, uint32_t value) {
-      auto it = patchMap.find(name);
-      if(it == patchMap.end()) {
-        printf("Error: Patch placeholder '%s' not found!\n", name.c_str());
-        return;
-      }
-      u32 pos = ftell(fp);
-      fseek(fp, it->second, SEEK_SET);
-      write<u32>(value);
-      fseek(fp, pos, SEEK_SET);
-
-      patchMap.erase(it);
+      writeRaw(memFile.data.data(), memFile.dataSize);
     }
 
     void writeChunkPointer(char type, uint32_t offset) {
@@ -90,11 +70,11 @@ class BinaryFile
     }
 
     uint32_t getPos() {
-      return ftell(fp);
+      return dataPos;
     }
 
     void setPos(u32 pos) {
-      fseek(fp, pos, SEEK_SET);
+      dataPos = pos;
     }
 
     uint32_t posPush() {
@@ -105,7 +85,7 @@ class BinaryFile
 
     uint32_t posPop() {
       uint32_t oldPos = getPos();
-      fseek(fp, posStack.back(), SEEK_SET);
+      setPos(posStack.back());
       posStack.pop_back();
       return oldPos;
     }
@@ -121,4 +101,9 @@ class BinaryFile
       }
     }
 
+    void writeToFile(const char* filename) {
+      FILE* file = fopen(filename, "wb");
+      fwrite(data.data(), 1, dataSize, file);
+      fclose(file);
+    }
 };

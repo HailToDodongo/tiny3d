@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
   }
 
   // Main file
-  BinaryFile file{t3dmPath};
+  BinaryFile file{DEFAULT_CHUCK_SIZE};
   file.writeChars("T3DM", 4);
   file.write(chunkCount); // chunk count
 
@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
 
       std::string texPath = "";
       if(!material.texPath.empty()) {
-        texPath = fs::relative(material.texPath, std::filesystem::current_path());
+        texPath = fs::relative(material.texPath, std::filesystem::current_path()).string();
 
         if(texPath.find("assets/") == 0) {
           texPath.replace(0, 7, "rom:/");
@@ -254,4 +254,7 @@ int main(int argc, char* argv[])
   file.setPos(0x08);
   file.write(totalVertCount);
   file.write(totalIndexCount);
+
+  // write to actual file
+  file.writeToFile(t3dmPath);
 }

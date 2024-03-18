@@ -82,7 +82,7 @@ namespace {
     {
       material.texPath = tex["tex"]["name"].get<std::string>();
       if(material.texPath[0] != '/') {
-        material.texPath = gltfPath.string() / fs::path(material.texPath);
+        material.texPath = (gltfPath / fs::path(material.texPath)).string();
 
         std::vector<unsigned char> image; // pixels
         auto error = lodepng::decode(image, material.texWidth, material.texHeight, material.texPath);

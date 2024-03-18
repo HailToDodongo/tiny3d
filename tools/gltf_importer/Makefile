@@ -1,4 +1,4 @@
-CXXFLAGS += -O3 -std=c++2b
+CXXFLAGS += -O3 -std=c++20
 OBJDIR = build
 SRCDIR = src
 
