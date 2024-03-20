@@ -37,7 +37,7 @@ int main()
   // For performance reasons, 'T3DVertPacked' contains two vertices at once in one struct.
   T3DVertPacked* vertices = malloc_uncached(sizeof(T3DVertPacked) * 2);
 
-  uint16_t norm = t3d_vert_pack_normal(&(T3DVec3){{ 0, 0, 1}}); // normals are packed in a 5.5.5 format
+  uint16_t norm = t3d_vert_pack_normal(&(T3DVec3){{ 0, 0, 1}}); // normals are packed in a 5.6.5 format
   vertices[0] = (T3DVertPacked){
     .posA = {-16, -16, 0}, .rgbaA = 0xFF0000'FF, .normA = norm,
     .posB = { 16, -16, 0}, .rgbaB = 0x00FF00'FF, .normB = norm,

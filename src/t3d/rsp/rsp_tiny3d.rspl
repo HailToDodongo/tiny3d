@@ -36,6 +36,8 @@
 #define TRI_SIZE_2 72
 #define TRI_SIZE_3 108
 
+#define RDP_CMD_MAX_SIZE 176
+
 // Single light (RGBA duplicated, duplicated direction packed as s8)
 #define LIGHT_SIZE 16
 
@@ -54,14 +56,8 @@ include "rdpq_macros.h"
 state
 {
   // external libdragon labels
-  extern u32 RDPQ_CURRENT;
-  extern u32 RDPQ_SENTINEL;
-  extern u32 RDPQ_DYNAMIC_BUFFERS;
-  extern u8 RDPQ_SYNCFULL_ONGOING;
   extern u32 RDPQ_OTHER_MODES;
   extern u16 RSPQ_Loop;
-  extern u16 RSPQCmd_RdpAppendBuffer;
-  extern u16 RSPQCmd_RdpSetBuffer;
   extern u16 RSPQ_SCRATCH_MEM;
 
   vec16 MAT_MODEL_DATA[MATRIX_STACK_SIZE][4]; // model matrices
@@ -77,8 +73,8 @@ state
    * -------+-----------+--------
    * s16[2] | Pos-XY    | 0x00
    * s16    | Depth     | 0x04
-   * u8     | Clip-Code | 0x06  (t3d specific)
-   * u8     | Rej. Code | 0x07  (t3d specific)
+   * u8     | Clip-Code | 0x06
+   * u8     | Rej. Code | 0x07
    * u8[4]  | Color     | 0x08
    * s16[2] | UV        | 0x0C
    * s16[3] | Clip-Pos  | 0x10  (t3d specific)
@@ -93,8 +89,13 @@ state
   // Temp. buffer for clipped extra vertices.
   // This is also used as a temp. buffer for DMA'ing in new vertices.
   // For clipping data, the format is the same as TRI_BUFFER.
-  alignas(8)
+  alignas(16)
   u8 CLIP_BUFFER_TMP[7][TRI_SIZE];
+
+  // Last buffer where final clipping triangles are stored.
+  // During clipping, vertices alternate between CLIP_BUFFER_TMP & B.
+  alignas(16)
+  u8 CLIP_BUFFER_RESULT[8][TRI_SIZE];
 
   // current screen size (.xyz) and offset (.XYZ)
   vec16 SCREEN_SCALE_OFFSET;
@@ -109,9 +110,16 @@ state
     1, 32, 2048, 0
   };
 
-  // Last buffer where final clipping triangles are stored.
-  // During clipping, vertices alternate between CLIP_BUFFER_TMP & B.
-  u8 CLIP_BUFFER_RESULT[8][TRI_SIZE];
+  // Plane-normals for clipping, the guard value can be overwritten with a command.
+  alignas(16)
+  s8 CLIPPING_PLANES[5][4] = {
+  // X  Y  Z | guard
+     1, 0, 0,   1,
+     0, 1, 0,   1,
+     0, 0, 1,   1,
+     1, 0, 0,  -1,
+     0, 1, 0,  -1
+  };
 
   // Lighting
   u32 COLOR_AMBIENT[2];   // RGBA8 (duplicated)
@@ -128,16 +136,7 @@ state
   s16 FOG_SCALE_OFFSET[4] = {0, 0, 0, 32767};
 
   u16 CURRENT_MAT_ADDR = {0};
-
-  // Plane-normals for clipping, the guard value can be overwritten with a command.
-  s8 CLIPPING_PLANES[5][4] = {
-  // X  Y  Z | guard
-     1, 0, 0,   1,
-     0, 1, 0,   1,
-     0, 0, 1,   1,
-     1, 0, 0,  -1,
-     0, 1, 0,  -1
-  };
+  u16 RDPQ_TRI_BUFF_OFFSET = {0};
 
   u8 USE_REJECT   = {0}; // 0=use-clipping, 1=use-rejection
   u8 FACE_CULLING = {0}; // 0=cull front, 1=cull back, 2=no-culling
@@ -147,24 +146,8 @@ state
 }
 
 // Libdragon functions
-function DMAIn(u32<$t0> size, u32<$t1> pitch, u32<$s0> rdram, u32<$s4> dmem);
-function DMAOut(u32<$t0> size);
-
-// function RDPQ_Send(u32<$s4> buffStart, u32<$s3> buffEnd);
-function RSPQ_RdpWait();
-
-// original version from libdragon...
-function RDPQ_Triangle(
-  u32<$a0> triCmd,
-  u32<$a1> ptrVert0, u32<$a2> ptrVert1, u32<$a3> ptrVert2,
-  u8<$v0> cull, u32<$s3>buffOut
-);
-
-// ...modified copy found in 'rspq_triangle.inc'
-function RDPQ_Tri(
-  u32<$a0> ptrVert0, u32<$a1> ptrVert1, u32<$a2> ptrVert2,
-  u32<$s3> buffOut
-);
+function RDPQ_Triangle_Send_Async(u32<$a0> ptrVert0, u32<$a1> ptrVert1, u32<$a2> ptrVert2);
+function RDPQ_Triangle_Send_End();
 
 macro debugLogClip() {
 #ifdef DEBUG_LOG_TRIS
@@ -505,7 +488,7 @@ function copyClippingVertex(u32<$s0> ptrDst, u32<$s1> ptrSrc)
  * @param lastPosUV  pos + UV to save
  * @param lastColor color to save
  */
-function emitClippedTri(u32<$s2> ptrWrite, u8<$s0> lastClipCode, vec32<$v26> lastPosUV, vec16<$v28> lastColor)
+function emitClippedTri(u32<$s3> ptrWrite, u8<$s1> lastClipCode, vec32<$v26> lastPosUV, vec16<$v28> lastColor)
 {
   @Barrier("uv") store_vec_u8(lastColor,  ptrWrite, VTX_ATTR_RGBA);
   @Barrier("uv") store(lastPosUV:sint.XY, ptrWrite, VTX_ATTR_ST);
@@ -643,11 +626,9 @@ function triToScreenSpace(u32<$s6> ptr)
 /**
  * Draws a list of triangles that have been clipped.
  *
- * @param buffer RDP buffer start (DMEM)
- * @param buffEnd RDP buffer end (DMEM)
  * @param arraySize size in bytes of the list to draw (multiple of TRI_SIZE)
  */
-macro drawTrianglesClipped(u32<$s3> buffEnd, u32<$t0> arraySize)
+macro drawTrianglesClipped(u32<$t0> arraySize)
 {
   u32<$s6> ptrVertIn = CLIP_BUFFER_RESULT;
   u32<$s5> ptrVertInEnd = ptrVertIn + arraySize;
@@ -679,10 +660,10 @@ macro drawTrianglesClipped(u32<$s3> buffEnd, u32<$t0> arraySize)
 
     #ifdef DRAW_TRIS
       u32<$sp> cullDest = CLIP_AFTER_EMIT;
-      RDPQ_Tri(vert0, vert1, vert2, buffEnd);
+
+      RDPQ_Triangle_Send_Async(vert0, vert1, vert2);
       if(vertAddr == 0) {
-        u32<$s4> buffer = CLIP_BUFFER_TMP;
-        EmitTriangle(buffer, buffEnd, cullDest);
+        RDPQ_Triangle_Send_End();
       }
       CLIP_AFTER_EMIT:
     #endif
@@ -690,61 +671,6 @@ macro drawTrianglesClipped(u32<$s3> buffEnd, u32<$t0> arraySize)
     debugLogClip();
   } while(ptrVertIn != ptrVertInEnd)
 }
-
-/**
- * Ported over and modified from libdragons RDPQ_Send.
- * This will emit a Triangle to the RDP by moving it into the RDRAM buffer.
- *
- * @param buffStart
- * @param buffEnd
- * @param returnAddress address to jump to after the triangle has been emitted
- */
-function EmitTriangle(u32<$s4> buffStart, u32<$s3> buffEnd, u32<$sp> returnAddress)
-{
-  u32<$t7> rspq_cmd_size = buffEnd - buffStart;
-  if(rspq_cmd_size != 0) {
-
-    s32<$s0> rdram_cur = load(RDPQ_CURRENT);
-    rdram_cur &= 0xFF'FFFF;
-
-    s32<$a2> sentinel = load(RDPQ_SENTINEL);
-    sentinel -= rspq_cmd_size;
-
-    u32<$t5> next_func = RSPQCmd_RdpAppendBuffer;
-    if(sentinel < rdram_cur)
-    {
-      u8<$t3> fullSync = load(RDPQ_SYNCFULL_ONGOING);
-      fullSync |= DP_STATUS_END_VALID;
-
-      RSPQ_RdpWait();
-
-      // Switch to the next dynamic buffer.
-      // Since there are two of them, also switch between
-      // them so next time we will pick the other one.
-      rdram_cur = load(RDPQ_DYNAMIC_BUFFERS, 4);
-      u32<$t1> rdram_sw = load(RDPQ_DYNAMIC_BUFFERS, 0);
-      store(rdram_cur, RDPQ_DYNAMIC_BUFFERS, 0);
-      store(rdram_sw, RDPQ_DYNAMIC_BUFFERS, 4);
-
-      // Calculate new sentinel (end of buffer)
-      sentinel = rdram_cur + RDPQ_DYNAMIC_BUFFER_SIZE;
-
-      // Run the DMA transfer now, and after that, run RSPQCmd_RdpSetBuffer via
-      // tailcall. Prepare a1 for it, containing the pointer to the new buffer,
-      // which will be written into DP_START.
-      u32<$a1> rdram_cur_temp = rdram_cur;
-      next_func = RSPQCmd_RdpSetBuffer;
-    }
-
-    u32<$t0> dmaSize = rspq_cmd_size - 1;
-    s32<$a0> rdram_next = rdram_cur + rspq_cmd_size;
-    DMAOut(dmaSize);
-
-    RA = returnAddress;
-    goto next_func;
-  }
-}
-
 
 /**
  * Draws a triangle to the screen, if necessary also performs clipping.
@@ -759,30 +685,48 @@ command<0> T3DCmd_TriDraw(u32 vert0, u32 vert1)
   // Note: vert1 & vert2 are switched, this avoids an additional instruction here.
   // We can't switch them on the CPU, as RDPQ_Triangle loads them from DMEM, so the order is different
   u32<$a2> vert2 = vert1 >> 16;
-  u32<$s3> buffEnd = CLIP_BUFFER_TMP;
 
   {
     u32<$v1> vertAddr = get_cmd_address(2); // where to load the vertex pointers from
-    u32<$sp> rejectDest = RSPQ_Loop; // jump-target for rejected/culled tris, also used by EmitTriangle
+    u32<$sp> rejectDest = RSPQ_Loop; // jump-target for rejected/culled tris
 
-    RDPQ_Tri(vert0, vert1, vert2, buffEnd);
-    if(vertAddr == 0) {
-      u32<$s4> buffStart = CLIP_BUFFER_TMP;
-      EmitTriangle(buffStart, buffEnd, rejectDest);
+    RDPQ_Triangle_Send_Async(vert0, vert1, vert2);
+    if(vertAddr == 0)
+    {
+      // if a triangle was generated, change the offset to swap output-buffers
+      // the DMA is still active at this point, so we can only re-use it after a next send or sync
+      u16 currOffset = load(RDPQ_TRI_BUFF_OFFSET);
+      currOffset ^= RDP_CMD_MAX_SIZE; // note: overflows into the next buffer
+      store(currOffset, RDPQ_TRI_BUFF_OFFSET);
+      exit;
     }
 
-    // reload vertex indices, RDPQ_Tri may have modified them
+    //u8 useReject = load(USE_REJECT); //@TODO: do this branch-less?
+    //if(useReject)exit;
+
+    // we need to clip now, first wait for any triangle still in flight
+    // this is necessary as clipping uses both buffers used as outputs
+    RDPQ_Triangle_Send_End();
+    store(ZERO, RDPQ_TRI_BUFF_OFFSET); // force using the first buffer, the second is the clipping result
+
+    // reload vertex indices, 'RDPQ_Triangle_Send_Async' may have modified them
     vert0:u16 = load_arg(0x02);
     vert1:u16 = load_arg(0x04);
     vert2:u16 = load_arg(0x06);
-
-    //u8 useReject = load(USE_REJECT); //@TODO: do this branch-less somehow
-    //if(useReject)exit;
   }
 
   u32<$t0> arraySize;
   clipTriangle(arraySize, vert0, vert1, vert2);
-  drawTrianglesClipped(buffEnd, arraySize);
+  drawTrianglesClipped(arraySize);
+}
+
+/**
+ * Syncs triangle calls, wrapper for 'RDPQ_Triangle_Send_Async'.
+ */
+command<12> T3DCmd_TriSync()
+{
+  // @TODO: add RSPL opt. to use the function itself as a command
+  goto RDPQ_Triangle_Send_End;
 }
 
 /**

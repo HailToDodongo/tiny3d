@@ -190,7 +190,8 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
       }
     }
 
-    for (int p = 0; p < obj->numParts; p++) {
+    for (int p = 0; p < obj->numParts; p++)
+    {
       const T3DObjectPart *part = &obj->parts[p];
 
       // load vertices, this will already do T&L (so matrices/fog/lighting must be set before)
@@ -262,7 +263,12 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
         t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
       }
 
-      // at this point the RDP may already process triangles, in the next iteration we therefore may need syncs
+      // Sync, waits for any triangles in flight. This is necessary since the rdpq-api is not
+      // aware of this and could corrupt the RDP buffer. 't3d_vert_load' may also overwrite the source buffer too.
+      t3d_tri_sync();
+
+      // At this point the RDP may already process triangles.
+      // In the next iteration we may therefore need to sync when changing any RDP states
     }
   }
 }

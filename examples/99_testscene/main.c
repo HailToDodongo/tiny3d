@@ -34,7 +34,7 @@ static void rspq_profile_dump_overlay_screen(size_t index, uint64_t frame_avg, c
     char buf[64];
     sprintf(buf, "%3.2f%%", relative);
 
-    debug_printf_screen(24, *posY, "%-10s %6llu %7llu# %8s",
+    debug_printf_screen(24, *posY, "%-12.12s %5llu %7llu# %7s",
         name,
         profile_data.slots[index].sample_count / profile_data.frame_count,
         mean_us,
@@ -144,6 +144,7 @@ int main()
 
   bool requestDisplayMetrics = false;
   bool displayMetrics = false;
+  float last3dFPS = 0.0f;
 
   for(uint64_t frame = 0;; ++frame)
   {
@@ -289,7 +290,8 @@ int main()
       //debug_printf_screen(24, 190, "Pos: %.4f %.4f %.4f", camPos.v[0], camPos.v[1], camPos.v[2]);
       //debug_printf_screen(24, 200, "Rot: %.4f %.4f", camRotX, camRotY);
 
-      debug_printf_screen(140, 218, "FPS: %.4f", display_get_fps());
+      debug_printf_screen(140, 206, "FPS (3D)   : %.4f", last3dFPS);
+      debug_printf_screen(140, 218, "FPS (3D+UI): %.4f", display_get_fps());
 
       rspq_profile_dump_screen();
       //rspq_profile_reset();
@@ -308,6 +310,7 @@ int main()
       if(!displayMetrics) {
         rspq_wait();
         rspq_profile_get_data(&profile_data);
+        last3dFPS = display_get_fps();
         if(requestDisplayMetrics)displayMetrics = true;
       }
 
