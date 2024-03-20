@@ -98,6 +98,12 @@ int main()
       t3d_tri_draw(0, 1, 2); // ...then draw 2 triangles
       t3d_tri_draw(2, 3, 0);
 
+      // NOTE: if you use the builtin model format, syncs are handled automatically!
+      t3d_tri_sync(); // after each batch of triangles, a sync is needed
+      // technically, you only need a sync before any new 't3d_vert_load', rdpq call, or after the last triangle
+      // for safety, just call it after you are done with all triangles after a load
+
+
       dplDraw = rspq_block_end();
     }
 

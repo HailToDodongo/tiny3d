@@ -226,13 +226,13 @@ RDPQ_Triangle_Send_Async:
 
     bne t4, t2, SKIP_TRI;                       vge vytmp2, vy1, vy3;
     andi clip1, 0xFF00;                         vmrg valltmp2, vall1, vall3;
-    lbu v0, %lo(FACE_CULLING + 0);              vlt vy1, vy1, vy3;
+    lbu cull, %lo(FACE_CULLING + 0);            vlt vy1, vy1, vy3;
     cfc2 did_swap_1, COP2_CTRL_VCC;             vmrg vall1, vall1, vall3;
 
-    lhu s3, %lo(RDPQ_TRI_BUFF_OFFSET);               vge vy3, vytmp1, vytmp2;
-    addiu s3, s3, %lo(CLIP_BUFFER_TMP);         vmrg vall3, valltmp1, valltmp2;
+    lhu s3, %lo(RDPQ_TRI_BUFF_OFFSET);          vge vy3, vytmp1, vytmp2;
+    lw tricmd, %lo(TRI_COMMAND);                vmrg vall3, valltmp1, valltmp2;
     nop;                                        vmrg vall3, valltmp1, valltmp2;
-    lw tricmd, %lo(TRI_COMMAND);                vlt vy2, vytmp1, vytmp2;
+    addiu s3, s3, %lo(CLIP_BUFFER_TMP);         vlt vy2, vytmp1, vytmp2;
     cfc2 did_swap_2, COP2_CTRL_VCC;             vmrg vall2, valltmp1, valltmp2;
 
     # Copy Y1, Y2 into vy3, so that we get the three sorted Y in the same

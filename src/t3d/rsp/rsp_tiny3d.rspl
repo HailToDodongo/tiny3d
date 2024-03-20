@@ -707,7 +707,7 @@ command<0> T3DCmd_TriDraw(u32 vert0, u32 vert1)
     // we need to clip now, first wait for any triangle still in flight
     // this is necessary as clipping uses both buffers used as outputs
     RDPQ_Triangle_Send_End();
-    store(ZERO, RDPQ_TRI_BUFF_OFFSET); // force using the first buffer, the second is the clipping result
+    store(ZERO:u16, RDPQ_TRI_BUFF_OFFSET); // force using the first buffer, the second is the clipping result
 
     // reload vertex indices, 'RDPQ_Triangle_Send_Async' may have modified them
     vert0:u16 = load_arg(0x02);

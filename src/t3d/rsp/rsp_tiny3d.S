@@ -385,7 +385,7 @@ T3DCmd_TriDraw:
   ori $s0, $zero, %lo(CLIP_BUFFER_TMP)
   or $s1, $zero, $a0
   ori $s7, $zero, %lo(CLIP_BUFFER_RESULT)
-  sw $zero, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
+  sh $zero, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
   jal copyClippingVertex
   ori $s6, $zero, %lo(CLIP_BUFFER_TMP)
   jal copyClippingVertex
