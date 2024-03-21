@@ -224,7 +224,7 @@ RDPQ_Triangle_Send_Async:
     andi t4, clip1, 0xFF;
     ori t2, zero, 0xFF;                         vxor vhmlupp, vhmlupp
 
-    bne t4, t2, SKIP_TRI;                       vge vytmp2, vy1, vy3;
+    bne t4, t2, CullTri;                        vge vytmp2, vy1, vy3;
     andi clip1, 0xFF00;                         vmrg valltmp2, vall1, vall3;
     lbu cull, %lo(FACE_CULLING + 0);            vlt vy1, vy1, vy3;
     cfc2 did_swap_1, COP2_CTRL_VCC;             vmrg vall1, vall1, vall3;
@@ -290,7 +290,7 @@ RDPQ_Triangle_Send_Async:
 
     # Compute ISH (H slope). 1/HY  (s14.1)
     vrcp  vslope_f.e0, hy;                      slt t0, t0, zero
-    vrcph vslope_i.e0, hy;                      beq t0, cull, SKIP_TRI
+    vrcph vslope_i.e0, hy;                      beq t0, cull, CullTri
     # Compute ISM (M slope). 1/MY  (s14.1)
     vrcp  vslope_f.e2, my;                      # <delay slot>
     vrcph vslope_i.e2, my;                      lsv vw_i.e0, VTX_ATTR_Wi,vtx1
@@ -594,7 +594,7 @@ rdpq_triangle_change_buffer_done:
     jr ra
     mtc0 prim_size, COP0_DMA_WRITE
 
-    SKIP_TRI:
+    CullTri:
     j sp
     nop
 
