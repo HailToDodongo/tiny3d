@@ -5,82 +5,7 @@
 #include <t3d/t3dmodel.h>
 #include <t3d/t3ddebug.h>
 
-#include <stdarg.h>
-
-#define RCP_TICKS_TO_USECS(ticks) (((ticks) * 1000000ULL) / RCP_FREQUENCY)
-#define PERCENT(fraction, total) ((total) > 0 ? (float)(fraction) * 100.0f / (float)(total) : 0.0f)
-
-static rspq_profile_data_t profile_data;
-
-static void debug_printf_screen(float x, float y, const char* str, ...)
-{
-    char buf[512];
-    size_t n = sizeof(buf);
-
-    va_list va;
-    va_start(va, str);
-    char *buf2 = vasnprintf(buf, &n, str, va);
-    va_end(va);
-
-    t3d_debug_print(x, y, buf2);
-}
-
-static void rspq_profile_dump_overlay_screen(size_t index, uint64_t frame_avg, const char *name, float *posY)
-{
-    uint64_t mean = profile_data.slots[index].total_ticks / profile_data.frame_count;
-    uint64_t mean_us = RCP_TICKS_TO_USECS(mean);
-    float relative = PERCENT(mean, frame_avg);
-
-    char buf[64];
-    sprintf(buf, "%3.2f%%", relative);
-
-    debug_printf_screen(24, *posY, "%-12.12s %5llu %7llu# %7s",
-        name,
-        profile_data.slots[index].sample_count / profile_data.frame_count,
-        mean_us,
-        buf);
-
-    *posY += 10;
-}
-
-void rspq_profile_dump_screen()
-{
-    if (profile_data.frame_count == 0)
-        return;
-
-    uint64_t frame_avg = profile_data.total_ticks / profile_data.frame_count;
-    uint64_t frame_avg_us = RCP_TICKS_TO_USECS(frame_avg);
-
-    uint64_t counted_time = 0;
-    for (size_t i = 0; i < RSPQ_PROFILE_SLOT_COUNT; i++) counted_time += profile_data.slots[i].total_ticks;
-
-    // The counted time could be slightly larger than the total time due to various measurement errors
-    uint64_t overhead_time = profile_data.total_ticks > counted_time ? profile_data.total_ticks - counted_time : 0;
-    uint64_t overhead_avg = overhead_time / profile_data.frame_count;
-    uint64_t overhead_us = RCP_TICKS_TO_USECS(overhead_avg);
-
-    float overhead_relative = PERCENT(overhead_avg, frame_avg);
-
-    uint64_t rdp_busy_avg = profile_data.rdp_busy_ticks / profile_data.frame_count;
-    uint64_t rdp_busy_us = RCP_TICKS_TO_USECS(rdp_busy_avg);
-    float rdp_utilisation = PERCENT(rdp_busy_avg, frame_avg);
-
-    float posY = 20;
-    for (size_t i = 0; i < RSPQ_PROFILE_SLOT_COUNT; i++)
-    {
-        if (profile_data.slots[i].name == NULL)
-            continue;
-
-        rspq_profile_dump_overlay_screen(i, frame_avg, profile_data.slots[i].name, &posY);
-    }
-    float posYInc = 10;
-    posY += posYInc;
-    debug_printf_screen(24, posY, "Frames   : %7lld", profile_data.frame_count); posY += posYInc;
-    debug_printf_screen(24, posY, "FPS      : %7.1f", (float)RCP_FREQUENCY/(float)frame_avg); posY += posYInc;
-    debug_printf_screen(24, posY, "Avg frame: %7lld#", frame_avg_us); posY += posYInc;
-    debug_printf_screen(24, posY, "RDP busy : %7lld# (%2.2f%%)", rdp_busy_us, rdp_utilisation); posY += posYInc;
-    debug_printf_screen(24, posY, "Unrec.   : %7lld# (%2.2f%%)", overhead_us, overhead_relative);
-}
+#include "debug_overlay.h"
 
 /**
  * Simple example with a spinning quad.
@@ -148,8 +73,6 @@ int main()
 
   for(uint64_t frame = 0;; ++frame)
   {
-    uint64_t timeDraw = get_ticks_us();
-
     joypad_poll();
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
     if(joypad.stick_x < 10 && joypad.stick_x > -10)joypad.stick_x = 0;
@@ -189,10 +112,14 @@ int main()
       camTarget.v[2] = camPos.v[2] + camDir.v[2];
     }
 
-    if(joypad.btn.b) {
+    color_t fogColor = (color_t){0xFF, 0xFF, 0xFF, 0xFF};
+
+    if(joypad.btn.b)
+    {
       requestDisplayMetrics = true;
-      //colorAmbient[2] = colorAmbient[1] = colorAmbient[0] = 60;
-      //colorDir[2] = colorDir[1] = colorDir[0] = 40;
+      colorAmbient[2] = colorAmbient[1] = colorAmbient[0] = 40;
+      colorDir[2] = colorDir[1] = colorDir[0] = 40;
+      fogColor = (color_t){0x00, 0x00, 0x00, 0xFF};
     } else {
       requestDisplayMetrics = false;
       displayMetrics = false;
@@ -228,7 +155,7 @@ int main()
 
     rdpq_set_prim_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
     rdpq_mode_fog(RDPQ_FOG_STANDARD);
-    rdpq_set_fog_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
+    rdpq_set_fog_color(fogColor);
 
     t3d_screen_clear_color(RGBA32(0, 0, 0, 0xFF));
     t3d_screen_clear_depth();
@@ -251,55 +178,29 @@ int main()
 
     t3d_matrix_set_mul(modelMatFP, 1, 0);
 
-    // ----------- TIME ------------ //
-
-   /*if(joypad.btn.b) { // Wireframe
-      rdpq_mode_antialias(AA_STANDARD);
-      rdpq_mode_blender(RDPQ_BLENDER((MEMORY_RGB, FOG_ALPHA, IN_RGB, MEMORY_CVG)));
-    } else {
-      rdpq_mode_antialias(AA_STANDARD);
-      rdpq_mode_blender(0);
-    }*/
-
-    //rspq_wait();
-    //uint64_t timeDraw = get_ticks_us();
-
-      rspq_block_run(dplDraw);
-      //t3d_model_draw(model);
-
-    //rspq_wait();
-    //timeDraw = get_ticks_us() - timeDraw;
-
-    // ---------------------------- //
-
-    //t3d_mat_read(buffDebug);
-    //rsp_wait();
-
-    timeDraw = get_ticks_us() - timeDraw;
+    rspq_block_run(dplDraw);
+    //t3d_model_draw(model);
 
     if(displayMetrics)
     {
-      //debugf("========= DRAW OVERLAY =========\n");
-      //uint16_t *buffDebug = malloc_uncached(16);
-      //rspq_wait();
-      //t3d_mat_read(buffDebug);
-
       t3d_debug_print_start();
 
       // show pos / rot
       //debug_printf_screen(24, 190, "Pos: %.4f %.4f %.4f", camPos.v[0], camPos.v[1], camPos.v[2]);
       //debug_printf_screen(24, 200, "Rot: %.4f %.4f", camRotX, camRotY);
 
-      debug_printf_screen(140, 206, "FPS (3D)   : %.4f", last3dFPS);
-      debug_printf_screen(140, 218, "FPS (3D+UI): %.4f", display_get_fps());
+      if(profile_data.frame_count == 0) {
+        t3d_debug_printf(140, 206, "FPS (3D)   : %.4f", last3dFPS);
+        t3d_debug_printf(140, 218, "FPS (3D+UI): %.4f", display_get_fps());
+      }
 
-      rspq_profile_dump_screen();
-      //rspq_profile_reset();
-      //debug_printf_screen(24, 180, "[Tris] screen: %d clip: %d", buffDebug[0], buffDebug[1]);
-      //free_uncached(buffDebug);
+      debug_draw_perf_overlay(last3dFPS);
+
+      rdpq_set_mode_standard();
       rdpq_mode_combiner(RDPQ_COMBINER_TEX);
       rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY);
-      rdpq_sprite_blit(spriteLogo, 26.0f, 206.0f, NULL);
+      rdpq_sprite_blit(spriteLogo, 22.0f, 164.0f, NULL);
+      rspq_wait();
     }
 
     rdpq_detach_show();
@@ -307,10 +208,10 @@ int main()
 
     if(frame == 30)
     {
-      if(!displayMetrics) {
+      if(!displayMetrics){
+        last3dFPS = display_get_fps();
         rspq_wait();
         rspq_profile_get_data(&profile_data);
-        last3dFPS = display_get_fps();
         if(requestDisplayMetrics)displayMetrics = true;
       }
 
