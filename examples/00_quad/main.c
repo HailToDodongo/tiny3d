@@ -37,7 +37,7 @@ int main()
   // For performance reasons, 'T3DVertPacked' contains two vertices at once in one struct.
   T3DVertPacked* vertices = malloc_uncached(sizeof(T3DVertPacked) * 2);
 
-  uint16_t norm = t3d_vert_pack_normal(&(T3DVec3){{ 0, 0, 1}}); // normals are packed in a 5.5.5 format
+  uint16_t norm = t3d_vert_pack_normal(&(T3DVec3){{ 0, 0, 1}}); // normals are packed in a 5.6.5 format
   vertices[0] = (T3DVertPacked){
     .posA = {-16, -16, 0}, .rgbaA = 0xFF0000'FF, .normA = norm,
     .posB = { 16, -16, 0}, .rgbaB = 0x00FF00'FF, .normB = norm,
@@ -97,6 +97,12 @@ int main()
       t3d_vert_load(vertices, 4); // load 4 vertices...
       t3d_tri_draw(0, 1, 2); // ...then draw 2 triangles
       t3d_tri_draw(2, 3, 0);
+
+      // NOTE: if you use the builtin model format, syncs are handled automatically!
+      t3d_tri_sync(); // after each batch of triangles, a sync is needed
+      // technically, you only need a sync before any new 't3d_vert_load', rdpq call, or after the last triangle
+      // for safety, just call it after you are done with all triangles after a load
+
 
       dplDraw = rspq_block_end();
     }

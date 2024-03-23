@@ -24,7 +24,7 @@ enum T3DCmd {
   T3D_CMD_LIGHT_COUNT  = 0x9,
   T3D_CMD_FOG_RANGE    = 0xA,
   T3D_CMD_FOG_STATE    = 0xB,
-  //                   = 0xC,
+  T3D_CMD_TRI_SYNC     = 0xC,
   //                   = 0xD,
   //                   = 0xE,
   //                   = 0xF,
@@ -162,6 +162,15 @@ void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVe
  * @param v2 vertex index 2
  */
 void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2);
+
+/**
+ * Syncs pending triangles.
+ * This needs to be called after triangles where drawn and a different overlay
+ * which also generates RDP commands will be used. (e.g. RDPQ)
+ */
+inline static void t3d_tri_sync() {
+  rspq_write(T3D_RSP_ID, T3D_CMD_TRI_SYNC, 0);
+}
 
 /**
  * Directly loads a matrix into a slot, outside of the stack management.

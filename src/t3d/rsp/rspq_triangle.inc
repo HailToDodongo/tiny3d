@@ -4,7 +4,7 @@
 #
 ##########################################################################
 
-    .section .text.rdpq_triangle
+    .section .text.rdpq_triangle_send_async
 
 #ifndef RDPQ_TRIANGLE_PROFILE
 #define RDPQ_TRIANGLE_PROFILE     0
@@ -15,21 +15,32 @@
 #endif
 
     #####################################################################
-    # RDPQ_Triangle
+    # RDPQ_Triangle_Send_Async
+    #
+    # Build a RDP triangle primitive from 3 screen space vertices, and
+    # send it to the RDP for drawing (asynchronously). There is no need
+    # to call RDPQ_Send after this call.
+    #
+    # After this function returns, the DMA to RDRAM of the RDP primitive
+    # might be in progress. You can call this function multiple times for
+    # multiple triangles. After you finish the batch, make sure to call
+    # RDPQ_Triangle_Send_End to wait for the last triangle finish sending
+    # the last triangle to the RDP.
     #
     # INPUT:
-    # * a0: high 32-bit word of the triangle command. This will be
+    # * a0: high 16-bit word of the triangle command. This will be
     #       completed with the left/right flag and the mipmap level.
     # * a1,a2,a3: pointer to the triangle structures in DMEM
     # * v0: 0=cull front, 1=cull back, any other value = culling disabled
     # * s3: output buffer pointer
+    # * sp: return address if culled
     #
     # OUTPUT:
     # * v1: 1=clipping required, 0=nothing to do
     # * s3: pointer to the end of the primitive in the output buffer
     #
     # CLOBBER:
-    # t0-t5, a0-a3
+    # t0-t6, a0-a3
     #
     #####################################################################
 
@@ -53,8 +64,8 @@
     #   the real result is from the saturated number). In any case, much better than an overflow.
     #   test_rdpq_triangle checks if there's a saturation and skip checks for known-wrong values.
 
-    .func RDPQ_Tri
-RDPQ_Tri:
+    .func RDPQ_Triangle_Send_Async
+RDPQ_Triangle_Send_Async:
     #define tricmd a3
     #define vtx1   a0
     #define vtx2   a1
@@ -156,11 +167,9 @@ RDPQ_Tri:
     #define my      vm.e1
     #define lx      vl.e0
     #define ly      vl.e1
-    #define vhmlupp v__
-
+    #define vhmlupp vtmp
 
     #define vk1     $v12
-    #define vk2     $v13
 
     #define vstall
     #define stall
@@ -181,11 +190,10 @@ RDPQ_Tri:
     # TODO:
     # Should we do backface culling before clipping check?
     # If so, should we do that BEFORE or AFTER the sort-of-three?
-    # lw tricmd, %lo(TRI_COMMAND)
 
-    ## sh vtx1, 0(s3)
-    ## sh vtx2, 2(s3)
-    ## sh vtx3, 4(s3)
+    ##sh vtx1, 0(s3)
+    ##sh vtx2, 2(s3)
+    ##sh vtx3, 4(s3)
 
     llv vall1, VTX_ATTR_XY,vtx1
     llv vall2, VTX_ATTR_XY,vtx2
@@ -213,17 +221,18 @@ RDPQ_Tri:
     or clip1, clip2;                            vlt vy1, vy1, vy2;
     cfc2 did_swap_0, COP2_CTRL_VCC;             vmrg vall1, vall1, vall2;
 
-    andi t4, clip1, 0xFF;                       vcopy vk2, K2
+    andi t4, clip1, 0xFF;
     ori t2, zero, 0xFF;                         vxor vhmlupp, vhmlupp
 
-    bne t4, t2, SKIP_TRI;                       vge vytmp2, vy1, vy3;
+    bne t4, t2, CullTri;                        vge vytmp2, vy1, vy3;
     andi clip1, 0xFF00;                         vmrg valltmp2, vall1, vall3;
-    lbu v0, %lo(FACE_CULLING + 0);              vlt vy1, vy1, vy3;
+    lbu cull, %lo(FACE_CULLING + 0);            vlt vy1, vy1, vy3;
     cfc2 did_swap_1, COP2_CTRL_VCC;             vmrg vall1, vall1, vall3;
 
-    nop;                                        vge vy3, vytmp1, vytmp2;
-    ori s3, zero, %lo(CLIP_BUFFER_TMP);         vmrg vall3, valltmp1, valltmp2;
-    lw tricmd, %lo(TRI_COMMAND);                vlt vy2, vytmp1, vytmp2;
+    lhu s3, %lo(RDPQ_TRI_BUFF_OFFSET);          vge vy3, vytmp1, vytmp2;
+    lw tricmd, %lo(TRI_COMMAND);                vmrg vall3, valltmp1, valltmp2;
+    nop;                                        vmrg vall3, valltmp1, valltmp2;
+    addiu s3, s3, %lo(CLIP_BUFFER_TMP);         vlt vy2, vytmp1, vytmp2;
     cfc2 did_swap_2, COP2_CTRL_VCC;             vmrg vall2, valltmp1, valltmp2;
 
     # Copy Y1, Y2 into vy3, so that we get the three sorted Y in the same
@@ -243,43 +252,51 @@ RDPQ_Tri:
     vmov vx12_f.e2, vall2.e0;                   xor cull, did_swap_0
 
     # Prepare -MY for crossprod
-    vsubc vtmp, vzero, my;                      mfc2 vtx3, vall3.e3
+    vsubc v__, vzero, my;                       mfc2 vtx3, vall3.e3
 
     # FY.e4 = Y1 (s15.16)
     vsll8 vfy_f, vy1, 14;                       sdv vy3.e0, 0,s3
     vsra  vfy_i, vy1, 2;                        bnez clip1, JrRa
                                                 li out_clip_flag, 1     # report clipping required
     vmudh vnz_f, vm, hy;                        li out_clip_flag, 0     # report no clipping required
-    vmadh vnz_f, vhml, vtmp;                    slv vm.e0,   8,s3
+    vmadh vnz_f, vhml, v__;                     slv vm.e0,   8,s3
     vsar vnz_i, COP2_ACC_HI;                    slv vl.e0,  12,s3
     vsar vnz_f, COP2_ACC_MD;                    ldv vhml.e2, 8,s3
+
+    #undef clip1
+    #undef clip2
+    #undef clip3
+    #define prim_size       t3
+    #define color_dmem      t4
+    #define tex_dmem        t5
+    #define z_dmem          t6
 
     # FY.e0 = floorf(y1) - y1
     # TODO: this is always a negative
     # fraction, so fy_i is always 0xFFFF
-    # (or fy_i=fy_f=0). See if we can
-    # take advantage of this somehow
-    # to simplify later.
-    vsubc vfy_f, vzero, vfy_f;
-    vsub  vfy_i, vfy_i;                         lsv vw_i.e2, VTX_ATTR_Wi,vtx2
+    # (or fy_i=fy_f=0). See if we can           # Begin calculating DMEM offsets:
+    # take advantage of this somehow            # color_dmem, tex_dmem, z_dmem
+    # to simplify later.                        # This will happen throughout the whole function
+    vsubc vfy_f, vzero, vfy_f;                  addu color_dmem, s3, 0x20
+    vsub  vfy_i, vfy_i;                         lsv vw_f.e0, VTX_ATTR_Wf,vtx1
 
     # Compute SLOPE vector
     # slope    =  1/HY -- 1/MY --   1/LY -- -- 1/NZ
 
     # Calculate reciprocal of normal            # Backface culling
     vrcph vslope_i.e7, vnz_i.e0;                mfc2 t0, vnz_i.e0
-    vrcpl vslope_f.e7, vnz_f.e0;                luv attr1_r, VTX_ATTR_RGBA,vtx1
-    vrcph vslope_i.e7, vzero.e0;                luv attr2_r, VTX_ATTR_RGBA,vtx2
+    vrcpl vslope_f.e7, vnz_f.e0;                lsv vw_f.e2, VTX_ATTR_Wf,vtx2
+    vrcph vslope_i.e7, vzero.e0;                lsv vw_f.e4, VTX_ATTR_Wf,vtx3
 
     # Compute ISH (H slope). 1/HY  (s14.1)
     vrcp  vslope_f.e0, hy;                      slt t0, t0, zero
-    vrcph vslope_i.e0, hy;                      beq t0, cull, SKIP_TRI
+    vrcph vslope_i.e0, hy;                      beq t0, cull, CullTri
     # Compute ISM (M slope). 1/MY  (s14.1)
-    vrcp  vslope_f.e2, my;
-    vrcph vslope_i.e2, my;                      xori t0, 1
+    vrcp  vslope_f.e2, my;                      # <delay slot>
+    vrcph vslope_i.e2, my;                      lsv vw_i.e0, VTX_ATTR_Wi,vtx1
     # Compute ISL (L slope). 1/LY  (s14.1)
-    vrcp  vslope_f.e4, ly;                      lsv vw_i.e4, VTX_ATTR_Wi,vtx3
-    vrcph vslope_i.e4, ly;                      lsv vw_i.e0, VTX_ATTR_Wi,vtx1
+    vrcp  vslope_f.e4, ly;                      lsv vw_i.e2, VTX_ATTR_Wi,vtx2
+    vrcph vslope_i.e4, ly;                      lsv vw_i.e4, VTX_ATTR_Wi,vtx3
 
     #undef vm
     #undef vl
@@ -311,74 +328,51 @@ RDPQ_Tri:
     #    vhml      =   HX HY MX MY    LX LY  0  NZf
     #    vhmlupp   =    0 0  0  0     0  0   0  NZi
                                                 # Write left flag into tricmd
-    vmov vhml.e7, vnz_f.e0;                     sll t0, 7
-    vmov vhmlupp.e7, vnz_i.e0;                  or tricmd, t0
+    vmov vhml.e7, vnz_f.e0;                     xori t0, 1
+    vmov vhmlupp.e7, vnz_i.e0;                  sll t0, 7
 
     # vslopem2  = X/2 * (-4) = -2*X
     vmudn vslopem2_f, vslope_f, VKM4;           luv attr3_r, VTX_ATTR_RGBA,vtx3
-    vmadh vslopem2_i, vslope_i, VKM4;           lsv vw_f.e0, VTX_ATTR_Wf,vtx1
+    vmadh vslopem2_i, vslope_i, VKM4;           luv attr1_r, VTX_ATTR_RGBA,vtx1
 
-    # NR: R*(X/2)
-    vmudl vtmp_f, vslope_f, vhml.q1;            lsv vw_f.e2, VTX_ATTR_Wf,vtx2
-    vmadm vtmp_f, vslope_i, vhml.q1;            lsv vw_f.e4, VTX_ATTR_Wf,vtx3
-    vmadn vtmp_f, vslope_f, vhmlupp;
-    vmadh vtmp_i, vslope_i, vhmlupp;
+    # Calculate minimum W (between e0 and e2)
+    vsubc v__,  vw_f, vw_f.e2;                  luv attr2_r, VTX_ATTR_RGBA,vtx2
+    vlt   vw_i, vw_i, vw_i.e2;                  or tricmd, t0
+    vmrg  vw_f, vw_f, vw_f.e2;                  lsv vinvw_f.e6, VTX_ATTR_INVWf,vtx3
+
+    # NR: R*(X/2)                               # Load other invw components
+    vmudl vtmp_f, vslope_f, vhml.q1;            lsv vinvw_f.e4, VTX_ATTR_INVWf,vtx1
+    vmadm vtmp_f, vslope_i, vhml.q1;            lsv vinvw_f.e5, VTX_ATTR_INVWf,vtx2
+
+                                                # Calculate pointers to color, tex
+                                                # and z attributes, based on tricmd
+    vmadn vtmp_f, vslope_f, vhmlupp;            andi tex_dmem, tricmd, 0x400
+    vmadh vtmp_i, vslope_i, vhmlupp;            srl tex_dmem, 4
+
 
     # NR: R*X/2 - 1                             # Calculate -MY/-HX
-    vmadn vtmp_f, vk1, VKM1;                    mfc2 t3, my
-    vmadh vtmp_i, vk1, VKM1;                    mfc2 t4, hx
+    vmadn vtmp_f, vk1, VKM1;                    mfc2 t0, my
+    vmadh vtmp_i, vk1, VKM1;                    mfc2 t1, hx
 
-    # Calculate minimum W (between e0 and e2)   # Load invw components
-    vsubc v__,  vw_f, vw_f.e2;                  lsv vinvw_i.e4, VTX_ATTR_INVWi,vtx1
-    vlt   vw_i, vw_i, vw_i.e2;                  lsv vinvw_i.e5, VTX_ATTR_INVWi,vtx2
-    vmrg  vw_f, vw_f, vw_f.e2;                  lsv vinvw_i.e6, VTX_ATTR_INVWi,vtx3
+    # Calculate minimum W (between e0 and e4)
+    # Now vw_if.e0 contains the minimum W       # Load invw components
+    vsubc v__,  vw_f, vw_f.e4;                  lsv vinvw_i.e5, VTX_ATTR_INVWi,vtx2
+    vlt   vw_i, vw_i, vw_i.e4;                  lsv vinvw_i.e6, VTX_ATTR_INVWi,vtx3
+    vmrg  vw_f, vw_f, vw_f.e4;                  lsv vinvw_i.e4, VTX_ATTR_INVWi,vtx1
 
     # NR: -2*X * (R*X/2 - 1)
     #   =  2*X * (1 - R*X/2)
     #   =    X * (2 - R*X)
-    vmudl v__,      vtmp_f, vslopem2_f;
-    vmadm v__,      vtmp_i, vslopem2_f;
-    vmadn vnz_f,    vtmp_f, vslopem2_i;
-    vmadh vnz_i,    vtmp_i, vslopem2_i;
+    vmudl v__,      vtmp_f, vslopem2_f;         addu tex_dmem, color_dmem
+    vmadm v__,      vtmp_i, vslopem2_f;         andi z_dmem, tricmd, 0x200
+    vmadn vnz_f,    vtmp_f, vslopem2_i;         srl z_dmem, 3
+    vmadh vnz_i,    vtmp_i, vslopem2_i;         sh tricmd, 0(s3)
 
-    # Calculate minimum W (between e0 and e4)
-    # Now vw_if.e0 contains the minimum W       # Load other invw components
-    vsubc v__,  vw_f, vw_f.e4;                  lsv vinvw_f.e4, VTX_ATTR_INVWf,vtx1
-    vlt   vw_i, vw_i, vw_i.e4;                  lsv vinvw_f.e5, VTX_ATTR_INVWf,vtx2
-    vmrg  vw_f, vw_f, vw_f.e4;                  lsv vinvw_f.e6, VTX_ATTR_INVWf,vtx3
-
-    # Finalize slope divisions by multiplying by the reciprocal.
-    # vhml      =   HX  HY   MX  MY     LX   LY   0   NZf
-    #  *
-    # vnz       =  1/HY --  1/MY --    1/LY --   --- 1/NZ
-    #    =
-    # vslope    =  HX/HY --   MX/MY  --   LX/LY  --     --   --
-                                                # Store negated my/hx into vhml
-    vmudn v__,  vnz_f, vhml;                    neg t3
-    vmadh v__,  vnz_i, vhml;                    neg t4
-    vsar  vslope_f, COP2_ACC_MD;                mtc2 t3, my
-    vsar  vslope_i, COP2_ACC_HI;                mtc2 t4, hx
-    #define ish_f   vslope_f.e0
-    #define ish_i   vslope_i.e0
-    #define ism_f   vslope_f.e2
-    #define ism_i   vslope_i.e2
-    #define isl_f   vslope_f.e4
-    #define isl_i   vslope_i.e4
-                                                # Prepare for vmrg later (to merge
-    # 32bit vsra by 1                           # tex coords inside the attribute
-    vmudl vw_f, vw_f, K32768;
-    vmadm vw_i, vw_i, K32768;                   li t0, 0xCF
-    vmadn vw_f, vzero, vzero;                   ctc2 t0, COP2_CTRL_VCC
-
+    #undef vtmp_i
+    #undef vtmp_f
     #define vtex1 vdx_f
     #define vtex2 vdx_i
     #define vtex3 vde_f
-
-    # vattr now contains only RGBA, loaded
-    # via suv. Shift them back to raw bytes.    # Load S/T coordinates
-    vsrl vattr1, vattr1, 7;                     llv vtex1.e4, VTX_ATTR_ST,vtx1
-    vsrl vattr2, vattr2, 7;                     llv vtex2.e4, VTX_ATTR_ST,vtx2
-    vsrl vattr3, vattr3, 7;                     llv vtex3.e4, VTX_ATTR_ST,vtx3
 
     # We need to normalize INV_W in [0..1], by dividing them by the maximum INV_W.
     # We will multiply by W instead. We have now prepared the minium w in vw_i.e0.
@@ -389,13 +383,48 @@ RDPQ_Tri:
     # We need to multiply minw with the three invw. All numbers are positive s16.16,
     # and the result is known to fit 0..1. By doing a standard 32-bit multiplication
     # on RSP, we end up with a positive s16.16 number, where the integer word is zero.
-    # In fact, in theory W * 1/W = 1, but both numbers are likely missing enough bits
-    # of precision that the result will always be slightly lower than 1 (and thus the
-    # integer part will be 0).
-    #                                           # Load Z componen into attribute vector
-    vmudl v__,     vinvw_f, vw_f.e0;            lsv attr1_z, VTX_ATTR_Z,vtx1
-    vmadm v__,     vinvw_i, vw_f.e0;            lsv attr2_z, VTX_ATTR_Z,vtx2
-    vmadn vinvw_f, vinvw_f, vw_i.e0;            lsv attr3_z, VTX_ATTR_Z,vtx3
+    # The only exception is when W = 1/W = 1.0. In that case the result of the
+    # multiplication will be 1.0, which means that vinw_f will be 0. To handle
+    # this case, we later subtract 1 from it, so that it becomes 0xffff, which
+    # is a fractional "almost 1".
+    #                                           # Load S/T coordinates
+    vmudl v__,     vinvw_f, vw_f.e0;            llv vtex1.e4, VTX_ATTR_ST,vtx1
+    vmadm v__,     vinvw_i, vw_f.e0;            llv vtex2.e4, VTX_ATTR_ST,vtx2
+    vmadn vinvw_f, vinvw_f, vw_i.e0;            llv vtex3.e4, VTX_ATTR_ST,vtx3
+
+    # Finalize slope divisions by multiplying by the reciprocal.
+    # vhml      =   HX  HY   MX  MY     LX   LY   0   NZf
+    #  *
+    # vnz       =  1/HY --  1/MY --    1/LY --   --- 1/NZ
+    #    =
+    # vslope    =  HX/HY --   MX/MY  --   LX/LY  --     --   --
+                                                # Store negated my/hx into vhml
+    vmudn v__,  vnz_f, vhml;                    neg t0
+    vmadh v__,  vnz_i, vhml;                    neg t1
+    vsar  vslope_f, COP2_ACC_MD;                mtc2 t0, my
+    vsar  vslope_i, COP2_ACC_HI;                mtc2 t1, hx
+    #define ish_f   vslope_f.e0
+    #define ish_i   vslope_i.e0
+    #define ism_f   vslope_f.e2
+    #define ism_i   vslope_i.e2
+    #define isl_f   vslope_f.e4
+    #define isl_i   vslope_i.e4
+
+    # Subtract INVW by 1. This workarounds      # Prepare for vmrg later (to merge
+    # an overflow when INVW is exactly
+    # 1.0.                                       # tex coords inside the attribute)
+    vsubc vinvw_f, K1;                          li t0, 0xCF
+
+    # vattr now contains only RGBA, loaded
+    # via suv. Shift them back to raw bytes.    # Load Z components into attribute vector
+    vsrl vattr1, vattr1, 7;                     lsv attr1_z, VTX_ATTR_Z,vtx1;
+    vsrl vattr2, vattr2, 7;                     ctc2 t0, COP2_CTRL_VCC
+    vsrl vattr3, vattr3, 7;                     lsv attr2_z, VTX_ATTR_Z,vtx2
+
+    # Divide vinw_f by 2. This is needed
+    # because it is going to be used in a
+    # vmulf which expects a 0.15 number.
+    vsrl vinvw_f, vinvw_f, 1;                   lsv attr3_z, VTX_ATTR_Z,vtx3
 
     #  vxy21 =   X1   --    X2   --       Y1 --   Y2 --
     #  slope = HX/HY  --   MX/MY --     LX/LY --  -- --
@@ -403,9 +432,10 @@ RDPQ_Tri:
     # Compute XH and XM
     # TODO: fy_i is always 0xFFFFFFFF here.
     # See if we can benefit from this.
-    vmudl v__,      vslope_f, vfy_f.e4;
-    vmadm v__,      vslope_i, vfy_f.e4;
-    vmadn vedges_f, vslope_f, vfy_i.e4;         # Copy normalized invw into the attribute vector
+    vmudl v__,      vslope_f, vfy_f.e4;         addu z_dmem, tex_dmem
+    vmadm v__,      vslope_i, vfy_f.e4;         andi prim_size, tricmd, 0x100
+    vmadn vedges_f, vslope_f, vfy_i.e4;         mfc0 t1, COP0_DMA_BUSY
+                                                # Copy normalized invw into the attribute vector
     vmadh vedges_i, vslope_i, vfy_i.e4;         sdv vinvw_f.e4, 16,s3
 
     # Multiply S/T by INVW
@@ -413,36 +443,51 @@ RDPQ_Tri:
     vmulf vtex2, vinvw_f.h1;                    lsv attr2_invw, 18,s3
     vmulf vtex3, vinvw_f.h2;                    lsv attr3_invw, 20,s3
 
-    # Convert X1 and X2 into
-    # 16.16 precision
-    # vx12 = X1 -- X2 --  -- -- -- --
-    vsra  vx12_i, vx12_f, 2;
-    vsll8 vx12_f, vx12_f, 14;
+    # Convert X1 and X2 into                    # Check if DMA is busy.
+    # 16.16 precision                           # If it is, jump to a busy loop, otherwise
+    # vx12 = X1 -- X2 --  -- -- -- --           # get on
+    vsra  vx12_i, vx12_f, 2;                    bnez t1, rdpq_triangle_dma_busy
+                                                 lbu t0, %lo(RDPQ_SYNCFULL_ONGOING)
+                                                rdpq_triangle_dma_idle:
+    vsll8 vx12_f, vx12_f, 14;                   srl prim_size, 4
 
+                                                #undef tricmd
+                                                #define rdram_cur       a0
     # Move S/T into the attribute vector,
     # preserving the other components. VCC
     # was set to 0xCF before, so that only
     # the S/T elements (.e4/.e5) are copied
-    vmrg vattr1, vtex1;
+    vmrg vattr1, vtex1;                         addu prim_size, z_dmem
     vmrg vattr2, vtex2;                         ssv isl_i, 12,s3
-    vmrg vattr3, vtex3;                         ssv isl_f, 14,s3
+    vmrg vattr3, vtex3;                         lw rdram_cur, %lo(RDPQ_CURRENT)
 
     # Finish computing XH/XM by adidng
     # X0/X1                                     # Store X2 value in output (as XL)
     vaddc vedges_f, vx12_f.e0;                  ssv vx12_i.e2,  8,s3  # XL_I
-    vadd  vedges_i, vx12_i.e0;                  ssv vx12_f.e2, 10,s3  # XL_F
 
-    #undef vtex1
-    #undef vtex2
-    #undef vtex3
+                                                # Check if SYNC_FULL is ongoing. If it is not,
+                                                # get on with the flow, otherwise skip writing
+                                                # to DP_END (we can't do that while SYNC_FULL is ongoing)
+    vadd  vedges_i, vx12_i.e0;                  bnez t0, 1f
+                                                 ssv isl_f, 14,s3
+
+    # Write the current RDRAM pointer to
+    # DP_END; anything before that is already
+    # in RAM at this point (because we
+    # checked that DMA is idle), the RDP
+    # can start running that.                   # Clear the VCC for the next vsub calls
+    mtc0 rdram_cur, COP0_DP_END;                1: vsubc vzero, vzero;
 
     ########################################################
     # ATTRIBUTES
     ########################################################
-
-    #define color_dmem     t3
-    #define tex_dmem       t4
-    #define z_dmem         t5
+    #undef vtex1
+    #undef vtex2
+    #undef vtex3
+    #undef vtx1
+    #undef vtx2
+    #undef vtx3
+    #define rdram_sentinel  a2
 
     # MA = A2 - A1
     # HA = A3 - A1
@@ -454,12 +499,8 @@ RDPQ_Tri:
     # have to produce a 32-bit result here
     # and then change the DX/DY calcs
     # to use 32-bit numbers as well.
-    # Note also that we need
-    # "vsubc zero,zero" to clear the VCC
-    # (carry) bit which vsub reads as input.        # Store tricmd and last coord slopes
-    vsubc vzero, vzero;                             ssv ish_f, 22,s3
-    vsub vma, vattr2, vattr1;                       ssv ish_i, 20,s3
-    vsub vha, vattr3, vattr1;                       sh tricmd, 0(s3)
+    vsub vma, vattr2, vattr1;                       ssv vx12_f.e2, 10,s3  # XL_F
+    vsub vha, vattr3, vattr1;                       sub prim_size, s3
 
     #define vzout1      $v10
     #undef vattr2
@@ -478,22 +519,25 @@ RDPQ_Tri:
     vsar vdx_f, COP2_ACC_MD;                        ssv vedges_i.e0, 16,s3  # XH_I
     vsar vdx_i, COP2_ACC_HI;                        ssv vedges_f.e0, 18,s3  # XH_F
 
-    # DY = HA * MX + MA * -HX                       # Calculate pointers to color, tex
-                                                    # and z attributes, based on tricmd
-    vmudh vdy_f, vha, mx;                           addu color_dmem, s3, 0x20
-    vmadh vdy_f, vma, hx;                           andi t0, tricmd, 0x400
-    vsar vdy_f, COP2_ACC_MD;                        srl t0, 4
-    vsar vdy_i, COP2_ACC_HI;                        addu tex_dmem, color_dmem, t0
+    # DY = HA * MX + MA * -HX
+    vmudh vdy_f, vha, mx;                           ssv ish_i, 20,s3
+    vmadh vdy_f, vma, hx;                           ssv ish_f, 22,s3
+    vsar vdy_f, COP2_ACC_MD;                        lw rdram_sentinel, %lo(RDPQ_SENTINEL)
+                                                    # Clear MSB of rdram_cur (contains garbage)
+    vsar vdy_i, COP2_ACC_HI;                        sll rdram_cur, 8
 
     # DX * 1/N
-    vmudl v__,  vdx_f, inz_f;                       andi t0, tricmd, 0x200
-    vmadm v__,  vdx_i, inz_f;                       srl t0, 3
-    vmadn vdx_f, vdx_f, inz_i;                      addu z_dmem, tex_dmem, t0
-    vmadh vdx_i, vdx_i, inz_i;                      andi t0, tricmd, 0x100
+    vmudl v__,  vdx_f, inz_f;                       srl rdram_cur, 8
+                                                    # Setup DMA addresses
+    vmadm v__,  vdx_i, inz_f;                       mtc0 s3, COP0_DMA_SPADDR
+    vmadn vdx_f, vdx_f, inz_i;                      mtc0 rdram_cur, COP0_DMA_RAMADDR
+                                                    # Calculate final s3 value
+    vmadh vdx_i, vdx_i, inz_i;                      addu s3, prim_size
 
-    # DY * 1/N
-    vmudl v__,  vdy_f, inz_f;                       srl t0, 4
-    vmadm v__,  vdy_i, inz_f;                       addu s3, z_dmem, t0
+    # DY * 1/N                                      # Compute final RDRAM pointer, and
+                                                    # check if it goes past the sentinel
+    vmudl v__,  vdy_f, inz_f;                       add rdram_cur, prim_size
+    vmadm v__,  vdy_i, inz_f;                       slt t0, rdram_sentinel, rdram_cur
                                                     # Store Dx slopes
     vmadn vdy_f, vdy_f, inz_i;                      sdv vdx_f.e0, 0x18,color_dmem
     vmadh vdy_i, vdy_i, inz_i;                      sdv vdx_f.e4, 0x18,tex_dmem
@@ -503,27 +547,31 @@ RDPQ_Tri:
     vmadm v__,  vdx_i, ish_f;                       sdv vdx_i.e4, 0x08,tex_dmem
                                                     # Store Dy slopes
     vmadn vde_f, vdx_f, ish_i;                      sdv vdy_f.e0, 0x38,color_dmem
-    vmadh vde_i, vdx_i, ish_i;                      sdv vdy_f.e4, 0x38,tex_dmem
-    vnop;                                           sdv vdy_i.e0, 0x28,color_dmem
+                                                    # Check if we need to change RDP buffer
+    vmadh vde_i, vdx_i, ish_i;                      bnez t0, rdpq_triangle_change_buffer
+                                                    sdv vdy_f.e4, 0x38,tex_dmem
+rdpq_triangle_change_buffer_done:
 
     # FINAL = vATTR1 + DE * FY
     # TODO: fy_i is always 0xFFFFFFFF here.
     # See if we can benefit from this.
     # TODO: actually, it can also be
     # fy_i = fy_f = 0.
-    vmudh v__,      vattr1, K1;                     sdv vdy_i.e4, 0x28,tex_dmem
+    vmudh v__,      vattr1, K1;                     sdv vdy_i.e0, 0x28,color_dmem
+    vmadl v__,      vde_f, vfy_f.e4;                sdv vdy_i.e4, 0x28,tex_dmem
                                                     # Store De slopes
-    vmadl v__,      vde_f, vfy_f.e4;                sdv vde_f.e0, 0x30,color_dmem
-    vmadm v__,      vde_i, vfy_f.e4;                sdv vde_f.e4, 0x30,tex_dmem
-    vmadn vfinal_f, vde_f, vfy_i.e4;                sdv vde_i.e0, 0x20,color_dmem
-    vmadh vfinal_i, vde_i, vfy_i.e4;                sdv vde_i.e4, 0x20,tex_dmem
+    vmadm v__,      vde_i, vfy_f.e4;                sdv vde_f.e0, 0x30,color_dmem
+    vmadn vfinal_f, vde_f, vfy_i.e4;                sdv vde_f.e4, 0x30,tex_dmem
+    vmadh vfinal_i, vde_i, vfy_i.e4;                sdv vde_i.e0, 0x20,color_dmem
 
     # Since we need to wait 2 cycles before
     # being able to read vfinal_f contents,
     # use the time to compact the Z values,
     # so that we can use slv to store them later.
-    vmov vdy_f.e6, vdy_i.e7;
-    vmov vde_f.e6, vde_i.e7;
+    vmov vdy_f.e6, vdy_i.e7;                        sdv vde_i.e4, 0x20,tex_dmem
+                                                    # Store updated RDRAM pointer.
+    vmov vde_f.e6, vde_i.e7;                        sw rdram_cur, %lo(RDPQ_CURRENT)
+                                                    # Store Z values
     vmov vzout1.e1, vfinal_f.e7;                    sdv vfinal_f.e0, 0x10,color_dmem
     vmov vzout1.e0, vfinal_i.e7;                    sdv vfinal_f.e4, 0x10,tex_dmem
     vmov vzout1.e3, vdx_f.e7;                       sdv vfinal_i.e0, 0x00,color_dmem
@@ -532,9 +580,7 @@ RDPQ_Tri:
                                                     # compacted via vmov.
                                                     slv vde_f.e6, 0x08,z_dmem
                                                     slv vdy_f.e6, 0x0C,z_dmem
-#if !RDPQ_TRIANGLE_PROFILE
-                                                    jr ra
-#endif
+                                                    addiu prim_size, -1
                                                     sdv vzout1.e0, 0x00,z_dmem
 
 #if RDPQ_TRIANGLE_PROFILE
@@ -543,14 +589,14 @@ RDPQ_Tri:
     sub t0, t0, fp
     emux_log_string "RDPQ_Triangle:  "
     emux_dump_gpr t0
-    jr ra
-    nop
 #endif
 
-   SKIP_TRI:
+    jr ra
+    mtc0 prim_size, COP0_DMA_WRITE
+
+    CullTri:
     j sp
     nop
-
 
     #undef tricm
     #undef vtx1
@@ -583,6 +629,22 @@ RDPQ_Tri:
 
     #undef vinvw_i
     #undef vinvw_f
+    #undef inz_i
+    #undef inz_f
+
+    #undef hx
+    #undef hy
+    #undef mx
+    #undef my
+    #undef lx
+    #undef ly
+
+    #undef ish_f
+    #undef ish_i
+    #undef ism_f
+    #undef ism_i
+    #undef isl_f
+    #undef isl_i
 
     #undef vedges_i
     #undef vedges_f
@@ -613,4 +675,72 @@ RDPQ_Tri:
     #undef VTX_ATTR_INVWi
     #undef VTX_ATTR_INVWf
 
+    # Slow path: when the RDRAM buffer is full (we reached the sentinel),
+    # we need to switch buffer. This is basicaly an inlined version of the same
+    # slow-path in RDPQ_Send.
+rdpq_triangle_change_buffer:
+    move a3, ra
+    lw rdram_cur, %lo(RDPQ_DYNAMIC_BUFFERS) + 4
+    lw t1, %lo(RDPQ_DYNAMIC_BUFFERS) + 0
+    sw rdram_cur, %lo(RDPQ_DYNAMIC_BUFFERS) + 0
+    sw t1, %lo(RDPQ_DYNAMIC_BUFFERS) + 4
+
+    # We are going to call RSPQCmd_RdpSetBuffer. Since it's going to destroy
+    # t0-t3, we need to save prim_size (t3). Notice that we rely on the fact
+    # that it doesn't destroy t4-t6 (which contain the various DMEM pointers).
+    # As scratch buffer, we use a part of the primitive buffer that will be
+    # written later, after we return to the happy-path.
+    sb prim_size, 0x00(color_dmem)
+
+    add rdram_sentinel, rdram_cur, RDPQ_DYNAMIC_BUFFER_SIZE
+    jal RSPQCmd_RdpSetBuffer
+    move a1, rdram_cur
+
+    # Go back to RDPQ_Triangle_Send_Async happy path. Restore the primitive
+    # size that was stashed away, and change DMA RDRAM registter to use the
+    # new buffer instead of the old one.
+    mtc0 rdram_cur, COP0_DMA_RAMADDR
+    lbu prim_size, 0x00(color_dmem)
+    addu rdram_cur, prim_size
+    j rdpq_triangle_change_buffer_done
+    move ra, a3
+
+    # Slow path: if RSP DMA is still busy by the time we check for it
+    # (which is "as late as possible" within the happy-path), we need to
+    # wait for it to become idle before continuing.
+    # Notice that we only handle one background transfer at the time for
+    # sanity, so we can't really check for COP0_DMA_FULL here.
+rdpq_triangle_dma_busy:
+    bnez t1, rdpq_triangle_dma_busy
+    mfc0 t1, COP0_DMA_BUSY
+    j rdpq_triangle_dma_idle
+    nop
+
+    .endfunc
+
+    #undef rdram_cur
+    #undef rdram_sentinel
+
+
+    #####################################################################
+    # RDPQ_Triangle_Send_End
+    #
+    # Call this function to correctly terminate a batch of subsequent
+    # calls to RDPQ_Triangle_Send_Async.
+    #
+    # RDPQ_Triangle_Send_Async leaves a RSP DMA running for the last
+    # triangle, to copy it to RDRAM; moreover the RDP is not informed
+    # of it yet. So this function first waits for the DMA to be finished,
+    # and then notifies the RDP that the triangle is ready and can be
+    # drawn.
+    #
+    #####################################################################
+
+    .func RDPQ_Triangle_Send_End
+RDPQ_Triangle_Send_End:
+    mfc0 t0, COP0_DMA_BUSY
+    bnez t0, RDPQ_Triangle_Send_End
+    nop
+    j RSPQCmd_RdpAppendBuffer
+    lw a0, %lo(RDPQ_CURRENT)
     .endfunc

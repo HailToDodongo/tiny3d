@@ -93,7 +93,7 @@ int main()
   float noiseStrength = 1.0f;
   float camDist = 20.0f;
   float lastTime = 0.0f;
-  float videoFrameTime = 0.0f;
+  float videoFrameTime = 1.0f;
   bool offscreen3D = false;
 
   for(;;)
@@ -136,7 +136,7 @@ int main()
 
     // while it is a bit outside the scope of t3d, we can draw other things like videos into buffers too.
     // For more information on how to use the mpeg2 library, see the "videoplayer" example in libdragon
-    if(videoFrameTime > 0.025f) {
+    if(videoFrameTime > 0.015f) {
       videoFrameTime = 0.0f;
       if(!mpeg2_next_frame(&mp2)) {
         mpeg2_rewind(&mp2);
