@@ -7,6 +7,11 @@
 
 #include "t3d.h"
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #define T3D_ALPHA_MODE_DEFAULT 0
 #define T3D_ALPHA_MODE_OPAQUE  1
 #define T3D_ALPHA_MODE_CUTOUT  2
@@ -154,5 +159,9 @@ static inline T3DVertPacked* t3d_model_get_vertices(const T3DModel *model) {
   uint32_t offset = model->chunkOffsets[model->chunkIdxVertices].offset & 0x00FFFFFF;
   return (void*)model + offset;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

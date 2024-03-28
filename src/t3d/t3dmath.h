@@ -7,6 +7,11 @@
 
 #include <libdragon.h>
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #define T3D_DEG_TO_RAD(deg) (deg * 0.01745329252f)
 #define T3D_F32_TO_FIXED(val) (int32_t)((val) * (float)(1<<16))
 
@@ -274,5 +279,9 @@ inline static void t3d_mat3_mul_vec3(T3DVec3* vecOut, const T3DMat4 *mat, const 
                    mat->m[2][i] * vec->v[2];
   }
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //TINY3D_T3DMATH_H

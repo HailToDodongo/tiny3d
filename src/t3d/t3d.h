@@ -8,6 +8,11 @@
 #include <t3d/t3dmath.h>
 #include <libdragon.h>
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 extern uint32_t T3D_RSP_ID;
 
 // RSP commands, must match with the commands defined in `rsp/rsp_tiny3d.rspl`
@@ -334,5 +339,9 @@ static inline uint8_t* t3d_vertbuffer_get_rgba(T3DVertPacked vert[], int idx) {
 static inline uint16_t* t3d_vertbuffer_get_norm(T3DVertPacked vert[], int idx) {
   return (idx & 1) ? &vert[idx/2].normB : &vert[idx/2].normA;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //TINY3D_T3D_H

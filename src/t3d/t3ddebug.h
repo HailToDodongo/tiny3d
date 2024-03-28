@@ -5,6 +5,11 @@
 #ifndef TINY3D_T3DDEBUG_H
 #define TINY3D_T3DDEBUG_H
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 /// @brief Initializes the debug print system, make sure to have 'font.ia4.png' in your FS
 void t3d_debug_print_init();
 
@@ -16,5 +21,9 @@ void t3d_debug_print(float x, float y, const char* str);
 
 /// @brief Prints a formatted string at the given position
 void t3d_debug_printf(float x, float y, const char* fmt, ...);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // TINY3D_T3DDEBUG_H
