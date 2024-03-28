@@ -48,7 +48,7 @@ int main()
   };
 
   float rotAngle = 0.0f;
-  T3DVec3 rotAxis = {{1.0f, 2.5f, 0.25f}};
+  T3DVec3 rotAxis = {{-1.0f, 2.5f, 0.25f}};
   t3d_vec3_norm(&rotAxis);
 
   // create a viewport, this defines the section to draw to (by default the whole screen)

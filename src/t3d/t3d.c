@@ -240,9 +240,11 @@ void t3d_viewport_attach(T3DViewport *viewport) {
   int32_t screenOffsetX = (int32_t)(viewport->offset[0]*2) + viewport->size[0];
   int32_t screenOffsetY = (int32_t)(viewport->offset[1]*2) + viewport->size[1];
 
+  int32_t screenScaleY = -viewport->size[1];
+
   int32_t screenOffset = (screenOffsetX << 17) | (screenOffsetY << 1);
   int32_t screenScale = (viewport->size[0] << 18)
-    | ((uint16_t)(viewport->size[1]<<2) & 0xFFFF);
+    | ((uint16_t)(screenScaleY<<2) & 0xFFFF);
 
   int32_t guardBandScale = viewport->guardBandScale & 0xF;
   rspq_write(T3D_RSP_ID, T3D_CMD_SCREEN_SIZE,

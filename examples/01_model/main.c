@@ -44,7 +44,7 @@ int main()
   uint8_t colorAmbient[4] = {80, 80, 100, 0xFF};
   uint8_t colorDir[4]     = {0xEE, 0xAA, 0xAA, 0xFF};
 
-  T3DVec3 lightDirVec = {{1.0f, 1.0f, 1.0f}};
+  T3DVec3 lightDirVec = {{-1.0f, 1.0f, 1.0f}};
   t3d_vec3_norm(&lightDirVec);
 
   // Load a model-file, this contains the geometry and some metadata
@@ -56,10 +56,10 @@ int main()
   for(;;)
   {
     // ======== Update ======== //
-    rotAngle += 0.02f;
+    rotAngle -= 0.02f;
     float modelScale = 0.1f;
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 400.0f);
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget);
 
     // slowly rotate model, for more information on matrices and how to draw objects
