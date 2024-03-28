@@ -5,28 +5,28 @@
 
 #include <t3d/t3dmath.h>
 
-void t3d_mat4_look_at(T3DMat4 *mat, const T3DVec3 *eye, const T3DVec3 *target) 
+void t3d_mat4_look_at(T3DMat4 *mat, const T3DVec3 *eye, const T3DVec3 *target, const T3DVec3 *up)
 {
   const T3DVec3 GLOBAL_UP = (T3DVec3){{0,1,0}};
-  T3DVec3 forward, side, up;
+  T3DVec3 forward, side, upCalc;
 
   t3d_vec3_diff(&forward, target, eye);
   t3d_vec3_norm(&forward);
 
-  t3d_vec3_cross(&side, &forward, &GLOBAL_UP);
+  t3d_vec3_cross(&side, &forward, up);
   t3d_vec3_norm(&side);
 
-  t3d_vec3_cross(&up, &side, &forward);
+  t3d_vec3_cross(&upCalc, &side, &forward);
 
   float dotSide = -t3d_vec3_dot(&side, eye);
-  float dotUp   = -t3d_vec3_dot(&up, eye);
+  float dotUp   = -t3d_vec3_dot(&upCalc, eye);
   float dotFwd  = t3d_vec3_dot(&forward, eye);
 
   *mat = (T3DMat4){{
-    {side.v[0], up.v[0], -forward.v[0], 0.0f},
-    {side.v[1], up.v[1], -forward.v[1], 0.0f},
-    {side.v[2], up.v[2], -forward.v[2], 0.0f},
-    {dotSide,   dotUp,    dotFwd,       1.0f}
+    {side.v[0], upCalc.v[0], -forward.v[0], 0.0f},
+    {side.v[1], upCalc.v[1], -forward.v[1], 0.0f},
+    {side.v[2], upCalc.v[2], -forward.v[2], 0.0f},
+    {dotSide,   dotUp,        dotFwd,       1.0f}
   }};
 }
 

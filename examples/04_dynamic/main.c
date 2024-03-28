@@ -84,7 +84,7 @@ int main()
     T3DVec3 camPos = {{sinf(camAngle) * 45.0f, 35.0f, cosf(camAngle) * 60.0f}};
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget);
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     // transform mesh
     if(transformEnabled)

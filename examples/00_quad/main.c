@@ -64,7 +64,7 @@ int main()
 
     // we can set up our viewport settings beforehand here
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 100.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget);
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     // Model-Matrix, t3d offers some basic matrix functions
     t3d_mat4_identity(&modelMat);

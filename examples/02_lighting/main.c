@@ -67,7 +67,7 @@ int main()
     lightCountTimer += 0.003f;
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(65.0f), 10.0f, 250.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget);
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     // Model Matrix
     t3d_mat4fp_from_srt_euler(modelMatFP,

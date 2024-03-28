@@ -147,7 +147,7 @@ int main()
       // after that apply the viewport and draw your scene
       // Since each of the viewport-structs has its own matrices, no conflicts will occur
       t3d_viewport_set_projection(vp, fov, 2.0f, 200.0f);
-      t3d_viewport_look_at(vp, &camPos, &camTarget);
+      t3d_viewport_look_at(vp, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
       t3d_viewport_attach(vp);
 
       // if you need directional light, re-apply it here after a new viewport has been attached

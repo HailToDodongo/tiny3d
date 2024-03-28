@@ -60,7 +60,7 @@ int main()
     float modelScale = 0.1f;
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget);
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     // slowly rotate model, for more information on matrices and how to draw objects
     // see the example: "03_objects"

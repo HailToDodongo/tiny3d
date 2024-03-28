@@ -156,8 +156,9 @@ void t3d_viewport_set_projection(T3DViewport *viewport, float fov, float near, f
  *
  * @param eye camera position
  * @param target camera target/look-at
+ * @param up camera up vector, expected to be {0,1,0} by default
  */
-void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVec3 *target);
+void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVec3 *target, const T3DVec3 *up);
 
 /**
  * @brief Draws a single triangle, referencing loaded vertices

@@ -268,7 +268,7 @@ void t3d_viewport_set_projection(T3DViewport *viewport, float fov, float near, f
   t3d_mat4_perspective(&viewport->matProj, fov, aspectRatio, near, far);
 }
 
-void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVec3 *target) {
-  t3d_mat4_look_at(&viewport->matCamera, eye, target);
+void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVec3 *target, const T3DVec3 *up) {
+  t3d_mat4_look_at(&viewport->matCamera, eye, target, up);
 }
 

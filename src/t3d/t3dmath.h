@@ -249,8 +249,9 @@ void t3d_mat4_perspective(T3DMat4 *mat, float fov, float aspect, float near, flo
  * @param mat destination matrix
  * @param eye camera position
  * @param target camera target/focus point
+ * @param up camera up vector, expected to be {0,1,0} by default
  */
-void t3d_mat4_look_at(T3DMat4 *mat, const T3DVec3 *eye, const T3DVec3 *target);
+void t3d_mat4_look_at(T3DMat4 *mat, const T3DVec3 *eye, const T3DVec3 *target, const T3DVec3 *up);
 
 /// @brief Multiplies the matrices 'matA' and 'matB' and stores it in 'matRes'
 inline static void t3d_mat4_mul(T3DMat4 *matRes, const T3DMat4 *matA, const T3DMat4 *matB)
