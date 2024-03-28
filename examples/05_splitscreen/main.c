@@ -97,7 +97,7 @@ int main()
     playerRot += 0.05f;
 
     // Player movement
-    players[selPlayer].rot += joypad.stick_x * -0.0007f;
+    players[selPlayer].rot += joypad.stick_x * 0.0007f;
     T3DVec3 moveDir = {{
         fm_cosf(players[selPlayer].rot) * (joypad.stick_y * 0.006f), 0.0f,
         fm_sinf(players[selPlayer].rot) * (joypad.stick_y * 0.006f)
@@ -134,18 +134,15 @@ int main()
       float fov = v == 2 ? T3D_DEG_TO_RAD(50.0f) : T3D_DEG_TO_RAD(75.0f);
 
       T3DVec3 camTarget = {{
-        players[v].position.v[0] + fm_cosf(players[v].rot)*10, 
-        players[v].position.v[1], 
-        players[v].position.v[2] + fm_sinf(players[v].rot)*10
-        
+        players[v].position.v[0] + fm_cosf(players[v].rot),
+        players[v].position.v[1] + 9.0f,
+        players[v].position.v[2] + fm_sinf(players[v].rot)
       }};
       T3DVec3 camPos = {{
         players[v].position.v[0],
-        players[v].position.v[1] + 5.4f, 
+        players[v].position.v[1] + 9.0f,
         players[v].position.v[2]
       }};
-      //t3d_vec3_add(&camPos, &camPos, &players[v].position);
-
       // Like in all other examples, set up the projection (only really need to do it once) and view matrix here
       // after that apply the viewport and draw your scene
       // Since each of the viewport-structs has its own matrices, no conflicts will occur
