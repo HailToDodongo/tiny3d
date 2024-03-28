@@ -97,10 +97,10 @@ int main()
     playerRot += 0.05f;
 
     // Player movement
-    players[selPlayer].rot += joypad.stick_x * -0.0007f;
+    players[selPlayer].rot += joypad.stick_x * 0.0007f;
     T3DVec3 moveDir = {{
-                         fm_cosf(players[selPlayer].rot) * (joypad.stick_y * 0.006f), 0.0f,
-                         fm_sinf(players[selPlayer].rot) * (joypad.stick_y * 0.006f)
+        fm_cosf(players[selPlayer].rot) * (joypad.stick_y * 0.006f), 0.0f,
+        fm_sinf(players[selPlayer].rot) * (joypad.stick_y * 0.006f)
     }};
 
     t3d_vec3_add(&players[selPlayer].position, &players[selPlayer].position, &moveDir);
@@ -133,16 +133,21 @@ int main()
       T3DViewport *vp = &viewports[v];
       float fov = v == 2 ? T3D_DEG_TO_RAD(50.0f) : T3D_DEG_TO_RAD(75.0f);
 
-      T3DVec3 camTarget = {{fm_cosf(players[v].rot), 0.0f, fm_sinf(players[v].rot)}};
-      T3DVec3 camPos = {{0, 8.5f, 0}};
-      t3d_vec3_add(&camPos, &camPos, &players[v].position);
-      t3d_vec3_add(&camTarget, &camTarget, &camPos);
-
+      T3DVec3 camTarget = {{
+        players[v].position.v[0] + fm_cosf(players[v].rot),
+        players[v].position.v[1] + 9.0f,
+        players[v].position.v[2] + fm_sinf(players[v].rot)
+      }};
+      T3DVec3 camPos = {{
+        players[v].position.v[0],
+        players[v].position.v[1] + 9.0f,
+        players[v].position.v[2]
+      }};
       // Like in all other examples, set up the projection (only really need to do it once) and view matrix here
       // after that apply the viewport and draw your scene
       // Since each of the viewport-structs has its own matrices, no conflicts will occur
       t3d_viewport_set_projection(vp, fov, 2.0f, 200.0f);
-      t3d_viewport_look_at(vp, &camPos, &camTarget);
+      t3d_viewport_look_at(vp, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
       t3d_viewport_attach(vp);
 
       // if you need directional light, re-apply it here after a new viewport has been attached
@@ -184,7 +189,7 @@ int main()
     // draw player icons on minimap
     for(int i=0; i<PLAYER_COUNT; ++i) {
       rdpq_set_mode_fill(players[i].color);
-      float px = display_get_width()/2 + (players[i].position.v[0] * 0.22f);
+      float px = display_get_width()/2 + (players[i].position.v[0] * -0.22f);
       float py = display_get_height()/2 + (players[i].position.v[2] * -0.22f);
       rdpq_fill_rectangle(px-1, py-1, px+2, py+2);
     }

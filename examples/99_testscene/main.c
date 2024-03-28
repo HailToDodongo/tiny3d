@@ -43,13 +43,13 @@ int main()
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
 
   float camScale = 0.5f;
-  T3DVec3 camPos = {{-2.9232f, 67.6248f, 61.1093f}};
+  T3DVec3 camPos = {{2.9232f, 67.6248f, 61.1093f}};
 
   T3DVec3 camTarget = {{0,0,0}};
   T3DVec3 camDir = {{0,0,1}};
 
-  float camRotX = 1.5968f;
-  float camRotY = 4.0500f;
+  float camRotX = 1.544792654048f;
+  float camRotY = 4.05f;
 
   uint8_t colorAmbient[4] = {190, 190, 150, 0xFF};
   //uint8_t colorAmbient[4] = {40, 40, 40, 0xFF};
@@ -93,15 +93,15 @@ int main()
       t3d_vec3_norm(&camDir);
 
       if(joypad.btn.z) {
-        camRotX -= (float)joypad.stick_x * camRotSpeed;
+        camRotX += (float)joypad.stick_x * camRotSpeed;
         camRotY += (float)joypad.stick_y * camRotSpeed;
       } else {
         camPos.v[0] += camDir.v[0] * (float)joypad.stick_y * camSpeed;
         camPos.v[1] += camDir.v[1] * (float)joypad.stick_y * camSpeed;
         camPos.v[2] += camDir.v[2] * (float)joypad.stick_y * camSpeed;
 
-        camPos.v[0] += camDir.v[2] * (float)joypad.stick_x * camSpeed;
-        camPos.v[2] -= camDir.v[0] * (float)joypad.stick_x * camSpeed;
+        camPos.v[0] += camDir.v[2] * (float)joypad.stick_x * -camSpeed;
+        camPos.v[2] -= camDir.v[0] * (float)joypad.stick_x * -camSpeed;
       }
 
       if(joypad.btn.c_up)camPos.v[1] += camSpeed * 15.0f;
@@ -145,7 +145,7 @@ int main()
     t3d_mat4_to_fixed(modelMatFP, &modelMat);
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 2.0f, 150.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget);
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     // ----------- DRAW ------------ //
     rdpq_attach(display_get(), &depthBuffer);
@@ -187,7 +187,7 @@ int main()
 
       // show pos / rot
       //debug_printf_screen(24, 190, "Pos: %.4f %.4f %.4f", camPos.v[0], camPos.v[1], camPos.v[2]);
-      //debug_printf_screen(24, 200, "Rot: %.4f %.4f", camRotX, camRotY);
+      //t3d_debug_printf(24, 200, "Rot: %.4f %.4f", camRotX, camRotY);
 
       if(profile_data.frame_count == 0) {
         t3d_debug_printf(140, 206, "FPS (3D)   : %.4f", last3dFPS);

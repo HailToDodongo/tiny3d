@@ -89,7 +89,7 @@ int main()
   });
   rspq_block_t *dplCRT = rspq_block_end();
 
-  float rotAngle = -2.4f;
+  float rotAngle = 2.4f;
   float noiseStrength = 1.0f;
   float camDist = 20.0f;
   float lastTime = 0.0f;
@@ -111,7 +111,7 @@ int main()
 
     // camera rotation (+ noise falloff)
     float manualRot = ((float)joypad.stick_x) * deltaTime * 0.7f;
-    rotAngle += (deltaTime*0.3f) + (manualRot * 0.05f);
+    rotAngle += (deltaTime*-0.3f) + (manualRot * -0.05f);
     noiseStrength = fminf(fmaxf(noiseStrength, fabsf(manualRot)), 1.0f) * 0.96f;
 
     // zoom-in / out
@@ -119,10 +119,10 @@ int main()
     T3DVec3 camPos = {{sinf(rotAngle) * camDist, 1.5f, cosf(rotAngle) * camDist}};
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 2.0f, 18.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &(T3DVec3){{0,0,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &(T3DVec3){{0,0,0}}, &(T3DVec3){{0,1,0}});
 
     t3d_viewport_set_projection(&viewportOffscreen, T3D_DEG_TO_RAD(85.0f), 10.0f, 100.0f);
-    t3d_viewport_look_at(&viewportOffscreen, &(T3DVec3){{0,5.0f,40.0f}}, &(T3DVec3){{0,0,0}});
+    t3d_viewport_look_at(&viewportOffscreen, &(T3DVec3){{0,5.0f,40.0f}}, &(T3DVec3){{0,0,0}}, &(T3DVec3){{0,1,0}});
 
     t3d_mat4fp_from_srt_euler(matrixBox,
       (float[3]){0.2f, 0.2f, 0.2f},

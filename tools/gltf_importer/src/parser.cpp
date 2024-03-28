@@ -389,11 +389,11 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
         auto posInt = mat * v.pos * modelScale;
 
         posInt = posInt.round();
-        vT3D.pos[0] = -(int16_t)posInt.x();
+        vT3D.pos[0] = (int16_t)posInt.x();
         vT3D.pos[1] = (int16_t)posInt.y();
         vT3D.pos[2] = (int16_t)posInt.z();
 
-        auto normPacked = (v.norm * Vec3{-15.5f, 31.5f, 15.5f})
+        auto normPacked = (v.norm * Vec3{15.5f, 31.5f, 15.5f})
           .round()
           .clamp(
             Vec3{-16.0f, -32.0f, -16.0f},

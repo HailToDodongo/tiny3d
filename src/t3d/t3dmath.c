@@ -5,27 +5,28 @@
 
 #include <t3d/t3dmath.h>
 
-void t3d_mat4_look_at(T3DMat4 *mat, const T3DVec3 *eye, const T3DVec3 *target) {
-  T3DVec3 dist;
-  t3d_vec3_diff(&dist, target, eye);
-  t3d_vec3_norm(&dist);
+void t3d_mat4_look_at(T3DMat4 *mat, const T3DVec3 *eye, const T3DVec3 *target, const T3DVec3 *up)
+{
+  const T3DVec3 GLOBAL_UP = (T3DVec3){{0,1,0}};
+  T3DVec3 forward, side, upCalc;
 
-  T3DVec3 normAx;
-  t3d_vec3_cross_up(&normAx, &dist);
-  t3d_vec3_norm(&normAx);
+  t3d_vec3_diff(&forward, target, eye);
+  t3d_vec3_norm(&forward);
 
-  T3DVec3 normRelAxis;
-  t3d_vec3_cross(&normRelAxis, &normAx, &dist);
+  t3d_vec3_cross(&side, &forward, up);
+  t3d_vec3_norm(&side);
 
-  float dotNorm = -t3d_vec3_dot(&normAx, eye);
-  float dotRel  = -t3d_vec3_dot(&normRelAxis, eye);
-  float dotDist = t3d_vec3_dot(&dist, eye);
+  t3d_vec3_cross(&upCalc, &side, &forward);
+
+  float dotSide = -t3d_vec3_dot(&side, eye);
+  float dotUp   = -t3d_vec3_dot(&upCalc, eye);
+  float dotFwd  = t3d_vec3_dot(&forward, eye);
 
   *mat = (T3DMat4){{
-    {normAx.v[0], normRelAxis.v[0], -dist.v[0], 0.0f},
-    {normAx.v[1], normRelAxis.v[1], -dist.v[1], 0.0f},
-    {normAx.v[2], normRelAxis.v[2], -dist.v[2], 0.0f},
-    {dotNorm,     dotRel,            dotDist,   1.0f},
+    {side.v[0], upCalc.v[0], -forward.v[0], 0.0f},
+    {side.v[1], upCalc.v[1], -forward.v[1], 0.0f},
+    {side.v[2], upCalc.v[2], -forward.v[2], 0.0f},
+    {dotSide,   dotUp,        dotFwd,       1.0f}
   }};
 }
 
