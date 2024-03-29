@@ -231,9 +231,36 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
                 printf("\n\nInvalid render-modes: %d, please only use Opaque, Cutout, Transparent, Fog-Shade\n", renderMode1Raw);
                 throw std::runtime_error("Invalid render-modes!");
               }
-
               model.materialA.alphaMode = is2Cycle ? alphaMode2 : alphaMode1;
               model.materialB.alphaMode = alphaMode2;
+            } else {
+              // if no render mode is set, we need to check the draw layer
+              uint32_t layerOOT = f3dData["draw_layer"].contains("oot") ? f3dData["draw_layer"]["oot"].get<uint32_t>() : 0;
+              uint32_t layerSM64 = f3dData["draw_layer"].contains("sm64") ? f3dData["draw_layer"]["sm64"].get<uint32_t>() : 0;
+
+              printf("No render mode set, fallback to layers: %d,%d\n", layerOOT, layerSM64);
+
+              // since we don't know what game was set, choose the non-zero one,
+              // or if both set (impossible?) use the higher one
+              if(layerOOT > layerSM64) {
+                switch(layerOOT) {
+                  default: // has only 3 distinct layers:
+                  case 0: model.materialA.alphaMode = AlphaMode::OPAQUE; break;
+                  case 1: model.materialA.alphaMode = AlphaMode::TRANSP; break;
+                  case 2: model.materialA.alphaMode = AlphaMode::CUTOUT; break;
+                }
+              } else {
+                // has multiple layers with variants (e.g. intersecting) ignore the finer details here:
+                if(layerSM64 <= 1) {
+                  model.materialA.alphaMode = AlphaMode::OPAQUE;
+                } else if(layerSM64 <= 4) {
+                  model.materialA.alphaMode = AlphaMode::CUTOUT;
+                } else {
+                  model.materialA.alphaMode = AlphaMode::TRANSP;
+                }
+              }
+
+              model.materialB.alphaMode = model.materialA.alphaMode;
             }
           }
 
