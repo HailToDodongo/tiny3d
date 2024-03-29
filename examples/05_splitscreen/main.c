@@ -181,6 +181,7 @@ int main()
     // minimap
     rdpq_set_mode_standard();
     rdpq_mode_alphacompare(128);
+    rdpq_sync_load();
     rdpq_sprite_blit(spriteMinimap,
       display_get_width()/2 - 29,
       display_get_height()/2 - 29,
