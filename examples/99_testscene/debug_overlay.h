@@ -64,11 +64,11 @@ static void debug_profile_patch_name(ProfileSlot *slot)
 {
   switch (slot->index) {
     case 0: slot->name = "builtins"; break;
-    case RSPQ_PROFILE_IDLE_SLOT: slot->name = "CPU"; break;
-    case RSPQ_PROFILE_IDLE_RDP_SLOT: slot->name = "RDP"; break;
-    case RSPQ_PROFILE_IDLE_SYNC_SLOT: slot->name = "SYNC_FULL"; break;
-    case RSPQ_PROFILE_RDPQ_SYNC_SLOT: slot->name = "multi SYNC_F"; break;
-    case RSPQ_PROFILE_OVL_SWITCH_SLOT: slot->name = "Ovl switch"; break;
+    case RSPQ_PROFILE_CSLOT_WAIT_CPU: slot->name = "CPU"; break;
+    case RSPQ_PROFILE_CSLOT_WAIT_RDP: slot->name = "RDP"; break;
+    case RSPQ_PROFILE_CSLOT_WAIT_RDP_SYNCFULL: slot->name = "SYNC_FULL"; break;
+    case RSPQ_PROFILE_CSLOT_WAIT_RDP_SYNCFULL_MULTI: slot->name = "multi SYNC_F"; break;
+    case RSPQ_PROFILE_CSLOT_OVL_SWITCH: slot->name = "Ovl switch"; break;
   }
 }
 
@@ -80,8 +80,8 @@ static int debug_profile_slot_compare(const void * a, const void * b) {
 }
 
 static bool debug_profile_is_idle(uint32_t index) {
-  return index == RSPQ_PROFILE_IDLE_SLOT || index == RSPQ_PROFILE_IDLE_RDP_SLOT
-    || index == RSPQ_PROFILE_IDLE_SYNC_SLOT || index == RSPQ_PROFILE_RDPQ_SYNC_SLOT;
+  return index == RSPQ_PROFILE_CSLOT_WAIT_CPU || index == RSPQ_PROFILE_CSLOT_WAIT_RDP
+    || index == RSPQ_PROFILE_CSLOT_WAIT_RDP_SYNCFULL || index == RSPQ_PROFILE_CSLOT_WAIT_RDP_SYNCFULL_MULTI;
 }
 
 static void debug_print_table_entry(ProfileSlot *slot, float posX, float *posY)
@@ -231,7 +231,9 @@ void debug_draw_perf_overlay(float measuredFps)
         const float* pos = type == 0 ? PIE_POS_BUSY : PIE_POS_WAIT;
         float refTotal = type == 0 ? timeTotalBusy : timeTotalWait;
 
-        float slotAngle = (float)slot->timeUs / (float)refTotal * 6.28318530718f;
+        float slotAngle = 0;
+        if(refTotal > 0)slotAngle = (float)slot->timeUs / (float)refTotal * 6.28318530718f;
+
         if(slotAngle > 0.01f) {
           draw_circle_slice(pos[0], pos[1], PIE_RADIUS, angleOffset, angleOffset + slotAngle, slot->color);
         }
