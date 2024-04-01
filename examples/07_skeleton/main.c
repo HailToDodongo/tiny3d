@@ -20,14 +20,14 @@ void set_selected_color(bool selected) {
 }
 
 /**
- * Simple example with a 3d-model file created in blender.
- * This uses the builtin model format for loading and drawing a model.
+ * Example showing how to load, instantiate and modify a skinned model.
+ * This also includes using a bone-matrix to "attach" a model to it.
  */
 int main()
 {
-	debug_init_isviewer();
-	debug_init_usblog();
-	asset_init_compression(2);
+  debug_init_isviewer();
+  debug_init_usblog();
+  asset_init_compression(2);
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
@@ -40,9 +40,6 @@ int main()
   t3d_init((T3DInitParams){});
   t3d_debug_print_init();
   T3DViewport viewport = t3d_viewport_create();
-
-  T3DMat4 modelMat; // matrix for our model, this is a "normal" float matrix
-  t3d_mat4_identity(&modelMat);
 
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
   T3DMat4FP* matrixBoxFP = malloc_uncached(sizeof(T3DMat4FP));
