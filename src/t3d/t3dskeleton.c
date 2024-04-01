@@ -32,12 +32,25 @@ T3DSkeleton t3d_skeleton_create(const T3DModel *model) {
 void t3d_skeleton_update(const T3DSkeleton *skeleton)
 {
   T3DMat4 tmpMat;
+  int updateLevel = -1;
+  bool forceUpdate = false;
+
   for(int i = 0; i < skeleton->skeletonRef->boneCount; i++)
   {
     T3DBone *bone = &skeleton->bones[i];
-    //if(bone->hasChanged)
+    const T3DChunkBone *boneDef = &skeleton->skeletonRef->bones[i];
+
+    if(forceUpdate && boneDef->depth <= updateLevel) {
+      forceUpdate = false;
+      updateLevel = -1;
+    }
+
+    if(bone->hasChanged || forceUpdate)
     {
-      const T3DChunkBone *boneDef = &skeleton->skeletonRef->bones[i];
+      // if a bone changed we need to also update any children.
+      // To do so, update all following bones until we hit one that has the same depth as the changed bone.
+      if(!forceUpdate)updateLevel = boneDef->depth;
+      forceUpdate = true;
 
       t3d_mat4_from_srt(&tmpMat, bone->scale.v, bone->rotation.v, bone->position.v);
 
@@ -52,13 +65,7 @@ void t3d_skeleton_update(const T3DSkeleton *skeleton)
       }
 
       t3d_mat4_to_fixed(&skeleton->boneMatricesFP[i], &bone->matrix);
-
-      /*t3d_mat4_identity(&skeleton->bones[i].matrix);
-      t3d_mat4_translate(&skeleton->bones[i].matrix, skeleton->bones[i].position.x, skeleton->bones[i].position.y, skeleton->bones[i].position.z);
-      t3d_mat4_rotate_quat(&skeleton->bones[i].matrix, &skeleton->bones[i].rotation);
-      t3d_mat4_scale(&skeleton->bones[i].matrix, skeleton->bones[i].scale.x, skeleton->bones[i].scale.y, skeleton->bones[i].scale.z);
-      t3d_mat4_to_fixed(&skeleton->boneMatricesFP[i], &skeleton->bones[i].matrix);
-      skeleton->bones[i].hasChanged = false;*/
+      skeleton->bones[i].hasChanged = false;
     }
   }
 }

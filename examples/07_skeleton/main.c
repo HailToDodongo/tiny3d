@@ -118,6 +118,7 @@ int main()
         skel.bones[activeBone].position.v[joypad.btn.z ? 1 : 2] += joypad.stick_y * SPEED_MOVE;
       break;
     }
+    skel.bones[activeBone].hasChanged = true;
 
     if(btn.c_up)--activeBone;
     if(btn.c_down)++activeBone;
