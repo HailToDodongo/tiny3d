@@ -71,11 +71,14 @@ int main()
   t3d_model_draw_skinned(model, &skel);
   rspq_block_t *dplDraw = rspq_block_end();
 
-  float rotAngle = -2.0f;
+  float rotAngle = -0.4f;
+  float rotAngleAdd = 0.0f;
   float colorTimer = 0.0f;
   int activeBone = 0;
-  int attachedBone = 0;
   int transformMode = 0;
+
+  // Bones can be queried by name, the index should be cached for performance reasons.
+  int attachedBone = t3d_skeleton_find_bone(&skel, "Top");
 
   // Since we double buffer the screen, matrices could update mid-render.
   // You can either double-buffer the skeleton matrices, or use a sync-point, in this example the latter is used.
@@ -95,6 +98,9 @@ int main()
     if(btn.a)++transformMode;
     if(btn.b)--transformMode;
     transformMode = (transformMode + 3) % 3;
+
+    if(joypad.btn.r)rotAngleAdd += 0.01f;
+    if(joypad.btn.l)rotAngleAdd -= 0.01f;
 
     switch(transformMode) {
       case 0:
@@ -124,8 +130,10 @@ int main()
     if(btn.c_left && attachedBone >= 0)--attachedBone;
     if(attachedBone >= 0)attachedBone = attachedBone % skel.skeletonRef->boneCount;
 
-    rotAngle += 0.003f;
     colorTimer += 0.01f;
+
+    rotAngle += rotAngleAdd;
+    rotAngleAdd *= 0.9f;
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
@@ -142,7 +150,7 @@ int main()
     );
     t3d_mat4fp_from_srt_euler(matrixBoxFP,
       (float[3]){0.08f, 0.08f, 0.08f},
-      (float[3]){rotAngle*1.5f,rotAngle*1.2f,rotAngle*1.7f},
+      (float[3]){colorTimer*1.5f,colorTimer*1.2f,colorTimer*1.7f},
       (float[3]){0,10,0}
     );
 
@@ -167,7 +175,6 @@ int main()
 
       if(attachedBone >= 0) {
         // to attach another model, simply use a bone form the skeleton:
-        //int boneIdx = t3d_skeleton_find_bone(&skel, "BeakTop"); // you can also get bones by name
         t3d_matrix_push(&skel.boneMatricesFP[attachedBone]);
         t3d_matrix_push(matrixBoxFP); // apply local matrix of the model
           rspq_block_run(dplBox);
@@ -181,11 +188,12 @@ int main()
     t3d_debug_print_start();
 
     // Bone View
-    float posY = 8;
+    float posX = 12;
+    float posY = 12;
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
-    t3d_debug_print(8, posY, "Bones: ");
+    t3d_debug_print(posX, posY, "Bones: ");
     rdpq_set_prim_color(COLOR_BTN_C);
-    t3d_debug_print(58, posY, T3D_DEBUG_CHAR_C_UP T3D_DEBUG_CHAR_C_DOWN); posY += 10;
+    t3d_debug_print(posX + 50, posY, T3D_DEBUG_CHAR_C_UP T3D_DEBUG_CHAR_C_DOWN); posY += 10;
 
     for(int i = 0; i < skel.skeletonRef->boneCount; i++)
     {
@@ -193,42 +201,42 @@ int main()
       set_selected_color(activeBone == i);
 
       const T3DChunkBone *boneRef = &skel.skeletonRef->bones[i];
-      t3d_debug_printf(8, posY, "%.2d:", i);
-      t3d_debug_print(32 + (boneRef->depth * 8), posY, boneRef->name);
+      t3d_debug_printf(posX, posY, "%.2d:", i);
+      t3d_debug_print(posX + 24 + (boneRef->depth * 8), posY, boneRef->name);
       posY += 10;
     }
     posY += 8;
 
     // Attached bone
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
-    t3d_debug_print(8, posY, "Box:");
+    t3d_debug_print(posX, posY, "Box:");
     rdpq_set_prim_color(COLOR_BTN_C);
-    t3d_debug_print(42, posY, T3D_DEBUG_CHAR_C_LEFT T3D_DEBUG_CHAR_C_RIGHT);
+    t3d_debug_print(posX + 34, posY, T3D_DEBUG_CHAR_C_LEFT T3D_DEBUG_CHAR_C_RIGHT);
     posY += 10;
 
     rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-    t3d_debug_printf(8, posY, "Attached: %s", attachedBone >= 0 ? skel.skeletonRef->bones[attachedBone].name : "-None-");
+    t3d_debug_printf(posX, posY, "Attached: %s", attachedBone >= 0 ? skel.skeletonRef->bones[attachedBone].name : "-None-");
     posY += 18;
 
     // Transform mode
     posY = 240 - 50;
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
-    t3d_debug_print(8, posY, "Mode:");
-    rdpq_set_prim_color(COLOR_BTN_A); t3d_debug_print(48, posY, T3D_DEBUG_CHAR_A);
-    rdpq_set_prim_color(COLOR_BTN_B); t3d_debug_print(48+10, posY, T3D_DEBUG_CHAR_B);
+    t3d_debug_print(posX, posY, "Mode:");
+    rdpq_set_prim_color(COLOR_BTN_A); t3d_debug_print(posX+42, posY, T3D_DEBUG_CHAR_A);
+    rdpq_set_prim_color(COLOR_BTN_B); t3d_debug_print(posX+52, posY, T3D_DEBUG_CHAR_B);
     posY += 10;
 
     // Bone Attributes (SRT)
     set_selected_color(transformMode == 0);
-    t3d_debug_printf(8, posY, "S: %.2f %.2f %.2f", skel.bones[activeBone].scale.v[0], skel.bones[activeBone].scale.v[1], skel.bones[activeBone].scale.v[2]);
+    t3d_debug_printf(posX, posY, "S: %.2f %.2f %.2f", skel.bones[activeBone].scale.v[0], skel.bones[activeBone].scale.v[1], skel.bones[activeBone].scale.v[2]);
 
     posY += 10;
     set_selected_color(transformMode == 1);
-    t3d_debug_printf(8, posY, "R: %.2f %.2f %.2f %.2f", skel.bones[activeBone].rotation.v[0], skel.bones[activeBone].rotation.v[1], skel.bones[activeBone].rotation.v[2], skel.bones[activeBone].rotation.v[3]);
+    t3d_debug_printf(posX, posY, "R: %.2f %.2f %.2f %.2f", skel.bones[activeBone].rotation.v[0], skel.bones[activeBone].rotation.v[1], skel.bones[activeBone].rotation.v[2], skel.bones[activeBone].rotation.v[3]);
 
     posY += 10;
     set_selected_color(transformMode == 2);
-    t3d_debug_printf(8, posY, "T: %.2f %.2f %.2f", skel.bones[activeBone].position.v[0], skel.bones[activeBone].position.v[1], skel.bones[activeBone].position.v[2]);
+    t3d_debug_printf(posX, posY, "T: %.2f %.2f %.2f", skel.bones[activeBone].position.v[0], skel.bones[activeBone].position.v[1], skel.bones[activeBone].position.v[2]);
 
     rdpq_detach_show();
   }
