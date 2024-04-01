@@ -22,6 +22,13 @@ void t3d_debug_print(float x, float y, const char* str);
 /// @brief Prints a formatted string at the given position
 void t3d_debug_printf(float x, float y, const char* fmt, ...);
 
+#define T3D_DEBUG_CHAR_C_LEFT "\x7b"
+#define T3D_DEBUG_CHAR_C_RIGHT "\x7c"
+#define T3D_DEBUG_CHAR_C_UP "\x7d"
+#define T3D_DEBUG_CHAR_C_DOWN "\x7e"
+#define T3D_DEBUG_CHAR_A "\x7f"
+#define T3D_DEBUG_CHAR_B "\x80"
+
 #ifdef __cplusplus
 }
 #endif

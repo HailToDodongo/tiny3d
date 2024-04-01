@@ -11,6 +11,13 @@ color_t get_rainbow_color(float s) {
   float b = fm_sinf(s + 4.0f) * 75.0f + 128.0f;
   return RGBA32(r, g, b, 255);
 }
+const color_t COLOR_BTN_C = (color_t){0xFF, 0xDD, 0x36, 0xFF};
+const color_t COLOR_BTN_A = (color_t){0x30, 0x36, 0xE3, 0xFF};
+const color_t COLOR_BTN_B = (color_t){0x39, 0xBF, 0x1F, 0xFF};
+
+void set_selected_color(bool selected) {
+  rdpq_set_prim_color(selected ? RGBA32(0xFF, 0xFF, 0xFF, 0xFF) : RGBA32(0x66, 0x66, 0x66, 0xFF));
+}
 
 /**
  * Simple example with a 3d-model file created in blender.
@@ -24,7 +31,7 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 2, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
   surface_t depthBuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
 
   rdpq_init();
@@ -80,22 +87,31 @@ int main()
 
     const float SPEED_ROT = 0.0008f;
     const float SPEED_MOVE = 0.008f;
-    const float SPEED_SCALE = 0.01f;
+    const float SPEED_SCALE = 0.0003f;
 
-    if(joypad.btn.a) {
-      skel.bones[activeBone].rotation.v[0] += joypad.stick_x * SPEED_ROT;
-      skel.bones[activeBone].rotation.v[1] += joypad.stick_y * SPEED_ROT;
-      //skel.bones[activeBone].position.v[1] += joypad.cstick_x * 0.01f;
-    } else {
-      skel.bones[activeBone].position.v[0] += joypad.stick_x * SPEED_MOVE;
-      skel.bones[activeBone].position.v[2] += joypad.stick_y * SPEED_MOVE;
-      //skel.bones[activeBone].scale.v[0] += joypad.cstick_x * -0.0002f;
-      //skel.bones[activeBone].scale.v[1] += joypad.cstick_x * -0.0002f;
-      //skel.bones[activeBone].scale.v[2] += joypad.cstick_x * -0.0002f;
+    if(btn.a)++transformMode;
+    if(btn.b)--transformMode;
+    transformMode = (transformMode + 3) % 3;
+
+    switch(transformMode) {
+      case 0:
+        skel.bones[activeBone].scale.v[0] += joypad.stick_y * SPEED_SCALE;
+        skel.bones[activeBone].scale.v[1] += joypad.stick_y * SPEED_SCALE;
+        skel.bones[activeBone].scale.v[2] += joypad.stick_y * SPEED_SCALE;
+      break;
+      case 1:
+        skel.bones[activeBone].rotation.v[0] += joypad.stick_y * SPEED_ROT;
+        skel.bones[activeBone].rotation.v[1] += joypad.stick_x * SPEED_ROT;
+      break;
+      case 2:
+        skel.bones[activeBone].position.v[0] += joypad.stick_x * SPEED_MOVE;
+        skel.bones[activeBone].position.v[2] += joypad.stick_y * SPEED_MOVE;
+      break;
     }
-    if(btn.c_up && activeBone > 0)--activeBone;
+
+    if(btn.c_up)--activeBone;
     if(btn.c_down)++activeBone;
-    activeBone = activeBone % skel.skeletonRef->boneCount;
+    activeBone = (activeBone+skel.skeletonRef->boneCount) % skel.skeletonRef->boneCount;
 
     if(btn.c_right)++attachedBone;
     if(btn.c_left && attachedBone >= 0)--attachedBone;
@@ -121,7 +137,7 @@ int main()
       (float[3]){0,10,0}
     );
 
-    // ======== Draw ======== //
+    // ======== Draw (3D) ======== //
     rdpq_attach(display_get(), &depthBuffer);
     t3d_frame_start();
     t3d_viewport_attach(&viewport);
@@ -132,8 +148,6 @@ int main()
     t3d_light_set_ambient(colorAmbient);
     t3d_light_set_directional(0, colorDir, &lightDirVec);
     t3d_light_set_count(1);
-
-
 
     // Draw Chicken & Box
     t3d_matrix_push(modelMatFP);
@@ -152,46 +166,59 @@ int main()
       }
     t3d_matrix_pop(1);
 
-    //rsp_wait();
+    rspq_wait();
+
+    // ======== Draw (UI) ======== //
     t3d_debug_print_start();
 
+    // Bone View
     float posY = 8;
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
-    t3d_debug_print(8, posY, "Bones: [C-U/D]"); posY += 10;
+    t3d_debug_print(8, posY, "Bones: ");
+    rdpq_set_prim_color(COLOR_BTN_C);
+    t3d_debug_print(58, posY, T3D_DEBUG_CHAR_C_UP T3D_DEBUG_CHAR_C_DOWN); posY += 10;
 
-    float indent = 0;
     for(int i = 0; i < skel.skeletonRef->boneCount; i++)
     {
       const T3DBone *bone = &skel.bones[i];
-      rdpq_set_prim_color(activeBone == i
-        ? RGBA32(0xFF, 0xFF, 0xFF, 0xFF)
-        : RGBA32(0x66, 0x66, 0x66, 0xFF)
-      );
+      set_selected_color(activeBone == i);
 
       const T3DChunkBone *boneRef = &skel.skeletonRef->bones[i];
-      indent = boneRef->depth;
       t3d_debug_printf(8, posY, "%.2d:", i);
       t3d_debug_print(32 + (boneRef->depth * 8), posY, boneRef->name);
       posY += 10;
     }
+    posY += 8;
 
-    posY += 4;
+    // Attached bone
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
-    t3d_debug_print(8, posY, "Box: [C-L/R]"); posY += 10;
-    rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-    t3d_debug_printf(8, posY, "Attached: %s",
-      attachedBone >= 0 ? skel.skeletonRef->bones[attachedBone].name : "-None-"
-    );
+    t3d_debug_print(8, posY, "Box:");
+    rdpq_set_prim_color(COLOR_BTN_C);
+    t3d_debug_print(42, posY, T3D_DEBUG_CHAR_C_LEFT T3D_DEBUG_CHAR_C_RIGHT);
     posY += 10;
 
-
     rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
+    t3d_debug_printf(8, posY, "Attached: %s", attachedBone >= 0 ? skel.skeletonRef->bones[attachedBone].name : "-None-");
+    posY += 18;
 
-    posY = 196;
+    // Transform mode
+    posY = 240 - 56;
+    rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
+    t3d_debug_print(8, posY, "Mode:");
+    rdpq_set_prim_color(COLOR_BTN_A); t3d_debug_print(48, posY, T3D_DEBUG_CHAR_A);
+    rdpq_set_prim_color(COLOR_BTN_B); t3d_debug_print(48+10, posY, T3D_DEBUG_CHAR_B);
+    posY += 10;
+
+    // Bone Attributes (SRT)
+    set_selected_color(transformMode == 0);
     t3d_debug_printf(8, posY, "S: %.2f %.2f %.2f", skel.bones[activeBone].scale.v[0], skel.bones[activeBone].scale.v[1], skel.bones[activeBone].scale.v[2]);
+
     posY += 12;
+    set_selected_color(transformMode == 1);
     t3d_debug_printf(8, posY, "R: %.2f %.2f %.2f %.2f", skel.bones[activeBone].rotation.v[0], skel.bones[activeBone].rotation.v[1], skel.bones[activeBone].rotation.v[2]);
+
     posY += 12;
+    set_selected_color(transformMode == 2);
     t3d_debug_printf(8, posY, "T: %.2f %.2f %.2f", skel.bones[activeBone].position.v[0], skel.bones[activeBone].position.v[1], skel.bones[activeBone].position.v[2]);
 
     rdpq_detach_show();
