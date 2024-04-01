@@ -4,12 +4,11 @@ T3D_INST=$(shell realpath ../..)
 include $(N64_INST)/include/n64.mk
 include $(T3D_INST)/t3d.mk
 
-# N64_CFLAGS += -std=gnu2x -O2
-N64_CFLAGS += -std=gnu2x -Og -g3
+N64_CFLAGS += -std=gnu2x -O2
 
 PROJECT_NAME=t3d_06_skeleton
 
-src = main_anim.c
+src = main.c
 assets_png = $(wildcard assets/*.png)
 assets_gltf = $(wildcard assets/*.glb)
 assets_ttf = $(wildcard assets/*.ttf)
