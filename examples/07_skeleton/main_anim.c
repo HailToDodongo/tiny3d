@@ -59,10 +59,9 @@ int main()
   T3DModel *model = t3d_model_load("rom:/chicken.t3dm"); // Credits (CC0): https://vertexcat.itch.io/farm-animals-set
   T3DModel *modelBox = t3d_model_load("rom:/box.t3dm");
 
+  // This creates an instance of a skeleton which can then be modified.
+  // The model itself stays untouched, and you can create as many instances as you want.
   T3DSkeleton skel = t3d_skeleton_create(model);
-
-  //const float modelScale = 0.004f;
-  const float modelScale = 0.45f;
 
   rspq_block_begin();
   t3d_model_draw(modelBox);
@@ -77,6 +76,10 @@ int main()
   int activeBone = 0;
   int attachedBone = 0;
   int transformMode = 0;
+
+  // Since we double buffer the screen, matrices could update mid-render.
+  // You can either double-buffer the skeleton matrices, or use a sync-point, in this example the latter is used.
+  rspq_syncpoint_t syncPoint = 0;
 
   for(;;)
   {
@@ -123,11 +126,13 @@ int main()
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
+    // Before touching the skeleton matrices, we wait for the RSP to be done using it
+    if(syncPoint)rspq_syncpoint_wait(syncPoint);
     // This function updates any matrices that need re-calculating after scale/rot/pos changes
     t3d_skeleton_update(&skel);
 
     t3d_mat4fp_from_srt_euler(modelMatFP,
-      (float[3]){modelScale, modelScale, modelScale},
+      (float[3]){0.45f, 0.45f, 0.45f},
       (float[3]){0.0f, rotAngle, 0},
       (float[3]){12,5,0}
     );
@@ -164,9 +169,9 @@ int main()
           rspq_block_run(dplBox);
         t3d_matrix_pop(2);
       }
-    t3d_matrix_pop(1);
+      syncPoint = rspq_syncpoint_new(); // create a sync-point to let the CPU know we are done with using the matrices
 
-    rspq_wait();
+    t3d_matrix_pop(1);
 
     // ======== Draw (UI) ======== //
     t3d_debug_print_start();
