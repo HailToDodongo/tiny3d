@@ -120,7 +120,7 @@ int main()
     rotAngle += 0.003f;
     colorTimer += 0.01f;
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 400.0f);
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     // This function updates any matrices that need re-calculating after scale/rot/pos changes
@@ -202,7 +202,7 @@ int main()
     posY += 18;
 
     // Transform mode
-    posY = 240 - 56;
+    posY = 240 - 50;
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
     t3d_debug_print(8, posY, "Mode:");
     rdpq_set_prim_color(COLOR_BTN_A); t3d_debug_print(48, posY, T3D_DEBUG_CHAR_A);
@@ -213,11 +213,11 @@ int main()
     set_selected_color(transformMode == 0);
     t3d_debug_printf(8, posY, "S: %.2f %.2f %.2f", skel.bones[activeBone].scale.v[0], skel.bones[activeBone].scale.v[1], skel.bones[activeBone].scale.v[2]);
 
-    posY += 12;
+    posY += 10;
     set_selected_color(transformMode == 1);
     t3d_debug_printf(8, posY, "R: %.2f %.2f %.2f %.2f", skel.bones[activeBone].rotation.v[0], skel.bones[activeBone].rotation.v[1], skel.bones[activeBone].rotation.v[2]);
 
-    posY += 12;
+    posY += 10;
     set_selected_color(transformMode == 2);
     t3d_debug_printf(8, posY, "T: %.2f %.2f %.2f", skel.bones[activeBone].position.v[0], skel.bones[activeBone].position.v[1], skel.bones[activeBone].position.v[2]);
 
