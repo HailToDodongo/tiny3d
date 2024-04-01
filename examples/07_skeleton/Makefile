@@ -6,7 +6,7 @@ include $(T3D_INST)/t3d.mk
 
 N64_CFLAGS += -std=gnu2x -O2
 
-PROJECT_NAME=t3d_06_skeleton
+PROJECT_NAME=t3d_07_skeleton
 
 src = main.c
 assets_png = $(wildcard assets/*.png)
