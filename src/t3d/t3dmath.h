@@ -20,7 +20,7 @@ typedef struct {
   float v[3];
 } T3DVec3;
 
-// float quaternion
+// float quaternion, stored as XYZW
 typedef struct {
   float v[4];
 } T3DQuat;
@@ -93,18 +93,81 @@ inline static void t3d_vec3_cross(T3DVec3 *res, const T3DVec3 *a, const T3DVec3 
   res->v[2] = a->v[0]*b->v[1] - b->v[0]*a->v[1];
 }
 
-/// @brief Crosses 'a' with the up vector (0, 1, 0) and stores it in 'res'
-inline static void t3d_vec3_cross_up(T3DVec3 *res, const T3DVec3 *a) {
-  res->v[0] = a->v[2];
-  res->v[1] = 0;
-  res->v[2] = -a->v[0];
-}
-
 /// @brief Returns the dot product of 'a' and 'b'
 inline static float t3d_vec3_dot(const T3DVec3 *a, const T3DVec3 *b) {
   return a->v[0] * b->v[0] +
          a->v[1] * b->v[1] +
          a->v[2] * b->v[2];
+}
+
+// @brief Resets a quaternion to the identity quaternion
+inline static void t3d_quat_identity(T3DQuat *quat) {
+  *quat = (T3DQuat){{0, 0, 0, 1}};
+}
+
+/**
+ * Creates a quaternion from euler angles (radians)
+ * @param quat result (in XYZW order)
+ * @param x
+ * @param y
+ * @param z
+ */
+inline static void t3d_quat_from_euler(T3DQuat *quat, float rotEuler[3])
+{
+  float c1 = fm_cosf(rotEuler[0] / 2.0f);
+  float s1 = fm_sinf(rotEuler[0] / 2.0f);
+  float c2 = fm_cosf(rotEuler[1] / 2.0f);
+  float s2 = fm_sinf(rotEuler[1] / 2.0f);
+  float c3 = fm_cosf(rotEuler[2] / 2.0f);
+  float s3 = fm_sinf(rotEuler[2] / 2.0f);
+
+  quat->v[0] = c1 * c2 * s3 - s1 * s2 * c3;
+  quat->v[1] = s1 * c2 * c3 - c1 * s2 * s3;
+  quat->v[2] = c1 * s2 * c3 + s1 * c2 * s3;
+  quat->v[3] = c1 * c2 * c3 + s1 * s2 * s3;
+}
+
+/**
+ * Creates a quaternion from a rotation (radians) around an axis
+ * @param quat result
+ * @param axis rotation axis
+ * @param angleRad angle in radians
+ */
+inline static void t3d_quat_from_rotation(T3DQuat *quat, float axis[3], float angleRad)
+{
+  float s = fm_sinf(angleRad / 2.0f);
+  float c = fm_cosf(angleRad / 2.0f);
+  *quat = (T3DQuat){{axis[0] * s, axis[1] * s, axis[2] * s, c}};
+}
+
+/**
+ * Multiplies two quaternions and stores the result in 'res'.
+ * NOTE: if 'a' or 'b' point to the same quat. as 'res', the result will be incorrect.
+ *
+ * @param res result
+ * @param a first quaternion
+ * @param b second quaternion
+ */
+inline static void t3d_quat_mul(T3DQuat *res, T3DQuat *a, T3DQuat *b)
+{
+  res->v[0] = a->v[3] * b->v[0] + a->v[0] * b->v[3] + a->v[1] * b->v[2] - a->v[2] * b->v[1];
+  res->v[1] = a->v[3] * b->v[1] - a->v[0] * b->v[2] + a->v[1] * b->v[3] + a->v[2] * b->v[0];
+  res->v[2] = a->v[3] * b->v[2] + a->v[0] * b->v[1] - a->v[1] * b->v[0] + a->v[2] * b->v[3];
+  res->v[3] = a->v[3] * b->v[3] - a->v[0] * b->v[0] - a->v[1] * b->v[1] - a->v[2] * b->v[2];
+}
+
+/**
+ * Rotates a quaternion around an axis
+ * @param quat quat to modify
+ * @param axis rotation axis
+ * @param angleRad angle in radians
+ */
+inline static void t3d_quat_rotate_euler(T3DQuat *quat, float axis[3], float angleRad)
+{
+  T3DQuat tmp, quatRot;
+  t3d_quat_from_rotation(&quatRot, axis, angleRad);
+  t3d_quat_mul(&tmp, quat, &quatRot);
+  *quat = tmp;
 }
 
 /**
@@ -177,7 +240,7 @@ void t3d_mat4_rotate(T3DMat4 *mat, const T3DVec3* axis, float angleRad);
  * @param rot rotation quaternion
  * @param translate offsets
  */
-void t3d_mat4_from_srt(T3DMat4 *mat, float scale[3], float rot[4], float translate[3]);
+void t3d_mat4_from_srt(T3DMat4 *mat, float scale[3], float quat[4], float translate[3]);
 
 /**
  * Directly constructs a matrix from scale, rotation (euler) and translation
@@ -199,6 +262,16 @@ void t3d_mat4_from_srt_euler(T3DMat4 *mat, float scale[3], float rot[3], float t
  * @param translate
  */
 void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, float scale[3], float rot[3], float translate[3]);
+
+/**
+ * Directly constructs a matrix from scale, rotation (quaternion) and translation
+ * Same as 't3d_mat4_from_srt', but instead directly writes to a fixed-point matrix.
+ * @param mat
+ * @param scale
+ * @param rot
+ * @param translate
+ */
+void t3d_mat4fp_from_srt(T3DMat4FP *mat, float scale[3], float rotQuat[4], float translate[3]);
 
 /**
  * @brief Sets a value in a fixed-point matrix

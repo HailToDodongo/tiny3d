@@ -103,12 +103,16 @@ int main()
         skel.bones[activeBone].scale.v[2] += joypad.stick_y * SPEED_SCALE;
       break;
       case 1:
-        skel.bones[activeBone].rotation.v[0] += joypad.stick_y * SPEED_ROT;
-        skel.bones[activeBone].rotation.v[1] += joypad.stick_x * SPEED_ROT;
+        t3d_quat_rotate_euler(&skel.bones[activeBone].rotation, (float[3]){1,0,0}, joypad.stick_x * SPEED_ROT);
+        if(joypad.btn.z) {
+          t3d_quat_rotate_euler(&skel.bones[activeBone].rotation, (float[3]){0,0,1}, joypad.stick_y * SPEED_ROT);
+        } else {
+          t3d_quat_rotate_euler(&skel.bones[activeBone].rotation, (float[3]){0,1,0}, joypad.stick_y * SPEED_ROT);
+        }
       break;
       case 2:
         skel.bones[activeBone].position.v[0] += joypad.stick_x * SPEED_MOVE;
-        skel.bones[activeBone].position.v[2] += joypad.stick_y * SPEED_MOVE;
+        skel.bones[activeBone].position.v[joypad.btn.z ? 1 : 2] += joypad.stick_y * SPEED_MOVE;
       break;
     }
 
@@ -220,7 +224,7 @@ int main()
 
     posY += 10;
     set_selected_color(transformMode == 1);
-    t3d_debug_printf(8, posY, "R: %.2f %.2f %.2f %.2f", skel.bones[activeBone].rotation.v[0], skel.bones[activeBone].rotation.v[1], skel.bones[activeBone].rotation.v[2]);
+    t3d_debug_printf(8, posY, "R: %.2f %.2f %.2f %.2f", skel.bones[activeBone].rotation.v[0], skel.bones[activeBone].rotation.v[1], skel.bones[activeBone].rotation.v[2], skel.bones[activeBone].rotation.v[3]);
 
     posY += 10;
     set_selected_color(transformMode == 2);

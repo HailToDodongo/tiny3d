@@ -39,20 +39,12 @@ void t3d_mat4_perspective(T3DMat4 *mat, float fov, float aspect, float near, flo
   mat->m[3][2] = -2.0f * (far * near) / (far - near);
 }
 
-void t3d_mat4_from_srt(T3DMat4 *mat, float scale[3], float rot[4], float translate[3])
+void t3d_mat4_from_srt(T3DMat4 *mat, float scale[3], float quat[4], float translate[3])
 {
-  float cosR0 = fm_cosf(rot[0]);
-  float cosR2 = fm_cosf(rot[2]);
-  float cosR1 = fm_cosf(rot[1]);
-
-  float sinR0 = fm_sinf(rot[0]);
-  float sinR1 = fm_sinf(rot[1]);
-  float sinR2 = fm_sinf(rot[2]);
-
   *mat = (T3DMat4){{
-    {scale[0] * cosR2 * cosR1, scale[0] * (cosR2 * sinR1 * sinR0 - sinR2 * cosR0), scale[0] * (cosR2 * sinR1 * cosR0 + sinR2 * sinR0), 0.0f},
-    {scale[1] * sinR2 * cosR1, scale[1] * (sinR2 * sinR1 * sinR0 + cosR2 * cosR0), scale[1] * (sinR2 * sinR1 * cosR0 - cosR2 * sinR0), 0.0f},
-    {-scale[2] * sinR1, scale[2] * cosR1 * sinR0, scale[2] * cosR1 * cosR0, 0.0f},
+    {(1.0f - 2.0f * quat[2] * quat[2] - 2.0f * quat[0] * quat[0]) * scale[0],        (2.0f * quat[1] * quat[2] - 2.0f * quat[3] * quat[0]) * scale[0],        (2.0f * quat[1] * quat[0] + 2.0f * quat[3] * quat[2]) * scale[0], 0.0f},
+    {       (2.0f * quat[1] * quat[2] + 2.0f * quat[3] * quat[0]) * scale[1], (1.0f - 2.0f * quat[1] * quat[1] - 2.0f * quat[0] * quat[0]) * scale[1],        (2.0f * quat[2] * quat[0] - 2.0f * quat[3] * quat[1]) * scale[1], 0.0f},
+    {       (2.0f * quat[1] * quat[0] - 2.0f * quat[3] * quat[2]) * scale[2],        (2.0f * quat[2] * quat[0] + 2.0f * quat[3] * quat[1]) * scale[2], (1.0f - 2.0f * quat[1] * quat[1] - 2.0f * quat[2] * quat[2]) * scale[2], 0.0f},
     {translate[0], translate[1], translate[2], 1.0f}
   }};
 }
@@ -78,6 +70,12 @@ void t3d_mat4_from_srt_euler(T3DMat4 *mat, float scale[3], float rot[3], float t
 void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, float scale[3], float rot[3], float translate[3]) {
   T3DMat4 matF; // @TODO: avoid temp matrix
   t3d_mat4_from_srt_euler(&matF, scale, rot, translate);
+  t3d_mat4_to_fixed(mat, &matF);
+}
+
+void t3d_mat4fp_from_srt(T3DMat4FP *mat, float scale[3], float rotQuat[4], float translate[3]) {
+  T3DMat4 matF; // @TODO: avoid temp matrix
+  t3d_mat4_from_srt(&matF, scale, rotQuat, translate);
   t3d_mat4_to_fixed(mat, &matF);
 }
 

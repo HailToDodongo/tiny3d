@@ -17,7 +17,7 @@ T3DSkeleton t3d_skeleton_create(const T3DModel *model) {
   //debugf("Skeleton: %d bones\n", skelRef->boneCount);
   for(int i = 0; i < skelRef->boneCount; i++) {
     t3d_mat4_identity(&skel.bones[i].matrix);
-    skel.bones[i].rotation = (T3DQuat){{0, 0, 0, 1}};
+    t3d_quat_identity(&skel.bones[i].rotation);
     skel.bones[i].position = (T3DVec3){{0, 0, 0}};
     skel.bones[i].scale = (T3DVec3){{1, 1, 1}};
     skel.bones[i].hasChanged = true; // force an initial update
