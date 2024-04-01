@@ -4,14 +4,8 @@
 */
 
 #define CGLTF_IMPLEMENTATION
-#include "cgltfHelper.h"
 
-#include "lib/json.hpp"
-using json = nlohmann::json;
-
-#include "lib/lodepng.h"
 #include "parser.h"
-#include "fast64Types.h"
 #include "hash.h"
 
 #include "math/vec2.h"
@@ -19,122 +13,22 @@ using json = nlohmann::json;
 
 #include "lib/meshopt/meshoptimizer.h"
 #include "math/mat4.h"
+#include "parser/parser.h"
+#include "converter.h"
 
-namespace fs = std::filesystem;
-
-namespace {
-  constexpr uint64_t RDPQ_COMBINER_2PASS = (uint64_t)(1) << 63;
-
-  #define rdpq_1cyc_comb_rgb(suba, subb, mul, add) \
-    (((uint64_t)(suba)<<52) | ((uint64_t)(subb)<<28) | ((uint64_t)(mul)<<47) | ((uint64_t)(add)<<15) | \
-     ((uint64_t)(suba)<<37) | ((uint64_t)(subb)<<24) | ((uint64_t)(mul)<<32) | ((uint64_t)(add)<<6))
-  #define rdpq_1cyc_comb_alpha(suba, subb, mul, add) \
-    (((uint64_t)(suba)<<44) | ((uint64_t)(subb)<<12) | ((uint64_t)(mul)<<41) | ((uint64_t)(add)<<9) | \
-     ((uint64_t)(suba)<<21) | ((uint64_t)(subb)<<3)  | ((uint64_t)(mul)<<18) | ((uint64_t)(add)<<0))
-
-  #define rdpq_2cyc_comb2a_rgb(suba, subb, mul, add)   ((((uint64_t)suba)<<52) | (((uint64_t)subb)<<28) | (((uint64_t)mul)<<47) | (((uint64_t)add)<<15))
-  #define rdpq_2cyc_comb2a_alpha(suba, subb, mul, add) ((((uint64_t)suba)<<44) | (((uint64_t)subb)<<12) | (((uint64_t)mul)<<41) | (((uint64_t)add)<<9))
-  #define rdpq_2cyc_comb2b_rgb(suba, subb, mul, add)   ((((uint64_t)suba)<<37) | (((uint64_t)subb)<<24) | (((uint64_t)mul)<<32) | (((uint64_t)add)<<6))
-  #define rdpq_2cyc_comb2b_alpha(suba, subb, mul, add) ((((uint64_t)suba)<<21) | (((uint64_t)subb)<<3)  | (((uint64_t)mul)<<18) | (((uint64_t)add)<<0))
-
-  void readMaterialTileAxisFromJson(TileParam &param, const json &tex)
-  {
-    if(tex.empty())return;
-    param.clamp = tex.value<uint8_t>("clamp", 0);
-    param.high = tex["high"].get<float>();
-    param.low = tex["low"].get<float>();
-    param.mask = tex["mask"].get<int8_t>();
-    param.mirror = tex.value<int8_t>("mirror", 0);
-    param.shift = tex["shift"].get<int8_t>();
-  }
-
-  void readMaterialFromJson(Material &material, const json &tex, const fs::path &gltfPath)
-  {
-    if(tex.contains("S"))readMaterialTileAxisFromJson(material.s, tex["S"]);
-    if(tex.contains("T"))readMaterialTileAxisFromJson(material.t, tex["T"]);
-
-    // default texture size, can be overwritten by a texture or reference later
-    material.texWidth = material.s.high - material.s.low + 1;
-    material.texHeight = material.t.high - material.t.low + 1;
-
-    bool isRef = false;
-    if(tex.contains("use_tex_reference")) {
-      isRef = tex["use_tex_reference"].get<uint32_t>() == 1;
-    }
-
-    // a texture can either be an image loaded from a sprite,
-    // or a "reference" which doesn't actively load an image itself
-    if(isRef) {
-      if(tex.contains("tex_reference")) {
-        std::string refAddress = tex["tex_reference"].get<std::string>();
-
-        // try to parse it as a hex string or decimal
-        int base = (refAddress.size() > 2 && refAddress[0] == '0' && refAddress[1] == 'x') ? 16 : 10;
-        material.texReference = std::stoul(refAddress, nullptr, base);
-      }
-
-      if(tex.contains("tex_reference_size")) {
-        material.texWidth = tex["tex_reference_size"][0].get<uint32_t>();
-        material.texHeight = tex["tex_reference_size"][1].get<uint32_t>();
-      }
-    }
-    else if(tex.contains("tex") && tex["tex"].contains("name"))
-    {
-      material.texPath = tex["tex"]["name"].get<std::string>();
-      if(material.texPath[0] != '/') {
-        material.texPath = (gltfPath / fs::path(material.texPath)).string();
-
-        std::vector<unsigned char> image; // pixels
-        auto error = lodepng::decode(image, material.texWidth, material.texHeight, material.texPath);
-        if(error) {
-          printf("Error loading texture %s: %s\n", material.texPath.c_str(), lodepng_error_text(error));
-        }
-      }
-      printf("Loaded Texture %s, size: %dx%d\n", material.texPath.c_str(), material.texWidth, material.texHeight);
-    }
-  }
-
-  ColorCombiner readCCFromJson(const json &cc)
-  {
-    ColorCombiner res{};
-    res.a = cc["A"].get<uint8_t>();
-    res.b = cc["B"].get<uint8_t>();
-    res.c = cc["C"].get<uint8_t>();
-    res.d = cc["D"].get<uint8_t>();
-    res.aAlpha = cc["A_alpha"].get<uint8_t>();
-    res.bAlpha = cc["B_alpha"].get<uint8_t>();
-    res.cAlpha = cc["C_alpha"].get<uint8_t>();
-    res.dAlpha = cc["D_alpha"].get<uint8_t>();
-
-    //printf("Color: (%d - %d) * %d + %d\n", res.a, res.b, res.c, res.d);
-    //printf("Alpha: (%d - %d) * %d + %d\n", res.aAlpha, res.bAlpha, res.cAlpha, res.dAlpha);
-
-    return res;
-  }
-
-  bool isCCUsingTexture(const ColorCombiner &cc)
-  {
-    if(cc.a == CC::TEX0 || cc.b == CC::TEX0 || cc.c == CC::TEX0 || cc.d == CC::TEX0)return true;
-    if(cc.a == CC::TEX1 || cc.b == CC::TEX1 || cc.c == CC::TEX1 || cc.d == CC::TEX1)return true;
-
-    if(cc.c == CC::TEX0_ALPHA || cc.c == CC::TEX1_ALPHA)return true;
-
-    if(cc.aAlpha == CC::TEX0 || cc.bAlpha == CC::TEX0 || cc.cAlpha == CC::TEX0 || cc.dAlpha == CC::TEX0)return true;
-    if(cc.aAlpha == CC::TEX1 || cc.bAlpha == CC::TEX1 || cc.cAlpha == CC::TEX1 || cc.dAlpha == CC::TEX1)return true;
-
-    return false;
-  }
-
-  bool isUsingShade(const ColorCombiner &cc)
-  {
-    if(cc.a == CC::SHADE || cc.b == CC::SHADE || cc.c == CC::SHADE || cc.d == CC::SHADE)return true;
-    if(cc.aAlpha == CC::SHADE || cc.bAlpha == CC::SHADE || cc.cAlpha == CC::SHADE || cc.dAlpha == CC::SHADE)return true;
-    return false;
+void printBoneTree(const Bone &bone, int depth)
+{
+  for(int i=0; i<depth; ++i)printf("  ");
+  printf("%s\n", bone.name.c_str());
+  bone.parentMatrix.print(depth * 2);
+  for(auto &child : bone.children) {
+    printBoneTree(*child, depth+1);
   }
 }
 
-std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
+T3DMData parseGLTF(const char *gltfPath, float modelScale)
 {
+  T3DMData t3dm{};
   fs::path gltfBasePath{gltfPath};
   gltfBasePath = gltfBasePath.parent_path();
 
@@ -153,12 +47,84 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
   }
 
   cgltf_load_buffers(&options, data, gltfPath);
-  std::vector<Model> models{};
 
+  // Bones / Armature
+  int boneCount = 0;
+  int neutralBoneCount = 0;
+  for(int i=0; i<data->skins_count; ++i) {
+    printf("Skin %d: %s\n", i, data->skins[i].name);
+
+    auto &skin = data->skins[i];
+    //printf(" - Skeleton: %s\n", skin.skeleton->name);
+    if(skin.joints_count == 0)continue;
+
+    while((boneCount+neutralBoneCount) < skin.joints_count)
+    {
+      const cgltf_node* bone = skin.joints[boneCount];
+
+      // vertices not assigned to any bone are assigned to an artificial "neutral_bone"
+      if(strcmp(bone->name, "neutral_bone") == 0) {
+        neutralBoneCount++;
+        continue;
+      }
+
+      Bone armature = parseBoneTree(bone, nullptr, boneCount);
+      printf(" - Bone count: %d/%d\n", boneCount, skin.joints_count);
+      //printBoneTree(armature, 0);
+      t3dm.skeletons.push_back(armature);
+    }
+  }
+  printf("\n\n\n");
+
+  // Resting pose matrix stack, used to pre-transform vertices
+  std::vector<Mat4> matrixStack{};
+  if(!t3dm.skeletons.empty()) {
+    auto addBoneMax = [&](auto&& addBoneMax, const Bone &bone) -> void {
+      matrixStack.push_back(bone.inverseBindPose);
+      for(auto &child : bone.children) {
+        addBoneMax(addBoneMax, *child);
+      }
+    };
+    for(const auto &skel : t3dm.skeletons) {
+      addBoneMax(addBoneMax, skel);
+    }
+  }
+
+  // Animations
+  printf("Animations: %d\n", data->animations_count);
+/*
+  for(int i=0; i<data->animations_count; ++i) {
+    auto &anim = data->animations[i];
+    printf("Animation %d: %s\n", i, anim.name);
+    printf(" - Channels: %d\n", anim.channels_count);
+    printf(" - Samplers: %d\n", anim.samplers_count);
+
+    for(int j=0; j<anim.channels_count; ++j) {
+      auto &channel = anim.channels[j];
+      printf("  - Channel %d\n", j);
+      printf("    - Target: %s\n", channel.target_node->name);
+      printf("    - Path: %d\n", channel.target_path);
+      printf("    - Sampler: %d\n", channel.sampler->input->count);
+    }
+  }
+  printf("\n\n\n");
+  */
+
+  // Meshes
   printf("Node count: %d\n", data->nodes_count);
   for(int i=0; i<data->nodes_count; ++i)
   {
     auto node = &data->nodes[i];
+    printf("- Node %d: %s\n", i, node->name);
+
+    // check if it is a skeleton/armature, then read out the bone hierarchy
+    if(node->children_count > 0) {
+      printf("  - Children: %d\n", node->children_count);
+      for(int j=0; j<node->children_count; ++j) {
+        printf("    - %s\n", node->children[j]->name);
+      }
+    }
+
     auto mesh = node->mesh;
     if(!mesh)continue;
 
@@ -166,133 +132,14 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
 
     for(int j = 0; j < mesh->primitives_count; j++)
     {
-      models.push_back({});
-      auto &model = models.back();
+      t3dm.models.push_back({});
+      auto &model = t3dm.models.back();
 
       auto prim = &mesh->primitives[j];
       printf("   - Primitive %d:\n", j);
 
       if(prim->material) {
-
-        model.materialA.uuid = j*1000+i;
-        if(prim->material->name) {
-          model.materialA.uuid = stringHash(prim->material->name);
-        }
-        printf("     Material: %s\n", prim->material->name);
-
-        if(prim->material->extras.data == nullptr) {
-          throw std::runtime_error(
-            "\n\n"
-            "Material has no fast64 data! (@TODO: implement fallback)\n"
-            "If you are using fast64, make sure to enable 'Include -> Custom Properties' during GLTF export\n"
-            "\n\n"
-          );
-        }
-
-        auto data = json::parse(prim->material->extras.data);
-        if(!prim->material->extras.data) {
-          printf("Empty fast64 extras.data!\n");
-        }
-        auto &f3dData = data["f3d_mat"];
-
-        if(!f3dData.empty()) {
-          //printf("  - %s\n", f3dData.dump(2).c_str());
-          //printf("  - %s\n", f3dData["combiner2"].dump(2).c_str());
-
-          auto cc1 = readCCFromJson(f3dData["combiner1"]);
-          auto cc2 = readCCFromJson(f3dData["combiner2"]);
-          bool is2Cycle = true;
-
-          model.materialA.drawFlags = DrawFlags::DEPTH;
-
-          if(f3dData.contains("rdp_settings"))
-          {
-            auto &rdpSettings = f3dData["rdp_settings"];
-            is2Cycle = rdpSettings["g_mdsft_cycletype"].get<uint32_t>() != 0;
-
-            if(rdpSettings["g_cull_back"].get<uint32_t>() != 0) {
-              model.materialA.drawFlags |= DrawFlags::CULL_BACK;
-            }
-            if(rdpSettings["g_cull_front"].get<uint32_t>() != 0) {
-              model.materialA.drawFlags |= DrawFlags::CULL_FRONT;
-            }
-
-            model.materialA.fogMode = rdpSettings["g_fog"].get<uint32_t>() + 1;
-            model.materialB.fogMode = model.materialA.fogMode;
-
-            bool setRenderMode = rdpSettings["set_rendermode"].get<uint32_t>() != 0;
-            if(setRenderMode) {
-              int renderMode1Raw = rdpSettings["rendermode_preset_cycle_1"].get<uint32_t>();
-              int renderMode2Raw = rdpSettings["rendermode_preset_cycle_2"].get<uint32_t>();
-              uint8_t alphaMode1 = F64_RENDER_MODE_1_TO_ALPHA[renderMode1Raw];
-              uint8_t alphaMode2 = F64_RENDER_MODE_2_TO_ALPHA[renderMode2Raw];
-
-              if(alphaMode1 == AlphaMode::INVALID || alphaMode2 == AlphaMode::INVALID) {
-                printf("\n\nInvalid render-modes: %d, please only use Opaque, Cutout, Transparent, Fog-Shade\n", renderMode1Raw);
-                throw std::runtime_error("Invalid render-modes!");
-              }
-              model.materialA.alphaMode = is2Cycle ? alphaMode2 : alphaMode1;
-              model.materialB.alphaMode = alphaMode2;
-            } else {
-              // if no render mode is set, we need to check the draw layer
-              uint32_t layerOOT = f3dData["draw_layer"].contains("oot") ? f3dData["draw_layer"]["oot"].get<uint32_t>() : 0;
-              uint32_t layerSM64 = f3dData["draw_layer"].contains("sm64") ? f3dData["draw_layer"]["sm64"].get<uint32_t>() : 0;
-
-              printf("No render mode set, fallback to layers: %d,%d\n", layerOOT, layerSM64);
-
-              // since we don't know what game was set, choose the non-zero one,
-              // or if both set (impossible?) use the higher one
-              if(layerOOT > layerSM64) {
-                switch(layerOOT) {
-                  default: // has only 3 distinct layers:
-                  case 0: model.materialA.alphaMode = AlphaMode::OPAQUE; break;
-                  case 1: model.materialA.alphaMode = AlphaMode::TRANSP; break;
-                  case 2: model.materialA.alphaMode = AlphaMode::CUTOUT; break;
-                }
-              } else {
-                // has multiple layers with variants (e.g. intersecting) ignore the finer details here:
-                if(layerSM64 <= 1) {
-                  model.materialA.alphaMode = AlphaMode::OPAQUE;
-                } else if(layerSM64 <= 4) {
-                  model.materialA.alphaMode = AlphaMode::CUTOUT;
-                } else {
-                  model.materialA.alphaMode = AlphaMode::TRANSP;
-                }
-              }
-
-              model.materialB.alphaMode = model.materialA.alphaMode;
-            }
-          }
-
-          if(isUsingShade(cc1) || (is2Cycle && isUsingShade(cc2))) {
-            model.materialA.drawFlags |= DrawFlags::SHADED;
-          }
-
-          if(isCCUsingTexture(cc1) || (is2Cycle && isCCUsingTexture(cc2))) {
-            model.materialA.drawFlags |= DrawFlags::TEXTURED;
-
-            if(f3dData.contains("tex0"))readMaterialFromJson(model.materialA, f3dData["tex0"], gltfBasePath);
-            if(f3dData.contains("tex1"))readMaterialFromJson(model.materialB, f3dData["tex1"], gltfBasePath);
-          }
-
-          if(is2Cycle) {
-            model.materialA.colorCombiner  = RDPQ_COMBINER_2PASS |
-              rdpq_2cyc_comb2a_rgb(cc1.a, cc1.b, cc1.c, cc1.d) |
-              rdpq_2cyc_comb2a_alpha(cc1.aAlpha, cc1.bAlpha, cc1.cAlpha, cc1.dAlpha) |
-              rdpq_2cyc_comb2b_rgb(cc2.a, cc2.b, cc2.c, cc2.d) |
-              rdpq_2cyc_comb2b_alpha(cc2.aAlpha, cc2.bAlpha, cc2.cAlpha, cc2.dAlpha);
-          } else {
-            model.materialA.colorCombiner  =
-              rdpq_1cyc_comb_rgb(cc1.a, cc1.b, cc1.c, cc1.d) |
-              rdpq_1cyc_comb_alpha(cc1.aAlpha, cc1.bAlpha, cc1.cAlpha, cc1.dAlpha);
-          }
-
-        } else {
-          printf("No Fast64 Material data found!\n");
-        }
-        model.materialB.colorCombiner = model.materialA.colorCombiner;
-        model.materialB.drawFlags = model.materialA.drawFlags;
-        model.materialB.uuid = model.materialA.uuid ^ 0x12345678;
+        parseMaterial(gltfBasePath, i, j, model, prim);
       }
 
       // find vertex count
@@ -307,7 +154,7 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
       printf("Vertex Input Count: %d\n", vertexCount);
 
       std::vector<VertexNorm> vertices{};
-      vertices.resize(vertexCount, {.color = {1.0f, 1.0f, 1.0f, 1.0f}});
+      vertices.resize(vertexCount, {.color = {1.0f, 1.0f, 1.0f, 1.0f}, .boneIndex = -1});
       std::vector<uint16_t> indices{};
 
       // Read indices
@@ -334,6 +181,8 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
         printf("     - Attribute %d: %s\n", k, attr->name);
         if(attr->type == cgltf_attribute_type_position)
         {
+          assert(attr->data->type == cgltf_type_vec3);
+
           for(int l = 0; l < acc->count; l++)
           {
             auto &v = vertices[l];
@@ -345,6 +194,8 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
 
         if(attr->type == cgltf_attribute_type_color)
         {
+          assert(attr->data->type == cgltf_type_vec4);
+
           for(int l = 0; l < acc->count; l++)
           {
             auto &v = vertices[l];
@@ -362,6 +213,8 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
 
         if(attr->type == cgltf_attribute_type_normal)
         {
+          assert(attr->data->type == cgltf_type_vec3);
+
           for(int l = 0; l < acc->count; l++)
           {
             auto &v = vertices[l];
@@ -373,11 +226,46 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
 
         if(attr->type == cgltf_attribute_type_texcoord)
         {
+          assert(attr->data->type == cgltf_type_vec2);
+
           for(int l = 0; l < acc->count; l++)
           {
             auto &v = vertices[l];
             v.uv[0] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
             v.uv[1] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
+          }
+        }
+
+        if(attr->type == cgltf_attribute_type_joints)
+        {
+          assert(attr->data->type == cgltf_type_vec4);
+
+          printf("Joints (off: %d)\n", attr->index);
+          for(int l = 0; l < acc->count; l++)
+          {
+            auto &v = vertices[l];
+            u32 joins[4];
+            for(int c=0; c<4; ++c) {
+              joins[c] = Gltf::readAsU32(basePtr, acc->component_type); basePtr += elemSize;
+            }
+            //printf("  - %d %d %d %d\n", joins[0], joins[1], joins[2], joins[3]);
+            v.boneIndex = joins[0];
+            if(v.boneIndex >= boneCount || v.boneIndex < 0)v.boneIndex = -1;
+          }
+        }
+
+        if(attr->type == cgltf_attribute_type_weights)
+        {
+          assert(attr->data->type == cgltf_type_vec4);
+
+          for(int l = 0; l < acc->count; l++)
+          {
+            auto &v = vertices[l];
+            float weights[4];
+            for(int c=0; c<4; ++c) {
+              weights[c] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
+            }
+            //printf("  - %f %f %f %f\n", weights[0], weights[1], weights[2], weights[3]);
           }
         }
       }
@@ -390,67 +278,12 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
       float texSizeY = model.materialA.texHeight;
 
       // convert vertices
-      for(int k = 0; k < vertices.size(); k++)
-      {
-        auto &v = vertices[k];
-        auto &vT3D = verticesT3D[k];
-
-        // calc. matrix, the included one seems to be always NULL (why?)
-        // @TODO: dont bake this for skinned meshes!
-        Mat4 matScale{};
-        if(node->has_scale)matScale.setScale({node->scale[0], node->scale[1], node->scale[2]});
-
-        Mat4 matRot{};
-        if(node->has_rotation)matRot.setRot({
-          node->rotation[3],
-          node->rotation[0],
-          node->rotation[1],
-          node->rotation[2]
-        });
-
-        Mat4 matTrans{};
-        if(node->has_translation)matTrans.setPos({node->translation[0], node->translation[1], node->translation[2]});
-
-        // apply matrix and base model scale (for fixes point accuracy)
-        Mat4 mat = matTrans * matRot * matScale;
-        auto posInt = mat * v.pos * modelScale;
-
-        posInt = posInt.round();
-        vT3D.pos[0] = (int16_t)posInt.x();
-        vT3D.pos[1] = (int16_t)posInt.y();
-        vT3D.pos[2] = (int16_t)posInt.z();
-
-        auto normPacked = (v.norm * Vec3{15.5f, 31.5f, 15.5f})
-          .round()
-          .clamp(
-            Vec3{-16.0f, -32.0f, -16.0f},
-            Vec3{ 15.0f,  31.0f,  15.0f}
-          );
-
-        vT3D.norm = ((int16_t)(normPacked[0]) & 0b11111 ) << 11
-                  | ((int16_t)(normPacked[1]) & 0b111111) <<  5
-                  | ((int16_t)(normPacked[2]) & 0b11111 ) <<  0;
-
-        vT3D.rgba = 0;
-        vT3D.rgba |= (uint32_t)(v.color[3] * 255.0f) << 0;
-        vT3D.rgba |= (uint32_t)(v.color[2] * 255.0f) << 8;
-        vT3D.rgba |= (uint32_t)(v.color[1] * 255.0f) << 16;
-        vT3D.rgba |= (uint32_t)(v.color[0] * 255.0f) << 24;
-
-        vT3D.s = (int16_t)(int32_t)(v.uv[0] * texSizeX * 32.0f);
-        vT3D.t = (int16_t)(int32_t)(v.uv[1] * texSizeY * 32.0f);
-
-        vT3D.s -= 16.0f; // bi-linear offset (@TODO: do this in ucode?)
-        vT3D.t -= 16.0f;
-
-        // Generate hash for faster lookup later in the optimizer
-        vT3D.hash = ((uint64_t)(uint16_t)vT3D.pos[0] << 48)
-                  | ((uint64_t)(uint16_t)vT3D.pos[1] << 32)
-                  | ((uint64_t)(uint16_t)vT3D.pos[2] << 16)
-                  | ((uint64_t)vT3D.norm << 0);
-        vT3D.hash ^= ((uint64_t)vT3D.rgba) << 5;
-        vT3D.hash ^= ((uint64_t)(uint16_t)vT3D.s << 16)
-                   | ((uint64_t)(uint16_t)vT3D.t << 0);
+      for(int k = 0; k < vertices.size(); k++) {
+        Mat4 mat = parseNodeMatrix(node);
+        convertVertex(
+          modelScale, texSizeX, texSizeY, vertices[k], verticesT3D[k],
+          mat, matrixStack
+        );
       }
 
       // optimizations
@@ -460,21 +293,16 @@ std::vector<Model> parseGLTF(const char *gltfPath, float modelScale)
       // expand into triangles, this is used to split up and dedupe data
       model.triangles.reserve(indices.size() / 3);
 
-      for(int k = 0; k < indices.size(); k += 3)
-      {
-        u32 idxA = indices[k + 0];
-        u32 idxB = indices[k + 1];
-        u32 idxC = indices[k + 2];
-
+      for(int k = 0; k < indices.size(); k += 3) {
         model.triangles.push_back({
-          verticesT3D[idxA],
-          verticesT3D[idxB],
-          verticesT3D[idxC],
+          verticesT3D[indices[k + 0]],
+          verticesT3D[indices[k + 1]],
+          verticesT3D[indices[k + 2]],
         });
       }
     }
   }
 
   cgltf_free(data);
-  return models;
+  return t3dm;
 }

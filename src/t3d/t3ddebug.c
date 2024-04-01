@@ -34,11 +34,11 @@ void t3d_debug_print(float x, float y, const char* str) {
   int s = 0;
 
   while(*str) {
-    char c = *str;
+    uint8_t c = *str;
     if(c != ' ' && c != '\n')
     {
            if(c >= 'A' && c <= '_')s = (c - 'A' + 27) * width;
-      else if(c >= 'a' && c <= 'z')s = (c - 'a' + 27+31) * width;
+      else if(c >= 'a' && c <= 0x80)s = (c - 'a' + 27+31) * width;
       else if(c >= '!' && c <= '@')s = (c - '!') * width;
       rdpq_texture_rectangle_raw(TILE0, x, y, x+width, y+height, s, 0, 1, 1);
     }

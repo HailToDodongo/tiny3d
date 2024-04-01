@@ -118,13 +118,34 @@ Model data consisting of multiple parts, can exist multiple times in a file.
 #### Part
 Model part data.
 
-| Offset | Type    | Description           |
-|--------|---------|-----------------------|
-| 0x00   | `u32`   | Vertex offset         |
-| 0x04   | `u32`   | Vertex count          |
-| 0x08   | `u32`   | Index offset          |
-| 0x0C   | `u16`   | Index count           |
-| 0x0E   | `u8[2]` | _reserved_ (always 0) |
+| Offset | Type  | Description                     |
+|--------|-------|---------------------------------|
+| 0x00   | `u32` | Vertex src. offset              |
+| 0x04   | `u16` | Vertex count                    |
+| 0x06   | `u16` | Vertex dest. offset             |
+| 0x08   | `u32` | Index offset                    |
+| 0x0C   | `u16` | Index count                     |
+| 0x0E   | `u16` | Matrix index, `0xFFFF` for none |
+
+## Skeleton (`S`)
+Contains a tree of bones, used for skeletal animation.<br>
+
+| Offset | Type        | Description   |
+|--------|-------------|---------------|
+| 0x00   | `u16`       | Bone count    |
+| 0x04   | `u16`       | _reserved_    |
+| 0x08   | `T3DBone[]` | List of bones |
+
+#### T3DBone
+Bone data, each bone references its parent by index.<br>
+The list is sorted by index, so index references are guaranteed to be parsed before the bone itself.
+
+| Offset | Type        | Description           |
+|--------|-------------|-----------------------|
+| 0x00   | `u32`       | Name                  |
+| 0x04   | `u16`       | Parent index          |
+| 0x06   | `u16`       | Depth / Level         |
+| 0x08   | `f32[4][4]` | Parent-Matrix         |
 
 ### String Table
 

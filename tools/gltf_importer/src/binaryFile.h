@@ -30,10 +30,6 @@ class BinaryFile
 
   public:
 
-    explicit BinaryFile(std::size_t size) {
-      data.resize(size);
-    }
-
     void skip(u32 bytes) {
       for(u32 i=0; i<bytes; ++i) {
         write<u8>(0);
@@ -59,7 +55,14 @@ class BinaryFile
       for(size_t i=0; i<len; ++i)write<u8>(str[i]);
     }
 
-    void writeMemFile(BinaryFile& memFile) {
+    template<typename T>
+    void writeArray(const T* arr, size_t count) {
+      for(size_t i=0; i<count; ++i) {
+        write(arr[i]);
+      }
+    }
+
+    void writeMemFile(const BinaryFile& memFile) {
       writeRaw(memFile.data.data(), memFile.dataSize);
     }
 

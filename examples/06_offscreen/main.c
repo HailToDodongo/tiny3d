@@ -50,7 +50,7 @@ int main()
   rdpq_init();
   joypad_init();
 
-  t3d_init();
+  t3d_init((T3DInitParams){});
   t3d_debug_print_init();
 
   // Like in the demo before we can create multiple viewports.
@@ -77,16 +77,18 @@ int main()
   mpeg2_open(&mp2, "rom:/video.m1v", OFFSCREEN_SIZE, OFFSCREEN_SIZE);
 
   rspq_block_begin();
-  t3d_matrix_set_mul(matrixBox, 1, 0);
+  t3d_matrix_push(matrixBox);
   t3d_model_draw(modelBox);
+  t3d_matrix_pop(1);
   rspq_block_t *dplBox = rspq_block_end();
 
   rspq_block_begin();
-  t3d_matrix_set_mul(matrixCRT, 1, 0);
+  t3d_matrix_push(matrixCRT);
   t3d_model_draw_custom(modelCRT, (T3DModelDrawConf){
     .userData = &offscreenSurf,
     .dynTextureCb = dynamic_tex_cb,
   });
+  t3d_matrix_pop(1);
   rspq_block_t *dplCRT = rspq_block_end();
 
   float rotAngle = 2.4f;

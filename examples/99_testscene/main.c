@@ -30,7 +30,7 @@ int main()
   //rdpq_debug_log(true);
 
   joypad_init();
-  t3d_init();
+  t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create();
 
   t3d_debug_print_init();
@@ -170,16 +170,13 @@ int main()
     // t3d functions can be recorded into a display list:
     if(!dplDraw) {
       rspq_block_begin();
-
       t3d_model_draw(model);
-
       dplDraw = rspq_block_end();
     }
 
-    t3d_matrix_set_mul(modelMatFP, 1, 0);
-
+    t3d_matrix_push(modelMatFP);
     rspq_block_run(dplDraw);
-    //t3d_model_draw(model);
+    t3d_matrix_pop(1);
 
     if(displayMetrics)
     {

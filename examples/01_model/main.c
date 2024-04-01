@@ -27,7 +27,7 @@ int main()
 
   rdpq_init();
 
-  t3d_init();
+  t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create();
 
   T3DMat4 modelMat; // matrix for our model, this is a "normal" float matrix
@@ -91,13 +91,10 @@ int main()
     if(!dplDraw) {
       rspq_block_begin();
 
-      // set which matrix to load and use.
-      // This call means: load matrix into slot 1, and multiply it with slot 0 before that.
-      // Slot 0 is reserved for the view matrix (aka the camera).
-      t3d_matrix_set_mul(modelMatFP, 1, 0);
-
+      t3d_matrix_push(modelMatFP);
       // Draw the model, material settings (e.g. textures, color-combiner) are handled internally
       t3d_model_draw(model);
+      t3d_matrix_pop(1);
       dplDraw = rspq_block_end();
     }
 
@@ -110,4 +107,3 @@ int main()
   t3d_destroy();
   return 0;
 }
-

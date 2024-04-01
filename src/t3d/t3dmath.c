@@ -7,7 +7,6 @@
 
 void t3d_mat4_look_at(T3DMat4 *mat, const T3DVec3 *eye, const T3DVec3 *target, const T3DVec3 *up)
 {
-  const T3DVec3 GLOBAL_UP = (T3DVec3){{0,1,0}};
   T3DVec3 forward, side, upCalc;
 
   t3d_vec3_diff(&forward, target, eye);
@@ -40,9 +39,14 @@ void t3d_mat4_perspective(T3DMat4 *mat, float fov, float aspect, float near, flo
   mat->m[3][2] = -2.0f * (far * near) / (far - near);
 }
 
-void t3d_mat4_from_srt(T3DMat4 *mat, float scale[3], float rot[4], float translate[3])
+void t3d_mat4_from_srt(T3DMat4 *mat, float scale[3], float quat[4], float translate[3])
 {
-  assertf(false, "TODO: implement t3d_mat4_from_srt()");
+  *mat = (T3DMat4){{
+    {(1.0f - 2.0f * quat[2] * quat[2] - 2.0f * quat[0] * quat[0]) * scale[0],        (2.0f * quat[1] * quat[2] - 2.0f * quat[3] * quat[0]) * scale[0],        (2.0f * quat[1] * quat[0] + 2.0f * quat[3] * quat[2]) * scale[0], 0.0f},
+    {       (2.0f * quat[1] * quat[2] + 2.0f * quat[3] * quat[0]) * scale[1], (1.0f - 2.0f * quat[1] * quat[1] - 2.0f * quat[0] * quat[0]) * scale[1],        (2.0f * quat[2] * quat[0] - 2.0f * quat[3] * quat[1]) * scale[1], 0.0f},
+    {       (2.0f * quat[1] * quat[0] - 2.0f * quat[3] * quat[2]) * scale[2],        (2.0f * quat[2] * quat[0] + 2.0f * quat[3] * quat[1]) * scale[2], (1.0f - 2.0f * quat[1] * quat[1] - 2.0f * quat[2] * quat[2]) * scale[2], 0.0f},
+    {translate[0], translate[1], translate[2], 1.0f}
+  }};
 }
 
 void t3d_mat4_from_srt_euler(T3DMat4 *mat, float scale[3], float rot[3], float translate[3])
@@ -66,6 +70,12 @@ void t3d_mat4_from_srt_euler(T3DMat4 *mat, float scale[3], float rot[3], float t
 void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, float scale[3], float rot[3], float translate[3]) {
   T3DMat4 matF; // @TODO: avoid temp matrix
   t3d_mat4_from_srt_euler(&matF, scale, rot, translate);
+  t3d_mat4_to_fixed(mat, &matF);
+}
+
+void t3d_mat4fp_from_srt(T3DMat4FP *mat, float scale[3], float rotQuat[4], float translate[3]) {
+  T3DMat4 matF; // @TODO: avoid temp matrix
+  t3d_mat4_from_srt(&matF, scale, rotQuat, translate);
   t3d_mat4_to_fixed(mat, &matF);
 }
 

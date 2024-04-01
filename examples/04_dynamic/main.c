@@ -35,7 +35,7 @@ int main()
   rdpq_init();
   joypad_init();
 
-  t3d_init();
+  t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create();
   t3d_debug_print_init();
 
@@ -137,7 +137,7 @@ int main()
 
     t3d_light_set_count(0);
 
-    t3d_matrix_set_mul(modelMatFP, 1, 0);
+    t3d_matrix_push(modelMatFP);
 
     // Draw lava:
     t3d_light_set_ambient((uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF});
@@ -163,6 +163,8 @@ int main()
 
     t3d_light_set_ambient(colorAmbient);
     rspq_block_run(dplRoom);
+
+    t3d_matrix_pop(1);
 
     // ======== Draw (2D) ======== //
     t3d_debug_print_start();

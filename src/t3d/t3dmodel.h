@@ -55,12 +55,12 @@ static_assert(sizeof(T3DMaterial));
 
 typedef struct {
   T3DVertPacked *vert;
-  uint32_t vertLoadCount;
+  uint16_t vertLoadCount;
+  uint16_t vertDestOffset;
 
   uint8_t *indices;
   uint16_t numIndices;
-  uint8_t indexType;
-  uint8_t _padding;
+  uint16_t matrixIdx;
 
 } T3DObjectPart;
 
@@ -71,6 +71,19 @@ typedef struct {
 
   T3DObjectPart parts[]; // real array
 } T3DObject;
+
+typedef struct {
+  char* name;
+  uint16_t parentIdx;
+  uint16_t depth;
+  T3DMat4 transform;
+} T3DChunkBone;
+
+typedef struct {
+  uint16_t boneCount;
+  uint16_t _reserved;
+  T3DChunkBone bones[];
+} T3DChunkSkeleton;
 
 typedef union {
   char type;
@@ -114,6 +127,7 @@ typedef struct {
   T3DModelTileCb tileCb; // callback to modify tile settings
   T3DModelFilterCb filterCb; // callback to filter parts
   T3DModelDynTextureCb dynTextureCb; // callback to set dynamic textures, aka "Texture Reference" in fast64
+  const T3DMat4FP *matrices;
 } T3DModelDrawConf;
 
 /**
@@ -158,6 +172,23 @@ static inline void t3d_model_draw(const T3DModel* model) {
 static inline T3DVertPacked* t3d_model_get_vertices(const T3DModel *model) {
   uint32_t offset = model->chunkOffsets[model->chunkIdxVertices].offset & 0x00FFFFFF;
   return (T3DVertPacked*)((char*)model + offset);
+}
+
+/**
+ * Returns the first/main skeleton of a model.
+ * If the model contains multiple skeletons, data must be manually traversed instead.
+ *
+ * @param model model
+ * @return pointer to the skeleton or NULL if not found
+ */
+static inline const T3DChunkSkeleton* t3d_model_get_skeleton(const T3DModel *model) {
+  for(int i = 0; i < model->chunkCount; i++) {
+    if(model->chunkOffsets[i].type == 'S') {
+      uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
+      return (T3DChunkSkeleton*)((char*)model + offset);
+    }
+  }
+  return NULL;
 }
 
 #ifdef __cplusplus

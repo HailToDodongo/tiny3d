@@ -19,7 +19,7 @@ extern uint32_t T3D_RSP_ID;
 enum T3DCmd {
   T3D_CMD_TRI_DRAW     = 0x0,
   T3D_CMD_SCREEN_SIZE  = 0x1,
-  T3D_CMD_MAT_SET      = 0x2,
+  T3D_CMD_MATRIX_STACK = 0x2,
   T3D_CMD_DEBUG_READ   = 0x3,
   T3D_CMD_VERT_LOAD    = 0x4,
   T3D_CMD_LIGHT_SET    = 0x5,
@@ -77,9 +77,19 @@ typedef struct {
 } T3DViewport;
 
 /**
- * @brief Initializes the tiny3d library
+ * Settings to configure t3d during initialization.
  */
-void t3d_init(void);
+typedef struct {
+   // Internal matrix stack size, must be at least 2.
+   // If set two zero, 8 will be used by default.
+  int matrixStackSize;
+} T3DInitParams;
+
+/**
+ * @brief Initializes the tiny3d library
+ * @param params settings to configure the library
+ */
+void t3d_init(T3DInitParams params);
 
 /**
  * @brief Destroys the tiny3d library
@@ -179,24 +189,44 @@ inline static void t3d_tri_sync() {
 }
 
 /**
- * Directly loads a matrix into a slot, outside of the stack management.
- * (It will be multiplied with the projection matrix)
+ * Directly loads a matrix, overwriting the current stack position.
+ *
+ * With 'doMultiply' set to false, this lets you completely replace the current matrix.
+ * With 'doMultiply' set to true, it serves as a faster version of a pop+push combination.
+ *
  * @param mat address to load matrix from
- * @param idxDst slot index (0-7)
+ * @param doMultiply if true, the matrix will be multiplied with the previous stack entry
  */
-void t3d_matrix_set(const T3DMat4FP *mat, uint32_t idxDst);
+void t3d_matrix_set(const T3DMat4FP *mat, bool doMultiply);
 
 /**
- * Multiplies a matrix with another matrix and loads it into a slot.
- * The matrix in 'idxMul' will be on the left-side of the multiplication.
+ * Multiplies a matrix with the current stack position, then pushes it onto the stack.
  * @param mat address to load matrix from
- * @param idxDst slot index (0-7)
- * @param idxMul slot index of matrix to multiply with (0-7)
  */
-void t3d_matrix_set_mul(const T3DMat4FP *mat, uint32_t idxDst, uint32_t  idxMul);
+void t3d_matrix_push(const T3DMat4FP *mat);
 
 /**
- * Sets the projection matrix
+ * Pops the current matrix from the stack.
+ * @param count how many matrices to pop
+ */
+void t3d_matrix_pop(int count);
+
+/**
+ * Moves the stack pos. without changing a matrix or causing re-calculations.
+ * This should only be used in preparation for 't3d_matrix_set' calls.
+ *
+ * E.g. instead of multiple push/pop combis, use:
+ * - 't3d_matrix_push_pos(1)' once
+ * - then multiple 't3d_matrix_set'
+ * - finish with 't3d_matrix_pop'
+ *
+ * This is the most efficient way to set multiple matrices at the same level.
+ * @param count relative change (matrix count), should usually be 1
+ */
+void t3d_matrix_push_pos(int count);
+
+/**
+ * Sets the projection matrix, this is stored outside of the matrix stack.
  * @param mat address to load matrix from
  */
 void t3d_matrix_set_proj(const T3DMat4FP *mat);
@@ -205,9 +235,10 @@ void t3d_matrix_set_proj(const T3DMat4FP *mat);
  * Loads a vertex buffer with a given size, this can then be used to draw triangles.
  *
  * @param vertices vertex buffer
+ * @param offset offset in the target buffer (0-62)
  * @param count how many vertices to load (2-64), must be multiple of 2!
  */
-void t3d_vert_load(const T3DVertPacked *vertices, uint32_t count);
+void t3d_vert_load(const T3DVertPacked *vertices, uint32_t offset, uint32_t count);
 
 /**
  * Sets the global ambient light color.
