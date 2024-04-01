@@ -20,6 +20,11 @@ typedef struct {
   float v[3];
 } T3DVec3;
 
+// float quaternion
+typedef struct {
+  float v[4];
+} T3DQuat;
+
 // 4D float vector
 typedef struct {
   float m[4][4];
@@ -209,6 +214,18 @@ inline static void t3d_mat4fp_set_float(T3DMat4FP *mat, uint32_t y, uint32_t x, 
   mat->m[y].f[x] = fixed & 0xFFFF;
 }
 
+/**
+ * @brief Gets a value from a fixed-point matrix
+ * @param mat matrix to be read
+ * @param y row
+ * @param x column
+ * @return value as a float
+ */
+inline static float t3d_mat4fp_get_float(const T3DMat4FP *mat, uint32_t y, uint32_t x)
+{
+  return s1616_to_float(mat->m[y].i[x], mat->m[y].f[x]);
+}
+
 inline static void t3d_mat4fp_identity(T3DMat4FP *mat)
 {
   *mat = (T3DMat4FP){{
@@ -223,7 +240,7 @@ inline static void t3d_mat4fp_identity(T3DMat4FP *mat)
  * @param matOut result
  * @param matIn input
  */
-inline static void t3d_mat4_to_fixed(T3DMat4FP *matOut, T3DMat4 *matIn)
+inline static void t3d_mat4_to_fixed(T3DMat4FP *matOut, const T3DMat4 *matIn)
 {
   for(uint32_t y=0; y<4; ++y) {
     for(uint32_t x=0; x<4; ++x) {

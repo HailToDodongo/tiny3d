@@ -61,7 +61,7 @@ void actor_update(Actor *actor) {
 }
 
 void actor_draw(Actor *actor) {
-  t3d_matrix_set_mul(actor->modelMat, 1, 0);
+  t3d_matrix_set(actor->modelMat, true);
   rspq_block_run(actor->dpl);
 }
 
@@ -86,7 +86,7 @@ int main()
   rdpq_init();
   joypad_init();
 
-  t3d_init();
+  t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create();
   t3d_debug_print_init();
 
@@ -162,9 +162,11 @@ int main()
     t3d_light_set_directional(0, lightDirColor, &lightDirVec);
     t3d_light_set_count(1);
 
+    t3d_matrix_push_pos(1);
     for(int i=0; i<actorCount; ++i) {
       actor_draw(&actors[i]);
     }
+    t3d_matrix_pop(1);
 
     // ======== Draw (2D) ======== //
     t3d_debug_print_start();

@@ -11,8 +11,7 @@
  * @license MIT                        *
  ***************************************/
 
-#define MATRIX_STACK_SIZE 2
-#define TRI_BUFFER_COUNT 64
+#define TRI_BUFFER_COUNT 70
 #define LIGHT_COUNT 8
 
 // settings for RDPQ_Triangle
@@ -40,6 +39,7 @@
 
 // Single light (RGBA duplicated, duplicated direction packed as s8)
 #define LIGHT_SIZE 16
+#define MATRIX_SIZE 0x40
 
 // Debug-Flag, used to measure performance excl. triangle draws
 #define DRAW_TRIS 1
@@ -60,11 +60,9 @@ state
   extern u16 RSPQ_Loop;
   extern u16 RSPQ_SCRATCH_MEM;
 
-  vec16 MAT_MODEL_DATA[MATRIX_STACK_SIZE][4]; // model matrices
-
-  vec16 MAT_PROJ_DATA[4]; // one projection matrix
-  vec16 MAT_MODEL_RROJ[4]; // model * projection
-  vec16 MAT_MODEL_NORM[2]; // normal * projection (@TODO: only needs 1.5 vec16's)
+  vec16 MATRIX_PROJ[4];   // projection matrix
+  vec16 MATRIX_MVP[4];    // view * model * projection
+  vec16 MATRIX_NORMAL[2]; // fractional normal matrix (@TODO: only needs 1.5 vec16's)
 
   /**
    * Buffer format (RDPQ_Triangle compatible):
@@ -130,6 +128,7 @@ state
   #endif
 
   u32 TRI_COMMAND = {0}; // for RDPQ_Triangle
+  s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
 
   // Fog settings: index 0/1 is the scale as a s16.16, index 2 the scale as a s16 int.
   // The last value is used as a limiter to prevent overflows.
@@ -199,7 +198,7 @@ macro dotXYZW(vec32 res, vec32 a, vec32 b)
 // This already duplicates it for 2-vector operations.
 macro loadCurrentModelProjMat(vec32 mat0, vec32 mat1, vec32 mat2, vec32 mat3)
 {
-  u16 address = MAT_MODEL_RROJ;
+  u16 address = MATRIX_MVP;
   mat0 = load(address, 0x00).xyzwxyzw;
   mat1 = load(address, 0x10).xyzwxyzw;
   mat2 = load(address, 0x20).xyzwxyzw;
@@ -210,7 +209,7 @@ macro loadCurrentModelProjMat(vec32 mat0, vec32 mat1, vec32 mat2, vec32 mat3)
 // This already duplicates it for 2-vector operations.
 macro loadCurrentNormalMat(vec16 mat0, vec16 mat1, vec16 mat2)
 {
-  u16 address = MAT_MODEL_NORM;
+  u16 address = MATRIX_NORMAL;
   mat0 = load(address, 0x00).xyzwxyzw;
   mat1 = load(address, 0x08).xyzwxyzw;
   mat2 = load(address, 0x10).xyzwxyzw;
@@ -223,14 +222,14 @@ macro loadCurrentNormalMat(vec16 mat0, vec16 mat1, vec16 mat2)
  *
  * @param bufferSize size in bytes to load (@TODO: add offset too)
  * @param rdramVerts RDRAM address to load vertices from
+ * @param bufferSize 2 u16 DMEM addresses, MSBs set where to DMA the input to, LSBs set where to store the result
  */
-command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts)
+command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 {
   // load all vertices in a single DMA, processing them as the loop goes.
   // NOTE: the input vertex-size is smaller than the internal one, so we can't do it in place.
   // Instead, offset the buffer enough to not cause an overlap with read/writes on the same vertex.
-  u32<$s4> prt3d = TRI_BUFFER;
-  prt3d += 1392; // (@TODO calc. dynamically on CPU)
+  u32<$s4> prt3d = addressInOut >> 16;
 
   u32<$t0> copySize = bufferSize & 0xFFFF;
   u32 ptr3dEnd = prt3d + copySize;
@@ -254,7 +253,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts)
   vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
   vec16 fogScaleOffset = load(FOG_SCALE_OFFSET).xyzw;
 
-  u32 ptrBuffA = TRI_BUFFER; // ptr to first output vertex
+  u32 ptrBuffA = addressInOut & 0xFFFF; // ptr to first output vertex
   u32 ptrBuffB = ptrBuffA + TRI_SIZE; // ptr to second output vertex
 
   u16 ptrLight = LIGHT_DIR_COLOR;
@@ -758,7 +757,7 @@ command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 scre
   store(guardBandFactorNeg, CLIPPING_PLANES, 15); // -X Plane
   store(guardBandFactorNeg, CLIPPING_PLANES, 19); // -Y Plane
 
-   // printf("\033[2J"); // clear console
+   //printf("\033[2J"); // clear console
 }
 
 /**
@@ -896,7 +895,7 @@ macro mulMat4Vec8(
  * @param addrIn vector input address (s16.16 format)
  * @param addrOut vector output address (s0.16 format)
  */
-function normalizeMatrixVector(u32<$t0> addrIn, u32<$t1> addrOut)
+function normalizeMatrixVector(u32<$s4> addrIn, u32<$t1> addrOut)
 {
   vec32 v = load(addrIn, 0x00).xyzw;
 
@@ -919,43 +918,71 @@ function normalizeMatrixVector(u32<$t0> addrIn, u32<$t1> addrOut)
 }
 
 /**
- * Sets a new model matrix (optionally with a multiply).
+ * Manages the matrix stack, implements 'push'/'pop' as well as 'set'.
+ * The actual stack itself is held in RDRAM, only the current matrix is in DMEM.
  *
  * @param addressMat RDRAM address to load matrix from
- * @param offsetDestMul destination offset & multiply target (optional)
+ * @param stackAdvance s16 LSB: amount by which to advance the matrix stack
+ *                     MSB 0: multiply or not
+ *                     MSB 1: only move pointer
  */
-command<2> T3DCmd_MatSet(u32 addressMat, u32 offsetDestMul)
+command<2> T3DCmd_MatrixStack(u32 addressMat, s32 stackAdvance)
 {
-  addressMat &= 0xFFFFFF;
+  #define MATRIX_TEMP_MV  CLIP_BUFFER_TMP
+  #define MATRIX_TEMP_MUL CLIP_BUFFER_RESULT
 
-  u32<$s4> addrDst = offsetDestMul >> 16;
-  addrDst += MAT_MODEL_DATA;
-  store(addrDst:u16, CURRENT_MAT_ADDR);
+  u16 doMultiply = stackAdvance & 0b01;
+  u16 onlyStackMove = stackAdvance & 0b10;
+  stackAdvance >>= 16;
 
-  // DMA matrix into the target slot (already the correct format)
-  dma_in(addrDst, addressMat, 0x40);
+  s32 stackPtr = load(MATRIX_STACK_PTR);
+  stackPtr += stackAdvance;
+  store(stackPtr, MATRIX_STACK_PTR);
 
-  u32<$s2> addMulDst = addrDst;
-  u32<$s3> addrMul = offsetDestMul & 0xFFFF;
-  addrMul += MAT_MODEL_DATA;
+  // only move the stack pointer, can be used to prepare following matrix_set calls
+  if(onlyStackMove)exit;
 
-  // optionally, multiply by another matrix first
-  if(addrMul != addrDst) {
-    mulMat4Mat4(addMulDst, addrMul, addrDst);
+  // stackAdvance less than zero -> matrix pop, load matrix from stack
+  if(stackAdvance < 0)addressMat = stackPtr;
+  u32<$s0> addrRDRAM = addressMat & 0xFFFFFF;
+
+  u32<$s4> dmaDest = MATRIX_TEMP_MV; // load new matrix
+  dma_in(dmaDest, addrRDRAM, MATRIX_SIZE);
+
+  // if we advanced the stack, we need to multiply by the previous matrix
+  if(doMultiply) {
+    // load the mat. to multiply with from the stack...
+    dmaDest = MATRIX_TEMP_MUL;
+    addrRDRAM = stackPtr -  MATRIX_SIZE;
+    dma_in(dmaDest, addrRDRAM, MATRIX_SIZE);
+
+    // ...then multiply and store back top the same pos. in DMEM
+    u32<$s2> mulDest = MATRIX_TEMP_MV;
+    u32<$s3> mulLeft = MATRIX_TEMP_MUL;
+    dmaDest = MATRIX_TEMP_MV;
+    mulMat4Mat4(mulDest, mulLeft, dmaDest);
   }
 
+  // save calc. matrix back to the stack
+  addrRDRAM = stackPtr;
+  dma_out(dmaDest, addrRDRAM, MATRIX_SIZE); // async
+
   // now grab the normal matrix and store it in a special slot.
-  u32<$t0> normIn = addrDst;
-  u32<$t1> normOut = MAT_MODEL_NORM;
-  normalizeMatrixVector(normIn, normOut);
-  normalizeMatrixVector(normIn, normOut);
-  normalizeMatrixVector(normIn, normOut);
+  u32<$t1> normOut = MATRIX_NORMAL;
+  normalizeMatrixVector(dmaDest, normOut);
+  normalizeMatrixVector(dmaDest, normOut);
+  normalizeMatrixVector(dmaDest, normOut);
+  undef dmaDest;
 
   // ...followed by applying the projection matrix, storing it in a special slot too.
   // Together, these two special slots are used for vertex transformation later on.
-  addMulDst = MAT_MODEL_RROJ;
-  addrMul = MAT_PROJ_DATA;
-  mulMat4Mat4(addMulDst, addrMul, addrDst);
+  u32<$s2> mulDest = MATRIX_MVP;
+  u32<$s3> mulLeft = MATRIX_PROJ;
+  u32<$s4> mulRight = MATRIX_TEMP_MV;
+  mulMat4Mat4(mulDest, mulLeft, mulRight);
+
+  #undef MATRIX_TEMP_MV
+  #undef MATRIX_TEMP_MUL
 }
 
 /**
@@ -963,8 +990,8 @@ command<2> T3DCmd_MatSet(u32 addressMat, u32 offsetDestMul)
  * @param addressMat RDRAM address to load matrix from
  */
 command<8> T3DCmd_MatProjectionSet(u32 addressMat) {
-  addressMat &= 0xFFFFFF;
-  dma_in(MAT_PROJ_DATA, addressMat, 0x40);
+  u32<$s0> addrRDRAM = addressMat & 0xFFFFFF;
+  dma_in(MATRIX_PROJ, addrRDRAM, 0x40);
 }
 
 /**

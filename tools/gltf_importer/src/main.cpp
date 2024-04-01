@@ -4,7 +4,6 @@
 */
 #include <stdio.h>
 #include <string>
-#include <memory>
 #include <filesystem>
 #include <algorithm>
 
@@ -18,8 +17,36 @@
 namespace fs = std::filesystem;
 
 namespace {
-  constexpr std::size_t DEFAULT_CHUCK_SIZE = 1024*1024*4;
-  constexpr float MODEL_SCALE = 64.0f;
+  uint32_t insertString(std::string &stringTable, const std::string &newString) {
+    auto strPos = stringTable.find(newString);
+    if(strPos == std::string::npos) {
+      strPos = stringTable.size();
+      stringTable += newString;
+      stringTable.push_back('\0');
+    }
+    return strPos;
+  }
+
+  int writeBone(BinaryFile &file, const Bone &bone, std::string &stringTable, int level) {
+    //printf("Bone[%d]: %s -> %d\n", bone.index, bone.name.c_str(), bone.parentIndex);
+
+    file.write(insertString(stringTable, bone.name));
+    file.write<uint16_t>(bone.parentIndex);
+    file.write<uint16_t>(level); // level
+
+    auto matScaled = bone.parentMatrix;
+    matScaled[3][0] *= MODEL_SCALE;
+    matScaled[3][1] *= MODEL_SCALE;
+    matScaled[3][2] *= MODEL_SCALE;
+
+    file.writeArray(matScaled.ptr(), 4*4);
+
+    int boneCount = 1;
+    for(const auto& child : bone.children) {
+      boneCount += writeBone(file, *child, stringTable, level+1);
+    }
+    return boneCount;
+  };
 }
 
 int main(int argc, char* argv[])
@@ -27,12 +54,12 @@ int main(int argc, char* argv[])
   const char* gltfPath = argv[1];
   const char* t3dmPath = argv[2];
 
-  auto models = parseGLTF(gltfPath, MODEL_SCALE);
+  auto t3dm = parseGLTF(gltfPath, MODEL_SCALE);
   fs::path gltfBasePath{gltfPath};
 
   // sort models by transparency mode (opaque -> cutout -> transparent)
   // within the same transparency mode, sort by material
-  std::sort(models.begin(), models.end(), [](const Model &a, const Model &b) {
+  std::sort(t3dm.models.begin(), t3dm.models.end(), [](const Model &a, const Model &b) {
     if(a.materialA.alphaMode == b.materialA.alphaMode) {
       return a.materialA.uuid < b.materialA.uuid;
     }
@@ -42,14 +69,15 @@ int main(int argc, char* argv[])
   uint32_t chunkIndex = 0;
   uint32_t chunkCount = 2; // vertices + indices
   std::vector<ModelChunked> modelChunks{};
-  modelChunks.reserve(models.size());
-  for(const auto & model : models) {
+  modelChunks.reserve(t3dm.models.size());
+  for(const auto & model : t3dm.models) {
     modelChunks.push_back(chunkUpModel(model));
     chunkCount += 1 + 2; // object + material A/B (@TODO: optimize material count)
   }
+  chunkCount += t3dm.skeletons.empty() ? 0 : 1;
 
   // Main file
-  BinaryFile file{DEFAULT_CHUCK_SIZE};
+  BinaryFile file{};
   file.writeChars("T3DM", 4);
   file.write(chunkCount); // chunk count
 
@@ -83,10 +111,12 @@ int main(int argc, char* argv[])
   };
 
   // Chunks
-  BinaryFile chunkVerts{models.size() * DEFAULT_CHUCK_SIZE};
-  BinaryFile chunkIndices{models.size() * DEFAULT_CHUCK_SIZE};
+  BinaryFile chunkVerts{};
+  BinaryFile chunkIndices{};
   std::vector<std::shared_ptr<BinaryFile>> chunkMaterials{};
-  std::string stringBuffer = "S";
+  std::vector<BinaryFile> chunkSkeletons{};
+
+  std::string stringTable = "S";
 
   // now write out each model (aka. collection of mesh-parts + materials)
   int m=0;
@@ -94,14 +124,28 @@ int main(int argc, char* argv[])
   uint16_t totalVertCount = 0;
   uint16_t totalIndexCount = 0;
 
+  if(!t3dm.skeletons.empty())
+  {
+    auto &chunkBone = chunkSkeletons.emplace_back();
+    chunkBone.skip(4); // size, filed later
+
+    int boneCount = 0;
+    for(auto &skel : t3dm.skeletons) {
+      boneCount += writeBone(chunkBone, skel, stringTable, 0);
+    }
+
+    chunkBone.setPos(0);
+    chunkBone.write<uint16_t>(boneCount);
+  }
+
   file.align(8);
-  for(auto &model : models)
+  for(auto &model : t3dm.models)
   {
     addToChunkTable('O');
 
     // write material chunk(s)
-    auto writeMaterial = [&chunkMaterials, &stringBuffer, &gltfBasePath](const Material &material) {
-      auto f = std::make_shared<BinaryFile>(DEFAULT_CHUCK_SIZE);
+    auto writeMaterial = [&chunkMaterials, &stringTable, &gltfBasePath](const Material &material) {
+      auto f = std::make_shared<BinaryFile>();
       f->write(material.colorCombiner);
       f->write(material.drawFlags);
 
@@ -125,12 +169,7 @@ int main(int argc, char* argv[])
 
       if(!texPath.empty()) {
         // check if string already exits
-        auto strPos = stringBuffer.find(texPath);
-        if(strPos == std::string::npos) {
-          strPos = stringBuffer.size();
-          stringBuffer += texPath;
-          stringBuffer.push_back('\0');
-        }
+        auto strPos = insertString(stringTable, texPath);
 
         uint32_t hash = stringHash(texPath);
         printf("Texture: %s (%d)\n", texPath.c_str(), hash);
@@ -180,11 +219,11 @@ int main(int argc, char* argv[])
       partVertOffset += chunkVerts.getPos();
 
       file.write(partVertOffset);
-      file.write(chunk.vertexCount);
+      file.write<uint16_t>(chunk.vertexCount);
+      file.write<uint16_t>(chunk.vertexDestOffset);
       file.write(chunkIndices.getPos());
       file.write((uint16_t)chunk.indices.size());
-      file.write((uint8_t)0); // type
-      file.write((uint8_t)0); // padding
+      file.write<uint16_t>(chunk.boneIndex); // Matrix/Bone index
 
       for(uint8_t index : chunk.indices) {
         chunkIndices.write(index);
@@ -242,10 +281,16 @@ int main(int argc, char* argv[])
     file.writeMemFile(*f);
   }
 
+  for(const auto &chunkSkel : chunkSkeletons) {
+    file.align(8);
+    addToChunkTable('S');
+    file.writeMemFile(chunkSkel);
+  }
+
   // String table
   file.align(4);
   uint32_t stringTableOffset = file.getPos();
-  file.write(stringBuffer);
+  file.write(stringTable);
 
   file.setPos(offsetStringTablePtr);
   file.write(stringTableOffset);

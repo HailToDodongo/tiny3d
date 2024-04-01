@@ -17,12 +17,13 @@ int main()
   surface_t depthBuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
   rdpq_init();
 
-  t3d_init(); // Init library itself
+  t3d_init((T3DInitParams){}); // Init library itself, use empty params for default settings
 
   T3DMat4 modelMat; // matrix for our model, this is a "normal" float matrix
   t3d_mat4_identity(&modelMat);
   // Now allocate a fixed-point matrix, this is what t3d uses internally.
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP* modelMatScale = malloc_uncached(sizeof(T3DMat4FP));
 
   const T3DVec3 camPos = {{0,0,-18}};
   const T3DVec3 camTarget = {{0,0,0}};
@@ -93,8 +94,9 @@ int main()
     if(!dplDraw) {
       rspq_block_begin();
 
-      t3d_matrix_set_mul(modelMatFP, 1, 0); // Matrix load can be recorded as they DMA the data in internally
-      t3d_vert_load(vertices, 4); // load 4 vertices...
+      t3d_matrix_push(modelMatFP); // Matrix load can be recorded as they DMA the data in internally
+      t3d_vert_load(vertices, 0, 4); // load 4 vertices...
+      t3d_matrix_pop(1); // ...and pop the matrix, this can be done as soon as the vertices are loaded...
       t3d_tri_draw(0, 1, 2); // ...then draw 2 triangles
       t3d_tri_draw(2, 3, 0);
 
@@ -102,7 +104,6 @@ int main()
       t3d_tri_sync(); // after each batch of triangles, a sync is needed
       // technically, you only need a sync before any new 't3d_vert_load', rdpq call, or after the last triangle
       // for safety, just call it after you are done with all triangles after a load
-
 
       dplDraw = rspq_block_end();
     }

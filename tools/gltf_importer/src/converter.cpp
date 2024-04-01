@@ -13,7 +13,7 @@
 
 namespace
 {
-  constexpr int MAX_VERTEX_COUNT_RAW = 64;
+  constexpr int MAX_VERTEX_COUNT = 70;
   constexpr uint16_t INVALID_INDEX = 0xFFFF;
 
   uint16_t getVertexIndex(const ModelChunked &model, const VertexT3D &v, uint16_t startIndex)
@@ -47,10 +47,74 @@ namespace
   }
 }
 
+void convertVertex(
+  float modelScale, float texSizeX, float texSizeY, const VertexNorm &v, VertexT3D &vT3D,
+  const Mat4 &mat, const std::vector<Mat4> &matrices
+) {
+  Mat4 modelMat = mat;
+  //auto posInt = mat * v.pos * modelScale;
+  auto posInt = v.pos;
+
+  if(v.boneIndex >= 0) {
+    auto boneMat = matrices[v.boneIndex];
+    posInt = boneMat * (posInt);
+  }
+
+  posInt = mat * posInt * modelScale;
+  posInt = (posInt).round();
+  vT3D.pos[0] = (int16_t)posInt.x();
+  vT3D.pos[1] = (int16_t)posInt.y();
+  vT3D.pos[2] = (int16_t)posInt.z();
+
+  auto normPacked = (v.norm * Vec3{15.5f, 31.5f, 15.5f})
+    .round()
+    .clamp(
+      Vec3{-16.0f, -32.0f, -16.0f},
+      Vec3{ 15.0f,  31.0f,  15.0f}
+    );
+
+  vT3D.norm = ((int16_t)(normPacked[0]) & 0b11111 ) << 11
+            | ((int16_t)(normPacked[1]) & 0b111111) <<  5
+            | ((int16_t)(normPacked[2]) & 0b11111 ) <<  0;
+
+  vT3D.rgba = (uint32_t)(v.color[3] * 255.0f);
+  vT3D.rgba |= (uint32_t)(v.color[2] * 255.0f) << 8;
+  vT3D.rgba |= (uint32_t)(v.color[1] * 255.0f) << 16;
+  vT3D.rgba |= (uint32_t)(v.color[0] * 255.0f) << 24;
+
+  // Enable this to debug bone-indices:
+  /*if(v.boneIndex >= 0) {
+    vT3D.rgba = 0xFF;
+    vT3D.rgba |= (uint32_t)((uint32_t)((v.boneIndex+1) * 180) % 256) << 8;
+    vT3D.rgba |= (uint32_t)((uint32_t)((v.boneIndex+1) * 80) % 256) << 16;
+    vT3D.rgba |= (uint32_t)((uint32_t)((v.boneIndex+1) * 50) % 256) << 24;
+  } else {
+    vT3D.rgba = 0xFFFFFFFF;
+  }*/
+
+  vT3D.s = (int16_t)(int32_t)(v.uv[0] * texSizeX * 32.0f);
+  vT3D.t = (int16_t)(int32_t)(v.uv[1] * texSizeY * 32.0f);
+
+  vT3D.s -= 16.0f; // bi-linear offset (@TODO: do this in ucode?)
+  vT3D.t -= 16.0f;
+
+  // Generate hash for faster lookup later in the optimizer
+  vT3D.hash = ((uint64_t)(uint16_t)vT3D.pos[0] << 48)
+            | ((uint64_t)(uint16_t)vT3D.pos[1] << 32)
+            | ((uint64_t)(uint16_t)vT3D.pos[2] << 16)
+            | ((uint64_t)vT3D.norm << 0);
+  vT3D.hash ^= ((uint64_t)vT3D.rgba) << 5;
+  vT3D.hash ^= ((uint64_t)(uint16_t)vT3D.s << 16)
+             | ((uint64_t)(uint16_t)vT3D.t << 0);
+  vT3D.hash ^= ((v.boneIndex*5) << 16) | (v.boneIndex << 24);
+
+  vT3D.boneIndex = v.boneIndex;
+}
+
 ModelChunked chunkUpModel(const Model &model)
 {
   ModelChunked res{};
-  res.chunks.reserve(model.triangles.size() * 3 / MAX_VERTEX_COUNT_RAW);
+  res.chunks.reserve(model.triangles.size() * 3 / MAX_VERTEX_COUNT);
   res.chunks.push_back(MeshChunk{});
   res.chunks.back().materialA = model.materialA;
   res.chunks.back().materialB = model.materialB;
@@ -61,7 +125,7 @@ ModelChunked chunkUpModel(const Model &model)
   // Emits a new chunk of data. This contains a set of indices referencing the global vertex buffer
   auto checkAndEmitChunk = [&](bool forceEmit)
   {
-     if(emittedVerts >= MAX_VERTEX_COUNT_RAW || forceEmit) {
+     if(emittedVerts >= MAX_VERTEX_COUNT || forceEmit) {
         if(emittedVerts == 0 || res.vertices.empty())return false; // no need to emit empty chunks
 
         // make sure vertices can be interleaved later
@@ -69,21 +133,87 @@ ModelChunked chunkUpModel(const Model &model)
           if(!forceEmit) {
             throw std::runtime_error("Not a multiple of 2!");
           }
-          res.vertices.push_back({});
+          res.vertices.push_back(res.vertices.back());
           ++emittedVerts;
         }
 
-        if(emittedVerts > MAX_VERTEX_COUNT_RAW) {
+        if(emittedVerts > MAX_VERTEX_COUNT) {
           printf("Error: Too many vertices: %d (total: %d)\n", emittedVerts, res.vertices.size());
           throw std::runtime_error("Too many vertices!");
         }
 
         res.chunks.back().vertexCount = emittedVerts;
         res.chunks.back().vertexOffset = chunkOffset;
-        res.chunks.push_back(MeshChunk{});
 
-        res.chunks.back().materialA = model.materialA;
-        res.chunks.back().materialB = model.materialB;
+        // Special handling for bones: we need to sort new vertices by the bone index,
+        // then split up the chunk into multiple ones, each containing only one common bone index.
+        // All except the last will only load vertices, but draw no faces. The last one will do the drawing.
+
+        // iterate over all new verts and re-collect them into buffers
+        std::unordered_map<int32_t, std::vector<VertexT3D>> vertsByBone{};
+
+        for(uint32_t v=chunkOffset; v<(chunkOffset+emittedVerts); ++v) {
+          auto &vert = res.vertices[v];
+          vert.originalIndex = v - chunkOffset;
+          vertsByBone[vert.boneIndex].push_back(vert);
+        }
+
+        // if we only have one bone (can also mean no bones at all) -> do nothing
+        if(vertsByBone.size() > 1)
+        {
+          auto orgChunk = res.chunks.back();
+          res.chunks.pop_back();
+
+          uint32_t v=chunkOffset;
+          std::vector<uint32_t> indexMap{};
+          indexMap.resize(emittedVerts, 0);
+          uint32_t chunkSubOffset = chunkOffset;
+          uint32_t vertDestOffset = 0;
+
+          for(auto & [boneIndex, verts] : vertsByBone) {
+            // per unique bone index, create a new chunk...
+            auto subChunk = orgChunk;
+            subChunk.vertexCount = verts.size(); // ...only for its vertices...
+            subChunk.vertexOffset = chunkSubOffset; // ...starting from the last chunks offset
+            subChunk.vertexDestOffset = vertDestOffset;
+            subChunk.boneIndex = boneIndex;
+            subChunk.indices.clear();
+
+            for(auto &vert : verts) {
+              res.vertIdxMap[vert.hash] = v;
+              res.vertices[v++] = vert;
+              indexMap[vert.originalIndex] = vertDestOffset++;
+            }
+
+            // if out vertex count is odd, inject a dummy vertex to keep alignment
+            // this will only affect the buffer that's read from, the target buffer on the RSP will have the real index
+            if(verts.size() % 2 != 0) {
+              subChunk.vertexCount += 1;
+
+              // now inject a dummy vertex at 'chunkSubOffset' into the input buffer to keep alignment
+              res.vertices.insert(res.vertices.begin() + v, res.vertices.back());
+              ++emittedVerts;
+              ++v;
+            }
+
+            res.chunks.push_back(subChunk);
+            chunkSubOffset += subChunk.vertexCount;
+          }
+
+          // re-assign the indices in the last chunk that does the drawing
+          res.chunks.back().indices = orgChunk.indices;
+
+          for(auto &idx : res.chunks.back().indices) {
+            idx = indexMap[idx];
+          }
+        } else {
+          // chunk could still have a bone assignment, grab the bone index from the first vertex
+          if(!vertsByBone.empty()) {
+            res.chunks.back().boneIndex = vertsByBone.begin()->first;
+          }
+        }
+
+        res.chunks.push_back(MeshChunk{.materialA = model.materialA, .materialB = model.materialB});
 
         chunkOffset += emittedVerts;
         emittedVerts = 0;
@@ -107,7 +237,8 @@ ModelChunked chunkUpModel(const Model &model)
       }
     }
 
-    if((emittedVerts + needsEmit.size()) >= MAX_VERTEX_COUNT_RAW) {
+    // check if triangle would still fit into the buffer
+    if((emittedVerts + needsEmit.size()) >= MAX_VERTEX_COUNT) {
       //printf("Warning: Skipping triangle, not enough space for vertices!\n");
       return false;
     }
@@ -136,8 +267,6 @@ ModelChunked chunkUpModel(const Model &model)
   for(int t=0; t<model.triangles.size(); ++t)
   {
     if(triangleIsEmitted[t])continue;
-
-    int vertsLeft = MAX_VERTEX_COUNT_RAW - emittedVerts;
 
     checkAndEmitChunk(false);
     if(!emitTriangle(model.triangles[t], false)) {
@@ -180,7 +309,7 @@ ModelChunked chunkUpModel(const Model &model)
     // First check 3 (no new vertex needed), then the ones with 2, then 1
     for(int maxCount=3; maxCount>0; --maxCount)
     {
-      auto freeVertLeft = MAX_VERTEX_COUNT_RAW - emittedVerts;
+      auto freeVertLeft = MAX_VERTEX_COUNT - emittedVerts;
       if(freeVertLeft < maxCount)break;
 
       for(int triIdx= t + 1; triIdx < model.triangles.size(); ++triIdx)
@@ -210,10 +339,20 @@ ModelChunked chunkUpModel(const Model &model)
 
   // remove empty chunks
   res.chunks.erase(std::remove_if(res.chunks.begin(), res.chunks.end(), [](const MeshChunk &chunk) {
-    return chunk.indices.empty();
+    return chunk.vertexCount == 0;
   }), res.chunks.end());
 
+  // check validity
   assert(res.vertices.size() % 2 == 0);
+  for(const auto &chunk : res.chunks) {
+    assert(chunk.vertexCount % 2 == 0);
+    assert(chunk.vertexOffset % 2 == 0);
+    // 'chunk.vertexDestOffset' needs no alignment
+
+    // we can go a little bit OOB (there is a tmp buffer after it, and the DMA doesn't overlap)
+    // this may be needed to split vertices with bones properly
+    assert((chunk.vertexDestOffset + chunk.vertexCount) <= (MAX_VERTEX_COUNT+1));
+  }
 
   return res;
 }

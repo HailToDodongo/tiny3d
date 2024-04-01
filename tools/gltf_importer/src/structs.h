@@ -10,9 +10,13 @@
 #include <unordered_set>
 #include <vector>
 #include <string>
+#include <memory>
 
 #include "math/vec2.h"
 #include "math/vec3.h"
+#include "math/mat4.h"
+
+constexpr float MODEL_SCALE = 64.0f;
 
 namespace DrawFlags {
   constexpr uint32_t DEPTH      = 1 << 0;
@@ -57,8 +61,8 @@ struct VertexNorm {
   Vec3 norm{};
   float color[4]{};
   Vec2 uv{};
+  int32_t boneIndex{-1};
 };
-
 
 struct VertexT3D {
   /* 0x00 */ int16_t pos[3]{}; // 16.0 fixed point
@@ -67,14 +71,17 @@ struct VertexT3D {
   /* 0x0C */ int16_t s{}; // 10.6 fixed point (pixel coords)
   /* 0x0E */ int16_t t{}; // 10.6 fixed point (pixel coords)
 
+  // Extra attributes not used in the final vertex data:
   uint64_t hash{};
+  int32_t boneIndex{};
+  uint32_t originalIndex{};
 
   bool operator==(const VertexT3D& v) const {
     return hash == v.hash;
   }
 
   constexpr static uint32_t byteSize() {
-    return sizeof(VertexT3D) - sizeof(hash);
+    return sizeof(VertexT3D) - sizeof(hash) - sizeof(boneIndex) - sizeof(originalIndex);
   }
 
   //bool operator<=>(const VertexT3D&) const = default;
@@ -127,6 +134,8 @@ struct MeshChunk {
   Material materialB{};
   uint32_t vertexOffset{0};
   uint32_t vertexCount{0};
+  uint32_t vertexDestOffset{0};
+  uint32_t boneIndex{0};
 };
 
 struct Model {
@@ -143,4 +152,20 @@ struct ModelChunked {
 
   Material materialA{};
   Material materialB{};
+};
+
+struct Bone {
+  std::string name;
+  Mat4 parentMatrix;
+  Mat4 modelMatrix;
+  Mat4 inverseBindPose;
+
+  uint32_t index;
+  uint32_t parentIndex;
+  std::vector<std::shared_ptr<Bone>> children;
+};
+
+struct T3DMData {
+  std::vector<Model> models{};
+  std::vector<Bone> skeletons{};
 };

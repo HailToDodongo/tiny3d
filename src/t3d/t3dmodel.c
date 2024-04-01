@@ -69,7 +69,6 @@ static void texture_cache_free(uint32_t hash)
 
 static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *conf)
 {
-
   if(mat->texPath || mat->texReference)
   {
     debugf("Load Texture: %s (%08lX)\n", mat->texPath, mat->textureHash);
@@ -143,6 +142,14 @@ T3DModel *t3d_model_load(const void *path) {
         part->vert = patch_pointer(part->vert, (uint32_t)basePtrVertices);
       }
     }
+
+    if(chunkType == 'S') {
+      T3DChunkSkeleton *skel = (void*)model + offset;
+      for(int j = 0; j < skel->boneCount; j++) {
+        T3DChunkBone *bone = &skel->bones[j];
+        bone->name = patch_pointer(bone->name, (uint32_t)model->stringTablePtr);
+      }
+    }
   }
 
   data_cache_hit_writeback_invalidate(model, size);
@@ -159,6 +166,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
   uint8_t lastAlphaMode = 0xFF;
   uint32_t lastRenderFlags = 0;
   uint64_t lastCC = 0;
+  bool hadMatrixPush = false;
 
   for(int c = 0; c < model->chunkCount; c++) {
     char chunkType = model->chunkOffsets[c].type;
@@ -190,17 +198,37 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
       }
     }
 
+    bool hadMaterial = false;
     for (int p = 0; p < obj->numParts; p++)
     {
       const T3DObjectPart *part = &obj->parts[p];
 
+      if(conf.matrices) {
+        if(part->matrixIdx != 0xFFFF) {
+          if(!hadMatrixPush) {
+            t3d_matrix_push(&conf.matrices[part->matrixIdx]);
+          } else {
+            t3d_matrix_set(&conf.matrices[part->matrixIdx], true);
+          }
+          hadMatrixPush = true;
+        } else {
+          if(hadMatrixPush) {
+            t3d_matrix_pop(1);
+            hadMatrixPush = false;
+          }
+        }
+      }
+
       // load vertices, this will already do T&L (so matrices/fog/lighting must be set before)
-      t3d_vert_load(part->vert, part->vertLoadCount);
+      t3d_vert_load(part->vert, part->vertDestOffset, part->vertLoadCount);
+      //debugf("Load Vertices[%d]: %d, %d | bone: %d\n", p, part->vertDestOffset, part->vertLoadCount, part->matrixIdx);
+      if(part->numIndices == 0)continue; // partial-load, last chunk of a sequence will both indices & material data
 
       // now apply rdpq settings, these are independent of the t3d state
       // and only need to happen before a `t3d_tri_draw` call
-      if(p == 0 && matMain && matMain->colorCombiner)
+      if(!hadMaterial && matMain && matMain->colorCombiner)
       {
+        hadMaterial = true;
         bool hadPipeSync = false;
         bool hadTexLoad = false;
 
@@ -270,6 +298,10 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
       // At this point the RDP may already process triangles.
       // In the next iteration we may therefore need to sync when changing any RDP states
     }
+  }
+
+  if(hadMatrixPush) {
+    t3d_matrix_pop(1);
   }
 }
 

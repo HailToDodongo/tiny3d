@@ -7,4 +7,4 @@
 
 #include "structs.h"
 
-std::vector<Model> parseGLTF(const char* gltfPath, float modelScale);
+T3DMData parseGLTF(const char* gltfPath, float modelScale);

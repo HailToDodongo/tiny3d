@@ -23,7 +23,7 @@ int main()
   surface_t depthBuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
 
   rdpq_init();
-  t3d_init();
+  t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create();
 
   // Now allocate a fixed-point matrix, this is what t3d uses internally.
@@ -48,8 +48,9 @@ int main()
   T3DModel *modelLight = t3d_model_load("rom:/light.t3dm");
 
   rspq_block_begin();
-  t3d_matrix_set_mul(modelMatFP, 1, 0);
+  t3d_matrix_push(modelMatFP);
   t3d_model_draw(model);
+  t3d_matrix_pop(1);
   rspq_block_t *dplModel = rspq_block_end();
 
   rspq_block_begin();
@@ -115,16 +116,18 @@ int main()
 
     t3d_light_set_count(lightCount);
 
-
     t3d_light_set_ambient(colorAmbient);
 
+    t3d_matrix_push_pos(1);
     for(int i = 0; i < lightCount; i++) {
       t3d_light_set_directional(i, &dirLights[i].color.r, &dirLights[i].dir);
-      t3d_matrix_set_mul(&lightMatFP[i], 1, 0);
+
+      t3d_matrix_set(&lightMatFP[i], true);
 
       rdpq_set_prim_color(dirLights[i].color);
       rspq_block_run(dplLight);
     }
+    t3d_matrix_pop(1);
 
     rspq_block_run(dplModel);
 

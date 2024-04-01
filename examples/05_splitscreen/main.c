@@ -38,7 +38,7 @@ int main()
   rdpq_init();
 
   joypad_init();
-  t3d_init();
+  t3d_init((T3DInitParams){});
 
   T3DMat4 tmpMatrix;
 
@@ -152,20 +152,23 @@ int main()
 
       // if you need directional light, re-apply it here after a new viewport has been attached
       //t3d_light_set_directional(0, colorDir, &lightDirVec);
+      t3d_matrix_push_pos(1);
 
       // draw player-models
       for(int p=0; p<PLAYER_COUNT; ++p)
       {
         if(p == v)continue;
-        t3d_matrix_set_mul(players[p].mat, 1, 0);
+        t3d_matrix_set(players[p].mat, true);
         rdpq_set_prim_color(players[p].color);
-        t3d_matrix_set_mul(players[p].mat, 1, 0);
+        t3d_matrix_set(players[p].mat, true);
         rspq_block_run(dplPlayer);
       }
 
       rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-      t3d_matrix_set_mul(modelMatFP, 1, 0);
+      t3d_matrix_set(modelMatFP, true);
       rspq_block_run(dplMap);
+
+      t3d_matrix_pop(1);
     }
 
     // ======== Draw (2D) ======== //

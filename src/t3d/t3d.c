@@ -12,24 +12,25 @@ uint32_t T3D_RSP_ID = 0;
 #define MIN(a,b) (a) < (b) ? (a) : (b)
 #define CLAMP(x, min, max) MIN(MAX((x), (min)), (max))
 
-#define MODEL_MATRIX_SIZE 0x40
+#define VERT_INPUT_SIZE  16
+#define VERT_OUTPUT_SIZE 36
 
 static T3DViewport *currentViewport = NULL;
+static T3DMat4FP *matrixStack = NULL;
 
-__attribute__((unused))
-static int16_t float_to_s16(float val)
+void t3d_init(T3DInitParams params)
 {
-  float valNorm = val * 32768.f;
-  if(valNorm >= 32768.f)return 0x7FFF;
-  if(valNorm < -32768.f)return 0x8000;
-  return (int16_t)floor(valNorm);
-}
+  if(params.matrixStackSize <= 0)params.matrixStackSize = 8;
 
-void t3d_init(void)
-{
   rspq_init();
-  void* state = UncachedAddr(rspq_overlay_get_state(&rsp_tiny3d));
-  memset(state, 0, 0x400);
+  char* state = (char*)UncachedAddr(rspq_overlay_get_state(&rsp_tiny3d));
+
+  // Allocate matrix stack and let the ucode know where it is
+  matrixStack = malloc_uncached(sizeof(T3DMat4FP) * params.matrixStackSize);
+
+  uint32_t *stackPtr = (uint32_t*)((char*)state + ((RSP_T3D_MATRIX_STACK_PTR - RSP_T3D_STATE_MEM_START) & 0xFFFF));
+  *stackPtr = (uint32_t)UncachedAddr(matrixStack);
+
   T3D_RSP_ID = rspq_overlay_register(&rsp_tiny3d);
 
   // It's very common to run into under-flows, to avoid costly checks
@@ -53,18 +54,28 @@ void t3d_screen_clear_depth() {
   rdpq_clear_z(0xFFFC);
 }
 
-void t3d_matrix_set(const T3DMat4FP *mat, uint32_t idxDst) {
-  t3d_matrix_set_mul(mat, idxDst, idxDst);
+inline static void t3d_matrix_stack(void *mat, int32_t stackAdvance, bool doMultiply, bool onlyStackMove) {
+  rspq_write(T3D_RSP_ID, T3D_CMD_MATRIX_STACK,
+    PhysicalAddr(mat), (stackAdvance << 16) | (onlyStackMove ? 2 : 0) | (doMultiply ? 1 : 0)
+  );
 }
 
-void t3d_matrix_set_mul(const T3DMat4FP *mat, uint32_t idxDst, uint32_t idxMul) {
-  idxDst *= MODEL_MATRIX_SIZE;
-  idxMul *= MODEL_MATRIX_SIZE;
+void t3d_matrix_set(const T3DMat4FP *mat, bool doMultiply) {
+  t3d_matrix_stack((void*)mat, 0, doMultiply, false);
+}
 
-  rspq_write(T3D_RSP_ID, T3D_CMD_MAT_SET,
-    PhysicalAddr(mat),
-    idxDst << 16 | idxMul
-  );
+void t3d_matrix_push(const T3DMat4FP *mat) {
+  t3d_matrix_stack((void*)mat, sizeof(T3DMat4FP), true, false);
+}
+
+void t3d_matrix_pop(int count) {
+  int32_t stackAdvance = -((int)sizeof(T3DMat4FP) * count);
+  t3d_matrix_stack(NULL, stackAdvance, false, false);
+}
+
+void t3d_matrix_push_pos(int count) {
+  int32_t stackAdvance = sizeof(T3DMat4FP) * count;
+  t3d_matrix_stack(NULL, stackAdvance, false, true);
 }
 
 void t3d_matrix_set_proj(const T3DMat4FP *mat) {
@@ -78,14 +89,24 @@ void t3d_matrix_set_proj(const T3DMat4FP *mat) {
   );
 }*/
 
-void t3d_vert_load(const T3DVertPacked *vertices, uint32_t count) {
-  uint8_t offsetDst = 0;
-  count &= ~1; // always load in pairs of 2
-  count *= 0x10;
+void t3d_vert_load(const T3DVertPacked *vertices, uint32_t offset, uint32_t count) {
+  uint32_t inputSize = (count & ~1) * VERT_INPUT_SIZE; // always load in pairs of 2
+
+  // calculate where to start the DMA, this may overlap the buffer of transformed vertices
+  // we have to place it so that racing the input data is possible
+  uint32_t tmpBufferEnd = (RSP_T3D_CLIP_BUFFER_RESULT & 0xFFFF) + 6*16;
+  uint16_t offsetDest = tmpBufferEnd - inputSize;
+  offsetDest = (offsetDest & ~0xF); // make sure it's aligned to 16 bytes, must be aligned backwards
+
+  // DMEM address where the transformed vertices are stored
+  // must be within RSP_T3D_TRI_BUFFER, alignment is not required
+  uint16_t offsetInput = RSP_T3D_TRI_BUFFER & 0xFFFF;
+  offsetInput += offset * VERT_OUTPUT_SIZE;
 
   rspq_write(T3D_RSP_ID, T3D_CMD_VERT_LOAD,
-    (offsetDst << 16) | count,
-    PhysicalAddr(vertices)
+    inputSize,
+    PhysicalAddr(vertices),
+    (offsetDest << 16) | offsetInput
   );
 }
 
@@ -183,9 +204,9 @@ void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags)
 
 void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
 {
-  v0 *= 36; // @TODO: share const with RSPL
-  v1 *= 36;
-  v2 *= 36;
+  v0 *= VERT_OUTPUT_SIZE;
+  v1 *= VERT_OUTPUT_SIZE;
+  v2 *= VERT_OUTPUT_SIZE;
 
   v0 += RSP_T3D_TRI_BUFFER & 0xFFFF;
   v1 += RSP_T3D_TRI_BUFFER & 0xFFFF;
@@ -260,7 +281,7 @@ void t3d_viewport_attach(T3DViewport *viewport) {
   // update camera matrix
   t3d_mat4_to_fixed(&viewport->_matCameraFP, &viewport->matCamera);
   data_cache_hit_writeback(&viewport->_matCameraFP, sizeof(T3DMat4FP));
-  t3d_matrix_set(&viewport->_matCameraFP, 0);
+  t3d_matrix_set(&viewport->_matCameraFP, false);
 }
 
 void t3d_viewport_set_projection(T3DViewport *viewport, float fov, float near, float far) {
