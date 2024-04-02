@@ -5,6 +5,7 @@
 #pragma once
 
 #include "../types.h"
+#include "vec4.h"
 #include <math.h>
 
 struct Quat
@@ -15,6 +16,7 @@ struct Quat
   constexpr Quat() = default;
   constexpr Quat(f32 s): data{s,s,s,s} {};
   constexpr Quat(f32 w, f32 x, f32 y, f32 z): data{w,x,y,z} {};
+  constexpr Quat(const Vec4 &v): data{v[0],v[1],v[2],v[3]} {};
   constexpr Quat(const Quat& q) = default;
 
   Quat(const Vec3 &euler)
@@ -36,6 +38,9 @@ struct Quat
   [[nodiscard]] const f32* ptr() const { return data; }
   f32* ptr() { return data; }
 
+  float& operator[](u64 index) { return data[index]; }
+  constexpr const float& operator[](u64 index) const { return data[index]; }
+
   [[nodiscard]] f32& x() { return data[1]; }
   [[nodiscard]] f32& y() { return data[2]; }
   [[nodiscard]] f32& z() { return data[3]; }
@@ -54,6 +59,24 @@ struct Quat
     data[0] = 0.0f; data[1] = 0.0f;
     data[2] = 0.0f; data[3] = 0.0f;
   }
+
+  [[nodiscard]] Quat slerp(const Quat &b, float factor) const {
+    Quat res;
+    float dot = x() * b.x() + y() * b.y() + z() * b.z() + w() * b.w();
+    float theta = acosf(dot);
+    if (fabsf(theta) < 0.0001f) {
+      res = *this;
+    } else {
+      float sinTheta = sinf(theta);
+      float s0 = sinf((1.0f - factor) * theta) / sinTheta;
+      float s1 = sinf(factor * theta) / sinTheta;
+      res.x() = s0 * x() + s1 * b.x();
+      res.y() = s0 * y() + s1 * b.y();
+      res.z() = s0 * z() + s1 * b.z();
+      res.w() = s0 * w() + s1 * b.w();
+    }
+    return res;
+  };
 
   // Operations
   Quat operator*(const Quat& b) const

@@ -92,23 +92,13 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
 
   // Animations
   printf("Animations: %d\n", data->animations_count);
-/*
-  for(int i=0; i<data->animations_count; ++i) {
-    auto &anim = data->animations[i];
-    printf("Animation %d: %s\n", i, anim.name);
-    printf(" - Channels: %d\n", anim.channels_count);
-    printf(" - Samplers: %d\n", anim.samplers_count);
 
-    for(int j=0; j<anim.channels_count; ++j) {
-      auto &channel = anim.channels[j];
-      printf("  - Channel %d\n", j);
-      printf("    - Target: %s\n", channel.target_node->name);
-      printf("    - Path: %d\n", channel.target_path);
-      printf("    - Sampler: %d\n", channel.sampler->input->count);
-    }
+  for(int i=0; i<data->animations_count; ++i) {
+    auto anim = parseAnimation(data->animations[i], config.animSampleRate);
+    printf(" - Animation %d: %s\n", i, anim.name.c_str());
   }
   printf("\n\n\n");
-  */
+
 
   // Meshes
   printf("Node count: %d\n", data->nodes_count);

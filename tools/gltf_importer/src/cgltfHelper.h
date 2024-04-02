@@ -21,6 +21,31 @@ namespace Gltf
     }
   }
 
+  inline const char* getTypeString(cgltf_type type)
+  {
+    switch(type) {
+      case cgltf_type_scalar: return "Scalar";
+      case cgltf_type_vec2: return "Vec2";
+      case cgltf_type_vec3: return "Vec3";
+      case cgltf_type_vec4: return "Vec4";
+      case cgltf_type_mat2: return "Mat2";
+      case cgltf_type_mat3: return "Mat3";
+      case cgltf_type_mat4: return "Mat4";
+      default: return "<?>";
+    }
+  }
+
+  inline const char* getAnimTargetString(cgltf_animation_path_type type)
+  {
+    switch(type) {
+      case cgltf_animation_path_type_translation: return "Translation";
+      case cgltf_animation_path_type_rotation: return "Rotation";
+      case cgltf_animation_path_type_scale: return "Scale";
+      case cgltf_animation_path_type_weights: return "Weights";
+      default: return "<?>";
+    }
+  }
+
   inline int getDataSize(cgltf_component_type type)
   {
     switch(type) {
@@ -44,6 +69,73 @@ namespace Gltf
       case cgltf_component_type_r_32f: return (float)(*(float*)data);
       default: return 0.0f;
     }
+  }
+
+  inline Vec3 readAsVec3(const uint8_t* data, cgltf_type type, cgltf_component_type compType) {
+    Vec3 result{};
+    switch(type) {
+      case cgltf_type_scalar: {
+        result[0] = readAsFloat(data, compType);
+        result[1] = result[0];
+        result[2] = result[0];
+        break;
+      }
+      case cgltf_type_vec2: {
+        result[0] = readAsFloat(data, compType);
+        result[1] = readAsFloat(data + getDataSize(compType), compType);
+        result[2] = 0.0f;
+        break;
+      }
+      case cgltf_type_vec4:
+      case cgltf_type_vec3: {
+        result[0] = readAsFloat(data, compType);
+        result[1] = readAsFloat(data + getDataSize(compType), compType);
+        result[2] = readAsFloat(data + getDataSize(compType) * 2, compType);
+        break;
+      }
+      default:
+        printf("Unsupported type: %s (%d)\n", getTypeString(type), type);
+        throw std::runtime_error("Unsupported type");
+    }
+    return result;
+  }
+
+  inline Vec4 readAsVec4(const uint8_t* data, cgltf_type type, cgltf_component_type compType) {
+    Vec4 result{};
+    switch(type) {
+      case cgltf_type_scalar: {
+        result[0] = readAsFloat(data, compType);
+        result[1] = 0.0f;
+        result[2] = 0.0f;
+        result[3] = 0.0f;
+        break;
+      }
+      case cgltf_type_vec2: {
+        result[0] = readAsFloat(data, compType);
+        result[1] = readAsFloat(data + getDataSize(compType), compType);
+        result[2] = 0.0f;
+        result[3] = 0.0f;
+        break;
+      }
+      case cgltf_type_vec3: {
+        result[0] = readAsFloat(data, compType);
+        result[1] = readAsFloat(data + getDataSize(compType), compType);
+        result[2] = readAsFloat(data + getDataSize(compType) * 2, compType);
+        result[3] = 0.0f;
+        break;
+      }
+      case cgltf_type_vec4: {
+        result[0] = readAsFloat(data, compType);
+        result[1] = readAsFloat(data + getDataSize(compType), compType);
+        result[2] = readAsFloat(data + getDataSize(compType) * 2, compType);
+        result[3] = readAsFloat(data + getDataSize(compType) * 3, compType);
+        break;
+      }
+      default:
+        printf("Unsupported type: %s (%d)\n", getTypeString(type), type);
+        throw std::runtime_error("Unsupported type");
+    }
+    return result;
   }
 
   inline uint32_t readAsU32(uint8_t* data, cgltf_component_type type) {

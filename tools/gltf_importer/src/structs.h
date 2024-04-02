@@ -16,8 +16,6 @@
 #include "math/vec3.h"
 #include "math/mat4.h"
 
-constexpr float MODEL_SCALE = 64.0f;
-
 namespace DrawFlags {
   constexpr uint32_t DEPTH      = 1 << 0;
   constexpr uint32_t TEXTURED   = 1 << 1;
@@ -165,7 +163,33 @@ struct Bone {
   std::vector<std::shared_ptr<Bone>> children;
 };
 
+typedef enum AnimChannelTarget : u32 {
+  TRANSLATION,
+  SCALE,
+  SCALE_UNIFORM,
+  ROTATION
+} AnimChannelTarget;
+
+struct AnimChannel {
+  std::string targetName{};
+  AnimChannelTarget targetType{};
+  uint32_t targetIndex{}; // for pos/scale, determines which axis to modify
+  std::vector<float> values{};
+};
+
+struct Anim {
+  std::string name{};
+  uint32_t sampleRate{};
+  std::vector<AnimChannel> channels{};
+};
+
 struct T3DMData {
   std::vector<Model> models{};
   std::vector<Bone> skeletons{};
 };
+
+struct Config {
+  float globalScale{64.0f};
+  uint32_t animSampleRate{30};
+};
+extern Config config;

@@ -14,6 +14,8 @@
 #include "binaryFile.h"
 #include "converter.h"
 
+Config config;
+
 namespace fs = std::filesystem;
 
 namespace {
@@ -35,9 +37,9 @@ namespace {
     file.write<uint16_t>(level); // level
 
     auto matScaled = bone.parentMatrix;
-    matScaled[3][0] *= MODEL_SCALE;
-    matScaled[3][1] *= MODEL_SCALE;
-    matScaled[3][2] *= MODEL_SCALE;
+    matScaled[3][0] *= config.globalScale;
+    matScaled[3][1] *= config.globalScale;
+    matScaled[3][2] *= config.globalScale;
 
     file.writeArray(matScaled.ptr(), 4*4);
 
@@ -54,7 +56,10 @@ int main(int argc, char* argv[])
   const char* gltfPath = argv[1];
   const char* t3dmPath = argv[2];
 
-  auto t3dm = parseGLTF(gltfPath, MODEL_SCALE);
+  config.globalScale = 64.0f;
+  config.animSampleRate = 30.0f;
+
+  auto t3dm = parseGLTF(gltfPath, config.globalScale);
   fs::path gltfBasePath{gltfPath};
 
   // sort models by transparency mode (opaque -> cutout -> transparent)
