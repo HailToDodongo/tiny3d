@@ -100,7 +100,7 @@ static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *co
     if(mat->texReference) {
       if(conf->dynTextureCb)conf->dynTextureCb(conf->userData, mat, &tex, tile);
     } else {
-    rdpq_sync_tile();
+      rdpq_sync_tile();
       rdpq_sprite_upload(tile, mat->texture, &tex);
     }
   }

@@ -60,6 +60,10 @@ struct Quat
     data[2] = 0.0f; data[3] = 0.0f;
   }
 
+  [[nodiscard]] bool isIdentity() const {
+    return data[0] == 1.0f && data[1] == 0.0f && data[2] == 0.0f && data[3] == 0.0f;
+  }
+
   [[nodiscard]] Quat slerp(const Quat &b, float factor) const {
     Quat res;
     float dot = x() * b.x() + y() * b.y() + z() * b.z() + w() * b.w();

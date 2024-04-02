@@ -14,7 +14,7 @@
 #include "lib/meshopt/meshoptimizer.h"
 #include "math/mat4.h"
 #include "parser/parser.h"
-#include "converter.h"
+#include "converter/converter.h"
 
 void printBoneTree(const Bone &bone, int depth)
 {
@@ -96,6 +96,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
   for(int i=0; i<data->animations_count; ++i) {
     auto anim = parseAnimation(data->animations[i], config.animSampleRate);
     printf(" - Animation %d: %s\n", i, anim.name.c_str());
+    convertAnimation(anim);
   }
   printf("\n\n\n");
 

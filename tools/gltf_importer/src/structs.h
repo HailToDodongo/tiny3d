@@ -174,7 +174,16 @@ struct AnimChannel {
   std::string targetName{};
   AnimChannelTarget targetType{};
   uint32_t targetIndex{}; // for pos/scale, determines which axis to modify
-  std::vector<float> values{};
+
+  std::vector<float> valScalar{};
+  std::vector<Quat> valQuat{};
+
+  float startValScalar{};
+  Quat startValQuat{};
+
+  bool isRotation() const {
+    return targetType == ROTATION;
+  }
 };
 
 struct Anim {

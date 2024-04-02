@@ -12,7 +12,7 @@
 #include "hash.h"
 
 #include "binaryFile.h"
-#include "converter.h"
+#include "converter/converter.h"
 
 Config config;
 

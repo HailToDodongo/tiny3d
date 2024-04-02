@@ -74,26 +74,32 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
       }
       float sampleInterpol = (t - time) / (nextTime - time);
 
-      if(channel.target_path == cgltf_animation_path_type::cgltf_animation_path_type_rotation) {
+      if(channel.target_path == cgltf_animation_path_type_rotation) {
         Quat value = Gltf::readAsVec4(dataOutput, samplerOut.type, samplerOut.component_type);
         Quat valueNext = Gltf::readAsVec4(dataOutputNext, samplerOut.type, samplerOut.component_type);
         value = value.slerp(valueNext, sampleInterpol);
 
         //printf("    - %.4fs/%.4f [f:%.2f]: b:%.4f i=%d: %.4f %.4f %.4f %.4f\n", t, timeEnd, frame, sampleInterpol, samplerIn.count, value[0], value[1], value[2], value[3]);
-        res.channels.back().values.push_back(value[0]);
-        res.channels.back().values.push_back(value[1]);
-        res.channels.back().values.push_back(value[2]);
-        res.channels.back().values.push_back(value[3]);
+        res.channels.back().valQuat.push_back(value);
       } else {
         Vec3 value = Gltf::readAsVec3(dataOutput, samplerOut.type, samplerOut.component_type);
         Vec3 valueNext = Gltf::readAsVec3(dataOutputNext, samplerOut.type, samplerOut.component_type);
         value = value.mix(valueNext, sampleInterpol);
 
         //printf("    - %.4fs/%.4f [f:%.2f]: b:%.4f i=%d: %.4f %.4f %.4f\n", t, timeEnd, frame, sampleInterpol, samplerIn.count, value[0], value[1], value[2]);
-        res.channels[res.channels.size()-3].values.push_back(value[0]);
-        res.channels[res.channels.size()-2].values.push_back(value[1]);
-        res.channels[res.channels.size()-1].values.push_back(value[2]);
+        res.channels[res.channels.size()-3].valScalar.push_back(value[0]);
+        res.channels[res.channels.size()-2].valScalar.push_back(value[1]);
+        res.channels[res.channels.size()-1].valScalar.push_back(value[2]);
       }
+    }
+
+    // remember the first value in the channel
+    if(res.channels.back().isRotation()) {
+      res.channels.back().startValQuat = res.channels.back().valQuat[0];
+    } else {
+      res.channels[res.channels.size()-3].startValScalar = res.channels[res.channels.size()-3].valScalar[0];
+      res.channels[res.channels.size()-2].startValScalar = res.channels[res.channels.size()-2].valScalar[0];
+      res.channels[res.channels.size()-1].startValScalar = res.channels[res.channels.size()-1].valScalar[0];
     }
   }
 
