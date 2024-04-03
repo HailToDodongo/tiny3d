@@ -12,10 +12,10 @@ Mat4 parseNodeMatrix(const cgltf_node *node, const Vec3 &posScale)
 
   Mat4 matRot{};
   if(node->has_rotation)matRot.setRot({
-    node->rotation[3],
     node->rotation[0],
     node->rotation[1],
-    node->rotation[2]
+    node->rotation[2],
+    node->rotation[3]
   });
 
   Mat4 matTrans{};
