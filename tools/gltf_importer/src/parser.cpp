@@ -97,6 +97,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
     auto anim = parseAnimation(data->animations[i], config.animSampleRate);
     printf(" - Animation %d: %s\n", i, anim.name.c_str());
     convertAnimation(anim);
+    t3dm.animations.push_back(anim);
   }
   printf("\n\n\n");
 

@@ -104,6 +104,10 @@ class BinaryFile
       }
     }
 
+    uint32_t getSize() const {
+      return dataSize;
+    }
+
     void writeToFile(const char* filename) {
       FILE* file = fopen(filename, "wb");
       fwrite(data.data(), 1, dataSize, file);

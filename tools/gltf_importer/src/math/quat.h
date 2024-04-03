@@ -15,7 +15,7 @@ struct Quat
   // Constructors
   constexpr Quat() = default;
   constexpr Quat(f32 s): data{s,s,s,s} {};
-  constexpr Quat(f32 w, f32 x, f32 y, f32 z): data{w,x,y,z} {};
+  constexpr Quat(f32 x, f32 y, f32 z, f32 w): data{x,y,z,w} {};
   constexpr Quat(const Vec4 &v): data{v[0],v[1],v[2],v[3]} {};
   constexpr Quat(const Quat& q) = default;
 
@@ -41,15 +41,15 @@ struct Quat
   float& operator[](u64 index) { return data[index]; }
   constexpr const float& operator[](u64 index) const { return data[index]; }
 
-  [[nodiscard]] f32& x() { return data[1]; }
-  [[nodiscard]] f32& y() { return data[2]; }
-  [[nodiscard]] f32& z() { return data[3]; }
-  [[nodiscard]] f32& w() { return data[0]; }
+  [[nodiscard]] f32& x() { return data[0]; }
+  [[nodiscard]] f32& y() { return data[1]; }
+  [[nodiscard]] f32& z() { return data[2]; }
+  [[nodiscard]] f32& w() { return data[3]; }
 
-  [[nodiscard]] const f32& x() const { return data[1]; }
-  [[nodiscard]] const f32& y() const { return data[2]; }
-  [[nodiscard]] const f32& z() const { return data[3]; }
-  [[nodiscard]] const f32& w() const { return data[0]; }
+  [[nodiscard]] const f32& x() const { return data[0]; }
+  [[nodiscard]] const f32& y() const { return data[1]; }
+  [[nodiscard]] const f32& z() const { return data[2]; }
+  [[nodiscard]] const f32& w() const { return data[3]; }
 
   // Comparison
   bool operator==(const Quat&) const = default;
@@ -61,7 +61,11 @@ struct Quat
   }
 
   [[nodiscard]] bool isIdentity() const {
-    return data[0] == 1.0f && data[1] == 0.0f && data[2] == 0.0f && data[3] == 0.0f;
+    return data[0] == 0.0f && data[1] == 0.0f && data[2] == 0.0f && data[3] == 1.0f;
+  }
+
+  [[nodiscard]] Vec4 toVec4() const {
+    return {data[0], data[1], data[2], data[3]};
   }
 
   [[nodiscard]] Quat slerp(const Quat &b, float factor) const {

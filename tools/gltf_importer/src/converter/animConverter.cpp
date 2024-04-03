@@ -4,10 +4,9 @@
 */
 
 #include "converter.h"
+#include "../math/quantizer.h"
 
 namespace {
-  const char TYPE_CHAR[4] = {'T', 'S', 's', 'R'};
-
   template<typename T>
   bool hasConstValue(const std::vector<T> &values) {
     T lastValue = values[0];
@@ -17,7 +16,7 @@ namespace {
     return true;
   }
 
-  // Filters any channel that has a constant value which is also the identity value of the specific target
+  // Filters any channel that has a constant value, and is also the identity value of the specific target
   std::vector<AnimChannel> filterEmptyChannels(const std::vector<AnimChannel> &channels)
   {
     std::vector<AnimChannel> newChannels;
@@ -27,10 +26,10 @@ namespace {
         //printf("  - Channel %s %d.%d has constant value\n", channel.targetName.c_str(), channel.targetType, channel.targetIndex);
         bool isIdentity = false;
         switch(channel.targetType) {
-          case AnimChannelTarget::TRANSLATION  : isIdentity = channel.startValScalar == 0.0f;    break;
-          case AnimChannelTarget::ROTATION     : isIdentity = channel.startValQuat.isIdentity(); break;
+          case AnimChannelTarget::TRANSLATION  : isIdentity = channel.valScalar[0] == 0.0f;    break;
+          case AnimChannelTarget::ROTATION     : isIdentity = channel.valQuat[0].isIdentity(); break;
           case AnimChannelTarget::SCALE_UNIFORM:
-          case AnimChannelTarget::SCALE        : isIdentity = channel.startValScalar == 1.0f;    break;
+          case AnimChannelTarget::SCALE        : isIdentity = channel.valScalar[0] == 1.0f;    break;
         }
         if(isIdentity)continue;
       }
@@ -38,15 +37,31 @@ namespace {
     }
     return newChannels;
   }
+
+  void quantizeRotations(AnimChannel &ch)
+  {
+    for(const Quat &q : ch.valQuat) {
+      uint32_t quatQuant = Quantizer::quatTo32Bit(q);
+      ch.valQuantized.push_back(quatQuant >> 16);
+      ch.valQuantized.push_back(quatQuant & 0xFFFF);
+    }
+  }
 }
 
 void convertAnimation(Anim &anim)
 {
   printf("Convert: %s\n", anim.name.c_str());
-  anim.channels = filterEmptyChannels(anim.channels);
 
-  printf("\n\n");
-  for(const auto &ch : anim.channels) {
-    printf("==== Channel %s %c[%d] ====\n", ch.targetName.c_str(), TYPE_CHAR[ch.targetType], ch.targetIndex);
+  // Apply optimizations to the animation
+  anim.channels = filterEmptyChannels(anim.channels);
+  // @TODO: check and convert SCALE to SCALE_UNIFORM if all components are the same
+
+  // Now quantize/compress the values
+  for(auto &ch : anim.channels) {
+    if(ch.isRotation()) {
+      quantizeRotations(ch);
+    } else {
+      ch.valQuantized = Quantizer::floatsToU16(ch.valScalar, ch.quantOffset, ch.quantScale);
+    }
   }
 }

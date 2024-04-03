@@ -59,6 +59,14 @@ struct Vec4
     data[2] = 0.0f; data[3] = 0.0f;
   }
 
+  [[nodiscard]] int getLargestIdx() const {
+    int idx = 0;
+    for(int i = 1; i < 4; ++i) {
+      if(data[i] > data[idx])idx = i;
+    }
+    return idx;
+  }
+
   [[nodiscard]] float sum() const {
     return data[0] + data[1] + data[2] + data[3];
   }

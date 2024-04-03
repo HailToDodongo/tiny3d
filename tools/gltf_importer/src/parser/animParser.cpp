@@ -92,15 +92,6 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
         res.channels[res.channels.size()-1].valScalar.push_back(value[2]);
       }
     }
-
-    // remember the first value in the channel
-    if(res.channels.back().isRotation()) {
-      res.channels.back().startValQuat = res.channels.back().valQuat[0];
-    } else {
-      res.channels[res.channels.size()-3].startValScalar = res.channels[res.channels.size()-3].valScalar[0];
-      res.channels[res.channels.size()-2].startValScalar = res.channels[res.channels.size()-2].valScalar[0];
-      res.channels[res.channels.size()-1].startValScalar = res.channels[res.channels.size()-1].valScalar[0];
-    }
   }
 
   return res;

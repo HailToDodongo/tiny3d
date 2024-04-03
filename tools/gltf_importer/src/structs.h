@@ -175,11 +175,12 @@ struct AnimChannel {
   AnimChannelTarget targetType{};
   uint32_t targetIndex{}; // for pos/scale, determines which axis to modify
 
-  std::vector<float> valScalar{};
-  std::vector<Quat> valQuat{};
+  std::vector<float> valScalar{};// input, for translate/scale
+  std::vector<Quat> valQuat{}; // input, for rotation
+  std::vector<uint16_t> valQuantized; // output, quantized flat values
 
-  float startValScalar{};
-  Quat startValQuat{};
+  float quantScale{}; // scalar to transform quantized values back to float
+  float quantOffset{}; // offset to transform quantized values back into range
 
   bool isRotation() const {
     return targetType == ROTATION;
@@ -195,6 +196,7 @@ struct Anim {
 struct T3DMData {
   std::vector<Model> models{};
   std::vector<Bone> skeletons{};
+  std::vector<Anim> animations{};
 };
 
 struct Config {

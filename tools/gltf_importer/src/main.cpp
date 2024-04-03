@@ -81,6 +81,8 @@ int main(int argc, char* argv[])
   }
   chunkCount += t3dm.skeletons.empty() ? 0 : 1;
 
+  BinaryFile streamFile{};
+
   // Main file
   BinaryFile file{};
   file.writeChars("T3DM", 4);
@@ -267,6 +269,13 @@ int main(int argc, char* argv[])
     ++m;
   }
 
+  // DEBUG:
+  /*for(const auto &anim : t3dm.animations) {
+    for(const auto &ch : anim.channels) {
+      streamFile.writeArray(ch.valQuantized.data(), ch.valQuantized.size());
+    }
+  }*/
+
   // Now patch all chunks together and write out the chunk-table
 
   file.align(16);
@@ -307,4 +316,9 @@ int main(int argc, char* argv[])
 
   // write to actual file
   file.writeToFile(t3dmPath);
+
+  if(streamFile.getSize() > 0) {
+    auto sdataPath = std::string(t3dmPath) + ".sdata";
+    streamFile.writeToFile(sdataPath.c_str());
+  }
 }
