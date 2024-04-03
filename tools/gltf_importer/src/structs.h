@@ -187,10 +187,16 @@ struct AnimChannel {
   }
 };
 
+struct AnimPage {
+  uint32_t sampleRate{};
+  float timeStart{};
+  float duration{};
+  std::vector<AnimChannel> channels{};
+};
+
 struct Anim {
   std::string name{};
-  uint32_t sampleRate{};
-  std::vector<AnimChannel> channels{};
+  std::vector<AnimPage> pages{};
 };
 
 struct T3DMData {

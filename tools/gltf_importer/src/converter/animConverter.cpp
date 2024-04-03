@@ -46,6 +46,11 @@ namespace {
       ch.valQuantized.push_back(quatQuant & 0xFFFF);
     }
   }
+
+  std::vector<AnimPage> splitPages(AnimPage &page) {
+    // @TODO:
+    return {page};
+  }
 }
 
 void convertAnimation(Anim &anim)
@@ -53,15 +58,22 @@ void convertAnimation(Anim &anim)
   printf("Convert: %s\n", anim.name.c_str());
 
   // Apply optimizations to the animation
-  anim.channels = filterEmptyChannels(anim.channels);
+  anim.pages.back().channels = filterEmptyChannels(anim.pages.back().channels);
   // @TODO: check and convert SCALE to SCALE_UNIFORM if all components are the same
 
+  // Split animations into pages / resample if possible
+  anim.pages = splitPages(anim.pages.back());
+
   // Now quantize/compress the values
-  for(auto &ch : anim.channels) {
-    if(ch.isRotation()) {
-      quantizeRotations(ch);
-    } else {
-      ch.valQuantized = Quantizer::floatsToU16(ch.valScalar, ch.quantOffset, ch.quantScale);
+  for(auto &page : anim.pages)
+  {
+    for(auto &ch : page.channels)
+    {
+      if(ch.isRotation()) {
+        quantizeRotations(ch);
+      } else {
+        ch.valQuantized = Quantizer::floatsToU16(ch.valScalar, ch.quantOffset, ch.quantScale);
+      }
     }
   }
 }

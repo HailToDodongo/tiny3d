@@ -22,15 +22,15 @@ namespace
 
 Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
 {
-  Anim res{
-    .name = std::string(anim.name),
-    .sampleRate = sampleRate,
-  };
+  AnimPage page{.sampleRate = sampleRate,};
+  Anim res{.name = std::string(anim.name),};
 
   printf("Animation: %s\n", anim.name);
   printf(" - Channels: %d\n", anim.channels_count);
   printf(" - Samplers: %d\n", anim.samplers_count);
 
+  float timeStart = 0.0f;
+  float timeEnd = 0.0f;
   for(int c=0; c < anim.channels_count; ++c)
   {
     auto &channel = anim.channels[c];
@@ -39,10 +39,10 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
     const char* targetName = channel.target_node->name;
 
     // create channels, rotation is always combined, the rest (translation, scale) are separate for each axis
-    res.channels.emplace_back(targetName, getTarget(channel.target_path), 0);
+    page.channels.emplace_back(targetName, getTarget(channel.target_path), 0);
     if(channel.target_path != cgltf_animation_path_type::cgltf_animation_path_type_rotation) {
-      res.channels.emplace_back(targetName, getTarget(channel.target_path), 1);
-      res.channels.emplace_back(targetName, getTarget(channel.target_path), 2);
+      page.channels.emplace_back(targetName, getTarget(channel.target_path), 1);
+      page.channels.emplace_back(targetName, getTarget(channel.target_path), 2);
     }
 
     uint8_t *dataInput = ((uint8_t*)samplerIn.buffer_view->buffer->data) + samplerIn.offset + samplerIn.buffer_view->offset;
@@ -50,8 +50,8 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
     uint8_t *dataOutputNext = dataOutput + samplerOut.stride;
     uint8_t *dataOutputEnd = dataOutput + samplerOut.count * samplerOut.stride;
 
-    float timeStart = Gltf::readAsFloat(dataInput, samplerIn.component_type);
-    float timeEnd = Gltf::readAsFloat(dataInput + (samplerIn.count-1) * samplerIn.stride, samplerIn.component_type);
+    timeStart = Gltf::readAsFloat(dataInput, samplerIn.component_type);
+    timeEnd = Gltf::readAsFloat(dataInput + (samplerIn.count-1) * samplerIn.stride, samplerIn.component_type);
     float sampleStep = 1.0f / sampleRate;
     float time = timeStart;
     float nextTime = timeStart;
@@ -80,19 +80,22 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
         value = value.slerp(valueNext, sampleInterpol);
 
         //printf("    - %.4fs/%.4f [f:%.2f]: b:%.4f i=%d: %.4f %.4f %.4f %.4f\n", t, timeEnd, frame, sampleInterpol, samplerIn.count, value[0], value[1], value[2], value[3]);
-        res.channels.back().valQuat.push_back(value);
+        page.channels.back().valQuat.push_back(value);
       } else {
         Vec3 value = Gltf::readAsVec3(dataOutput, samplerOut.type, samplerOut.component_type);
         Vec3 valueNext = Gltf::readAsVec3(dataOutputNext, samplerOut.type, samplerOut.component_type);
         value = value.mix(valueNext, sampleInterpol);
 
         //printf("    - %.4fs/%.4f [f:%.2f]: b:%.4f i=%d: %.4f %.4f %.4f\n", t, timeEnd, frame, sampleInterpol, samplerIn.count, value[0], value[1], value[2]);
-        res.channels[res.channels.size()-3].valScalar.push_back(value[0]);
-        res.channels[res.channels.size()-2].valScalar.push_back(value[1]);
-        res.channels[res.channels.size()-1].valScalar.push_back(value[2]);
+        page.channels[page.channels.size()-3].valScalar.push_back(value[0]);
+        page.channels[page.channels.size()-2].valScalar.push_back(value[1]);
+        page.channels[page.channels.size()-1].valScalar.push_back(value[2]);
       }
     }
   }
 
+  page.timeStart = timeStart;
+  page.duration = timeEnd - timeStart;
+  res.pages.push_back(page);
   return res;
 }
