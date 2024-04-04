@@ -1,7 +1,12 @@
 # Tiny3D - 3D Model (T3DM)
 
-Model data is stored in binary in a chunk-based file.<br>
-It starts with a header containing the number of chunks and their offsets.
+All data is stored in binary in a chunk-based file.<br>
+It starts with a header containing the number of chunks and their offsets followed by the data.<br>
+
+### Streaming-Data
+A `.t3dm` file can be accompanied by a streaming-data file (`.t3dm.sdata`).<br>
+This file is stored uncompressed and contains data used for streaming (e.g. animations).<br>
+Data sections inside the file can be compressed however. 
 
 ## Header
 
@@ -147,9 +152,57 @@ The list is sorted by index, so index references are guaranteed to be parsed bef
 | 0x06   | `u16`       | Depth / Level         |
 | 0x08   | `f32[4][4]` | Parent-Matrix         |
 
-### String Table
+## Animation (`A`)
+Contains a single animation with one or more channels.<br> 
+Each animation is split into pages, whereas the actual data is stored the streaming-data file.
 
-At the end of the file, after all chunk data, a string-table is stored.<br>
+| Offset  | Type               | Description                    |
+|---------|--------------------|--------------------------------|
+| 0x00    | `char*`            | Name, offset into string table |
+| 0x04    | `f32`              | Duration (seconds)             |
+| 0x08    | `u16`              | Page count                     |
+| 0x0A    | `u16`              | Channel count                  |
+| 0x0C    | `ChannelMapping*`  | (0, set at runtime)            |
+| 0x0C    | `AnimPage[]`       | Page header                    |
+| 0x??    | `ChannelMapping[]` | Maps channel to targets        |
+
+#### `ChannelMapping`
+
+| Offset | Type          | Description                                  |
+|--------|---------------|----------------------------------------------|
+| 0x00   | `u16`         | Target index                                 |
+| 0x02   | `u8`          | Target Type                                  |
+| 0x03   | `u8`          | Attribute index (0-2 for x/y/z, 0 for quat.) |
+| 0x04   | `f32`         | Quantization scale                           |
+| 0x08   | `f32`         | Quantization offset                          |
+
+#### `AnimPage`
+
+| Offset | Type  | Description                       |
+|--------|-------|-----------------------------------|
+| 0x00   | `f32` | start time (seconds)              |
+| 0x04   | `u16` | Sample Count                      |
+| 0x06   | `u8`  | Sample rate (Hz)                  |
+| 0x07   | `u8`  | Flags, 1=compressed               |
+| 0x08   | `u32` | Data Offset (streaming-data file) |
+
+#### `Target Type`
+```
+0 = Translation
+1 = Scale (XYZ)
+2 = Scale (uniform)
+3 = Rotation (quaternion)
+```
+To drive arbitrary values, `Translation` should be used as a default.
+
+#### Data
+After the array of channels follows the actual data.<br>
+The data here is referenced by the data-offsets in the channels.
+
+
+## String Table
+
+At the end of the `t3dm` file, after all chunk data, a string-table is stored.<br>
 This contains arbitrary strings used by the model, e.g. texture paths.<br>
 Values in there are referenced by a relative offset from the start of the string table.<br>
 All strings are zero-terminated.

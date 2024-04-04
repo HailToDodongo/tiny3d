@@ -6,6 +6,7 @@
 #define TINY3D_T3DMODEL_H
 
 #include "t3d.h"
+#include "t3danim.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -84,6 +85,32 @@ typedef struct {
   uint16_t _reserved;
   T3DChunkBone bones[];
 } T3DChunkSkeleton;
+
+typedef struct {
+  float timeStart;
+  uint16_t sampleCount;
+  uint8_t sampleRate;
+  uint8_t flags;
+  uint32_t dataOffset;
+} T3DAnimPage;
+
+typedef struct {
+  uint16_t targetIdx;
+  uint8_t targetType;
+  uint8_t attributeIdx;
+  float quantScale;
+  float quantOffset;
+} T3DAnimChannelMapping;
+
+typedef struct {
+  char* name;
+  float duration;
+  uint16_t pageCount;
+  uint16_t channelCount;
+  T3DAnimChannelMapping *channelMappings; // set during load
+  T3DAnimPage pageTable[];
+  // T3DAnimChannelMapping channelMappings[]; <- channelMappings
+} T3DChunkAnim;
 
 typedef union {
   char type;
@@ -189,6 +216,35 @@ static inline const T3DChunkSkeleton* t3d_model_get_skeleton(const T3DModel *mod
     }
   }
   return NULL;
+}
+
+/**
+ * Returns the number of animations in the model.
+ * @param model
+ * @return
+ */
+static inline const uint32_t t3d_model_get_animation_count(const T3DModel *model) {
+  uint32_t count = 0;
+  for(int i = 0; i < model->chunkCount; i++) {
+    if(model->chunkOffsets[i].type == 'A')count++;
+  }
+  return count;
+}
+
+/**
+ * Stores the pointers to all animations inside the model into `anims`.
+ * Make sure to use `t3d_model_get_animation_count` to allocate enough memory.
+ * @param model
+ * @param anims array to store the pointers to
+ */
+static inline const void t3d_model_get_animations(const T3DModel *model, T3DChunkAnim* anims[]) {
+  uint32_t count = 0;
+  for(int i = 0; i < model->chunkCount; i++) {
+    if(model->chunkOffsets[i].type == 'A') {
+      uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
+      anims[count++] = (T3DChunkAnim*)((char*)model + offset);
+    }
+  }
 }
 
 #ifdef __cplusplus

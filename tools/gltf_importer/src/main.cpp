@@ -80,6 +80,7 @@ int main(int argc, char* argv[])
     chunkCount += 1 + 2; // object + material A/B (@TODO: optimize material count)
   }
   chunkCount += t3dm.skeletons.empty() ? 0 : 1;
+  chunkCount += t3dm.animations.size();
 
   BinaryFile streamFile{};
 
@@ -270,11 +271,23 @@ int main(int argc, char* argv[])
   }
 
   // DEBUG:
-  /*for(const auto &anim : t3dm.animations) {
-    for(const auto &ch : anim.channels) {
-      streamFile.writeArray(ch.valQuantized.data(), ch.valQuantized.size());
+  for(const auto &anim : t3dm.animations) {
+    file.align(4);
+    addToChunkTable('A');
+
+    file.write(insertString(stringTable, anim.name));
+    file.write<float>(anim.duration);
+    file.write<uint32_t>(anim.pages.size());
+
+    for(const auto &page : anim.pages) {
+      file.write<float>(page.timeStart);
+      file.write<uint32_t>(42);
     }
-  }*/
+
+    /*for(const auto &ch : anim.channels) {
+      streamFile.writeArray(ch.valQuantized.data(), ch.valQuantized.size());
+    }*/
+  }
 
   // Now patch all chunks together and write out the chunk-table
 

@@ -65,8 +65,10 @@ void convertAnimation(Anim &anim)
   anim.pages = splitPages(anim.pages.back());
 
   // Now quantize/compress the values
+  anim.duration = 0.0f;
   for(auto &page : anim.pages)
   {
+    anim.duration += page.duration;
     for(auto &ch : page.channels)
     {
       if(ch.isRotation()) {

@@ -196,6 +196,7 @@ struct AnimPage {
 
 struct Anim {
   std::string name{};
+  float duration{};
   std::vector<AnimPage> pages{};
 };
 

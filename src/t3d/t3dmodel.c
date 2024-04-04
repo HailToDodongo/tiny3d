@@ -150,6 +150,11 @@ T3DModel *t3d_model_load(const void *path) {
         bone->name = patch_pointer(bone->name, (uint32_t)model->stringTablePtr);
       }
     }
+
+    if(chunkType == 'A') {
+      T3DChunkAnim *anim = (void*)model + offset;
+      anim->name = patch_pointer(anim->name, (uint32_t)model->stringTablePtr);
+    }
   }
 
   data_cache_hit_writeback_invalidate(model, size);
