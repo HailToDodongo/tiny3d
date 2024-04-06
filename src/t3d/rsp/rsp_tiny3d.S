@@ -236,7 +236,6 @@ T3DCmd_VertLoad:
   vor $v07, $v00, $v17
   LABEL_0003:
   beq $s3, $s2, LABEL_0004
-  nop
   lpv $v03, 0, 8, $s3
   luv $v04, 0, 0, $s3
   addiu $s3, $s3, 16
@@ -244,9 +243,8 @@ T3DCmd_VertLoad:
   vadd $v01, $v02, $v02.h1
   vadd $v02, $v02, $v01.h2
   vmulu $v02, $v04, $v02.h0
-  vadd $v07, $v07, $v02.v
   j LABEL_0003
-  nop
+  vadd $v07, $v07, $v02.v
   LABEL_0004:
   vmulf $v08, $v08, $v07.v
   vmudl $v29, $v00, $v10.h3
