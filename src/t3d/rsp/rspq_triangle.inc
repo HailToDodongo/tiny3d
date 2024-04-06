@@ -4,7 +4,7 @@
 #
 ##########################################################################
 
-    .section .text.rdpq_triangle_send_async
+    # .section .text.rdpq_triangle_send_async
 
 #ifndef RDPQ_TRIANGLE_PROFILE
 #define RDPQ_TRIANGLE_PROFILE     0
@@ -736,11 +736,11 @@ rdpq_triangle_dma_busy:
     #
     #####################################################################
 
-    .func RDPQ_Triangle_Send_End
+    # .func RDPQ_Triangle_Send_End
 RDPQ_Triangle_Send_End:
     mfc0 t0, COP0_DMA_BUSY
     bnez t0, RDPQ_Triangle_Send_End
-    nop
+    sh zero, %lo(RDPQ_TRI_BUFF_OFFSET)(zero) # clear offset after each explicit wait
     j RSPQCmd_RdpAppendBuffer
     lw a0, %lo(RDPQ_CURRENT)
-    .endfunc
+    # .endfunc

@@ -74,6 +74,8 @@ typedef struct {
   int32_t size[2];    // screen size in pixel, same as the allocated framebuffer size by default
   int guardBandScale; // guard band for clipping, 2 by default
   int useRejection;   // use rejection instead of clipping, false by default
+
+  float _normScaleW; // factor to normalize W in the ucode, set automatically
 } T3DViewport;
 
 /**

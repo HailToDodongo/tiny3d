@@ -32,6 +32,7 @@ int main()
   joypad_init();
   t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create();
+  //viewport.guardBandScale = 1;
 
   t3d_debug_print_init();
   sprite_t *spriteLogo = sprite_load("rom:/logo.ia8.sprite");
@@ -146,6 +147,7 @@ int main()
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 2.0f, 150.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    if(joypad.btn.z)viewport._normScaleW = 1.0f;
 
     // ----------- DRAW ------------ //
     rdpq_attach(display_get(), &depthBuffer);

@@ -249,6 +249,10 @@ void t3d_viewport_attach(T3DViewport *viewport) {
   assertf(viewport != NULL, "Viewport is NULL!");
   currentViewport = viewport;
 
+  if(currentViewport->_normScaleW <= 0.0f) {
+    currentViewport->_normScaleW = 1.0f;
+  }
+
   // Limit draw region
   rdpq_set_scissor(
     viewport->offset[0], viewport->offset[1],
@@ -256,21 +260,28 @@ void t3d_viewport_attach(T3DViewport *viewport) {
     viewport->offset[1] + viewport->size[1]
   );
 
+  int32_t orgSizeX = (int32_t)roundf((float)viewport->size[0] * currentViewport->_normScaleW * 4.0f);
+  int32_t orgSizeY = (int32_t)roundf((float)viewport->size[1] * currentViewport->_normScaleW * 4.0f);
+
   // Set screen size, internally the 3D-scene renders to the correct size, but at [0,0]
   // calc. both scale and offset to move/scale it into our scissor region
   int32_t screenOffsetX = (int32_t)(viewport->offset[0]*2) + viewport->size[0];
   int32_t screenOffsetY = (int32_t)(viewport->offset[1]*2) + viewport->size[1];
 
-  int32_t screenScaleY = -viewport->size[1];
+  int32_t screenScaleY = -orgSizeY;
 
   int32_t screenOffset = (screenOffsetX << 17) | (screenOffsetY << 1);
-  int32_t screenScale = (viewport->size[0] << 18)
-    | ((uint16_t)(screenScaleY<<2) & 0xFFFF);
+  int32_t screenScale = (orgSizeX << 16)
+    | ((uint16_t)(screenScaleY) & 0xFFFF);
+
+  uint32_t depthOffset = 16383;
+  uint16_t depthScale = (uint16_t)roundf(0xFFFF * currentViewport->_normScaleW);
+  uint32_t depthOffsetScale = (depthScale << 16) | depthOffset;
 
   int32_t guardBandScale = viewport->guardBandScale & 0xF;
   rspq_write(T3D_RSP_ID, T3D_CMD_SCREEN_SIZE,
     guardBandScale | (viewport->useRejection << 16),
-    screenOffset, screenScale
+    screenOffset, screenScale, depthOffsetScale
   );
 
   // update projection matrix
@@ -286,6 +297,7 @@ void t3d_viewport_attach(T3DViewport *viewport) {
 
 void t3d_viewport_set_projection(T3DViewport *viewport, float fov, float near, float far) {
   float aspectRatio = (float)viewport->size[0] / (float)viewport->size[1];
+  viewport->_normScaleW = 2.0f / (far + near);
   t3d_mat4_perspective(&viewport->matProj, fov, aspectRatio, near, far);
 }
 
