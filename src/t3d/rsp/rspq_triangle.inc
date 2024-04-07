@@ -10,9 +10,56 @@
 #define RDPQ_TRIANGLE_PROFILE     0
 #endif
 
+/* Set RDPQ_TRIANGLE_CUSTOM_VTX to 1 if you want to define a custom layout
+   for your vertices. If you do so, you must define also all the VTX_ATTR
+   macros below containing the offsets to the various vertex components. */
 #ifndef RDPQ_TRIANGLE_CUSTOM_VTX
 #define RDPQ_TRIANGLE_CUSTOM_VTX  0
 #endif
+
+#if !RDPQ_TRIANGLE_CUSTOM_VTX
+    #define VTX_ATTR_XY          0
+    #define VTX_ATTR_Z           4
+    #define VTX_ATTR_CLIPFLAGS   6         // Clipping codes + Negated trivial-reject codes
+    #define VTX_ATTR_RGBA        8
+    #define VTX_ATTR_ST         12
+    #define VTX_ATTR_Wi         16
+    #define VTX_ATTR_Wf         18
+    #define VTX_ATTR_INVWi      20
+    #define VTX_ATTR_INVWf      22
+#endif
+
+/* Define these macros if you want to specify the input registers for the three
+   vertices. */
+#ifndef RDPQ_TRIANGLE_VTX1
+#define RDPQ_TRIANGLE_VTX1  a1
+#endif
+
+#ifndef RDPQ_TRIANGLE_VTX2
+#define RDPQ_TRIANGLE_VTX2  a2
+#endif
+
+#ifndef RDPQ_TRIANGLE_VTX3
+#define RDPQ_TRIANGLE_VTX3  a3
+#endif
+
+/* Define these macros if the input vertex pointers, in addition to the input
+   regigsters, are already available in DMEM somewhere. You must define the
+   address to access each vertex. */
+#ifndef RDPQ_TRIANGLE_VTX1_DMEM
+#define RDPQ_TRIANGLE_VTX1_DMEM    0,s3
+#define STORE_VTX1
+#endif
+#ifndef RDPQ_TRIANGLE_VTX2_DMEM
+#define RDPQ_TRIANGLE_VTX2_DMEM    2,s3
+#define STORE_VTX2
+#endif
+#ifndef RDPQ_TRIANGLE_VTX3_DMEM
+#define RDPQ_TRIANGLE_VTX3_DMEM    4,s3
+#define STORE_VTX3
+#endif
+
+
 
     #####################################################################
     # RDPQ_Triangle_Send_Async
@@ -67,9 +114,9 @@
     .func RDPQ_Triangle_Send_Async
 RDPQ_Triangle_Send_Async:
     #define tricmd a3
-    #define vtx1   a0
-    #define vtx2   a1
-    #define vtx3   a2
+    #define vtx1   RDPQ_TRIANGLE_VTX1   // a1
+    #define vtx2   RDPQ_TRIANGLE_VTX2   // a2
+    #define vtx3   RDPQ_TRIANGLE_VTX3   // a3
     #define cull   v0
     #define out_clip_flag   v1
 
@@ -131,18 +178,6 @@ RDPQ_Triangle_Send_Async:
     #define invsh_i          $v31.e6
     #define invsh_f          $v31.e7
 
-    #if !RDPQ_TRIANGLE_CUSTOM_VTX
-        #define VTX_ATTR_XY          0
-        #define VTX_ATTR_Z           4
-        #define VTX_ATTR_CLIPFLAGS   6         // Clipping codes + Negated trivial-reject codes
-        #define VTX_ATTR_RGBA        8
-        #define VTX_ATTR_ST         12
-        #define VTX_ATTR_Wi         16
-        #define VTX_ATTR_Wf         18
-        #define VTX_ATTR_INVWi      20
-        #define VTX_ATTR_INVWf      22
-    #endif
-
 #if RDPQ_TRIANGLE_PROFILE
     mfc0 fp, COP0_DP_CLOCK
     emux_trace_start
@@ -191,18 +226,23 @@ RDPQ_Triangle_Send_Async:
     # Should we do backface culling before clipping check?
     # If so, should we do that BEFORE or AFTER the sort-of-three?
 
-    ##sh vtx1, 0(s3)
-    ##sh vtx2, 2(s3)
-    ##sh vtx3, 4(s3)
-
+    #ifdef STORE_VTX1
+    sh vtx1, 0(s3)
+    #endif
+    #ifdef STORE_VTX2
+    sh vtx2, 2(s3)
+    #endif
+    #ifdef STORE_VTX3
+    sh vtx3, 4(s3)
+    #endif
     llv vall1, VTX_ATTR_XY,vtx1
     llv vall2, VTX_ATTR_XY,vtx2
     llv vall3, VTX_ATTR_XY,vtx3;                # Create a vector for negative pow2 constants
     lhu clip1, VTX_ATTR_CLIPFLAGS(vtx1);        vsubc vmconst, vzero, vshift;
 
-    vcopy vy1, vall1.e1;                        lsv vall1.e3, 0,v1
-    vcopy vy2, vall2.e1;                        lsv vall2.e3, 4,v1
-    vcopy vy3, vall3.e1;                        lsv vall3.e3, 2,v1
+    vcopy vy1, vall1.e1;                        lsv vall1.e3, RDPQ_TRIANGLE_VTX1_DMEM
+    vcopy vy2, vall2.e1;                        lsv vall2.e3, RDPQ_TRIANGLE_VTX2_DMEM
+    vcopy vy3, vall3.e1;                        lsv vall3.e3, RDPQ_TRIANGLE_VTX3_DMEM
 
     # Create vector with constants
     # 1 and -1 (to be used for
@@ -231,7 +271,6 @@ RDPQ_Triangle_Send_Async:
 
     lhu s3, %lo(RDPQ_TRI_BUFF_OFFSET);          vge vy3, vytmp1, vytmp2;
     lw tricmd, %lo(TRI_COMMAND);                vmrg vall3, valltmp1, valltmp2;
-    nop;                                        vmrg vall3, valltmp1, valltmp2;
     addiu s3, s3, %lo(CLIP_BUFFER_TMP);         vlt vy2, vytmp1, vytmp2;
     cfc2 did_swap_2, COP2_CTRL_VCC;             vmrg vall2, valltmp1, valltmp2;
 
@@ -665,6 +704,7 @@ rdpq_triangle_change_buffer_done:
     #undef invsh_i
     #undef invsh_f
 
+    #if !RDPQ_TRIANGLE_CUSTOM_VTX
     #undef VTX_ATTR_X
     #undef VTX_ATTR_Y
     #undef VTX_ATTR_Z
@@ -674,6 +714,11 @@ rdpq_triangle_change_buffer_done:
     #undef VTX_ATTR_W
     #undef VTX_ATTR_INVWi
     #undef VTX_ATTR_INVWf
+    #endif
+
+    #undef STORE_VTX1
+    #undef STORE_VTX2
+    #undef STORE_VTX3
 
     # Slow path: when the RDRAM buffer is full (we reached the sentinel),
     # we need to switch buffer. This is basicaly an inlined version of the same
@@ -736,11 +781,11 @@ rdpq_triangle_dma_busy:
     #
     #####################################################################
 
-    # .func RDPQ_Triangle_Send_End
+    .func RDPQ_Triangle_Send_End
 RDPQ_Triangle_Send_End:
     mfc0 t0, COP0_DMA_BUSY
     bnez t0, RDPQ_Triangle_Send_End
     sh zero, %lo(RDPQ_TRI_BUFF_OFFSET)(zero) # clear offset after each explicit wait
     j RSPQCmd_RdpAppendBuffer
     lw a0, %lo(RDPQ_CURRENT)
-    # .endfunc
+    .endfunc
