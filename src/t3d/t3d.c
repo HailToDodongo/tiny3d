@@ -298,7 +298,7 @@ void t3d_viewport_attach(T3DViewport *viewport) {
 
 void t3d_viewport_set_projection(T3DViewport *viewport, float fov, float near, float far) {
   float aspectRatio = (float)viewport->size[0] / (float)viewport->size[1];
-  viewport->_normScaleW = 2.0f / (far + near);
+  t3d_viewport_set_w_normalize(viewport, near, far);
   t3d_mat4_perspective(&viewport->matProj, fov, aspectRatio, near, far);
 }
 

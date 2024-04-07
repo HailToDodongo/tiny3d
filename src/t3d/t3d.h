@@ -158,9 +158,22 @@ inline static void t3d_viewport_set_area(T3DViewport *viewport, int32_t x, int32
  * @param viewport
  * @param fov fov in radians
  * @param near near plane distance
- * @param far far plane distance
+ * @param far far plane distance (should be >=40 to avoid depth-precision issues)
  */
 void t3d_viewport_set_projection(T3DViewport *viewport, float fov, float near, float far);
+
+/**
+ * Sets the normalization factor for W in the ucode.
+ * NOTE: this gets called automatically by `t3d_viewport_set_projection`.
+ * You only need to call this if you want to provide your own projection matrix.
+ *
+ * @param viewport
+ * @param near
+ * @param far
+ */
+inline static void t3d_viewport_set_w_normalize(T3DViewport *viewport, float near, float far) {
+  viewport->_normScaleW = 2.0f / (far + near);
+}
 
 /**
  * Sets a new camera position and direction for the given viewport.
