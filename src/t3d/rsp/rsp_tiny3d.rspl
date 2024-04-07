@@ -265,6 +265,8 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
   vec16 fogScaleOffset = load(FOG_SCALE_OFFSET).xyzw;
 
+  vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
+
   u32 ptrBuffA = addressInOut & 0xFFFF; // ptr to first output vertex
   u32 ptrBuffB = ptrBuffA + TRI_SIZE; // ptr to second output vertex
 
@@ -308,12 +310,12 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       // directional
       while(ptrLight != ptrLightEnd)
       {
-        vec16 lightDirColor = load_vec_u8(ptrLight);
         vec16 lightDirVec   = load_vec_s8(ptrLight, 8);
 
         vec16 lightDirScale;
         dotXYZ(lightDirScale, norm, lightDirVec);
 
+        vec16 lightDirColor = load_vec_u8(ptrLight);
         lightDirScale = lightDirColor:ufract * lightDirScale:ufract.xxxxXXXX;
 
         lightColor:sfract += lightDirScale;
@@ -342,7 +344,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       packClipCodeInverted(rejCodesB, rejCodesB);
     }
 
-    vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
     posClip *= normScaleW:ufract;
 
     store(posClip.xyzw, ptrBuffA, VTX_ATTR_CLIPPOSi);
