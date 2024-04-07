@@ -136,10 +136,12 @@ struct MeshChunk {
   uint32_t vertexCount{0};
   uint32_t vertexDestOffset{0};
   uint32_t boneIndex{0};
+  std::string name{};
 };
 
 struct Model {
   std::vector<TriangleT3D> triangles{};
+  std::string name{};
   Material materialA{};
   Material materialB{};
 };

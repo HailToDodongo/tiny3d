@@ -65,6 +65,7 @@ typedef struct {
 } T3DObjectPart;
 
 typedef struct {
+  char* name;
   uint32_t numParts;
   T3DMaterial* materialA;
   T3DMaterial* materialB;

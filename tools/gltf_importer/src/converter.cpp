@@ -118,6 +118,7 @@ ModelChunked chunkUpModel(const Model &model)
   res.chunks.push_back(MeshChunk{});
   res.chunks.back().materialA = model.materialA;
   res.chunks.back().materialB = model.materialB;
+  res.chunks.back().name = model.name;
 
   uint32_t emittedVerts = 0;
   uint32_t chunkOffset = 0;
@@ -213,7 +214,7 @@ ModelChunked chunkUpModel(const Model &model)
           }
         }
 
-        res.chunks.push_back(MeshChunk{.materialA = model.materialA, .materialB = model.materialB});
+        res.chunks.push_back(MeshChunk{.materialA = model.materialA, .materialB = model.materialB, .name = model.name});
 
         chunkOffset += emittedVerts;
         emittedVerts = 0;
