@@ -435,11 +435,10 @@ T3DCmd_TriDraw:
   vsubc $v20, $v25, $v27.v
   vsub $v19, $v24, $v26.v
   ori $at, $zero, %lo(NORM_SCALE_W)
-  vxor $v18, $v00, $v00.e0
   ldv $v22, 0, 8, $at
   lpv $v17, 0, 0, $s4
   ldv $v22, 8, 8, $at
-  vmudl $v18, $v18, $v31.e7
+  vmudl $v18, $v00, $v31.e7
   ori $at, $zero, %lo(RSPQ_SCRATCH_MEM) ## Barrier: 0x8
   vmadm $v17, $v17, $v31.e7
   vmadn $v18, $v00, $v00
