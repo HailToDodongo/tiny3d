@@ -32,6 +32,7 @@ int main()
   joypad_init();
   t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create();
+  //viewport.guardBandScale = 1;
 
   t3d_debug_print_init();
   sprite_t *spriteLogo = sprite_load("rom:/logo.ia8.sprite");
