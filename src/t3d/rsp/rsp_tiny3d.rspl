@@ -250,8 +250,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   vec16 matN0, matN1, matN2;
   loadCurrentNormalMat(matN0, matN1, matN2);
 
-  vec16 colorAmbient = load_vec_u8(COLOR_AMBIENT);
-
   vec16 normMask = load(NORMAL_MASK_SHIFT, 0x00).xyzwxyzw;
   vec16 normShift = load(NORMAL_MASK_SHIFT, 0x08).xyzwxyzw;
 
@@ -305,7 +303,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
       // input vertex color
       color = load_vec_u8(prt3d, 0x10);
-      vec16 lightColor = colorAmbient; // light color, accumulates directional lights
+      vec16 lightColor = load_vec_u8(COLOR_AMBIENT); // light color, accumulates directional lights
 
       // directional
       while(ptrLight != ptrLightEnd)
@@ -435,9 +433,8 @@ macro intersection(
     vec16 colorDiff = color - colorBase;
     vec32 posUVDiff = pos - posBase;
 
-    vec32 planeNorm:sfract = 0;
-
-    planeNorm:sint = load_vec_s8(planePtr);
+    vec32 planeNorm:sint = load_vec_s8(planePtr);
+    planeNorm:sfract = 0;
     planeNorm >>= 8;
     planeNorm:sint.XYZW = planeNorm:sint.xyzw;
     planeNorm *= normScaleWInv:ufract;
