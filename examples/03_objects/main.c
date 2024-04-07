@@ -145,7 +145,7 @@ int main()
     }
     timeUpdate = get_time_ms() - timeUpdate;
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(65.0f), 15.0f, 90.0f);
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(65.0f), 10.0f, 100.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     // ======== Draw (3D) ======== //
