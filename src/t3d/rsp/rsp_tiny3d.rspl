@@ -95,8 +95,10 @@ state
   alignas(16)
   u8 CLIP_BUFFER_RESULT[8][TRI_SIZE];
 
-  // current screen size (.xyz) and offset (.XYZ)
-  vec16 SCREEN_SCALE_OFFSET;
+  vec16 SCREEN_SCALE_OFFSET = {
+    0, 0, 0,           0, // screen size scale (.xyzw)
+    0, 0, 0x3FFF, 0x00FF  // screen size offset (.XYZW), W is used for a fake clipping-code in 'triToScreenSpace'
+  };
 
   vec16 NORMAL_MASK_SHIFT = {
     // Mask to extract 5.6.5-bit values for normal vectors (.xyzw)
@@ -120,10 +122,10 @@ state
   };
 
   // scales clip-space W to be 1 in the middle of near to far
-  u16 NORM_SCALE_W[8] = {
-    0xFFFF, 0xFFFF, 0xFFFF, // fixed
-    0xFFFF, // set at runtime
-    0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF
+  // the `0` are set at runtime to a fractional value
+  vec16 NORM_SCALE_W = {
+    0xFFFF, 0xFFFF, 0xFFFF, 0x0000,
+    0x0000, 0x0000, 0x0000, 0xFFFF
   };
 
   // Lighting
@@ -256,7 +258,10 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   vec16 guardBandScale = load(CLIPPING_PLANES).xy;
   guardBandScale = guardBandScale.y;
 
-  vec16 screenSize = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
+  vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
+  screenSize:sfract = 0;
+  screenSize >>= 4;
+
   vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
   vec16 fogScaleOffset = load(FOG_SCALE_OFFSET).xyzw;
 
@@ -285,10 +290,9 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       vec16 norm = normMask & pos.wwwwWWWW;
       norm *= normShift;
 
-      vec16 normNew;
-      normNew = matN0:sfract  * norm.xxxxXXXX;
-      normNew = matN1:sfract +* norm.yyyyYYYY;
-      norm    = matN2:sfract +* norm.zzzzZZZZ;
+      posClip:sfract = matN0:sfract  * norm.xxxxXXXX; // (assign to dummy value)
+      posClip:sfract = matN1:sfract +* norm.yyyyYYYY;
+      norm           = matN2:sfract +* norm.zzzzZZZZ;
 
       pos.w = load(CLIPPING_PLANES, 4).x; // loads "1"
       pos.W = load(CLIPPING_PLANES, 4).x;
@@ -612,7 +616,10 @@ macro clipTriangle(u32 arraySize, u32 ptrVertA, u32 ptrVertB, u32 ptrVertC)
 function triToScreenSpace(u32<$s6> ptr)
 {
   // Note: these values need to be loaded each time, as RDPQ_Triangle wipes most regs
-  vec16 screenSize = load(SCREEN_SCALE_OFFSET).xyzw;
+  vec32 screenSize = load(SCREEN_SCALE_OFFSET).xyzw;
+  screenSize:sfract = 0;
+  screenSize >>= 4;
+
   vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzw;
 
   vec32 posClip = load(ptr, VTX_ATTR_CLIPPOSi).xyzw;
@@ -625,9 +632,8 @@ function triToScreenSpace(u32<$s6> ptr)
 
   @Barrier("cc") store(posClip:sint.xyzw, ptr, VTX_ATTR_XY);
 
-  // write dummy clip-codes to avoid re-clipping
-  u16 fakeCC = 0x00FF;
-  @Barrier("cc") store(fakeCC, ptr, VTX_ATTR_CLIPFLAGS);
+  // write dummy clip-codes to avoid re-clipping (screenOffset.w = 0x00FF)
+  @Barrier("cc") store(screenOffset.w, ptr, VTX_ATTR_CLIPFLAGS);
 
   ptr -= TRI_SIZE;
 }
@@ -742,22 +748,18 @@ command<12> T3DCmd_TriSync()
  * Sets current screen-size in pixel.
  * @param guardBandFactor s16 with the guard multiplier (should be 1-4)
  * @param screenScale screen-size * 2
+ * @param depthAndWScale fractional 16bit scales to normalize W and depth
  */
-command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 screenScaleXY, u32 depthOffsetScale)
+command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 screenScaleXY, u32 depthAndWScale)
 {
+  store(depthAndWScale:u32, SCREEN_SCALE_OFFSET, 0x04); // (writes garbage into W, saves a shift)
   store(screenScaleXY, SCREEN_SCALE_OFFSET, 0x00);
   store(screenOffsetXY, SCREEN_SCALE_OFFSET, 0x08);
 
-  store(depthOffsetScale:s16,  SCREEN_SCALE_OFFSET, 0x0C);
-
-  u16 depthScale = depthOffsetScale >> 16;
-  store(depthScale:s16, NORM_SCALE_W, 6);
-  store(depthScale:s16, NORM_SCALE_W, 8);
-  store(depthScale:s16, NORM_SCALE_W, 10);
-  store(depthScale:s16, NORM_SCALE_W, 12);
-
-  depthScale >>= 1;
-  store(depthScale:s16, SCREEN_SCALE_OFFSET, 0x04);
+  store(depthAndWScale:s16, NORM_SCALE_W, 6);
+  store(depthAndWScale:s16, NORM_SCALE_W, 8);
+  store(depthAndWScale:s16, NORM_SCALE_W, 10);
+  store(depthAndWScale:s16, NORM_SCALE_W, 12);
 
   //u8 useReject = guardBandFactor >> 16;
   //store(useReject, USE_REJECT);
