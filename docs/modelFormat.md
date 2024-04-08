@@ -113,12 +113,13 @@ only the first materials CC and draw flags are used.
 ### Object (`O`)
 Model data consisting of multiple parts, can exist multiple times in a file.
 
-| Offset | Type     | Description               |
-|--------|----------|---------------------------|
-| 0x00   | `u32`    | Part count                |
-| 0x04   | `u32`    | Material A, chunk index   |
-| 0x08   | `u32`    | Material B, chunk index   |
-| 0x0C   | `Part[]` | Parts                     |
+| Offset | Type     | Description             |
+|--------|----------|-------------------------|
+| 0x00   | `u32`    | Name                    |
+| 0x04   | `u32`    | Part count              |
+| 0x08   | `u32`    | Material A, chunk index |
+| 0x0C   | `u32`    | Material B, chunk index |
+| 0x10   | `Part[]` | Parts                   |
 
 #### Part
 Model part data.

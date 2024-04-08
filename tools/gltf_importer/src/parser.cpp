@@ -126,6 +126,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
     {
       t3dm.models.push_back({});
       auto &model = t3dm.models.back();
+      if(node->name)model.name = node->name;
 
       auto prim = &mesh->primitives[j];
       printf("   - Primitive %d:\n", j);

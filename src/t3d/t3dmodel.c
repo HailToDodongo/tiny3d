@@ -123,6 +123,9 @@ T3DModel *t3d_model_load(const void *path) {
 
     if(chunkType == 'O') {
       T3DObject *obj = (void*)model + offset;
+      if(obj->name != NULL) {
+        obj->name = patch_pointer(obj->name, (uint32_t)model->stringTablePtr);
+      }
 
       uint32_t matIdxA = model->chunkIdxMaterials + (uint32_t)obj->materialA;
       uint32_t matIdxB = model->chunkIdxMaterials + (uint32_t)obj->materialB;

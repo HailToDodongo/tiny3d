@@ -213,6 +213,7 @@ int main(int argc, char* argv[])
 
     // write object chunk
     const auto &chunks = modelChunks[m];
+    file.write(insertString(stringTable, chunks.chunks.back().name));
     file.write((uint32_t)chunks.chunks.size());
     file.write(materialIndex++);
     file.write(materialIndex++);
