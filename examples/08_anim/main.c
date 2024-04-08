@@ -145,14 +145,18 @@ int main()
       posY += 10;
     }
 
-    posY = 120;
+    posY = 100;
     T3DChunkAnim *anim = anims[activeAnim];
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
     t3d_debug_printf(posX, posY, "Animation: %s", anim->name);
     posY += 10;
     rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
+
+    t3d_debug_printf(posX, posY, "ROM sdata: 0x%08X", anim->sdataAddrROM);
+    posY += 10;
     t3d_debug_printf(posX, posY, "Pages: %d (max: %db)", anim->pageCount, anim->maxPageSize);
     posY += 10;
+
     for(int i = 0; i < anim->pageCount; i++)
     {
       T3DAnimPage *page = &anim->pageTable[i];
@@ -176,6 +180,20 @@ int main()
       }
       posY += 10;
     }
+
+    /* // DEBUG: read sdata
+    uint16_t *data = malloc_uncached(anim->maxPageSize);
+    dma_read(data, anim->sdataAddrROM, anim->maxPageSize);
+    free_uncached(data);
+    posY += 10;
+    for(int i = 0; i < 16; ++i)
+    {
+      t3d_debug_printf(posX, posY, "%04X", data[i]);
+      posX += 38;
+      if(i%8 == 7) {
+        posX = 12; posY += 10;
+      }
+    }*/
 
     rdpq_detach_show();
   }

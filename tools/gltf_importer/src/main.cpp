@@ -281,7 +281,8 @@ int main(int argc, char* argv[])
     file.write<uint16_t>(anim.channelMap.size());
     file.write<uint16_t>(anim.maxPageSize);
     file.write<uint16_t>(0); // (reserved)
-    file.write<uint32_t>(0); // set at runtime
+    file.write<uint32_t>(0); // set at runtime (channel mapping pointer)
+    file.write<uint32_t>(0); // set at runtime (stream data ROM address)
 
     for(const auto &page : anim.pages) {
       uint32_t sdataStart = streamFile.getPos();
@@ -354,7 +355,8 @@ int main(int argc, char* argv[])
   file.writeToFile(t3dmPath);
 
   if(streamFile.getSize() > 0) {
-    auto sdataPath = std::string(t3dmPath) + ".sdata";
+    auto sdataPath = std::string(t3dmPath);
+    sdataPath[sdataPath.size()-1] = 's'; // replace .t3dm with .t3ds
     streamFile.writeToFile(sdataPath.c_str());
   }
 }

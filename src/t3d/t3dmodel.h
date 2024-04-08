@@ -110,7 +110,8 @@ typedef struct {
   uint16_t channelCount;
   uint16_t maxPageSize;
   uint16_t _reserved;
-  T3DAnimChannelMapping *channelMappings; // set during load
+  T3DAnimChannelMapping *channelMappings; // set during load>
+  uint32_t sdataAddrROM; // set during load
   T3DAnimPage pageTable[];
   // T3DAnimChannelMapping channelMappings[]; <- channelMappings
 } T3DChunkAnim;
@@ -142,7 +143,7 @@ typedef struct {
  * @param path FS path
  * @return pointer to the model (that you now own)
  */
-T3DModel* t3d_model_load(const void *path);
+T3DModel* t3d_model_load(const char *path);
 
 // callback for custom drawing, this hooks into the tile-setting section
 typedef void (*T3DModelTileCb)(void* userData, rdpq_texparms_t *tileParams, rdpq_tile_t tile);

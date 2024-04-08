@@ -106,10 +106,22 @@ static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *co
   }
 }
 
-T3DModel *t3d_model_load(const void *path) {
+static uint32_t get_sdata_rom_address(const char *path) {
+  size_t newPathLen = strlen(path) - 5; // - "rom:/"
+  char* sdataPath = malloc(newPathLen+1);
+  memcpy(sdataPath, path+5, newPathLen);
+  sdataPath[newPathLen-1] = 's';
+  sdataPath[newPathLen] = '\0';
+  uint32_t sdataAddr = dfs_rom_addr(sdataPath);
+  free(sdataPath);
+  return sdataAddr;
+}
+
+T3DModel *t3d_model_load(const char *path) {
   int size = 0;
   T3DModel* model = asset_load(path, &size);
   int32_t ptrOffset = (int32_t)(void*)model;
+  uint32_t sdataAddr = 0;
 
   void* basePtrVertices = (void*)model + (model->chunkOffsets[model->chunkIdxVertices].offset & 0xFFFFFF);
   void* basePtrIndices = (void*)model + (model->chunkOffsets[model->chunkIdxIndices].offset & 0xFFFFFF);
@@ -155,9 +167,12 @@ T3DModel *t3d_model_load(const void *path) {
     }
 
     if(chunkType == 'A') {
+      if(sdataAddr == 0)sdataAddr = get_sdata_rom_address(path);
+
       T3DChunkAnim *anim = (void*)model + offset;
       anim->name = patch_pointer(anim->name, (uint32_t)model->stringTablePtr);
       anim->channelMappings = patch_pointer(&anim->pageTable, sizeof(T3DAnimPage) * anim->pageCount);
+      anim->sdataAddrROM = sdataAddr;
     }
   }
 

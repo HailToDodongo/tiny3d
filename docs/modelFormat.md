@@ -4,7 +4,7 @@ All data is stored in binary in a chunk-based file.<br>
 It starts with a header containing the number of chunks and their offsets followed by the data.<br>
 
 ### Streaming-Data
-A `.t3dm` file can be accompanied by a streaming-data file (`.t3dm.sdata`).<br>
+A `.t3dm` file can be accompanied by a streaming-data file (`.t3ds`).<br>
 This file is stored uncompressed and contains data used for streaming (e.g. animations).<br>
 Data sections inside the file can be compressed however. 
 
@@ -157,17 +157,18 @@ The list is sorted by index, so index references are guaranteed to be parsed bef
 Contains a single animation with one or more channels.<br> 
 Each animation is split into pages, whereas the actual data is stored the streaming-data file.
 
-| Offset | Type               | Description                    |
-|--------|--------------------|--------------------------------|
-| 0x00   | `char*`            | Name, offset into string table |
-| 0x04   | `f32`              | Duration (seconds)             |
-| 0x08   | `u16`              | Page count                     |
-| 0x0A   | `u16`              | Channel count                  |
-| 0x0C   | `u16`              | Max. page size (uncompressed)  |
-| 0x0E   | `u16`              | _reserved_                     |
-| 0x10   | `ChannelMapping*`  | (0, set at runtime)            |
-| 0x14   | `AnimPage[]`       | Page header                    |
-| 0x??   | `ChannelMapping[]` | Maps channel to targets        |
+| Offset | Type               | Description                              |
+|--------|--------------------|------------------------------------------|
+| 0x00   | `char*`            | Name, offset into string table           |
+| 0x04   | `f32`              | Duration (seconds)                       |
+| 0x08   | `u16`              | Page count                               |
+| 0x0A   | `u16`              | Channel count                            |
+| 0x0C   | `u16`              | Max. page size (uncompressed)            |
+| 0x0E   | `u16`              | _reserved_                               |
+| 0x10   | `ChannelMapping*`  | `0` (set at runtime)                     |
+| 0x14   | `u32`              | stream-file ROM address (set at runtime) |
+| 0x18   | `AnimPage[]`       | Page header                              |
+| 0x??   | `ChannelMapping[]` | Maps channel to targets                  |
 
 #### `AnimPage`
 
