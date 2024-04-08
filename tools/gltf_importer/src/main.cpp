@@ -271,23 +271,45 @@ int main(int argc, char* argv[])
     ++m;
   }
 
-  // DEBUG:
   for(const auto &anim : t3dm.animations) {
     file.align(4);
     addToChunkTable('A');
 
     file.write(insertString(stringTable, anim.name));
     file.write<float>(anim.duration);
-    file.write<uint32_t>(anim.pages.size());
+    file.write<uint16_t>(anim.pages.size());
+    file.write<uint16_t>(anim.channelMap.size());
+    file.write<uint16_t>(anim.maxPageSize);
+    file.write<uint16_t>(0); // (reserved)
+    file.write<uint32_t>(0); // set at runtime
 
     for(const auto &page : anim.pages) {
+      uint32_t sdataStart = streamFile.getPos();
+
+      for(const auto &ch : page.channels) {
+        if(ch.isRotation()) { // quats. are 32bit values, make sure they are correctly byte-swapped
+          streamFile.writeArray((uint32_t*)ch.valQuantized.data(), ch.valQuantized.size() / 2);
+        } else {
+          streamFile.writeArray(ch.valQuantized.data(), ch.valQuantized.size());
+        }
+      }
+      uint32_t sdataEnd = streamFile.getPos();
+      streamFile.align(16);
+
       file.write<float>(page.timeStart);
-      file.write<uint32_t>(42);
+      file.write<uint16_t>(sdataEnd - sdataStart);
+      file.write<uint8_t>(page.sampleRate);
+      file.write<uint8_t>(0); // 0=uncompressed, 1=compressed
+      file.write<uint32_t>(sdataStart);
     }
 
-    /*for(const auto &ch : anim.channels) {
-      streamFile.writeArray(ch.valQuantized.data(), ch.valQuantized.size());
-    }*/
+    for(const auto &ch : anim.channelMap) {
+      file.write(ch.targetIdx);
+      file.write(ch.targetType);
+      file.write(ch.attributeIdx);
+      file.write(ch.quantScale);
+      file.write(ch.quantOffset);
+    }
   }
 
   // Now patch all chunks together and write out the chunk-table

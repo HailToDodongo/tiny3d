@@ -165,7 +165,7 @@ struct Bone {
   std::vector<std::shared_ptr<Bone>> children;
 };
 
-typedef enum AnimChannelTarget : u32 {
+typedef enum AnimChannelTarget : u8 {
   TRANSLATION,
   SCALE,
   SCALE_UNIFORM,
@@ -181,25 +181,34 @@ struct AnimChannel {
   std::vector<Quat> valQuat{}; // input, for rotation
   std::vector<uint16_t> valQuantized; // output, quantized flat values
 
-  float quantScale{}; // scalar to transform quantized values back to float
-  float quantOffset{}; // offset to transform quantized values back into range
-
   bool isRotation() const {
     return targetType == ROTATION;
   }
+};
+
+struct AnimChannelMapping {
+  std::string targetName{};
+  uint16_t targetIdx{};
+  AnimChannelTarget targetType{};
+  uint8_t attributeIdx{};
+  float quantScale{};
+  float quantOffset{};
 };
 
 struct AnimPage {
   uint32_t sampleRate{};
   float timeStart{};
   float duration{};
+  uint32_t byteSize{};
   std::vector<AnimChannel> channels{};
 };
 
 struct Anim {
   std::string name{};
   float duration{};
+  uint32_t maxPageSize{};
   std::vector<AnimPage> pages{};
+  std::vector<AnimChannelMapping> channelMap{};
 };
 
 struct T3DMData {

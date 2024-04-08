@@ -7,11 +7,20 @@
 #include "../math/quantizer.h"
 
 namespace {
-  template<typename T>
-  bool hasConstValue(const std::vector<T> &values) {
-    T lastValue = values[0];
+  constexpr float MIN_VALUE_DELTA = 0.0001f;
+
+  bool hasConstValue(const std::vector<Quat> &values) {
+    Quat lastValue = values[0];
     for(int i=1; i < values.size(); ++i) {
       if(values[i] != lastValue)return false;
+    }
+    return true;
+  }
+
+  bool hasConstValue(const std::vector<float> &values) {
+    float lastValue = values[0];
+    for(int i=1; i < values.size(); ++i) {
+      if(fabs(values[i] - lastValue) > MIN_VALUE_DELTA)return false;
     }
     return true;
   }
@@ -48,12 +57,12 @@ namespace {
   }
 
   std::vector<AnimPage> splitPages(AnimPage &page) {
-    // @TODO:
+    // @TODO: implement proper splitting by max-size
     return {page};
   }
 }
 
-void convertAnimation(Anim &anim)
+void convertAnimation(Anim &anim, const std::unordered_map<std::string, uint32_t> &nodeMap)
 {
   printf("Convert: %s\n", anim.name.c_str());
 
@@ -61,21 +70,49 @@ void convertAnimation(Anim &anim)
   anim.pages.back().channels = filterEmptyChannels(anim.pages.back().channels);
   // @TODO: check and convert SCALE to SCALE_UNIFORM if all components are the same
 
+  for(auto &ch : anim.pages.back().channels) {
+    printf("  - ChannelMapping %s %d.%d\n", ch.targetName.c_str(), ch.targetType, ch.targetIndex);
+    auto it = nodeMap.find(ch.targetName);
+    if(it == nodeMap.end()) {
+      std::string error = "Animation channel mapper: Node '" + ch.targetName + "' not found";
+      throw std::runtime_error(error);
+    }
+
+    anim.channelMap.emplace_back(
+      ch.targetName, it->second, ch.targetType, ch.targetIndex, 0.0f, 0.0f
+    );
+
+    if(!ch.isRotation()) {
+      Quantizer::floatsGetOffsetScale(
+        ch.valScalar, anim.channelMap.back().quantOffset, anim.channelMap.back().quantScale
+      );
+    }
+  }
+
   // Split animations into pages / resample if possible
   anim.pages = splitPages(anim.pages.back());
 
   // Now quantize/compress the values
   anim.duration = 0.0f;
+  anim.maxPageSize = 0;
   for(auto &page : anim.pages)
   {
+    page.byteSize = 0;
     anim.duration += page.duration;
+    uint32_t channelIdx = 0;
     for(auto &ch : page.channels)
     {
       if(ch.isRotation()) {
         quantizeRotations(ch);
       } else {
-        ch.valQuantized = Quantizer::floatsToU16(ch.valScalar, ch.quantOffset, ch.quantScale);
+        ch.valQuantized = Quantizer::floatsToU16(ch.valScalar,
+          anim.channelMap[channelIdx].quantOffset, anim.channelMap[channelIdx].quantScale
+        );
       }
+      page.byteSize += ch.valQuantized.size() * sizeof(uint16_t);
+      ++channelIdx;
     }
+
+    anim.maxPageSize = std::max(anim.maxPageSize, page.byteSize);
   }
 }

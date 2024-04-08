@@ -157,6 +157,7 @@ T3DModel *t3d_model_load(const void *path) {
     if(chunkType == 'A') {
       T3DChunkAnim *anim = (void*)model + offset;
       anim->name = patch_pointer(anim->name, (uint32_t)model->stringTablePtr);
+      anim->channelMappings = patch_pointer(&anim->pageTable, sizeof(T3DAnimPage) * anim->pageCount);
     }
   }
 

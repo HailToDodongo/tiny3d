@@ -78,9 +78,11 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
 
   // Resting pose matrix stack, used to pre-transform vertices
   std::vector<Mat4> matrixStack{};
+  std::unordered_map<std::string, uint32_t> boneMap{};
   if(!t3dm.skeletons.empty()) {
     auto addBoneMax = [&](auto&& addBoneMax, const Bone &bone) -> void {
       matrixStack.push_back(bone.inverseBindPose);
+      boneMap[bone.name] = bone.index;
       for(auto &child : bone.children) {
         addBoneMax(addBoneMax, *child);
       }
@@ -96,7 +98,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
   for(int i=0; i<data->animations_count; ++i) {
     auto anim = parseAnimation(data->animations[i], config.animSampleRate);
     printf(" - Animation %d: %s\n", i, anim.name.c_str());
-    convertAnimation(anim);
+    convertAnimation(anim, boneMap);
     t3dm.animations.push_back(anim);
   }
   printf("\n\n\n");

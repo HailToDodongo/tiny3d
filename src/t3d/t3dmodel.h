@@ -89,7 +89,7 @@ typedef struct {
 
 typedef struct {
   float timeStart;
-  uint16_t sampleCount;
+  uint16_t dataSize;
   uint8_t sampleRate;
   uint8_t flags;
   uint32_t dataOffset;
@@ -108,6 +108,8 @@ typedef struct {
   float duration;
   uint16_t pageCount;
   uint16_t channelCount;
+  uint16_t maxPageSize;
+  uint16_t _reserved;
   T3DAnimChannelMapping *channelMappings; // set during load
   T3DAnimPage pageTable[];
   // T3DAnimChannelMapping channelMappings[]; <- channelMappings

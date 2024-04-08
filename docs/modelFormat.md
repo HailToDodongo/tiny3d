@@ -157,15 +157,27 @@ The list is sorted by index, so index references are guaranteed to be parsed bef
 Contains a single animation with one or more channels.<br> 
 Each animation is split into pages, whereas the actual data is stored the streaming-data file.
 
-| Offset  | Type               | Description                    |
-|---------|--------------------|--------------------------------|
-| 0x00    | `char*`            | Name, offset into string table |
-| 0x04    | `f32`              | Duration (seconds)             |
-| 0x08    | `u16`              | Page count                     |
-| 0x0A    | `u16`              | Channel count                  |
-| 0x0C    | `ChannelMapping*`  | (0, set at runtime)            |
-| 0x0C    | `AnimPage[]`       | Page header                    |
-| 0x??    | `ChannelMapping[]` | Maps channel to targets        |
+| Offset | Type               | Description                    |
+|--------|--------------------|--------------------------------|
+| 0x00   | `char*`            | Name, offset into string table |
+| 0x04   | `f32`              | Duration (seconds)             |
+| 0x08   | `u16`              | Page count                     |
+| 0x0A   | `u16`              | Channel count                  |
+| 0x0C   | `u16`              | Max. page size (uncompressed)  |
+| 0x0E   | `u16`              | _reserved_                     |
+| 0x10   | `ChannelMapping*`  | (0, set at runtime)            |
+| 0x14   | `AnimPage[]`       | Page header                    |
+| 0x??   | `ChannelMapping[]` | Maps channel to targets        |
+
+#### `AnimPage`
+
+| Offset | Type  | Description                       |
+|--------|-------|-----------------------------------|
+| 0x00   | `f32` | start time (seconds)              |
+| 0x04   | `u16` | Data Size (compressed)            |
+| 0x06   | `u8`  | Sample rate (Hz)                  |
+| 0x07   | `u8`  | Flags, 1=compressed               |
+| 0x08   | `u32` | Data Offset (streaming-data file) |
 
 #### `ChannelMapping`
 
@@ -176,16 +188,6 @@ Each animation is split into pages, whereas the actual data is stored the stream
 | 0x03   | `u8`          | Attribute index (0-2 for x/y/z, 0 for quat.) |
 | 0x04   | `f32`         | Quantization scale                           |
 | 0x08   | `f32`         | Quantization offset                          |
-
-#### `AnimPage`
-
-| Offset | Type  | Description                       |
-|--------|-------|-----------------------------------|
-| 0x00   | `f32` | start time (seconds)              |
-| 0x04   | `u16` | Sample Count                      |
-| 0x06   | `u8`  | Sample rate (Hz)                  |
-| 0x07   | `u8`  | Flags, 1=compressed               |
-| 0x08   | `u32` | Data Offset (streaming-data file) |
 
 #### `Target Type`
 ```

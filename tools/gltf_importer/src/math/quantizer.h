@@ -15,7 +15,7 @@ namespace Quantizer
     return (uint16_t)round((double)(value - offset) / scale * 65535.0);
   }
 
-  inline std::vector<uint16_t> floatsToU16(const std::vector<float> &values, float &offset, float &scale) {
+  void floatsGetOffsetScale(const std::vector<float> &values, float &offset, float &scale) {
     float valMin = INFINITY;
     float valMax = -INFINITY;
     for(float val : values) {
@@ -24,7 +24,9 @@ namespace Quantizer
     }
     offset = valMin;
     scale = valMax - valMin;
+  }
 
+  inline std::vector<uint16_t> floatsToU16(const std::vector<float> &values, float offset, float scale) {
     std::vector<uint16_t> res;
     for(float val : values) {
       res.push_back(Quantizer::floatToU16(val, offset, scale));
