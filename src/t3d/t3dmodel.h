@@ -6,7 +6,6 @@
 #define TINY3D_T3DMODEL_H
 
 #include "t3d.h"
-#include "t3danim.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -90,8 +89,8 @@ typedef struct {
 typedef struct {
   float timeStart;
   uint16_t dataSize;
+  uint8_t strideWords;
   uint8_t sampleRate;
-  uint8_t flags;
   uint32_t dataOffset;
 } T3DAnimPage;
 
@@ -227,7 +226,7 @@ static inline const T3DChunkSkeleton* t3d_model_get_skeleton(const T3DModel *mod
  * @param model
  * @return
  */
-static inline const uint32_t t3d_model_get_animation_count(const T3DModel *model) {
+static inline uint32_t t3d_model_get_animation_count(const T3DModel *model) {
   uint32_t count = 0;
   for(int i = 0; i < model->chunkCount; i++) {
     if(model->chunkOffsets[i].type == 'A')count++;
@@ -241,15 +240,17 @@ static inline const uint32_t t3d_model_get_animation_count(const T3DModel *model
  * @param model
  * @param anims array to store the pointers to
  */
-static inline const void t3d_model_get_animations(const T3DModel *model, T3DChunkAnim* anims[]) {
-  uint32_t count = 0;
-  for(int i = 0; i < model->chunkCount; i++) {
-    if(model->chunkOffsets[i].type == 'A') {
-      uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
-      anims[count++] = (T3DChunkAnim*)((char*)model + offset);
-    }
-  }
-}
+void t3d_model_get_animations(const T3DModel *model, T3DChunkAnim* anims[]);
+
+/**
+ * Returns an animation definition by name.
+ * Note: if you want to create an animation instance, use 't3d_anim_create'.
+ *
+ * @param model
+ * @param name animation name
+ * @return pointer to the animation or NULL if not found
+ */
+T3DChunkAnim* t3d_model_get_animation(const T3DModel *model, const char* name);
 
 #ifdef __cplusplus
 }

@@ -6,6 +6,7 @@
 #include <string>
 #include <filesystem>
 #include <algorithm>
+#include <cassert>
 
 #include "structs.h"
 #include "parser.h"
@@ -287,20 +288,42 @@ int main(int argc, char* argv[])
     for(const auto &page : anim.pages) {
       uint32_t sdataStart = streamFile.getPos();
 
+      uint32_t largestSize = 0;
       for(const auto &ch : page.channels) {
+        largestSize = std::max(largestSize, (uint32_t)(ch.isRotation() ? ch.valQuantized.size() : ch.valQuantized.size()*2));
+      }
+      if(largestSize % 4 != 0)largestSize += 4 - (largestSize % 4);
+
+      for(const auto &ch : page.channels)
+      {
+        printf("Data Quant (%d - ", streamFile.getPos());
+        uint32_t endPos = streamFile.getPos() + (ch.isRotation() ? largestSize*2 : largestSize);
+
         if(ch.isRotation()) { // quats. are 32bit values, make sure they are correctly byte-swapped
           streamFile.writeArray((uint32_t*)ch.valQuantized.data(), ch.valQuantized.size() / 2);
         } else {
           streamFile.writeArray(ch.valQuantized.data(), ch.valQuantized.size());
         }
+        while(streamFile.getPos() < endPos)streamFile.write<uint8_t>(0);
+
+        printf("%d, %d):\n", streamFile.getPos(), largestSize);
+        for(int f=0; f<ch.valQuantized.size(); ++f) {
+          printf(" [%d]:%04X ", f, ch.valQuantized[f]);
+        }
+        printf("\n");
       }
       uint32_t sdataEnd = streamFile.getPos();
       streamFile.align(16);
 
+      assert(largestSize % 4 == 0);
+      largestSize /= 4;
+      assert(largestSize <= 255);
+      assert(page.sampleRate <= 255);
+
       file.write<float>(page.timeStart);
       file.write<uint16_t>(sdataEnd - sdataStart);
+      file.write<uint8_t>(largestSize);
       file.write<uint8_t>(page.sampleRate);
-      file.write<uint8_t>(0); // 0=uncompressed, 1=compressed
       file.write<uint32_t>(sdataStart);
     }
 
@@ -308,7 +331,7 @@ int main(int argc, char* argv[])
       file.write(ch.targetIdx);
       file.write(ch.targetType);
       file.write(ch.attributeIdx);
-      file.write(ch.quantScale);
+      file.write(ch.quantScale / (float)0xFFFF);
       file.write(ch.quantOffset);
     }
   }

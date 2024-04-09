@@ -51,8 +51,8 @@ namespace {
   {
     for(const Quat &q : ch.valQuat) {
       uint32_t quatQuant = Quantizer::quatTo32Bit(q);
-      ch.valQuantized.push_back(quatQuant >> 16);
       ch.valQuantized.push_back(quatQuant & 0xFFFF);
+      ch.valQuantized.push_back(quatQuant >> 16);
     }
   }
 

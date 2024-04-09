@@ -46,7 +46,8 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
     }
 
     uint8_t *dataInput = ((uint8_t*)samplerIn.buffer_view->buffer->data) + samplerIn.offset + samplerIn.buffer_view->offset;
-    uint8_t *dataOutput = ((uint8_t*)samplerOut.buffer_view->buffer->data) + samplerOut.offset + samplerOut.buffer_view->offset;
+    uint8_t *dataOutputStart = ((uint8_t*)samplerOut.buffer_view->buffer->data) + samplerOut.offset + samplerOut.buffer_view->offset;
+    uint8_t *dataOutput = dataOutputStart;
     uint8_t *dataOutputNext = dataOutput + samplerOut.stride;
     uint8_t *dataOutputEnd = dataOutput + samplerOut.count * samplerOut.stride;
 
@@ -62,7 +63,8 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
     printf("    - Output[%s]: %d @ %d\n", Gltf::getTypeString(samplerOut.type), samplerOut.count, samplerOut.stride, samplerOut.type);
     printf("    - Time Range: %.4fs -> %.4fs\n", timeStart, timeEnd);
 
-    for(float t=timeStart; t <= timeEnd; t += sampleStep)
+    uint32_t frame = 0;
+    for(float t=timeStart; ; t += sampleStep)
     {
       while(dataOutput < dataOutputEnd) {
         time = Gltf::readAsFloat(dataInput, samplerIn.component_type);
@@ -71,7 +73,11 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
         dataInput += samplerIn.stride;
         dataOutput += samplerOut.stride;
         dataOutputNext += samplerOut.stride;
+
+        if(dataOutputNext >= dataOutputEnd)dataOutputNext = dataOutputStart;
       }
+      if(dataOutput >= dataOutputEnd)break;
+
       float sampleInterpol = (t - time) / (nextTime - time);
 
       if(channel.target_path == cgltf_animation_path_type_rotation) {
@@ -79,18 +85,23 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
         Quat valueNext = Gltf::readAsVec4(dataOutputNext, samplerOut.type, samplerOut.component_type);
         value = value.slerp(valueNext, sampleInterpol);
 
-        //printf("    - %.4fs/%.4f [f:%.2f]: b:%.4f i=%d: %.4f %.4f %.4f %.4f\n", t, timeEnd, frame, sampleInterpol, samplerIn.count, value[0], value[1], value[2], value[3]);
+        printf("    - %.4fs/%.4f [f:%.2f]: b:%.4f i=%d: %.4f %.4f %.4f %.4f\n", t, timeEnd, frame, sampleInterpol, samplerIn.count, value[0], value[1], value[2], value[3]);
         page.channels.back().valQuat.push_back(value);
       } else {
         Vec3 value = Gltf::readAsVec3(dataOutput, samplerOut.type, samplerOut.component_type);
         Vec3 valueNext = Gltf::readAsVec3(dataOutputNext, samplerOut.type, samplerOut.component_type);
         value = value.mix(valueNext, sampleInterpol);
 
-        //printf("    - %.4fs/%.4f [f:%.2f]: b:%.4f i=%d: %.4f %.4f %.4f\n", t, timeEnd, frame, sampleInterpol, samplerIn.count, value[0], value[1], value[2]);
+        if(channel.target_path == cgltf_animation_path_type_translation) {
+          value *= config.globalScale;
+        }
+
+        printf("    - %.4fs/%.4f [f:%.2f]: b:%.4f i=%d: %.4f %.4f %.4f\n", t, timeEnd, frame, sampleInterpol, samplerIn.count, value[0], value[1], value[2]);
         page.channels[page.channels.size()-3].valScalar.push_back(value[0]);
         page.channels[page.channels.size()-2].valScalar.push_back(value[1]);
         page.channels[page.channels.size()-1].valScalar.push_back(value[2]);
       }
+      ++frame;
     }
   }
 

@@ -341,3 +341,24 @@ void t3d_model_free(T3DModel *model) {
   free(model);
 }
 
+T3DChunkAnim *t3d_model_get_animation(const T3DModel *model, const char *name) {
+  for(int i = 0; i < model->chunkCount; i++) {
+    if(model->chunkOffsets[i].type == 'A') {
+      uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
+      T3DChunkAnim *anim = (T3DChunkAnim*)((char*)model + offset);
+      if(strcmp(anim->name, name) == 0)return anim;
+    }
+  }
+  return NULL;
+}
+
+void t3d_model_get_animations(const T3DModel *model, T3DChunkAnim **anims) {
+  uint32_t count = 0;
+  for(int i = 0; i < model->chunkCount; i++) {
+    if(model->chunkOffsets[i].type == 'A') {
+      uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
+      anims[count++] = (T3DChunkAnim*)((char*)model + offset);
+    }
+  }
+}
+

@@ -176,8 +176,8 @@ Each animation is split into pages, whereas the actual data is stored the stream
 |--------|-------|-----------------------------------|
 | 0x00   | `f32` | start time (seconds)              |
 | 0x04   | `u16` | Data Size (compressed)            |
-| 0x06   | `u8`  | Sample rate (Hz)                  |
-| 0x07   | `u8`  | Flags, 1=compressed               |
+| 0x06   | `u8`  | Stride (in words)                 |
+| 0x07   | `u8`  | Sample rate (Hz)                  |
 | 0x08   | `u32` | Data Offset (streaming-data file) |
 
 #### `ChannelMapping`

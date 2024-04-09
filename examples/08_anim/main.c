@@ -16,6 +16,10 @@ void set_selected_color(bool selected) {
   rdpq_set_prim_color(selected ? RGBA32(0xFF, 0xFF, 0xFF, 0xFF) : RGBA32(0x66, 0x66, 0x66, 0xFF));
 }
 
+float get_time_s() {
+  return (float)((double)get_ticks_us() / 1000000.0);
+}
+
 /**
  * Example showing how to load, instantiate and play skeletal-animations.
  */
@@ -59,6 +63,9 @@ int main()
   T3DChunkAnim **anims = malloc(animCount * sizeof(void*));
   t3d_model_get_animations(model, anims);
 
+  T3DAnim animA = t3d_anim_create(model, "Test00");
+  t3d_anim_attach(&animA, &skel);
+
   rspq_block_begin();
   t3d_model_draw_skinned(model, &skel);
   rspq_block_t *dplDraw = rspq_block_end();
@@ -67,6 +74,7 @@ int main()
   float rotAngleAdd = 0.0f;
   float colorTimer = 0.0f;
   int activeAnim = 0;
+  float lastTime = get_time_s() - (1.0f / 60.0f);
 
   rspq_syncpoint_t syncPoint = 0;
 
@@ -88,6 +96,10 @@ int main()
     if(btn.c_down)++activeAnim;
     activeAnim = (activeAnim + (int)animCount) % (int)animCount;
 
+    float newTime = get_time_s();
+    float deltaTime = newTime - lastTime;
+    lastTime = newTime;
+
     colorTimer += 0.01f;
 
     rotAngle += rotAngleAdd;
@@ -95,6 +107,8 @@ int main()
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+
+    t3d_anim_update(&animA, deltaTime);
 
     if(syncPoint)rspq_syncpoint_wait(syncPoint);
     t3d_skeleton_update(&skel);
@@ -175,7 +189,7 @@ int main()
       } else {
         t3d_debug_printf(posX, posY, " Bone[%d] %s[%d] x%.2f %+.2f",
           mapping->targetIdx, TARGET_NAMES[mapping->targetType],
-          mapping->attributeIdx, mapping->quantScale, mapping->quantOffset
+          mapping->attributeIdx, mapping->quantScale * 0xFFFF, mapping->quantOffset
         );
       }
       posY += 10;
