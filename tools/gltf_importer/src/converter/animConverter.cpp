@@ -32,10 +32,10 @@ namespace {
     for(auto &channel : channels)
     {
       if(channel.isRotation() ? hasConstValue(channel.valQuat) : hasConstValue(channel.valScalar)) {
-        //printf("  - Channel %s %d.%d has constant value\n", channel.targetName.c_str(), channel.targetType, channel.targetIndex);
+        printf("  - Channel %s %d.%d has constant value\n", channel.targetName.c_str(), channel.targetType, channel.targetIndex);
         bool isIdentity = false;
         switch(channel.targetType) {
-          case AnimChannelTarget::TRANSLATION  : isIdentity = channel.valScalar[0] == 0.0f;    break;
+          case AnimChannelTarget::TRANSLATION  : isIdentity = fabsf(channel.valScalar[0]) < MIN_VALUE_DELTA; break;
           case AnimChannelTarget::ROTATION     : isIdentity = channel.valQuat[0].isIdentity(); break;
           case AnimChannelTarget::SCALE_UNIFORM:
           case AnimChannelTarget::SCALE        : isIdentity = channel.valScalar[0] == 1.0f;    break;

@@ -280,11 +280,16 @@ int main(int argc, char* argv[])
     file.write<float>(anim.duration);
     file.write<uint16_t>(anim.pages.size());
     file.write<uint16_t>(anim.channelMap.size());
-    file.write<uint16_t>(anim.maxPageSize);
+
+    uint32_t posLargestPageSize = file.getPos();
+      file.write<uint16_t>(0);
+
     file.write<uint16_t>(0); // (reserved)
     file.write<uint32_t>(0); // set at runtime (channel mapping pointer)
     file.write<uint32_t>(0); // set at runtime (stream data ROM address)
 
+    // @TODO: do the alignment stuff in the converter code
+    uint32_t maxPageSize = 0;
     for(const auto &page : anim.pages) {
       uint32_t sdataStart = streamFile.getPos();
 
@@ -315,6 +320,8 @@ int main(int argc, char* argv[])
       uint32_t sdataEnd = streamFile.getPos();
       streamFile.align(16);
 
+      maxPageSize = std::max(maxPageSize, sdataEnd - sdataStart);
+
       assert(largestSize % 4 == 0);
       largestSize /= 4;
       assert(largestSize <= 255);
@@ -326,6 +333,11 @@ int main(int argc, char* argv[])
       file.write<uint8_t>(page.sampleRate);
       file.write<uint32_t>(sdataStart);
     }
+
+    file.posPush();
+      file.setPos(posLargestPageSize);
+      file.write<uint16_t>(maxPageSize);
+    file.posPop();
 
     for(const auto &ch : anim.channelMap) {
       file.write(ch.targetIdx);

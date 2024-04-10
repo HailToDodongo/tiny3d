@@ -43,6 +43,14 @@ typedef struct {
 T3DSkeleton t3d_skeleton_create(const T3DModel *model);
 
 /**
+ * Resets a skeleton to its initial state (resting pose).
+ * This can be useful when switching between animations.
+ * Note: To recalculate the bone matrices too, call 't3d_skeleton_update' afterwards.
+ * @param skeleton The skeleton to reset
+ */
+void t3d_skeleton_reset(T3DSkeleton *skeleton);
+
+/**
  * Updates the skeleton's bone matrices if data has changed.
  * Call this after making changes to the bones individual properties (pos/rot/scale).
  * To make this work, the `hasChanged` flag in the bone must also be set

@@ -171,6 +171,50 @@ inline static void t3d_quat_rotate_euler(T3DQuat *quat, float axis[3], float ang
 }
 
 /**
+ * Dot product of a quaternion as a vec4
+ * @param a quaternion
+ * @param b quaternion
+ * @return dot product
+ */
+inline static float t3d_quat_dot(const T3DQuat *a, const T3DQuat *b)
+{
+  return a->v[0] * b->v[0] + a->v[1] * b->v[1] + a->v[2] * b->v[2] + a->v[3] * b->v[3];
+}
+
+/**
+ * Normalizes a quaternion
+ * @param quat
+ */
+inline static void t3d_quat_normalize(T3DQuat *quat)
+{
+  float scale = 1.0f / sqrtf(quat->v[0]*quat->v[0] + quat->v[1]*quat->v[1] + quat->v[2]*quat->v[2] + quat->v[3]*quat->v[3]);
+  quat->v[0] *= scale;
+  quat->v[1] *= scale;
+  quat->v[2] *= scale;
+  quat->v[3] *= scale;
+}
+
+/**
+ * Interpolates between two quaternions using a normalized linear interpolation.
+ * @param res interpolated quaternion
+ * @param a first quaternion
+ * @param b second quaternion
+ * @param t interpolation factor
+ */
+inline static void t3d_quat_nlerp(T3DQuat *res, const T3DQuat *a, const T3DQuat *b, float t)
+{
+  float blend = 1.0f - t;
+  if(t3d_quat_dot(a, b) < 0.0f) {
+    blend = -blend;
+  }
+  res->v[0] = blend * a->v[0] + t * b->v[0];
+  res->v[1] = blend * a->v[1] + t * b->v[1];
+  res->v[2] = blend * a->v[2] + t * b->v[2];
+  res->v[3] = blend * a->v[3] + t * b->v[3];
+  t3d_quat_normalize(res);
+}
+
+/**
  * @brief Initializes a matrix to the identity matrix
  * @param mat matrix to be changed
  */

@@ -14,19 +14,21 @@ T3DSkeleton t3d_skeleton_create(const T3DModel *model) {
     .skeletonRef = skelRef
   };
 
-  //debugf("Skeleton: %d bones\n", skelRef->boneCount);
+  t3d_skeleton_reset(&skel);
   for(int i = 0; i < skelRef->boneCount; i++) {
     t3d_mat4_identity(&skel.bones[i].matrix);
-    t3d_quat_identity(&skel.bones[i].rotation);
-    skel.bones[i].position = (T3DVec3){{0, 0, 0}};
-    skel.bones[i].scale = (T3DVec3){{1, 1, 1}};
-    skel.bones[i].hasChanged = true; // force an initial update
-    //debugf("Bone %d -> %d\n", i, skelRef->bones[i].parentIdx);
-
     t3d_mat4fp_identity(&skel.boneMatricesFP[i]);
   }
-
   return skel;
+}
+
+void t3d_skeleton_reset(T3DSkeleton *skeleton) {
+  for(int i = 0; i < skeleton->skeletonRef->boneCount; i++) {
+    t3d_quat_identity(&skeleton->bones[i].rotation);
+    skeleton->bones[i].position = (T3DVec3){{0, 0, 0}};
+    skeleton->bones[i].scale = (T3DVec3){{1, 1, 1}};
+    skeleton->bones[i].hasChanged = true;
+  }
 }
 
 void t3d_skeleton_update(const T3DSkeleton *skeleton)

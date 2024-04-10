@@ -4,8 +4,10 @@
 */
 
 #include "t3d/t3danim.h"
+#include <malloc.h>
 
 #define SQRT_2_INV 0.70710678118f
+const static char TARGET_TYPE[4] = {'T', 'S', 's', 'R'};
 
 T3DAnim t3d_anim_create(const T3DModel *model, const char *name) {
   T3DChunkAnim* animDef = t3d_model_get_animation(model, name);
@@ -18,7 +20,7 @@ T3DAnim t3d_anim_create(const T3DModel *model, const char *name) {
     .speed = 1.0f,
     .timeNextPage = 0,
     .loadedPageIdx = -1,
-    .pageData = malloc_uncached(animDef->maxPageSize),
+    .pageData = memalign(16, animDef->maxPageSize),
   };
   return result;
 }
@@ -32,6 +34,8 @@ void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
     T3DAnimChannelMapping *channelMap = &anim->animRef->channelMappings[i];
     T3DAnimTarget *target = &anim->targets[i];
     T3DBone *bone = &skeleton->bones[channelMap->targetIdx];
+
+    debugf("  - Channel %d: type: %d\n", i, channelMap->targetType);
 
     target->changedFlag = &bone->hasChanged;
     switch(channelMap->targetType) {
@@ -56,6 +60,7 @@ void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
 static inline void load_page(T3DAnim *anim, int index) {
   debugf("Loading page %d\n", index);
   const T3DAnimPage *page = &anim->animRef->pageTable[index];
+  data_cache_hit_writeback_invalidate(anim->pageData, page->dataSize);
   dma_read(anim->pageData, anim->animRef->sdataAddrROM + page->dataOffset, page->dataSize);
   anim->loadedPageIdx = index;
 }
@@ -86,7 +91,6 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
     load_page(anim, 0);
   }
 
-  anim->speed = 0.25f;
   anim->time += deltaTime * anim->speed;
 
   if(anim->time >= anim->animRef->duration) {
@@ -100,37 +104,41 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
   float interp = kfIdxFloat - kfIdx;
 
   debugf("Time: %.2f, KF: %ld\n", anim->time, kfIdx);
-  //T3DAnimPage *page = &anim->animRef->pageTable[anim->loadedPageIdx];
 
   const char *data = anim->pageData;
   for(int c=0; c<anim->animRef->channelCount; c++)
   {
+    //debugf("  - Channel %d 0x%08lX:", c, (uint32_t)data);
     T3DAnimChannelMapping *channelMap = &anim->animRef->channelMappings[c];
     T3DAnimTarget *target = &anim->targets[c];
 
     if(channelMap->targetType == T3D_ANIM_TARGET_ROTATION) {
       uint32_t* dataU32 = (uint32_t*)(data + (kfIdx*4));
-      unpack_quat(*dataU32, (T3DQuat*)target->target);
+      T3DQuat quatNext;
+      unpack_quat(dataU32[0], (T3DQuat*)target->target);
+      unpack_quat(dataU32[1], &quatNext);
+      t3d_quat_nlerp((T3DQuat*)target->target, (T3DQuat*)target->target, &quatNext, interp);
 
-      debugf("  - Channel %d: %08lX @ %d -> %.2f %.2f %.2f %.2f (stride: %d)\n", c,
+      /*debugf(" %08lX @ %d -> %.2f %.2f %.2f %.2f (stride: %d)\n",
         *dataU32, data - anim->pageData,
         ((T3DQuat*)target->target)->v[0],
         ((T3DQuat*)target->target)->v[1],
         ((T3DQuat*)target->target)->v[2],
         ((T3DQuat*)target->target)->v[3],
         page->strideWords
-      );
+      );*/
       data += page->strideWords * 8;
     } else {
-      uint16_t* dataU16 = (uint16_t*)(data + (kfIdx*2));
-      float valueA = (float)dataU16[0] * channelMap->quantScale + channelMap->quantOffset;
-      float valueB = (float)dataU16[1] * channelMap->quantScale + channelMap->quantOffset; // @TODO: OOB
+      if(channelMap->targetType == T3D_ANIM_TARGET_SCALE_XYZ) { // @TODO: normalize pos in gltf importer
+        uint16_t* dataU16 = (uint16_t*)(data + (kfIdx*2));
+        float valueA = (float)dataU16[0] * channelMap->quantScale + channelMap->quantOffset;
+        float valueB = (float)dataU16[1] * channelMap->quantScale + channelMap->quantOffset; // @TODO: OOB
 
+        *(float*)target->target = valueA + (valueB - valueA) * interp;
+        /*debugf(" (%c) %04X @ %d -> %.2f (stride: %d)\n", TARGET_TYPE[channelMap->targetType],
+        *dataU16, data - anim->pageData, *(float*)target->target, page->strideWords);*/
+      }
 
-      char TARGET_TYPE[4] = {'T', 'S', 's', 'R'};
-      *(float*)target->target = valueA + (valueB - valueA) * interp;
-      debugf("  - Channel %d: (%c) %04X @ %d -> %.2f (stride: %d)\n", c, TARGET_TYPE[channelMap->targetType],
-      *dataU16, data - anim->pageData, *(float*)target->target, page->strideWords);
       data += page->strideWords * 4;
     }
     *target->changedFlag = 1;
