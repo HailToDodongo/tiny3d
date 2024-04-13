@@ -41,12 +41,23 @@ void t3d_mat4_perspective(T3DMat4 *mat, float fov, float aspect, float near, flo
 
 void t3d_mat4_from_srt(T3DMat4 *mat, float scale[3], float quat[4], float translate[3])
 {
+  float qxx = quat[0] * quat[0];
+  float qyy = quat[1] * quat[1];
+  float qzz = quat[2] * quat[2];
+  float qxz = quat[0] * quat[2];
+  float qxy = quat[0] * quat[1];
+  float qyz = quat[1] * quat[2];
+  float qwx = quat[3] * quat[0];
+  float qwy = quat[3] * quat[1];
+  float qwz = quat[3] * quat[2];
+  
   *mat = (T3DMat4){{
-    {(1.0f - 2.0f * quat[2] * quat[2] - 2.0f * quat[0] * quat[0]) * scale[0],        (2.0f * quat[1] * quat[2] - 2.0f * quat[3] * quat[0]) * scale[0],        (2.0f * quat[1] * quat[0] + 2.0f * quat[3] * quat[2]) * scale[0], 0.0f},
-    {       (2.0f * quat[1] * quat[2] + 2.0f * quat[3] * quat[0]) * scale[1], (1.0f - 2.0f * quat[1] * quat[1] - 2.0f * quat[0] * quat[0]) * scale[1],        (2.0f * quat[2] * quat[0] - 2.0f * quat[3] * quat[1]) * scale[1], 0.0f},
-    {       (2.0f * quat[1] * quat[0] - 2.0f * quat[3] * quat[2]) * scale[2],        (2.0f * quat[2] * quat[0] + 2.0f * quat[3] * quat[1]) * scale[2], (1.0f - 2.0f * quat[1] * quat[1] - 2.0f * quat[2] * quat[2]) * scale[2], 0.0f},
-    {translate[0], translate[1], translate[2], 1.0f}
+    {1.0f - 2.0f * (qyy + qzz),        2.0f * (qxy + qwz),        2.0f * (qxz - qwy), 0.0f},
+    {       2.0f * (qxy - qwz), 1.0f - 2.0f * (qxx + qzz),        2.0f * (qyz + qwx), 0.0f},
+    {       2.0f * (qxz + qwy),        2.0f * (qyz - qwx), 1.0f - 2.0f * (qxx + qyy), 0.0f},
+    {             translate[0],              translate[1],              translate[2], 1.0f}
   }};
+  t3d_mat4_scale(mat, scale[0], scale[1], scale[2]);
 }
 
 void t3d_mat4_from_srt_euler(T3DMat4 *mat, float scale[3], float rot[3], float translate[3])

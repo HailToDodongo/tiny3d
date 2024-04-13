@@ -19,9 +19,9 @@ extern "C"
  */
 typedef struct {
   T3DMat4 matrix;
+  T3DVec3 scale;
   T3DQuat rotation;
   T3DVec3 position;
-  T3DVec3 scale;
   int hasChanged;
 } T3DBone;
 
@@ -43,12 +43,31 @@ typedef struct {
 T3DSkeleton t3d_skeleton_create(const T3DModel *model);
 
 /**
+ * Clones a skeleton instance.
+ * This can also be used to create optimized skeletons for blending animations.
+ * @param skel Skeleton to clone
+ * @param useMatrices If false, no matrices will be allocated, this is useful for blending animations
+ * @return Cloned skeleton
+ */
+T3DSkeleton t3d_skeleton_clone(const T3DSkeleton *skel, bool useMatrices);
+
+/**
  * Resets a skeleton to its initial state (resting pose).
  * This can be useful when switching between animations.
  * Note: To recalculate the bone matrices too, call 't3d_skeleton_update' afterwards.
  * @param skeleton The skeleton to reset
  */
 void t3d_skeleton_reset(T3DSkeleton *skeleton);
+
+/**
+ * Blends two skeletons together.
+ * Note: it is safe to use the same skeleton as an input and output parameter.
+ * @param skelRes Resulting skeleton
+ * @param skelA First skeleton
+ * @param skelB Second skeleton
+ * @param factor Blend factor (0.0-1.0), you are allowed to go beyond these values to "overdrive" animations
+ */
+void t3d_skeleton_blend(const T3DSkeleton *skelRes, const T3DSkeleton *skelA, const T3DSkeleton *skelB, float factor);
 
 /**
  * Updates the skeleton's bone matrices if data has changed.

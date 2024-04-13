@@ -52,9 +52,14 @@ int main()
   T3DVec3 lightDirVec = {{1.0f, 1.0f, 1.0f}};
   t3d_vec3_norm(&lightDirVec);
 
-  T3DModel *model = t3d_model_load("rom:/box2.t3dm");
+  //T3DModel *model = t3d_model_load("rom:/box2.t3dm"); float modelScale = 0.08f;
+  //T3DModel *model = t3d_model_load("rom:/animTest.t3dm"); float modelScale = 0.08f;
+  T3DModel *model = t3d_model_load("rom:/cath.t3dm");   float modelScale = 0.0035f;
+  //T3DModel *model = t3d_model_load("rom:/enemyPlant00.t3dm"); float modelScale = 0.3f;
+
   T3DSkeleton skel = t3d_skeleton_create(model);
-  T3DSkeleton skelBlend = t3d_skeleton_create(model);
+  T3DSkeleton skelBlend = t3d_skeleton_clone(&skel, false); // <- has no matrices
+  T3DSkeleton skelResting = t3d_skeleton_clone(&skel, false); // <- has no matrices
 
   // Read out all animations in the model.
   // You probably don't need this if you know the name of the animation.
@@ -64,24 +69,27 @@ int main()
   T3DChunkAnim **anims = malloc(animCount * sizeof(void*));
   t3d_model_get_animations(model, anims);
 
-  T3DAnim animInst[3];
-  animInst[0] = t3d_anim_create(model, "Test00");
-  animInst[1] = t3d_anim_create(model, "Test01");
-  //animInst[2] = t3d_anim_create(model, "Test02");
-  t3d_anim_attach(&animInst[0], &skel);
-  t3d_anim_attach(&animInst[1], &skelBlend);
-  //t3d_anim_attach(&animInst[2], &skel);
+  T3DAnim *animInst = malloc(animCount * sizeof(T3DAnim));
+  for(int i = 0; i < animCount; i++) {
+    animInst[i] = t3d_anim_create(model, anims[i]->name);
+    t3d_anim_attach(&animInst[i], &skel);
+  }
 
   rspq_block_begin();
   t3d_model_draw_skinned(model, &skel);
+  //t3d_model_draw(model);
   rspq_block_t *dplDraw = rspq_block_end();
 
   float colorTimer = 0.0f;
   int activeAnim = 0;
+  int activeBlendAnim = -1;
   float lastTime = get_time_s() - (1.0f / 60.0f);
   float blendFactor = 0.0f;
 
+  //float modelScale = 0.25f;
+
   rspq_syncpoint_t syncPoint = 0;
+  bool play = true;
 
   for(;;)
   {
@@ -95,17 +103,29 @@ int main()
     const float SPEED_SCALE = 0.0003f;
 
     int lastAnim = activeAnim;
-    //if(btn.c_up)--activeAnim;
-    //if(btn.c_down)++activeAnim;
-    if(joypad.btn.c_up)blendFactor += 0.005f;
-    if(joypad.btn.c_down)blendFactor -= 0.005f;
-    if(btn.c_left)blendFactor = 0.0f;
-    if(btn.c_right)blendFactor = 1.0f;
+    if(btn.c_up)--activeAnim;
+    if(btn.c_down)++activeAnim;
+    if(btn.a)play = !play;
+
+    if(btn.b) {
+      if(activeBlendAnim >= 0) {
+        t3d_anim_attach(&animInst[activeBlendAnim], &skel);
+      }
+      activeBlendAnim = (activeBlendAnim == activeAnim) ? -1 : activeAnim;
+      if(activeBlendAnim >= 0) {
+        t3d_skeleton_reset(&skelBlend);
+        t3d_anim_attach(&animInst[activeBlendAnim], &skelBlend);
+      }
+    }
+
+    if(joypad.btn.c_left)blendFactor -= 0.0075f;
+    if(joypad.btn.c_right)blendFactor += 0.0075f;
     if(blendFactor > 1.0f)blendFactor = 1.0f;
     if(blendFactor < 0.0f)blendFactor = 0.0f;
+
     activeAnim = (activeAnim + (int)animCount) % (int)animCount;
 
-    if(lastAnim != activeAnim) {
+    if(lastAnim != activeAnim || !play) {
       t3d_skeleton_reset(&skel);
     }
 
@@ -118,25 +138,22 @@ int main()
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
-    t3d_anim_update(&animInst[0], deltaTime);
-    t3d_anim_update(&animInst[1], deltaTime);
+    if(play) {
+      t3d_anim_update(&animInst[activeAnim], deltaTime);
 
-    // Blend between two skeletons (@TODO: proper API, stripped down skeleton struct for blending)
-    for(int i = 0; i < skel.skeletonRef->boneCount; i++) {
-      T3DBone *bone = &skel.bones[i];
-      T3DBone *boneBlend = &skelBlend.bones[i];
-      t3d_quat_nlerp(&bone->rotation, &bone->rotation, &boneBlend->rotation, blendFactor);
-      //bone->position = t3d_vec3_lerp(&bone->position, &boneBlend->position, blendFactor);
-      //bone->scale = t3d_vec3_lerp(&bone->scale, &boneBlend->scale, blendFactor);
+      if(activeBlendAnim >= 0) {
+        t3d_anim_update(&animInst[activeBlendAnim], deltaTime);
+        t3d_skeleton_blend(&skel, &skelBlend, &skel, blendFactor);
+      }
     }
 
     if(syncPoint)rspq_syncpoint_wait(syncPoint);
     t3d_skeleton_update(&skel);
 
     t3d_mat4fp_from_srt_euler(modelMatFP,
-      (float[3]){0.1f, 0.1f, 0.1f},
-      (float[3]){0.0f, 3.2f, 0},
-      (float[3]){30,2,0}
+      (float[3]){modelScale, modelScale, modelScale},
+      (float[3]){0.0f, 0, 0},
+      (float[3]){25,2,0}
     );
 
     // ======== Draw (3D) ======== //
@@ -174,10 +191,14 @@ int main()
     for(int i = 0; i < animCount; i++)
     {
       const T3DChunkAnim *anim = anims[i];
-      //set_selected_color(activeAnim == i);
+      set_selected_color(activeAnim == i);
+      if(activeBlendAnim == i) {
+        rdpq_set_prim_color(COLOR_BTN_B);
+      }
+
       uint8_t factor = i == 0 ? ((1.0f-blendFactor) * 230) : (blendFactor * 230);
       factor += 25;
-      rdpq_set_prim_color(RGBA32(factor, factor, factor, 0xFF));
+      //rdpq_set_prim_color(RGBA32(factor, factor, factor, 0xFF));
 
       t3d_debug_printf(posX, posY, "%s: %.2fs", anim->name, anim->duration);
       posY += 10;
@@ -219,6 +240,11 @@ int main()
       }
       posY += 10;
     }*/
+
+    posY += 10;
+    if(play) {
+      t3d_debug_printf(posX, posY, "Time: %.2fs / %.2fs", animInst[activeAnim].time, anim->duration);
+    }
 
     /* // DEBUG: read sdata
     uint16_t *data = malloc_uncached(anim->maxPageSize);

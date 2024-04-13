@@ -156,6 +156,10 @@ struct ModelChunked {
 
 struct Bone {
   std::string name;
+  Vec3 pos;
+  Quat rot;
+  Vec3 scale;
+
   Mat4 parentMatrix;
   Mat4 modelMatrix;
   Mat4 inverseBindPose;

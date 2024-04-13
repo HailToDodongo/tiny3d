@@ -4,6 +4,7 @@
 */
 
 #include "parser.h"
+#include <cassert>
 
 namespace
 {
@@ -63,6 +64,7 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
     printf("    - Output[%s]: %d @ %d\n", Gltf::getTypeString(samplerOut.type), samplerOut.count, samplerOut.stride, samplerOut.type);
     printf("    - Time Range: %.4fs -> %.4fs\n", timeStart, timeEnd);
 
+
     uint32_t frame = 0;
     for(float t=timeStart; ; t += sampleStep)
     {
@@ -79,24 +81,31 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
       if(dataOutput >= dataOutputEnd)break;
 
       float sampleInterpol = (t - time) / (nextTime - time);
+      //printf("Time: %.4f (%.4f - %.4f) -> %.4f\n", t, time, nextTime, sampleInterpol);
+      assert(sampleInterpol >= 0.0f && sampleInterpol <= 1.0f);
 
       if(channel.target_path == cgltf_animation_path_type_rotation) {
-        Quat value = Gltf::readAsVec4(dataOutput, samplerOut.type, samplerOut.component_type);
+        // @TODO: interpolate by getting closes two points in time instead
+        Quat valueCurr = Gltf::readAsVec4(dataOutput, samplerOut.type, samplerOut.component_type);
         Quat valueNext = Gltf::readAsVec4(dataOutputNext, samplerOut.type, samplerOut.component_type);
-        value = value.slerp(valueNext, sampleInterpol);
+        Quat value = valueCurr.slerp(valueNext, sampleInterpol);
 
-        printf("    - %.4fs/%.4f [f:%.2f]: b:%.4f i=%d: %.4f %.4f %.4f %.4f\n", t, timeEnd, frame, sampleInterpol, samplerIn.count, value[0], value[1], value[2], value[3]);
+        if(value.isInvalid()) {
+          throw std::runtime_error("Invalid Quaternion in anim-parser: " + value.toString());
+        }
+
         page.channels.back().valQuat.push_back(value);
       } else {
         Vec3 value = Gltf::readAsVec3(dataOutput, samplerOut.type, samplerOut.component_type);
         Vec3 valueNext = Gltf::readAsVec3(dataOutputNext, samplerOut.type, samplerOut.component_type);
+
         value = value.mix(valueNext, sampleInterpol);
 
         if(channel.target_path == cgltf_animation_path_type_translation) {
           value *= config.globalScale;
         }
 
-        printf("    - %.4fs/%.4f [f:%.2f]: b:%.4f i=%d: %.4f %.4f %.4f\n", t, timeEnd, frame, sampleInterpol, samplerIn.count, value[0], value[1], value[2]);
+        // printf("    - %.4fs/%.4f [f:%d]: b:%.4f i=%d: %.4f %.4f %.4f\n", t, timeEnd, frame, sampleInterpol, samplerIn.count, value[0], value[1], value[2]);
         page.channels[page.channels.size()-3].valScalar.push_back(value[0]);
         page.channels[page.channels.size()-2].valScalar.push_back(value[1]);
         page.channels[page.channels.size()-1].valScalar.push_back(value[2]);

@@ -146,12 +146,14 @@ Contains a tree of bones, used for skeletal animation.<br>
 Bone data, each bone references its parent by index.<br>
 The list is sorted by index, so index references are guaranteed to be parsed before the bone itself.
 
-| Offset | Type        | Description           |
-|--------|-------------|-----------------------|
-| 0x00   | `u32`       | Name                  |
-| 0x04   | `u16`       | Parent index          |
-| 0x06   | `u16`       | Depth / Level         |
-| 0x08   | `f32[4][4]` | Parent-Matrix         |
+| Offset | Type     | Description           |
+|--------|----------|-----------------------|
+| 0x00   | `u32`    | Name                  |
+| 0x04   | `u16`    | Parent index          |
+| 0x06   | `u16`    | Depth / Level         |
+| 0x08   | `f32[3]` | Scale                 |
+| 0x14   | `f32[4]` | Rotation (Quat, XYZW) |
+| 0x24   | `f32[3]` | Translation           |
 
 ## Animation (`A`)
 Contains a single animation with one or more channels.<br> 

@@ -10,7 +10,7 @@
 
 struct Quat
 {
-  f32 data[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+  f32 data[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
   // Constructors
   constexpr Quat() = default;
@@ -71,8 +71,13 @@ struct Quat
   [[nodiscard]] Quat slerp(const Quat &b, float factor) const {
     Quat res;
     float dot = x() * b.x() + y() * b.y() + z() * b.z() + w() * b.w();
+    if(dot < 0) {
+      return -(*this).slerp(-b, factor);
+    }
+
     float theta = acosf(dot);
-    if (fabsf(theta) < 0.0001f) {
+
+    if (fabsf(theta) < 0.0001f || isnan(theta) || isinf(theta)) {
       res = *this;
     } else {
       float sinTheta = sinf(theta);
@@ -90,10 +95,32 @@ struct Quat
   Quat operator*(const Quat& b) const
   {
     return {
-      w() * b.w() - x() * b.x() - y() * b.y() - z() * b.z(),
-      w() * b.x() + x() * b.w() + y() * b.z() - z() * b.y(),
-      w() * b.y() + y() * b.w() + z() * b.x() - x() * b.z(),
-      w() * b.z() + z() * b.w() + x() * b.y() - y() * b.x(),
+      data[3] * b.data[0] + data[0] * b.data[3] + data[1] * b.data[2] - data[2] * b.data[1],
+      data[3] * b.data[1] - data[0] * b.data[2] + data[1] * b.data[3] + data[2] * b.data[0],
+      data[3] * b.data[2] + data[0] * b.data[1] - data[1] * b.data[0] + data[2] * b.data[3],
+      data[3] * b.data[3] - data[0] * b.data[0] - data[1] * b.data[1] - data[2] * b.data[2]
     };
+  }
+
+  Quat operator-() const
+  {
+    return { -data[0], -data[1], -data[2], -data[3] };
+  }
+
+  Quat inverse() const
+  {
+    float normSquared = data[0] * data[0] + data[1] * data[1] + data[2] * data[2] + data[3] * data[3];
+    normSquared = 1.0f / normSquared;
+
+    return { -data[0] * normSquared, -data[1] * normSquared, -data[2] * normSquared, data[3] * normSquared };
+  }
+
+  bool isInvalid() const {
+    return isnan(data[0]) || isnan(data[1]) || isnan(data[2]) || isnan(data[3])
+    || isinf(data[0]) || isinf(data[1]) || isinf(data[2]) || isinf(data[3]);
+  }
+
+  std::string toString() const {
+    return std::string{"("} + std::to_string(data[0]) + ", " + std::to_string(data[1]) + ", " + std::to_string(data[2]) + ", " + std::to_string(data[3]) + ")";
   }
 };

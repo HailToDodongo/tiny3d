@@ -26,16 +26,13 @@ T3DAnim t3d_anim_create(const T3DModel *model, const char *name) {
 }
 
 void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
-  debugf("\n\n\n\n");
-  debugf("Attaching animation '%s' to skeleton\n", anim->animRef->name);
+  if(anim->targets)free(anim->targets);
   anim->targets = malloc(sizeof(T3DAnimTarget) * anim->animRef->channelCount);
   for(int i = 0; i < anim->animRef->channelCount; i++)
   {
     T3DAnimChannelMapping *channelMap = &anim->animRef->channelMappings[i];
     T3DAnimTarget *target = &anim->targets[i];
     T3DBone *bone = &skeleton->bones[channelMap->targetIdx];
-
-    debugf("  - Channel %d: type: %d\n", i, channelMap->targetType);
 
     target->changedFlag = &bone->hasChanged;
     switch(channelMap->targetType) {
@@ -52,9 +49,6 @@ void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
       }
     }
   }
-
-  debugf("\n\n\n\n");
-  // targets
 }
 
 static inline void load_page(T3DAnim *anim, int index) {
@@ -71,7 +65,6 @@ static inline float s10ToFloat(uint32_t value, float offset, float scale) {
 
 static inline void unpack_quat(uint32_t data, T3DQuat *out) {
   int largestIdx = data >> 30;
-
   int idx0 = (largestIdx + 1) % 4;
   int idx1 = (largestIdx + 2) % 4;
   int idx2 = (largestIdx + 3) % 4;
@@ -103,7 +96,7 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
   uint32_t kfIdx = (uint32_t)kfIdxFloat;
   float interp = kfIdxFloat - kfIdx;
 
-  debugf("Time: %.2f, KF: %ld\n", anim->time, kfIdx);
+  //debugf("Time: %.2f, KF: %ld\n", anim->time, kfIdx);
 
   const char *data = anim->pageData;
   for(int c=0; c<anim->animRef->channelCount; c++)
@@ -129,15 +122,13 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
       );*/
       data += page->strideWords * 8;
     } else {
-      if(channelMap->targetType == T3D_ANIM_TARGET_SCALE_XYZ) { // @TODO: normalize pos in gltf importer
-        uint16_t* dataU16 = (uint16_t*)(data + (kfIdx*2));
-        float valueA = (float)dataU16[0] * channelMap->quantScale + channelMap->quantOffset;
-        float valueB = (float)dataU16[1] * channelMap->quantScale + channelMap->quantOffset; // @TODO: OOB
+      uint16_t* dataU16 = (uint16_t*)(data + (kfIdx*2));
+      float valueA = (float)dataU16[0] * channelMap->quantScale + channelMap->quantOffset;
+      float valueB = (float)dataU16[1] * channelMap->quantScale + channelMap->quantOffset; // @TODO: OOB
 
-        *(float*)target->target = valueA + (valueB - valueA) * interp;
-        /*debugf(" (%c) %04X @ %d -> %.2f (stride: %d)\n", TARGET_TYPE[channelMap->targetType],
-        *dataU16, data - anim->pageData, *(float*)target->target, page->strideWords);*/
-      }
+      *(float*)target->target = valueA + (valueB - valueA) * interp;
+      //debugf(" (%c) %04X @ %d -> %.2f (stride: %d)\n", TARGET_TYPE[channelMap->targetType],
+      //*dataU16, data - anim->pageData, *(float*)target->target, page->strideWords);
 
       data += page->strideWords * 4;
     }
@@ -148,5 +139,7 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
 void t3d_anim_destroy(T3DAnim *anim) {
   if(anim->targets)free(anim->targets);
   anim->targets = NULL;
+  if(anim->pageData)free(anim->pageData);
+  anim->pageData = NULL;
 }
 

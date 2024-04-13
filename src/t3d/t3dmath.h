@@ -100,6 +100,14 @@ inline static float t3d_vec3_dot(const T3DVec3 *a, const T3DVec3 *b) {
          a->v[2] * b->v[2];
 }
 
+/// @brief Linearly interpolates between 'a' and 'b' by 't' and stores it in 'res'
+inline static void t3d_vec3_lerp(T3DVec3 *res, const T3DVec3 *a, const T3DVec3 *b, float t)
+{
+  res->v[0] = a->v[0] + (b->v[0] - a->v[0]) * t;
+  res->v[1] = a->v[1] + (b->v[1] - a->v[1]) * t;
+  res->v[2] = a->v[2] + (b->v[2] - a->v[2]) * t;
+}
+
 // @brief Resets a quaternion to the identity quaternion
 inline static void t3d_quat_identity(T3DQuat *quat) {
   *quat = (T3DQuat){{0, 0, 0, 1}};

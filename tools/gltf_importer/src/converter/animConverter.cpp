@@ -49,11 +49,20 @@ namespace {
 
   void quantizeRotations(AnimChannel &ch)
   {
+    uint32_t quatQuant;
     for(const Quat &q : ch.valQuat) {
-      uint32_t quatQuant = Quantizer::quatTo32Bit(q);
+      quatQuant = Quantizer::quatTo32Bit(q);
+      if(quatQuant == 0) {
+        throw std::runtime_error(
+          std::string{"Quantized rotation is zero: "} + ch.targetName + " Quat: " + q.toString()
+        );
+      }
+
       ch.valQuantized.push_back(quatQuant & 0xFFFF);
       ch.valQuantized.push_back(quatQuant >> 16);
     }
+    ch.valQuantized.push_back(ch.valQuantized[0]);
+    ch.valQuantized.push_back(ch.valQuantized[1]);
   }
 
   std::vector<AnimPage> splitPages(AnimPage &page) {
@@ -62,7 +71,7 @@ namespace {
   }
 }
 
-void convertAnimation(Anim &anim, const std::unordered_map<std::string, uint32_t> &nodeMap)
+void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bone*> &nodeMap)
 {
   printf("Convert: %s\n", anim.name.c_str());
 
@@ -79,7 +88,7 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, uint32_t
     }
 
     anim.channelMap.emplace_back(
-      ch.targetName, it->second, ch.targetType, ch.targetIndex, 0.0f, 0.0f
+      ch.targetName, it->second->index, ch.targetType, ch.targetIndex, 0.0f, 0.0f
     );
 
     if(!ch.isRotation()) {
@@ -108,6 +117,7 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, uint32_t
         ch.valQuantized = Quantizer::floatsToU16(ch.valScalar,
           anim.channelMap[channelIdx].quantOffset, anim.channelMap[channelIdx].quantScale
         );
+        ch.valQuantized.push_back(ch.valQuantized[0]);
       }
       page.byteSize += ch.valQuantized.size() * sizeof(uint16_t);
       ++channelIdx;

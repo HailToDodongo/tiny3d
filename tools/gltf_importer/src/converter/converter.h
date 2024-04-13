@@ -14,4 +14,4 @@ void convertVertex(
 );
 ModelChunked chunkUpModel(const Model& model);
 
-void convertAnimation(Anim &anim, const std::unordered_map<std::string, uint32_t> &nodeMap);
+void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bone*> &nodeMap);

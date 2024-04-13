@@ -37,12 +37,10 @@ namespace {
     file.write<uint16_t>(bone.parentIndex);
     file.write<uint16_t>(level); // level
 
-    auto matScaled = bone.parentMatrix;
-    matScaled[3][0] *= config.globalScale;
-    matScaled[3][1] *= config.globalScale;
-    matScaled[3][2] *= config.globalScale;
-
-    file.writeArray(matScaled.ptr(), 4*4);
+    auto normPos = bone.pos * config.globalScale;
+    file.writeArray(bone.scale.data, 3);
+    file.writeArray(bone.rot.data, 4);
+    file.writeArray(normPos.data, 3);
 
     int boneCount = 1;
     for(const auto& child : bone.children) {
@@ -58,7 +56,7 @@ int main(int argc, char* argv[])
   const char* t3dmPath = argv[2];
 
   config.globalScale = 64.0f;
-  config.animSampleRate = 30.0f;
+  config.animSampleRate = 30;
 
   auto t3dm = parseGLTF(gltfPath, config.globalScale);
   fs::path gltfBasePath{gltfPath};
@@ -301,7 +299,6 @@ int main(int argc, char* argv[])
 
       for(const auto &ch : page.channels)
       {
-        printf("Data Quant (%d - ", streamFile.getPos());
         uint32_t endPos = streamFile.getPos() + (ch.isRotation() ? largestSize*2 : largestSize);
 
         if(ch.isRotation()) { // quats. are 32bit values, make sure they are correctly byte-swapped
@@ -310,12 +307,6 @@ int main(int argc, char* argv[])
           streamFile.writeArray(ch.valQuantized.data(), ch.valQuantized.size());
         }
         while(streamFile.getPos() < endPos)streamFile.write<uint8_t>(0);
-
-        printf("%d, %d):\n", streamFile.getPos(), largestSize);
-        for(int f=0; f<ch.valQuantized.size(); ++f) {
-          printf(" [%d]:%04X ", f, ch.valQuantized[f]);
-        }
-        printf("\n");
       }
       uint32_t sdataEnd = streamFile.getPos();
       streamFile.align(16);

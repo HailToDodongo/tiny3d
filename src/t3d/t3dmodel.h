@@ -77,7 +77,9 @@ typedef struct {
   char* name;
   uint16_t parentIdx;
   uint16_t depth;
-  T3DMat4 transform;
+  T3DVec3 scale;
+  T3DQuat rotation;
+  T3DVec3 position;
 } T3DChunkBone;
 
 typedef struct {
@@ -240,7 +242,7 @@ static inline uint32_t t3d_model_get_animation_count(const T3DModel *model) {
  * @param model
  * @param anims array to store the pointers to
  */
-void t3d_model_get_animations(const T3DModel *model, T3DChunkAnim* anims[]);
+void t3d_model_get_animations(const T3DModel *model, T3DChunkAnim **anims);
 
 /**
  * Returns an animation definition by name.
