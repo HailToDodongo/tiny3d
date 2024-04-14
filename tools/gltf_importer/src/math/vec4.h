@@ -78,6 +78,10 @@ struct Vec4
            a[3] * data[3];
   }
 
+  float length2() const {
+    return dot(*this);
+  }
+
   // Operations (Vector)
   constexpr Vec4 operator-() const {
     return { -data[0], -data[1], -data[2], -data[3] };

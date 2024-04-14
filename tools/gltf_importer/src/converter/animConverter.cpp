@@ -5,6 +5,7 @@
 
 #include "converter.h"
 #include "../math/quantizer.h"
+#include "mse.h"
 
 namespace {
   constexpr float MIN_VALUE_DELTA = 0.0001f;
@@ -32,7 +33,6 @@ namespace {
     for(auto &channel : channels)
     {
       if(channel.isRotation() ? hasConstValue(channel.valQuat) : hasConstValue(channel.valScalar)) {
-        printf("  - Channel %s %d.%d has constant value\n", channel.targetName.c_str(), channel.targetType, channel.targetIndex);
         bool isIdentity = false;
         switch(channel.targetType) {
           case AnimChannelTarget::TRANSLATION  : isIdentity = fabsf(channel.valScalar[0]) < MIN_VALUE_DELTA; break;
@@ -40,6 +40,7 @@ namespace {
           case AnimChannelTarget::SCALE_UNIFORM:
           case AnimChannelTarget::SCALE        : isIdentity = channel.valScalar[0] == 1.0f;    break;
         }
+        if(isIdentity)printf("  - Channel %s %d.%d has identity value\n", channel.targetName.c_str(), channel.targetType, channel.targetIndex);
         if(isIdentity)continue;
       }
       newChannels.push_back(channel);
@@ -53,9 +54,7 @@ namespace {
     for(const Quat &q : ch.valQuat) {
       quatQuant = Quantizer::quatTo32Bit(q);
       if(quatQuant == 0) {
-        throw std::runtime_error(
-          std::string{"Quantized rotation is zero: "} + ch.targetName + " Quat: " + q.toString()
-        );
+        throw std::runtime_error(std::string{"Quantized rotation is zero: "} + ch.targetName + " Quat: " + q.toString());
       }
 
       ch.valQuantized.push_back(quatQuant & 0xFFFF);
@@ -66,8 +65,77 @@ namespace {
   }
 
   std::vector<AnimPage> splitPages(AnimPage &page) {
+    if(page.channels.size() == 0) {
+      return {page};
+    }
+
+    constexpr uint32_t TARGET_PAGE_SIZE = 1024*1;
+
     // @TODO: implement proper splitting by max-size
-    return {page};
+    auto pageOrg = page;
+    std::vector<AnimPage> pages;
+
+    // split page in half
+    int totalFrames = pageOrg.channels[0].isRotation() ? pageOrg.channels[0].valQuat.size() : pageOrg.channels[0].valScalar.size();
+    uint32_t predictedAnimSize = 0;
+    for(auto &ch : page.channels) {
+      uint32_t frames = ch.isRotation() ? ch.valQuat.size() : ch.valScalar.size();
+      predictedAnimSize += frames * (ch.isRotation() ? 4 : 2);
+    }
+
+    float time = 0.0f;
+    uint32_t sliceFrames = (uint32_t)((float)TARGET_PAGE_SIZE / ((float)predictedAnimSize / (float)totalFrames));
+    if(sliceFrames < 2)sliceFrames = 2;
+
+    printf("Predicted anim size: %d (%d/frame) | slice: %d\n", predictedAnimSize, predictedAnimSize / totalFrames, sliceFrames);
+
+    uint32_t frameOffset = 0;
+    int framesLeft = totalFrames;
+
+    while(framesLeft > 0)
+    {
+      AnimPage newPage = page;
+      newPage.timeStart = time;
+
+      if(frameOffset + sliceFrames > totalFrames) {
+        sliceFrames = totalFrames - frameOffset;
+      }
+      uint32_t frameOffsetEnd = frameOffset + sliceFrames+1;
+      uint32_t wrapFrames = 0;
+      if(frameOffsetEnd > totalFrames) {
+        wrapFrames = 2;
+        frameOffsetEnd = totalFrames;
+      }
+
+      newPage.duration = (float)(sliceFrames) / (float)page.sampleRate;
+
+      printf("Duration: %.2f (end: %.4f), frames: %d/%d, left: %d\n", newPage.duration, newPage.timeStart +newPage.duration, frameOffset, totalFrames, framesLeft);
+
+      uint32_t c=0;
+      for(auto &ch : newPage.channels) {
+        const auto orgChannel = pageOrg.channels[c];
+        if(ch.isRotation()) {
+          ch.valQuat = std::vector<Quat>(orgChannel.valQuat.begin() + frameOffset, orgChannel.valQuat.begin() + frameOffsetEnd);
+          if(wrapFrames > 0)ch.valQuat.insert(ch.valQuat.end(), orgChannel.valQuat.begin(), orgChannel.valQuat.begin() + wrapFrames);
+        } else {
+          ch.valScalar = std::vector<float>(orgChannel.valScalar.begin() + frameOffset, orgChannel.valScalar.begin() + frameOffsetEnd);
+          if(wrapFrames > 0)ch.valScalar.insert(ch.valScalar.end(), orgChannel.valScalar.begin(), orgChannel.valScalar.begin() + wrapFrames);
+        }
+        ++c;
+      }
+
+      pages.push_back(newPage);
+      time += newPage.duration;
+      framesLeft -= sliceFrames;
+      frameOffset += sliceFrames;
+    }
+
+    for(int c=0; c<pageOrg.channels.size(); ++c) {
+      float mse = calcMSE(pageOrg, pages, c);
+      printf("Resampling, channel %d MSE: %.4f%% (%d original frames)\n", c, mse * 100.0f, page.channels[c].valScalar.size());
+    }
+
+    return pages;
   }
 }
 

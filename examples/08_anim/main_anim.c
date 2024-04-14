@@ -20,6 +20,17 @@ float get_time_s() {
   return (float)((double)get_ticks_us() / 1000000.0);
 }
 
+typedef struct {
+  T3DModel *model;
+  T3DSkeleton skel;
+  T3DSkeleton skelBlend;
+  T3DAnim *animInst;
+  float scale;
+  rspq_block_t *dplDraw;
+  uint32_t animCount;
+  T3DChunkAnim **anims;
+} ModelAnim;
+
 /**
  * Example showing how to load, instantiate and play skeletal-animations.
  */
@@ -52,19 +63,41 @@ int main()
   T3DVec3 lightDirVec = {{1.0f, 1.0f, 1.0f}};
   t3d_vec3_norm(&lightDirVec);
 
-  //T3DModel *model = t3d_model_load("rom:/box2.t3dm"); float modelScale = 0.08f;
-  //T3DModel *model = t3d_model_load("rom:/animTest.t3dm"); float modelScale = 0.08f;
-  T3DModel *model = t3d_model_load("rom:/cath.t3dm");   float modelScale = 0.0035f;
-  //T3DModel *model = t3d_model_load("rom:/enemyPlant00.t3dm"); float modelScale = 0.3f;
+  #define MODEL_COUNT 5
+  ModelAnim modelData[MODEL_COUNT] = {
+    { .model = t3d_model_load("rom:/box.t3dm"), .scale = 0.08f },
+    { .model = t3d_model_load("rom:/box2.t3dm"), .scale = 0.08f },
+    { .model = t3d_model_load("rom:/animTest.t3dm"), .scale = 0.08f },
+    { .model = t3d_model_load("rom:/cath.t3dm"), .scale = 0.0035f },
+    { .model = t3d_model_load("rom:/enemyPlant00.t3dm"), .scale = 0.3f }
+  };
 
-  T3DSkeleton skel = t3d_skeleton_create(model);
-  T3DSkeleton skelBlend = t3d_skeleton_clone(&skel, false); // <- has no matrices
+  for(int i = 0; i < MODEL_COUNT; i++) {
+    modelData[i].skel = t3d_skeleton_create(modelData[i].model);
+    modelData[i].skelBlend = t3d_skeleton_clone(&modelData[i].skel, false); // <- has no matrices
+
+    modelData[i].animCount = t3d_model_get_animation_count(modelData[i].model);
+
+    modelData[i].anims = malloc(modelData[i].animCount * sizeof(void*));
+    t3d_model_get_animations(modelData[i].model, modelData[i].anims);
+
+    modelData[i].animInst = malloc(modelData[i].animCount * sizeof(T3DAnim));
+    for(int j = 0; j < t3d_model_get_animation_count(modelData[i].model); j++) {
+      modelData[i].animInst[j] = t3d_anim_create(modelData[i].model, t3d_model_get_animation(modelData[i].model, modelData[i].anims[j]->name)->name);
+      t3d_anim_attach(&modelData[i].animInst[j], &modelData[i].skel);
+    }
+
+    rspq_block_begin();
+    t3d_model_draw_skinned(modelData[i].model, &modelData[i].skel);
+    modelData[i].dplDraw = rspq_block_end();
+  }
+  //T3DSkeleton skel = t3d_skeleton_create(model);
+  //T3DSkeleton skelBlend = t3d_skeleton_clone(&skel, false); // <- has no matrices
 
   // Read out all animations in the model.
   // You probably don't need this if you know the name of the animation.
   // In which case you can create an instance by name directly.
-  // @TODO: create anim. instance by name
-  uint32_t animCount = t3d_model_get_animation_count(model);
+  /*uint32_t animCount = t3d_model_get_animation_count(model);
   T3DChunkAnim **anims = malloc(animCount * sizeof(void*));
   t3d_model_get_animations(model, anims);
 
@@ -72,13 +105,14 @@ int main()
   for(int i = 0; i < animCount; i++) {
     animInst[i] = t3d_anim_create(model, anims[i]->name);
     t3d_anim_attach(&animInst[i], &skel);
-  }
-
+  }*/
+/*
   rspq_block_begin();
   t3d_model_draw_skinned(model, &skel);
   //t3d_model_draw(model);
-  rspq_block_t *dplDraw = rspq_block_end();
+  rspq_block_t *dplDraw = rspq_block_end();*/
 
+  int modelIdx = 0;
   float colorTimer = 0.0f;
   int activeAnim = 0;
   int activeBlendAnim = -1;
@@ -104,16 +138,22 @@ int main()
     int lastAnim = activeAnim;
     if(btn.c_up)--activeAnim;
     if(btn.c_down)++activeAnim;
+    if(btn.c_left)--modelIdx;
+    if(btn.c_right)++modelIdx;
     if(btn.a)play = !play;
+
+    modelIdx = (modelIdx + MODEL_COUNT) % MODEL_COUNT;
+
+    ModelAnim *md = &modelData[modelIdx];
 
     if(btn.b) {
       if(activeBlendAnim >= 0) {
-        t3d_anim_attach(&animInst[activeBlendAnim], &skel);
+        t3d_anim_attach(&md->animInst[activeBlendAnim], &md->skel);
       }
       activeBlendAnim = (activeBlendAnim == activeAnim) ? -1 : activeAnim;
       if(activeBlendAnim >= 0) {
-        t3d_skeleton_reset(&skelBlend);
-        t3d_anim_attach(&animInst[activeBlendAnim], &skelBlend);
+        t3d_skeleton_reset(&md->skelBlend);
+        t3d_anim_attach(&md->animInst[activeBlendAnim], &md->skelBlend);
       }
     }
 
@@ -122,10 +162,10 @@ int main()
     if(blendFactor > 1.0f)blendFactor = 1.0f;
     if(blendFactor < 0.0f)blendFactor = 0.0f;
 
-    activeAnim = (activeAnim + (int)animCount) % (int)animCount;
+    activeAnim = (activeAnim + (int)md->animCount) % (int)md->animCount;
 
     if(lastAnim != activeAnim || !play) {
-      t3d_skeleton_reset(&skel);
+      t3d_skeleton_reset(&md->skel);
     }
 
     float newTime = get_time_s();
@@ -138,19 +178,19 @@ int main()
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     if(play) {
-      t3d_anim_update(&animInst[activeAnim], deltaTime);
+      t3d_anim_update(&md->animInst[activeAnim], deltaTime);
 
       if(activeBlendAnim >= 0) {
-        t3d_anim_update(&animInst[activeBlendAnim], deltaTime);
-        t3d_skeleton_blend(&skel, &skelBlend, &skel, blendFactor);
+        t3d_anim_update(&md->animInst[activeBlendAnim], deltaTime);
+        t3d_skeleton_blend(&md->skel, &md->skelBlend, &md->skel, blendFactor);
       }
     }
 
     if(syncPoint)rspq_syncpoint_wait(syncPoint);
-    t3d_skeleton_update(&skel);
+    t3d_skeleton_update(&md->skel);
 
     t3d_mat4fp_from_srt_euler(modelMatFP,
-      (float[3]){modelScale, modelScale, modelScale},
+      (float[3]){md->scale, md->scale, md->scale},
       (float[3]){0.0f, 0, 0},
       (float[3]){25,2,0}
     );
@@ -170,7 +210,7 @@ int main()
     t3d_matrix_push(modelMatFP);
 
       rdpq_set_prim_color(RGBA32(255, 255, 255, 255));
-      rspq_block_run(dplDraw);
+      rspq_block_run(md->dplDraw);
       syncPoint = rspq_syncpoint_new();
 
     t3d_matrix_pop(1);
@@ -183,18 +223,12 @@ int main()
     float posY = 12;
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
     t3d_debug_printf(posX, posY, "Animations:", blendFactor);
-    //rdpq_set_prim_color(COLOR_BTN_C);
-    //t3d_debug_print(posX + 90, posY, T3D_DEBUG_CHAR_C_UP T3D_DEBUG_CHAR_C_DOWN);
     posY += 10;
 
-    for(int i = 0; i < animCount; i++)
+    for(int i = 0; i < md->animCount; i++)
     {
-      const T3DChunkAnim *anim = anims[i];
+      const T3DChunkAnim *anim = md->anims[i];
       set_selected_color(activeAnim == i);
-
-      uint8_t factor = i == 0 ? ((1.0f-blendFactor) * 230) : (blendFactor * 230);
-      factor += 25;
-      //rdpq_set_prim_color(RGBA32(factor, factor, factor, 0xFF));
 
       if(activeBlendAnim == i) {
         rdpq_set_prim_color(COLOR_BTN_B);
@@ -210,8 +244,7 @@ int main()
     }
 
     posY += 10;
-    //posY = 100;
-    T3DChunkAnim *anim = anims[activeAnim];
+    T3DChunkAnim *anim = md->anims[activeAnim];
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
     t3d_debug_printf(posX, posY, "Animation: %s", anim->name);
     posY += 10;
@@ -219,17 +252,23 @@ int main()
 
     t3d_debug_printf(posX, posY, "ROM sdata: 0x%08X", anim->sdataAddrROM);
     posY += 10;
-    t3d_debug_printf(posX, posY, "Pages: %d (max: %db)", anim->pageCount, anim->maxPageSize);
-    /*posY += 10;
-
-    for(int i = 0; i < anim->pageCount; i++)
-    {
-      T3DAnimPage *page = &anim->pageTable[i];
-      t3d_debug_printf(posX, posY, " 0x%04X: %.2fs %dHz %db", page->dataOffset, page->timeStart, page->sampleRate, page->dataSize);
-      posY += 10;
-    }*/
-
+    t3d_debug_printf(posX, posY, "Page: %d/%d (max: %db)", md->animInst[activeAnim].loadedPageIdx, anim->pageCount-1, anim->maxPageSize);
     posY += 10;
+
+    int currentPage = md->animInst[activeAnim].loadedPageIdx;
+    int pageIdx = currentPage - 2;
+    for(int i = 0; i < 5; i++)
+    {
+      pageIdx = (pageIdx + anim->pageCount) % anim->pageCount;
+      T3DAnimPage *page = &anim->pageTable[pageIdx];
+      set_selected_color(pageIdx == currentPage);
+      t3d_debug_printf(posX, posY, "%2d 0x%04X: %.2fs %db", pageIdx, page->dataOffset, page->timeStart, page->dataSize);
+      posY += 10;
+
+      ++pageIdx;
+    }
+
+    rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
     t3d_debug_printf(posX, posY, "Channels: %d", anim->channelCount);
     posY += 10;
     /*for(int i = 0; i < anim->channelCount; i++)
@@ -248,8 +287,9 @@ int main()
 
     posY += 10;
     if(play) {
-      t3d_debug_printf(posX, posY, "Time: %.2fs / %.2fs", animInst[activeAnim].time, anim->duration);
+      t3d_debug_printf(posX, posY, "Time: %.2fs / %.2fs", md->animInst[activeAnim].time, anim->duration);
     }
+
 
     /* // DEBUG: read sdata
     uint16_t *data = malloc_uncached(anim->maxPageSize);

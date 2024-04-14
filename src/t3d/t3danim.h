@@ -58,6 +58,14 @@ void t3d_anim_attach(T3DAnim* anim, const T3DSkeleton* skeleton);
 void t3d_anim_update(T3DAnim* anim, float deltaTime);
 
 /**
+ * Sets the animation to a specific time.
+ * Note: this may cause some work internally due to potential DMAs.
+ * @param anim animation to set time for
+ * @param time time in seconds
+ */
+void t3d_anim_set_time(T3DAnim* anim, float time);
+
+/**
  * Frees data allocated in the animation struct.
  * @param anim
  */

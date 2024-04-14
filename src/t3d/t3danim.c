@@ -52,11 +52,18 @@ void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
 }
 
 static inline void load_page(T3DAnim *anim, int index) {
-  debugf("Loading page %d\n", index);
   const T3DAnimPage *page = &anim->animRef->pageTable[index];
+
   data_cache_hit_writeback_invalidate(anim->pageData, page->dataSize);
   dma_read(anim->pageData, anim->animRef->sdataAddrROM + page->dataOffset, page->dataSize);
   anim->loadedPageIdx = index;
+
+  if((index+1) < anim->animRef->pageCount) {
+    const T3DAnimPage *nextPage = &anim->animRef->pageTable[index+1];
+    anim->timeNextPage = nextPage->timeStart;
+  } else {
+    anim->timeNextPage = anim->animRef->duration;
+  }
 }
 
 static inline float s10ToFloat(uint32_t value, float offset, float scale) {
@@ -80,19 +87,20 @@ static inline void unpack_quat(uint32_t data, T3DQuat *out) {
 }
 
 void t3d_anim_update(T3DAnim *anim, float deltaTime) {
-  if(anim->loadedPageIdx < 0) {
-    load_page(anim, 0);
-  }
-
   anim->time += deltaTime * anim->speed;
 
   if(anim->time >= anim->animRef->duration) {
     anim->time -= anim->animRef->duration;
-    anim->loadedPageIdx = 0;
+    anim->timeNextPage = anim->time;
+    debugf("Looping animation\n");
+  }
+
+  if(anim->time >= anim->timeNextPage) {
+    load_page(anim, (anim->loadedPageIdx + 1) % anim->animRef->pageCount);
   }
 
   const T3DAnimPage *page = &anim->animRef->pageTable[anim->loadedPageIdx];
-  float kfIdxFloat = anim->time * page->sampleRate;
+  float kfIdxFloat = (anim->time - page->timeStart) * page->sampleRate;
   uint32_t kfIdx = (uint32_t)kfIdxFloat;
   float interp = kfIdxFloat - kfIdx;
 
@@ -141,5 +149,9 @@ void t3d_anim_destroy(T3DAnim *anim) {
   anim->targets = NULL;
   if(anim->pageData)free(anim->pageData);
   anim->pageData = NULL;
+}
+
+void t3d_anim_set_time(T3DAnim *anim, float time) {
+  assert(false); // @TODO: implement
 }
 
