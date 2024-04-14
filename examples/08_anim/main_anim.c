@@ -59,7 +59,6 @@ int main()
 
   T3DSkeleton skel = t3d_skeleton_create(model);
   T3DSkeleton skelBlend = t3d_skeleton_clone(&skel, false); // <- has no matrices
-  T3DSkeleton skelResting = t3d_skeleton_clone(&skel, false); // <- has no matrices
 
   // Read out all animations in the model.
   // You probably don't need this if you know the name of the animation.
@@ -183,7 +182,7 @@ int main()
     float posX = 12;
     float posY = 12;
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
-    t3d_debug_printf(posX, posY, "Animations: (blend: %.2f)", blendFactor);
+    t3d_debug_printf(posX, posY, "Animations:", blendFactor);
     //rdpq_set_prim_color(COLOR_BTN_C);
     //t3d_debug_print(posX + 90, posY, T3D_DEBUG_CHAR_C_UP T3D_DEBUG_CHAR_C_DOWN);
     posY += 10;
@@ -192,15 +191,21 @@ int main()
     {
       const T3DChunkAnim *anim = anims[i];
       set_selected_color(activeAnim == i);
-      if(activeBlendAnim == i) {
-        rdpq_set_prim_color(COLOR_BTN_B);
-      }
 
       uint8_t factor = i == 0 ? ((1.0f-blendFactor) * 230) : (blendFactor * 230);
       factor += 25;
       //rdpq_set_prim_color(RGBA32(factor, factor, factor, 0xFF));
 
-      t3d_debug_printf(posX, posY, "%s: %.2fs", anim->name, anim->duration);
+      if(activeBlendAnim == i) {
+        rdpq_set_prim_color(COLOR_BTN_B);
+        t3d_debug_printf(posX, posY, "%s: %.2fs (%d%%)", anim->name, anim->duration, (int)((1.0f-blendFactor) * 100));
+      } else {
+        if(activeAnim == i && activeBlendAnim >= 0) {
+          t3d_debug_printf(posX, posY, "%s: %.2fs (%d%%)", anim->name, anim->duration, (int)(blendFactor * 100));
+        } else {
+          t3d_debug_printf(posX, posY, "%s: %.2fs", anim->name, anim->duration);
+        }
+      }
       posY += 10;
     }
 
