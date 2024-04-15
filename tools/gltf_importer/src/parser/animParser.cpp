@@ -19,11 +19,21 @@ namespace
       break;
     }
   }
+
+  constexpr float MIN_VALUE_DELTA = 0.0001f;
+
+  Vec3 cleanupVector(Vec3 v) {
+    return Vec3{
+      fabsf(v[0]) < MIN_VALUE_DELTA ? 0.0f : v[0],
+      fabsf(v[1]) < MIN_VALUE_DELTA ? 0.0f : v[1],
+      fabsf(v[2]) < MIN_VALUE_DELTA ? 0.0f : v[2]
+    };
+  }
 }
 
 Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
 {
-  AnimPage page{.sampleRate = sampleRate,};
+  AnimPage page{.sampleRate = sampleRate};
   Anim res{.name = std::string(anim.name),};
 
   printf("Animation: %s\n", anim.name);
@@ -40,10 +50,10 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
     const char* targetName = channel.target_node->name;
 
     // create channels, rotation is always combined, the rest (translation, scale) are separate for each axis
-    page.channels.emplace_back(targetName, getTarget(channel.target_path), 0);
+    page.channels.emplace_back(targetName, getTarget(channel.target_path), 0, sampleRate);
     if(channel.target_path != cgltf_animation_path_type::cgltf_animation_path_type_rotation) {
-      page.channels.emplace_back(targetName, getTarget(channel.target_path), 1);
-      page.channels.emplace_back(targetName, getTarget(channel.target_path), 2);
+      page.channels.emplace_back(targetName, getTarget(channel.target_path), 1, sampleRate);
+      page.channels.emplace_back(targetName, getTarget(channel.target_path), 2, sampleRate);
     }
 
     uint8_t *dataInput = ((uint8_t*)samplerIn.buffer_view->buffer->data) + samplerIn.offset + samplerIn.buffer_view->offset;
@@ -100,6 +110,7 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
         Vec3 valueNext = Gltf::readAsVec3(dataOutputNext, samplerOut.type, samplerOut.component_type);
 
         value = value.mix(valueNext, sampleInterpol);
+        value = cleanupVector(value);
 
         if(channel.target_path == cgltf_animation_path_type_translation) {
           value *= config.globalScale;

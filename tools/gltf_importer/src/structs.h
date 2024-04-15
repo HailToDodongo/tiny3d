@@ -180,6 +180,7 @@ struct AnimChannel {
   std::string targetName{};
   AnimChannelTarget targetType{};
   uint32_t targetIndex{}; // for pos/scale, determines which axis to modify
+  uint32_t sampleRate{};
 
   std::vector<float> valScalar{};// input, for translate/scale
   std::vector<Quat> valQuat{}; // input, for rotation

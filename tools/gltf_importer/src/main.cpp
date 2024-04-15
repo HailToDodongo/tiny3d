@@ -70,6 +70,8 @@ int main(int argc, char* argv[])
     return a.materialA.alphaMode < b.materialA.alphaMode;
   });
 
+  uint32_t animationSize = 0;
+
   uint32_t chunkIndex = 0;
   uint32_t chunkCount = 2; // vertices + indices
   std::vector<ModelChunked> modelChunks{};
@@ -318,11 +320,15 @@ int main(int argc, char* argv[])
       assert(largestSize <= 255);
       assert(page.sampleRate <= 255);
 
+      auto posStart = file.getPos();
+
       file.write<float>(page.timeStart);
       file.write<uint16_t>(sdataEnd - sdataStart);
       file.write<uint8_t>(largestSize);
       file.write<uint8_t>(page.sampleRate);
       file.write<uint32_t>(sdataStart);
+
+      animationSize += file.getPos() - posStart;
     }
 
     file.posPush();
@@ -385,4 +391,9 @@ int main(int argc, char* argv[])
     sdataPath[sdataPath.size()-1] = 's'; // replace .t3dm with .t3ds
     streamFile.writeToFile(sdataPath.c_str());
   }
+
+  printf("Animation size:\n");
+  printf("  - Meta: %d\n", animationSize);
+  printf("  - Data: %d\n", streamFile.getSize());
+  printf("  - Sum : %d\n", animationSize + streamFile.getSize());
 }
