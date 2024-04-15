@@ -177,10 +177,7 @@ Each animation is split into pages, whereas the actual data is stored the stream
 | Offset | Type  | Description                       |
 |--------|-------|-----------------------------------|
 | 0x00   | `f32` | start time (seconds)              |
-| 0x04   | `u16` | Data Size (compressed)            |
-| 0x06   | `u8`  | Stride (in words)                 |
-| 0x07   | `u8`  | Sample rate (Hz)                  |
-| 0x08   | `u32` | Data Offset (streaming-data file) |
+| 0x04   | `u32` | Data Offset (streaming-data file) |
 
 #### `ChannelMapping`
 
@@ -202,9 +199,23 @@ Each animation is split into pages, whereas the actual data is stored the stream
 To drive arbitrary values, `Translation` should be used as a default.
 
 #### Data
-After the array of channels follows the actual data.<br>
-The data here is referenced by the data-offsets in the channels.
+The actual data is stored in the streaming file.<br>
+It is referenced by the data-offsets in the page.<br>
+Per page, data is stored as an array of channels, which then stores the keyframe data.<br>
+The first 2 bytes per channel encode the sample-rate and keyframe count.<br>
 
+##### `Data`
+| Offset | Type        | Description |
+|--------|-------------|-------------|
+| 0x00   | `Channel[]` | Channels    |
+
+
+##### `Channel`
+| Offset | Type    | Description                                                   |
+|--------|---------|---------------------------------------------------------------|
+| 0x00   | `u8`    | Sample-Rate                                                   |
+| 0x01   | `u8`    | Keyframe count                                                |
+| 0x02   | `u16[]` | Data, per frame one `u16` for scalars, two `u16` for rotation |
 
 ## String Table
 

@@ -260,9 +260,13 @@ int main()
     for(int i = 0; i < 5; i++)
     {
       pageIdx = (pageIdx + anim->pageCount) % anim->pageCount;
+      bool isLastPage = pageIdx == anim->pageCount - 1;
       T3DAnimPage *page = &anim->pageTable[pageIdx];
+      T3DAnimPage *pageNext = &anim->pageTable[(pageIdx + 1) % anim->pageCount];
+      uint32_t dataSize = isLastPage ? anim->maxPageSize : (pageNext->dataOffset - page->dataOffset);
+
       set_selected_color(pageIdx == currentPage);
-      t3d_debug_printf(posX, posY, "%2d 0x%04X: %.2fs %db", pageIdx, page->dataOffset, page->timeStart, page->dataSize);
+      t3d_debug_printf(posX, posY, "%2d 0x%04X: %.2fs %db", pageIdx, page->dataOffset, page->timeStart, dataSize);
       posY += 10;
 
       ++pageIdx;

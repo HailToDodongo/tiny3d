@@ -52,14 +52,16 @@ void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
 }
 
 static inline void load_page(T3DAnim *anim, int index) {
+  bool isLastPage = index == anim->animRef->pageCount - 1;
   const T3DAnimPage *page = &anim->animRef->pageTable[index];
+  const T3DAnimPage *nextPage = &anim->animRef->pageTable[isLastPage ? 0 : (index+1)];
+  uint32_t dataSize = isLastPage ? anim->animRef->maxPageSize : (nextPage->dataOffset - page->dataOffset);
 
-  data_cache_hit_writeback_invalidate(anim->pageData, page->dataSize);
-  dma_read(anim->pageData, anim->animRef->sdataAddrROM + page->dataOffset, page->dataSize);
+  data_cache_hit_writeback_invalidate(anim->pageData, dataSize);
+  dma_read(anim->pageData, anim->animRef->sdataAddrROM + page->dataOffset, dataSize);
   anim->loadedPageIdx = index;
 
-  if((index+1) < anim->animRef->pageCount) {
-    const T3DAnimPage *nextPage = &anim->animRef->pageTable[index+1];
+  if(!isLastPage) {
     anim->timeNextPage = nextPage->timeStart;
   } else {
     anim->timeNextPage = anim->animRef->duration;
@@ -70,15 +72,16 @@ static inline float s10ToFloat(uint32_t value, float offset, float scale) {
   return (float)value / 1023.0f * scale + offset;
 }
 
-static inline void unpack_quat(uint32_t data, T3DQuat *out) {
-  int largestIdx = data >> 30;
-  int idx0 = (largestIdx + 1) % 4;
-  int idx1 = (largestIdx + 2) % 4;
-  int idx2 = (largestIdx + 3) % 4;
+static inline void unpack_quat(uint16_t dataHi, uint16_t dataLo, T3DQuat *out) {
+  int largestIdx = dataHi >> 14;
+  int idx0 = (largestIdx + 1) & 0b11;
+  int idx1 = (largestIdx + 2) & 0b11;
+  int idx2 = (largestIdx + 3) & 0b11;
 
-  float q0 = s10ToFloat((data >> 20) & 0x3FF, -SQRT_2_INV, SQRT_2_INV+SQRT_2_INV);
-  float q1 = s10ToFloat((data >> 10) & 0x3FF, -SQRT_2_INV, SQRT_2_INV+SQRT_2_INV);
-  float q2 = s10ToFloat((data      ) & 0x3FF, -SQRT_2_INV, SQRT_2_INV+SQRT_2_INV);
+  uint16_t dataMid = (dataHi << 6) | (dataLo >> 10);
+  float q0 = s10ToFloat((dataHi >> 4) & 0x3FF, -SQRT_2_INV, SQRT_2_INV+SQRT_2_INV);
+  float q1 = s10ToFloat((dataMid    ) & 0x3FF, -SQRT_2_INV, SQRT_2_INV+SQRT_2_INV);
+  float q2 = s10ToFloat((dataLo     ) & 0x3FF, -SQRT_2_INV, SQRT_2_INV+SQRT_2_INV);
 
   out->v[idx0] = q0;
   out->v[idx1] = q1;
@@ -100,11 +103,8 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
   }
 
   const T3DAnimPage *page = &anim->animRef->pageTable[anim->loadedPageIdx];
-  float kfIdxFloat = (anim->time - page->timeStart) * page->sampleRate;
-  uint32_t kfIdx = (uint32_t)kfIdxFloat;
-  float interp = kfIdxFloat - kfIdx;
 
-  //debugf("Time: %.2f, KF: %ld\n", anim->time, kfIdx);
+  debugf("Time: %.2f\n", anim->time);
 
   const char *data = anim->pageData;
   for(int c=0; c<anim->animRef->channelCount; c++)
@@ -113,11 +113,24 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
     T3DAnimChannelMapping *channelMap = &anim->animRef->channelMappings[c];
     T3DAnimTarget *target = &anim->targets[c];
 
+    uint8_t sampleRate = data[0];
+    uint8_t sampleCount = data[1];
+    data += 2;
+
+    float kfIdxFloat = (anim->time - page->timeStart) * sampleRate;
+    uint32_t kfIdx = (uint32_t)kfIdxFloat;
+    float interp = kfIdxFloat - kfIdx;
+
+    if(kfIdx >= sampleCount) {
+      kfIdx = sampleCount - 1;
+      interp = 0.0f;
+    }
+
     if(channelMap->targetType == T3D_ANIM_TARGET_ROTATION) {
-      uint32_t* dataU32 = (uint32_t*)(data + (kfIdx*4));
+      uint16_t* dataU16 = (uint16_t*)(data + (kfIdx*4));
       T3DQuat quatNext;
-      unpack_quat(dataU32[0], (T3DQuat*)target->target);
-      unpack_quat(dataU32[1], &quatNext);
+      unpack_quat(dataU16[0], dataU16[1], (T3DQuat*)target->target);
+      unpack_quat(dataU16[2], dataU16[3], &quatNext);
       t3d_quat_nlerp((T3DQuat*)target->target, (T3DQuat*)target->target, &quatNext, interp);
 
       /*debugf(" %08lX @ %d -> %.2f %.2f %.2f %.2f (stride: %d)\n",
@@ -128,7 +141,7 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
         ((T3DQuat*)target->target)->v[3],
         page->strideWords
       );*/
-      data += page->strideWords * 8;
+      data += sampleCount * 4;
     } else {
       uint16_t* dataU16 = (uint16_t*)(data + (kfIdx*2));
       float valueA = (float)dataU16[0] * channelMap->quantScale + channelMap->quantOffset;
@@ -138,7 +151,7 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
       //debugf(" (%c) %04X @ %d -> %.2f (stride: %d)\n", TARGET_TYPE[channelMap->targetType],
       //*dataU16, data - anim->pageData, *(float*)target->target, page->strideWords);
 
-      data += page->strideWords * 4;
+      data += sampleCount * 2;
     }
     *target->changedFlag = 1;
   }

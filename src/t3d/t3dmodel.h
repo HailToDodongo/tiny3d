@@ -90,9 +90,6 @@ typedef struct {
 
 typedef struct {
   float timeStart;
-  uint16_t dataSize;
-  uint8_t strideWords;
-  uint8_t sampleRate;
   uint32_t dataOffset;
 } T3DAnimPage;
 

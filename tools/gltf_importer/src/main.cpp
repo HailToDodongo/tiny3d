@@ -292,40 +292,38 @@ int main(int argc, char* argv[])
     uint32_t maxPageSize = 0;
     for(const auto &page : anim.pages) {
       uint32_t sdataStart = streamFile.getPos();
-
       uint32_t largestSize = 0;
-      for(const auto &ch : page.channels) {
-        largestSize = std::max(largestSize, (uint32_t)(ch.isRotation() ? ch.valQuantized.size() : ch.valQuantized.size()*2));
-      }
-      if(largestSize % 4 != 0)largestSize += 4 - (largestSize % 4);
 
       for(const auto &ch : page.channels)
       {
-        uint32_t endPos = streamFile.getPos() + (ch.isRotation() ? largestSize*2 : largestSize);
+        streamFile.write<uint8_t>(ch.sampleRate);
 
-        if(ch.isRotation()) { // quats. are 32bit values, make sure they are correctly byte-swapped
+        if(ch.isRotation()) {
+          assert(ch.valQuantized.size() % 2 == 0);
+          assert((ch.valQuantized.size()/2) <= 255);
+
+          streamFile.write<uint8_t>(ch.valQuantized.size()/2); // end index
           streamFile.writeArray((uint32_t*)ch.valQuantized.data(), ch.valQuantized.size() / 2);
         } else {
+          assert(ch.valQuantized.size() <= 255);
+
+          streamFile.write<uint8_t>(ch.valQuantized.size()); // end index
           streamFile.writeArray(ch.valQuantized.data(), ch.valQuantized.size());
         }
-        while(streamFile.getPos() < endPos)streamFile.write<uint8_t>(0);
+        largestSize = std::max(largestSize, (uint32_t)ch.valQuantized.size());
       }
       uint32_t sdataEnd = streamFile.getPos();
-      streamFile.align(16);
 
       maxPageSize = std::max(maxPageSize, sdataEnd - sdataStart);
 
-      assert(largestSize % 4 == 0);
-      largestSize /= 4;
+      assert(largestSize % 2 == 0);
+      largestSize /= 2;
       assert(largestSize <= 255);
       assert(page.sampleRate <= 255);
 
       auto posStart = file.getPos();
 
       file.write<float>(page.timeStart);
-      file.write<uint16_t>(sdataEnd - sdataStart);
-      file.write<uint8_t>(largestSize);
-      file.write<uint8_t>(page.sampleRate);
       file.write<uint32_t>(sdataStart);
 
       animationSize += file.getPos() - posStart;
