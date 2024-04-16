@@ -292,7 +292,6 @@ int main(int argc, char* argv[])
     uint32_t maxPageSize = 0;
     for(const auto &page : anim.pages) {
       uint32_t sdataStart = streamFile.getPos();
-      uint32_t largestSize = 0;
 
       for(const auto &ch : page.channels)
       {
@@ -302,23 +301,20 @@ int main(int argc, char* argv[])
           assert(ch.valQuantized.size() % 2 == 0);
           assert((ch.valQuantized.size()/2) <= 255);
 
-          streamFile.write<uint8_t>(ch.valQuantized.size()/2); // end index
+          streamFile.write<uint8_t>(ch.valQuantized.size()/2); // samples
           streamFile.writeArray((uint32_t*)ch.valQuantized.data(), ch.valQuantized.size() / 2);
         } else {
           assert(ch.valQuantized.size() <= 255);
 
-          streamFile.write<uint8_t>(ch.valQuantized.size()); // end index
+          streamFile.write<uint8_t>(ch.valQuantized.size()); // samples
           streamFile.writeArray(ch.valQuantized.data(), ch.valQuantized.size());
         }
-        largestSize = std::max(largestSize, (uint32_t)ch.valQuantized.size());
       }
+
       uint32_t sdataEnd = streamFile.getPos();
 
       maxPageSize = std::max(maxPageSize, sdataEnd - sdataStart);
 
-      assert(largestSize % 2 == 0);
-      largestSize /= 2;
-      assert(largestSize <= 255);
       assert(page.sampleRate <= 255);
 
       auto posStart = file.getPos();
@@ -328,6 +324,8 @@ int main(int argc, char* argv[])
 
       animationSize += file.getPos() - posStart;
     }
+
+    maxPageSize = maxPageSize + 16;
 
     file.posPush();
       file.setPos(posLargestPageSize);

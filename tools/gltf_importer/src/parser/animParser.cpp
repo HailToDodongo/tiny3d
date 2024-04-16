@@ -128,5 +128,6 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
   page.timeStart = timeStart;
   page.duration = timeEnd - timeStart;
   res.pages.push_back(page);
+  res.duration = timeEnd - timeStart;
   return res;
 }

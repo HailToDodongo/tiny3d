@@ -211,9 +211,10 @@ int main()
 
       rdpq_set_prim_color(RGBA32(255, 255, 255, 255));
       rspq_block_run(md->dplDraw);
-      syncPoint = rspq_syncpoint_new();
+
 
     t3d_matrix_pop(1);
+    syncPoint = rspq_syncpoint_new();
 
     // ======== Draw (UI) ======== //
     t3d_debug_print_start();
@@ -257,7 +258,8 @@ int main()
 
     int currentPage = md->animInst[activeAnim].loadedPageIdx;
     int pageIdx = currentPage - 2;
-    for(int i = 0; i < 5; i++)
+    int paceCountShow = anim->pageCount < 5 ? anim->pageCount : 5;
+    for(int i = 0; i < paceCountShow; i++)
     {
       pageIdx = (pageIdx + anim->pageCount) % anim->pageCount;
       bool isLastPage = pageIdx == anim->pageCount - 1;

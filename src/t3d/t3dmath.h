@@ -209,18 +209,9 @@ inline static void t3d_quat_normalize(T3DQuat *quat)
  * @param b second quaternion
  * @param t interpolation factor
  */
-inline static void t3d_quat_nlerp(T3DQuat *res, const T3DQuat *a, const T3DQuat *b, float t)
-{
-  float blend = 1.0f - t;
-  if(t3d_quat_dot(a, b) < 0.0f) {
-    blend = -blend;
-  }
-  res->v[0] = blend * a->v[0] + t * b->v[0];
-  res->v[1] = blend * a->v[1] + t * b->v[1];
-  res->v[2] = blend * a->v[2] + t * b->v[2];
-  res->v[3] = blend * a->v[3] + t * b->v[3];
-  t3d_quat_normalize(res);
-}
+void t3d_quat_nlerp(T3DQuat *res, const T3DQuat *a, const T3DQuat *b, float t);
+
+void t3d_quat_slerp(T3DQuat *res, const T3DQuat *a, const T3DQuat *b, float t);
 
 /**
  * @brief Initializes a matrix to the identity matrix

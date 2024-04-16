@@ -8,7 +8,8 @@
 #include "mse.h"
 
 namespace {
-  constexpr float MIN_VALUE_DELTA = 0.0001f;
+  constexpr float MIN_VALUE_DELTA = 0.00001f;
+  constexpr float MIN_QUAT_DELTA = 0.000000001f;
 
   bool hasConstValue(const std::vector<Quat> &values) {
     Quat lastValue = values[0];
@@ -60,8 +61,50 @@ namespace {
       ch.valQuantized.push_back(quatQuant & 0xFFFF);
       ch.valQuantized.push_back(quatQuant >> 16);
     }
-    ch.valQuantized.push_back(ch.valQuantized[0]);
-    ch.valQuantized.push_back(ch.valQuantized[1]);
+  }
+
+  void resampleScalars(AnimChannel &channel, uint32_t frames)
+  {
+    if(channel.valScalar.empty())return;
+    // First check if all values are the same,
+    // if so only store one value and set the sample-rate to zero
+    float lastValue = channel.valScalar.back();
+    int endIdx;
+    for(endIdx=channel.valScalar.size()-1; endIdx >= 0; --endIdx) {
+      if(fabs(channel.valScalar[endIdx] - lastValue) > MIN_VALUE_DELTA)break;
+    }
+    endIdx += 1;
+
+    if(endIdx == 0) {
+      channel.valScalar = {lastValue};
+      channel.sampleRate = 0;
+    } else {
+      channel.valScalar = std::vector<float>(channel.valScalar.begin(), channel.valScalar.begin() + endIdx+1);
+    }
+  }
+
+  void resampleQuats(AnimChannel &channel, uint32_t frames)
+  {
+    if(channel.valQuat.empty())return;
+    // First check if all values are the same,
+    // if so only store one value and set the sample-rate to zero
+    Vec4 lastValue = channel.valQuat.back().toVec4();
+    int endIdx;
+    for(endIdx=channel.valQuat.size()-1; endIdx >= 0; --endIdx) {
+      Vec4 curr = channel.valQuat[endIdx].toVec4();
+      float dist2 = (curr - lastValue).length2();
+      if(dist2 > MIN_QUAT_DELTA)break;
+    }
+    endIdx += 1;
+
+    if(endIdx == 0) {
+      //printf("  - All values are the same in %s\n", channel.targetName.c_str());
+      channel.valQuat = {lastValue};
+      channel.sampleRate = 0;
+    } else {
+      //printf("  - Partial values (%d/%d) are the same in %s\n", endIdx, channel.valQuat.size(), channel.targetName.c_str());
+      channel.valQuat = std::vector<Quat>(channel.valQuat.begin(), channel.valQuat.begin() + endIdx + 1);
+    }
   }
 
   std::vector<AnimPage> splitPages(AnimPage &page) {
@@ -69,7 +112,7 @@ namespace {
       return {page};
     }
 
-    constexpr uint32_t TARGET_PAGE_SIZE = 1024*1;
+    constexpr uint32_t TARGET_PAGE_SIZE = 1024*4;
 
     // @TODO: implement proper splitting by max-size
     auto pageOrg = page;
@@ -85,7 +128,7 @@ namespace {
 
     float time = 0.0f;
     uint32_t sliceFrames = (uint32_t)((float)TARGET_PAGE_SIZE / ((float)predictedAnimSize / (float)totalFrames));
-    if(sliceFrames < 2)sliceFrames = 2;
+    if(sliceFrames < 4)sliceFrames = 4;
 
     printf("Predicted anim size: %d (%d/frame) | slice: %d\n", predictedAnimSize, predictedAnimSize / totalFrames, sliceFrames);
 
@@ -103,7 +146,7 @@ namespace {
       uint32_t frameOffsetEnd = frameOffset + sliceFrames+1;
       uint32_t wrapFrames = 0;
       if(frameOffsetEnd > totalFrames) {
-        wrapFrames = 2;
+        wrapFrames = 1;
         frameOffsetEnd = totalFrames;
       }
 
@@ -116,10 +159,14 @@ namespace {
         const auto orgChannel = pageOrg.channels[c];
         if(ch.isRotation()) {
           ch.valQuat = std::vector<Quat>(orgChannel.valQuat.begin() + frameOffset, orgChannel.valQuat.begin() + frameOffsetEnd);
-          if(wrapFrames > 0)ch.valQuat.insert(ch.valQuat.end(), orgChannel.valQuat.begin(), orgChannel.valQuat.begin() + wrapFrames);
+          if(wrapFrames > 0)ch.valQuat.push_back(*orgChannel.valQuat.begin());
+
+          resampleQuats(ch, sliceFrames);
         } else {
           ch.valScalar = std::vector<float>(orgChannel.valScalar.begin() + frameOffset, orgChannel.valScalar.begin() + frameOffsetEnd);
-          if(wrapFrames > 0)ch.valScalar.insert(ch.valScalar.end(), orgChannel.valScalar.begin(), orgChannel.valScalar.begin() + wrapFrames);
+          if(wrapFrames > 0)ch.valScalar.push_back(*orgChannel.valScalar.begin());
+
+          resampleScalars(ch, sliceFrames);
         }
         ++c;
       }
@@ -170,12 +217,10 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bo
   anim.pages = splitPages(anim.pages.back());
 
   // Now quantize/compress the values
-  anim.duration = 0.0f;
   anim.maxPageSize = 0;
   for(auto &page : anim.pages)
   {
     page.byteSize = 0;
-    anim.duration += page.duration;
     uint32_t channelIdx = 0;
     for(auto &ch : page.channels)
     {
@@ -185,7 +230,6 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bo
         ch.valQuantized = Quantizer::floatsToU16(ch.valScalar,
           anim.channelMap[channelIdx].quantOffset, anim.channelMap[channelIdx].quantScale
         );
-        ch.valQuantized.push_back(ch.valQuantized[0]);
       }
       page.byteSize += ch.valQuantized.size() * sizeof(uint16_t);
       ++channelIdx;

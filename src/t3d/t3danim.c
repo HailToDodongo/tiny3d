@@ -119,19 +119,20 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
 
     float kfIdxFloat = (anim->time - page->timeStart) * sampleRate;
     uint32_t kfIdx = (uint32_t)kfIdxFloat;
+    uint32_t kfIdxNext = kfIdx + 1;
     float interp = kfIdxFloat - kfIdx;
 
-    if(kfIdx >= sampleCount) {
-      kfIdx = sampleCount - 1;
-      interp = 0.0f;
-    }
+    if(kfIdx >= sampleCount)kfIdx = sampleCount-1;
+    if(kfIdxNext >= sampleCount)kfIdxNext = sampleCount-1;
 
     if(channelMap->targetType == T3D_ANIM_TARGET_ROTATION) {
       uint16_t* dataU16 = (uint16_t*)(data + (kfIdx*4));
+      uint16_t* dataU16Next = (uint16_t*)(data + (kfIdxNext*4));
       T3DQuat quatNext;
       unpack_quat(dataU16[0], dataU16[1], (T3DQuat*)target->target);
-      unpack_quat(dataU16[2], dataU16[3], &quatNext);
+      unpack_quat(dataU16Next[0], dataU16Next[1], &quatNext);
       t3d_quat_nlerp((T3DQuat*)target->target, (T3DQuat*)target->target, &quatNext, interp);
+      //t3d_quat_slerp((T3DQuat*)target->target, (T3DQuat*)target->target, &quatNext, interp);
 
       /*debugf(" %08lX @ %d -> %.2f %.2f %.2f %.2f (stride: %d)\n",
         *dataU32, data - anim->pageData,
@@ -143,9 +144,10 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
       );*/
       data += sampleCount * 4;
     } else {
-      uint16_t* dataU16 = (uint16_t*)(data + (kfIdx*2));
-      float valueA = (float)dataU16[0] * channelMap->quantScale + channelMap->quantOffset;
-      float valueB = (float)dataU16[1] * channelMap->quantScale + channelMap->quantOffset; // @TODO: OOB
+      uint16_t dataU16 = *(uint16_t*)(data + (kfIdx*2));
+      uint16_t dataU16Next = *(uint16_t*)(data + (kfIdxNext*2));
+      float valueA = (float)dataU16 * channelMap->quantScale + channelMap->quantOffset;
+      float valueB = (float)dataU16Next * channelMap->quantScale + channelMap->quantOffset; // @TODO: OOB
 
       *(float*)target->target = valueA + (valueB - valueA) * interp;
       //debugf(" (%c) %04X @ %d -> %.2f (stride: %d)\n", TARGET_TYPE[channelMap->targetType],
