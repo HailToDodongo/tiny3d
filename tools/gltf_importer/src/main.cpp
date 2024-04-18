@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
   chunkCount += t3dm.skeletons.empty() ? 0 : 1;
   chunkCount += t3dm.animations.size();
 
-  BinaryFile streamFile{};
+  std::vector<BinaryFile> streamFiles{};
 
   // Main file
   BinaryFile file{};
@@ -272,8 +272,8 @@ int main(int argc, char* argv[])
     ++m;
   }
 
-  uint32_t sdataStart = 0;
   for(const auto &anim : t3dm.animations) {
+    BinaryFile streamFile{};
     file.align(4);
     addToChunkTable('A');
 
@@ -281,7 +281,7 @@ int main(int argc, char* argv[])
     file.write<float>(anim.duration);
     file.write<uint16_t>(anim.keyframes.size());
     file.write<uint16_t>(anim.channelMap.size());
-    file.write<uint32_t>(sdataStart);
+    file.write<uint32_t>(0);
 
     for(int k=0; k<anim.keyframes.size(); ++k) {
       const auto &kf= anim.keyframes[k];
@@ -294,8 +294,7 @@ int main(int argc, char* argv[])
         streamFile.write<uint16_t>(kf.valQuant[v]);
       }
     }
-
-    sdataStart = streamFile.getPos();
+    streamFiles.push_back(streamFile);
 
     for(const auto &ch : anim.channelMap) {
       file.write(ch.targetIdx);
@@ -347,14 +346,16 @@ int main(int argc, char* argv[])
   // write to actual file
   file.writeToFile(t3dmPath);
 
-  if(streamFile.getSize() > 0) {
-    auto sdataPath = std::string(t3dmPath);
-    sdataPath[sdataPath.size()-1] = 's'; // replace .t3dm with .t3ds
-    streamFile.writeToFile(sdataPath.c_str());
+  uint32_t sdataSize = 0;
+  for(int s=0; s<streamFiles.size(); ++s) {
+    auto sdataPath = std::string(t3dmPath).substr(0, std::string(t3dmPath).size()-5);
+    sdataPath += "." + std::to_string(s) + ".sdata";
+    streamFiles[s].writeToFile(sdataPath.c_str());
+    sdataSize += streamFiles[s].getSize();
   }
 
   printf("Animation size:\n");
   printf("  - Meta: %d\n", animationSize);
-  printf("  - Data: %d\n", streamFile.getSize());
-  printf("  - Sum : %d\n", animationSize + streamFile.getSize());
+  printf("  - Data: %d\n", sdataSize);
+  printf("  - Sum : %d\n", animationSize + sdataSize);
 }
