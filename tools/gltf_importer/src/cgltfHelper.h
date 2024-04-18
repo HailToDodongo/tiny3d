@@ -149,4 +149,13 @@ namespace Gltf
       default: return 0;
     }
   }
+
+  inline const char *getInterpolationName(cgltf_interpolation_type type) {
+    switch(type) {
+      case cgltf_interpolation_type_linear: return "Linear";
+      case cgltf_interpolation_type_step: return "Step";
+      case cgltf_interpolation_type_cubic_spline: return "CubicSpline";
+      default: return "<?>";
+    }
+  }
 }

@@ -34,12 +34,6 @@ inline float calcMSE(const AnimPage &originalPage, const std::vector<AnimPage> &
       } else {
         float diff = interpolScalar(channelOrg.valScalar, idxOrg, interpOrg)
                    - interpolScalar(channelNew.valScalar, idxNew, interpNew);
-
-         if(fabs(diff) > 0.0001f) {
-          printf("   : %.4f -> %.4f (diff: %f) ====================================\n", interpolScalar(channelOrg.valScalar, idxOrg, interpOrg), interpolScalar(channelNew.valScalar, idxNew, interpNew), diff);
-         } else {
-          //( printf("   : %.4f -> %.4f\n", interpolScalar(channelOrg.valScalar, idxOrg, interpOrg), interpolScalar(channelNew.valScalar, idxNew, interpNew));
-         };
         mse += diff * diff;
       }
       ++sampleCount;

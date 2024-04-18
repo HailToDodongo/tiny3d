@@ -70,10 +70,9 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
 
     printf("  - Channel %d\n", c);
     printf("    - Target: %s -> %s\n", targetName, Gltf::getAnimTargetString(channel.target_path));
-    printf("    - Input[%s]: %d @ %d\n", Gltf::getTypeString(channel.sampler->input->type), samplerIn.count, samplerIn.stride);
+    printf("    - Input[%s]: %d @ %d (%s)\n", Gltf::getTypeString(channel.sampler->input->type), samplerIn.count, samplerIn.stride, Gltf::getInterpolationName(channel.sampler->interpolation));
     printf("    - Output[%s]: %d @ %d\n", Gltf::getTypeString(samplerOut.type), samplerOut.count, samplerOut.stride, samplerOut.type);
     printf("    - Time Range: %.4fs -> %.4fs\n", timeStart, timeEnd);
-
 
     uint32_t frame = 0;
     for(float t=timeStart; ; t += sampleStep)
@@ -97,6 +96,7 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
       if(channel.target_path == cgltf_animation_path_type_rotation) {
         // @TODO: interpolate by getting closes two points in time instead
         Quat valueCurr = Gltf::readAsVec4(dataOutput, samplerOut.type, samplerOut.component_type);
+        //printf("    - %.4fs/%.4f [f:%d]: %.4f %.4f %.4f %.4f\n", t, timeEnd, frame, valueCurr[0], valueCurr[1], valueCurr[2], valueCurr[3]);
         Quat valueNext = Gltf::readAsVec4(dataOutputNext, samplerOut.type, samplerOut.component_type);
         Quat value = valueCurr.slerp(valueNext, sampleInterpol);
 
