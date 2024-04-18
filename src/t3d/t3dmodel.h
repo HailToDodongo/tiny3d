@@ -89,11 +89,6 @@ typedef struct {
 } T3DChunkSkeleton;
 
 typedef struct {
-  float timeStart;
-  uint32_t dataOffset;
-} T3DAnimPage;
-
-typedef struct {
   uint16_t targetIdx;
   uint8_t targetType;
   uint8_t attributeIdx;
@@ -104,14 +99,10 @@ typedef struct {
 typedef struct {
   char* name;
   float duration;
-  uint16_t pageCount;
+  uint16_t keyframeCount;
   uint16_t channelCount;
-  uint16_t maxPageSize;
-  uint16_t _reserved;
-  T3DAnimChannelMapping *channelMappings; // set during load>
-  uint32_t sdataAddrROM; // set during load
-  T3DAnimPage pageTable[];
-  // T3DAnimChannelMapping channelMappings[]; <- channelMappings
+  uint32_t sdataAddrROM;
+  T3DAnimChannelMapping channelMappings[];
 } T3DChunkAnim;
 
 typedef union {

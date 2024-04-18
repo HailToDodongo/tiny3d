@@ -15,12 +15,12 @@ namespace Quantizer
     return (uint16_t)round((double)(value - offset) / scale * 65535.0);
   }
 
-  void floatsGetOffsetScale(const std::vector<float> &values, float &offset, float &scale) {
+  void floatsGetOffsetScale(const std::vector<Keyframe> &keyframes, float &offset, float &scale) {
     float valMin = INFINITY;
     float valMax = -INFINITY;
-    for(float val : values) {
-      valMin = std::min(valMin, val);
-      valMax = std::max(valMax, val);
+    for(auto &kf : keyframes) {
+      valMin = std::min(valMin, kf.valScalar);
+      valMax = std::max(valMax, kf.valScalar);
     }
     offset = valMin;
     scale = valMax - valMin;

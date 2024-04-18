@@ -18,9 +18,8 @@ T3DAnim t3d_anim_create(const T3DModel *model, const char *name) {
     .targets = NULL,
     .time = 0.0f,
     .speed = 1.0f,
-    .timeNextPage = 0,
-    .loadedPageIdx = -1,
-    .pageData = memalign(16, animDef->maxPageSize),
+    .timeNextKF = 0,
+    //.pageData = memalign(16, animDef->maxPageSize),
   };
   return result;
 }
@@ -51,8 +50,8 @@ void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
   }
 }
 
-static inline void load_page(T3DAnim *anim, int index) {
-  bool isLastPage = index == anim->animRef->pageCount - 1;
+static inline void load_keyframe(T3DAnim *anim, int index) {
+  /*bool isLastPage = index == anim->animRef->pageCount - 1;
   const T3DAnimPage *page = &anim->animRef->pageTable[index];
   const T3DAnimPage *nextPage = &anim->animRef->pageTable[isLastPage ? 0 : (index+1)];
   uint32_t dataSize = isLastPage ? anim->animRef->maxPageSize : (nextPage->dataOffset - page->dataOffset);
@@ -65,7 +64,7 @@ static inline void load_page(T3DAnim *anim, int index) {
     anim->timeNextPage = nextPage->timeStart;
   } else {
     anim->timeNextPage = anim->animRef->duration;
-  }
+  }*/
 }
 
 static inline float s10ToFloat(uint32_t value, float offset, float scale) {
@@ -94,17 +93,16 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
 
   if(anim->time >= anim->animRef->duration) {
     anim->time -= anim->animRef->duration;
-    anim->timeNextPage = anim->time;
+    anim->timeNextKF = anim->time;
     debugf("Looping animation\n");
   }
 
-  if(anim->time >= anim->timeNextPage) {
-    load_page(anim, (anim->loadedPageIdx + 1) % anim->animRef->pageCount);
+  if(anim->time >= anim->timeNextKF) {
+    load_keyframe(anim, 0);
   }
 
-  const T3DAnimPage *page = &anim->animRef->pageTable[anim->loadedPageIdx];
-
   debugf("Time: %.2f\n", anim->time);
+  return;
 
   const char *data = anim->pageData;
   for(int c=0; c<anim->animRef->channelCount; c++)
@@ -117,7 +115,7 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
     uint8_t sampleCount = data[1];
     data += 2;
 
-    float kfIdxFloat = (anim->time - page->timeStart) * sampleRate;
+    float kfIdxFloat = 0.0f;//(anim->time - page->timeStart) * sampleRate;
     uint32_t kfIdx = (uint32_t)kfIdxFloat;
     uint32_t kfIdxNext = kfIdx + 1;
     float interp = kfIdxFloat - kfIdx;

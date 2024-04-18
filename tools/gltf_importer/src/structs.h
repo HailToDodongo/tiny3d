@@ -176,43 +176,30 @@ typedef enum AnimChannelTarget : u8 {
   ROTATION
 } AnimChannelTarget;
 
-struct AnimChannel {
-  std::string targetName{};
-  AnimChannelTarget targetType{};
-  uint32_t targetIndex{}; // for pos/scale, determines which axis to modify
-  uint32_t sampleRate{};
-
-  std::vector<float> valScalar{};// input, for translate/scale
-  std::vector<Quat> valQuat{}; // input, for rotation
-  std::vector<uint16_t> valQuantized; // output, quantized flat values
-
-  bool isRotation() const {
-    return targetType == ROTATION;
-  }
-};
-
 struct AnimChannelMapping {
   std::string targetName{};
   uint16_t targetIdx{};
   AnimChannelTarget targetType{};
   uint8_t attributeIdx{};
-  float quantScale{};
-  float quantOffset{};
+
+  float valueMin{INFINITY};
+  float valueMax{-INFINITY};
 };
 
-struct AnimPage {
-  uint32_t sampleRate{};
-  float timeStart{};
-  float duration{};
-  uint32_t byteSize{};
-  std::vector<AnimChannel> channels{};
+struct Keyframe {
+  float time{};
+  uint32_t chanelIdx;
+  Quat valQuat;
+  float valScalar;
+
+  uint32_t valQuantSize = 0;
+  uint16_t valQuant[2];
 };
 
 struct Anim {
   std::string name{};
   float duration{};
-  uint32_t maxPageSize{};
-  std::vector<AnimPage> pages{};
+  std::vector<Keyframe> keyframes{};
   std::vector<AnimChannelMapping> channelMap{};
 };
 

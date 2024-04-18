@@ -30,8 +30,7 @@ typedef struct {
   float speed;
   float time;
 
-  float timeNextPage;
-  int loadedPageIdx;
+  float timeNextKF;
   char* pageData;
 } T3DAnim;
 

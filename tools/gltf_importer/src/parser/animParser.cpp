@@ -31,10 +31,12 @@ namespace
   }
 }
 
-Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
+Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::string, const Bone*> &nodeMap, uint32_t sampleRate)
 {
-  AnimPage page{.sampleRate = sampleRate};
-  Anim res{.name = std::string(anim.name),};
+  Anim res{
+    .name = std::string(anim.name),
+    .keyframes = {},
+  };
 
   printf("Animation: %s\n", anim.name);
   printf(" - Channels: %d\n", anim.channels_count);
@@ -42,18 +44,32 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
 
   float timeStart = 0.0f;
   float timeEnd = 0.0f;
-  for(int c=0; c < anim.channels_count; ++c)
+  uint32_t channelIdx = 0;
+
+  for(uint32_t c=0; c < anim.channels_count; ++c)
   {
     auto &channel = anim.channels[c];
     const auto &samplerIn = *channel.sampler->input;
     const auto &samplerOut = *channel.sampler->output;
     const char* targetName = channel.target_node->name;
 
+    auto it = nodeMap.find(targetName);
+    if(it == nodeMap.end()) {
+      printf("Channel target not found: %s, skipping channel...\n", targetName);
+      continue;
+    }
+
+    bool isRot = channel.target_path == cgltf_animation_path_type::cgltf_animation_path_type_rotation;
+
     // create channels, rotation is always combined, the rest (translation, scale) are separate for each axis
-    page.channels.emplace_back(targetName, getTarget(channel.target_path), 0, sampleRate);
-    if(channel.target_path != cgltf_animation_path_type::cgltf_animation_path_type_rotation) {
-      page.channels.emplace_back(targetName, getTarget(channel.target_path), 1, sampleRate);
-      page.channels.emplace_back(targetName, getTarget(channel.target_path), 2, sampleRate);
+    res.channelMap.push_back({
+      .targetName = targetName, .targetType = getTarget(channel.target_path),
+      .attributeIdx = 0,
+    });
+
+    if(!isRot) {
+      res.channelMap.push_back({.targetName = targetName, .targetType = getTarget(channel.target_path), .attributeIdx = 1});
+      res.channelMap.push_back({.targetName = targetName, .targetType = getTarget(channel.target_path), .attributeIdx = 2});
     }
 
     uint8_t *dataInput = ((uint8_t*)samplerIn.buffer_view->buffer->data) + samplerIn.offset + samplerIn.buffer_view->offset;
@@ -75,6 +91,7 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
     printf("    - Time Range: %.4fs -> %.4fs\n", timeStart, timeEnd);
 
     uint32_t frame = 0;
+
     for(float t=timeStart; ; t += sampleStep)
     {
       while(dataOutput < dataOutputEnd) {
@@ -94,7 +111,6 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
       assert(sampleInterpol >= 0.0f && sampleInterpol <= 1.0f);
 
       if(channel.target_path == cgltf_animation_path_type_rotation) {
-        // @TODO: interpolate by getting closes two points in time instead
         Quat valueCurr = Gltf::readAsVec4(dataOutput, samplerOut.type, samplerOut.component_type);
         //printf("    - %.4fs/%.4f [f:%d]: %.4f %.4f %.4f %.4f\n", t, timeEnd, frame, valueCurr[0], valueCurr[1], valueCurr[2], valueCurr[3]);
         Quat valueNext = Gltf::readAsVec4(dataOutputNext, samplerOut.type, samplerOut.component_type);
@@ -104,7 +120,7 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
           throw std::runtime_error("Invalid Quaternion in anim-parser: " + value.toString());
         }
 
-        page.channels.back().valQuat.push_back(value);
+        res.keyframes.push_back({.time = t, .chanelIdx = channelIdx, .valQuat = value});
       } else {
         Vec3 value = Gltf::readAsVec3(dataOutput, samplerOut.type, samplerOut.component_type);
         Vec3 valueNext = Gltf::readAsVec3(dataOutputNext, samplerOut.type, samplerOut.component_type);
@@ -117,17 +133,27 @@ Anim parseAnimation(const cgltf_animation &anim, uint32_t sampleRate)
         }
 
         // printf("    - %.4fs/%.4f [f:%d]: b:%.4f i=%d: %.4f %.4f %.4f\n", t, timeEnd, frame, sampleInterpol, samplerIn.count, value[0], value[1], value[2]);
-        page.channels[page.channels.size()-3].valScalar.push_back(value[0]);
-        page.channels[page.channels.size()-2].valScalar.push_back(value[1]);
-        page.channels[page.channels.size()-1].valScalar.push_back(value[2]);
+
+        res.keyframes.push_back({.time = t, .chanelIdx = channelIdx+0, .valScalar = value[0]});
+        res.keyframes.push_back({.time = t, .chanelIdx = channelIdx+1, .valScalar = value[1]});
+        res.keyframes.push_back({.time = t, .chanelIdx = channelIdx+2, .valScalar = value[2]});
+
+        res.channelMap[channelIdx+0].valueMin = std::min(res.channelMap[channelIdx+0].valueMin, value[0]);
+        res.channelMap[channelIdx+0].valueMax = std::max(res.channelMap[channelIdx+0].valueMax, value[0]);
+
+        res.channelMap[channelIdx+1].valueMin = std::min(res.channelMap[channelIdx+1].valueMin, value[1]);
+        res.channelMap[channelIdx+1].valueMax = std::max(res.channelMap[channelIdx+1].valueMax, value[1]);
+
+        res.channelMap[channelIdx+2].valueMin = std::min(res.channelMap[channelIdx+2].valueMin, value[2]);
+        res.channelMap[channelIdx+2].valueMax = std::max(res.channelMap[channelIdx+2].valueMax, value[2]);
+
       }
       ++frame;
     }
+
+    channelIdx += isRot ? 1 : 3;
   }
 
-  page.timeStart = timeStart;
-  page.duration = timeEnd - timeStart;
-  res.pages.push_back(page);
   res.duration = timeEnd - timeStart;
   return res;
 }

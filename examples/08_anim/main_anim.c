@@ -253,26 +253,8 @@ int main()
 
     t3d_debug_printf(posX, posY, "ROM sdata: 0x%08X", anim->sdataAddrROM);
     posY += 10;
-    t3d_debug_printf(posX, posY, "Page: %d/%d (max: %db)", md->animInst[activeAnim].loadedPageIdx, anim->pageCount-1, anim->maxPageSize);
+    t3d_debug_printf(posX, posY, "KF: %d | Next: %.4f", anim->keyframeCount, md->animInst[activeAnim].timeNextKF);
     posY += 10;
-
-    int currentPage = md->animInst[activeAnim].loadedPageIdx;
-    int pageIdx = currentPage - 2;
-    int paceCountShow = anim->pageCount < 5 ? anim->pageCount : 5;
-    for(int i = 0; i < paceCountShow; i++)
-    {
-      pageIdx = (pageIdx + anim->pageCount) % anim->pageCount;
-      bool isLastPage = pageIdx == anim->pageCount - 1;
-      T3DAnimPage *page = &anim->pageTable[pageIdx];
-      T3DAnimPage *pageNext = &anim->pageTable[(pageIdx + 1) % anim->pageCount];
-      uint32_t dataSize = isLastPage ? anim->maxPageSize : (pageNext->dataOffset - page->dataOffset);
-
-      set_selected_color(pageIdx == currentPage);
-      t3d_debug_printf(posX, posY, "%2d 0x%04X: %.2fs %db", pageIdx, page->dataOffset, page->timeStart, dataSize);
-      posY += 10;
-
-      ++pageIdx;
-    }
 
     rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
     t3d_debug_printf(posX, posY, "Channels: %d", anim->channelCount);

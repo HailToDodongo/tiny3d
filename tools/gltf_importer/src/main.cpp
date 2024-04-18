@@ -272,72 +272,37 @@ int main(int argc, char* argv[])
     ++m;
   }
 
+  uint32_t sdataStart = 0;
   for(const auto &anim : t3dm.animations) {
     file.align(4);
     addToChunkTable('A');
 
     file.write(insertString(stringTable, anim.name));
     file.write<float>(anim.duration);
-    file.write<uint16_t>(anim.pages.size());
+    file.write<uint16_t>(anim.keyframes.size());
     file.write<uint16_t>(anim.channelMap.size());
+    file.write<uint32_t>(sdataStart);
 
-    uint32_t posLargestPageSize = file.getPos();
-      file.write<uint16_t>(0);
+    for(int k=0; k<anim.keyframes.size(); ++k) {
+      const auto &kf= anim.keyframes[k];
+      const auto &kfNext= (k >= anim.keyframes.size()-1) ? kf : anim.keyframes[k+1];
 
-    file.write<uint16_t>(0); // (reserved)
-    file.write<uint32_t>(0); // set at runtime (channel mapping pointer)
-    file.write<uint32_t>(0); // set at runtime (stream data ROM address)
-
-    // @TODO: do the alignment stuff in the converter code
-    uint32_t maxPageSize = 0;
-    for(const auto &page : anim.pages) {
-      uint32_t sdataStart = streamFile.getPos();
-
-      for(const auto &ch : page.channels)
-      {
-        streamFile.write<uint8_t>(ch.sampleRate);
-
-        if(ch.isRotation()) {
-          assert(ch.valQuantized.size() % 2 == 0);
-          assert((ch.valQuantized.size()/2) <= 255);
-
-          streamFile.write<uint8_t>(ch.valQuantized.size()/2); // samples
-          streamFile.writeArray((uint32_t*)ch.valQuantized.data(), ch.valQuantized.size() / 2);
-        } else {
-          assert(ch.valQuantized.size() <= 255);
-
-          streamFile.write<uint8_t>(ch.valQuantized.size()); // samples
-          streamFile.writeArray(ch.valQuantized.data(), ch.valQuantized.size());
-        }
+      float timeRel = kfNext.time - kf.time;
+      streamFile.write<uint16_t>(timeRel * 60.0f);
+      streamFile.write<uint16_t>(kf.chanelIdx);
+      for(int v=0; v<kf.valQuantSize; ++v) {
+        streamFile.write<uint16_t>(kf.valQuant[v]);
       }
-
-      uint32_t sdataEnd = streamFile.getPos();
-
-      maxPageSize = std::max(maxPageSize, sdataEnd - sdataStart);
-
-      assert(page.sampleRate <= 255);
-
-      auto posStart = file.getPos();
-
-      file.write<float>(page.timeStart);
-      file.write<uint32_t>(sdataStart);
-
-      animationSize += file.getPos() - posStart;
     }
 
-    maxPageSize = maxPageSize + 16;
-
-    file.posPush();
-      file.setPos(posLargestPageSize);
-      file.write<uint16_t>(maxPageSize);
-    file.posPop();
+    sdataStart = streamFile.getPos();
 
     for(const auto &ch : anim.channelMap) {
       file.write(ch.targetIdx);
       file.write(ch.targetType);
       file.write(ch.attributeIdx);
-      file.write(ch.quantScale / (float)0xFFFF);
-      file.write(ch.quantOffset);
+      file.write((ch.valueMax - ch.valueMin) / (float)0xFFFF);
+      file.write(ch.valueMin);
     }
   }
 

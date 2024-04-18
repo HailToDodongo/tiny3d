@@ -157,27 +157,16 @@ The list is sorted by index, so index references are guaranteed to be parsed bef
 
 ## Animation (`A`)
 Contains a single animation with one or more channels.<br> 
-Each animation is split into pages, whereas the actual data is stored the streaming-data file.
+Each animation then contains a list of keyframe changing the state of a channel.<br>
 
 | Offset | Type               | Description                              |
 |--------|--------------------|------------------------------------------|
 | 0x00   | `char*`            | Name, offset into string table           |
 | 0x04   | `f32`              | Duration (seconds)                       |
-| 0x08   | `u16`              | Page count                               |
+| 0x08   | `u16`              | Keyframe count                           |
 | 0x0A   | `u16`              | Channel count                            |
-| 0x0C   | `u16`              | Max. page size (uncompressed)            |
-| 0x0E   | `u16`              | _reserved_                               |
-| 0x10   | `ChannelMapping*`  | `0` (set at runtime)                     |
-| 0x14   | `u32`              | stream-file ROM address (set at runtime) |
-| 0x18   | `AnimPage[]`       | Page header                              |
-| 0x??   | `ChannelMapping[]` | Maps channel to targets                  |
-
-#### `AnimPage`
-
-| Offset | Type  | Description                       |
-|--------|-------|-----------------------------------|
-| 0x00   | `f32` | start time (seconds)              |
-| 0x04   | `u32` | Data Offset (streaming-data file) |
+| 0x0C   | `u32`              | stream-file ROM address (set at runtime) |
+| 0x10   | `ChannelMapping[]` | Maps channel to targets                  |
 
 #### `ChannelMapping`
 
@@ -201,21 +190,13 @@ To drive arbitrary values, `Translation` should be used as a default.
 #### Data
 The actual data is stored in the streaming file.<br>
 It is referenced by the data-offsets in the page.<br>
-Per page, data is stored as an array of channels, which then stores the keyframe data.<br>
-The first 2 bytes per channel encode the sample-rate and keyframe count.<br>
 
-##### `Data`
-| Offset | Type        | Description |
-|--------|-------------|-------------|
-| 0x00   | `Channel[]` | Channels    |
-
-
-##### `Channel`
-| Offset | Type    | Description                                                   |
-|--------|---------|---------------------------------------------------------------|
-| 0x00   | `u8`    | Sample-Rate                                                   |
-| 0x01   | `u8`    | Keyframe count                                                |
-| 0x02   | `u16[]` | Data, per frame one `u16` for scalars, two `u16` for rotation |
+##### `Keyframe`
+| Offset | Type    | Description                                        |
+|--------|---------|----------------------------------------------------|
+| 0x00   | `u16`   | Time till next KF (in units of 1/60s)              |
+| 0x01   | `u16`   | Channel Index                                      |
+| 0x02   | `u16[]` | Data, on `u16` for scalars, two `u16` for rotation |
 
 ## String Table
 
