@@ -159,14 +159,14 @@ The list is sorted by index, so index references are guaranteed to be parsed bef
 Contains a single animation with one or more channels.<br> 
 Each animation then contains a list of keyframe changing the state of a channel.<br>
 
-| Offset | Type               | Description                              |
-|--------|--------------------|------------------------------------------|
-| 0x00   | `char*`            | Name, offset into string table           |
-| 0x04   | `f32`              | Duration (seconds)                       |
-| 0x08   | `u16`              | Keyframe count                           |
-| 0x0A   | `u16`              | Channel count                            |
-| 0x0C   | `u32`              | stream-file ROM address (set at runtime) |
-| 0x10   | `ChannelMapping[]` | Maps channel to targets                  |
+| Offset | Type               | Description                           |
+|--------|--------------------|---------------------------------------|
+| 0x00   | `char*`            | Name, offset into string table        |
+| 0x04   | `f32`              | Duration (seconds)                    |
+| 0x08   | `u16`              | Keyframe count                        |
+| 0x0A   | `u16`              | Channel count                         |
+| 0x0C   | `char*`            | sdata path (offset into string table) |
+| 0x10   | `ChannelMapping[]` | Maps channel to targets               |
 
 #### `ChannelMapping`
 
@@ -190,13 +190,17 @@ To drive arbitrary values, `Translation` should be used as a default.
 #### Data
 The actual data is stored in the streaming file.<br>
 It is referenced by the data-offsets in the page.<br>
+<br>
+To know how large the next keyframe is, the MSB is used to encode size.<br>
+`0` means scalar (2 data bytes), `1` means rotation (4 data bytes).<br>
+The initial KF has always 4 bytes, to have a known start.<br>
 
 ##### `Keyframe`
-| Offset | Type    | Description                                        |
-|--------|---------|----------------------------------------------------|
-| 0x00   | `u16`   | Time till next KF (in units of 1/60s)              |
-| 0x01   | `u16`   | Channel Index                                      |
-| 0x02   | `u16[]` | Data, on `u16` for scalars, two `u16` for rotation |
+| Offset | Type    | Description                                          |
+|--------|---------|------------------------------------------------------|
+| 0x00   | `u16`   | Time till next KF in ticks, MSB sets type of next KF |
+| 0x01   | `u16`   | Channel Index                                        |
+| 0x02   | `u16[]` | Data, on `u16` for scalars, two `u16` for rotation   |
 
 ## String Table
 

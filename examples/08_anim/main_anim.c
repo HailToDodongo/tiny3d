@@ -251,7 +251,7 @@ int main()
     posY += 10;
     rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
 
-    t3d_debug_printf(posX, posY, "ROM sdata: 0x%08X", anim->sdataAddrROM);
+    t3d_debug_printf(posX, posY, "SData: %s", anim->filePath);
     posY += 10;
     t3d_debug_printf(posX, posY, "KF: %d | Next: %.4f", anim->keyframeCount, md->animInst[activeAnim].timeNextKF);
     posY += 10;

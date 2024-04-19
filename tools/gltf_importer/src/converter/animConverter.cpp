@@ -56,10 +56,9 @@ namespace {
     if(quatQuant == 0) {
       throw std::runtime_error(std::string{"Quantized rotation is zero: "} + std::to_string(kf.chanelIdx) + " Quat: " + kf.valQuat.toString());
     }
-
     kf.valQuantSize = 2;
-    kf.valQuant[0] = quatQuant & 0xFFFF;
-    kf.valQuant[1] = quatQuant >> 16;
+    kf.valQuant[1] = quatQuant & 0xFFFF;
+    kf.valQuant[0] = quatQuant >> 16;
   }
 }
 

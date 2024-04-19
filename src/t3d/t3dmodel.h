@@ -101,7 +101,7 @@ typedef struct {
   float duration;
   uint16_t keyframeCount;
   uint16_t channelCount;
-  uint32_t sdataAddrROM;
+  char* filePath;
   T3DAnimChannelMapping channelMappings[];
 } T3DChunkAnim;
 

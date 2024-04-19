@@ -48,6 +48,18 @@ namespace {
     }
     return boneCount;
   };
+
+  std::string getRomPath(const std::string &path) {
+    if(path.find("filesystem/") == 0) {
+      return std::string("rom:/") + path.substr(11);
+    }
+    return path;
+  }
+
+  std::string getStreamDataPath(const char* filePath, uint32_t idx) {
+    auto sdataPath = std::string(filePath).substr(0, std::string(filePath).size()-5);
+    return sdataPath + "." + std::to_string(idx) + ".sdata";
+  }
 }
 
 int main(int argc, char* argv[])
@@ -272,6 +284,7 @@ int main(int argc, char* argv[])
     ++m;
   }
 
+  uint16_t animIdx = 0;
   for(const auto &anim : t3dm.animations) {
     BinaryFile streamFile{};
     file.align(4);
@@ -281,17 +294,33 @@ int main(int argc, char* argv[])
     file.write<float>(anim.duration);
     file.write<uint16_t>(anim.keyframes.size());
     file.write<uint16_t>(anim.channelMap.size());
-    file.write<uint32_t>(0);
+    file.write<uint32_t>(insertString(stringTable,
+      getRomPath(getStreamDataPath(t3dmPath, animIdx))
+    ));
 
     for(int k=0; k<anim.keyframes.size(); ++k) {
-      const auto &kf= anim.keyframes[k];
-      const auto &kfNext= (k >= anim.keyframes.size()-1) ? kf : anim.keyframes[k+1];
+      bool isLastKF = (k >= anim.keyframes.size()-1);
+      const auto &kf = anim.keyframes[k];
+      const auto &kfNext = isLastKF ? kf : anim.keyframes[k+1];
+
+      bool nextIsLarge = kfNext.valQuantSize > 1;
 
       float timeRel = kfNext.time - kf.time;
-      streamFile.write<uint16_t>(timeRel * 60.0f);
+      uint16_t timeNext = (uint16_t)roundf(timeRel * 60.0f);
+      if(isLastKF)timeNext = 0x7FFF; // last keyframe, force a long wait time to let the end of the animation play out
+
+      assert(timeNext < (1 << 15)); // prevent conflicts with size flag
+      if(nextIsLarge)timeNext |= (1 << 15); // encode size of the next KF here
+
+      streamFile.write<uint16_t>(timeNext);
       streamFile.write<uint16_t>(kf.chanelIdx);
       for(int v=0; v<kf.valQuantSize; ++v) {
         streamFile.write<uint16_t>(kf.valQuant[v]);
+      }
+
+      // force the first keyframe to have 2 values, this is to have a known initial state
+      if(k == 0 && kf.valQuantSize == 1) {
+        streamFile.write<uint16_t>(0);
       }
     }
     streamFiles.push_back(streamFile);
@@ -303,6 +332,8 @@ int main(int argc, char* argv[])
       file.write((ch.valueMax - ch.valueMin) / (float)0xFFFF);
       file.write(ch.valueMin);
     }
+
+    ++animIdx;
   }
 
   // Now patch all chunks together and write out the chunk-table
@@ -348,8 +379,7 @@ int main(int argc, char* argv[])
 
   uint32_t sdataSize = 0;
   for(int s=0; s<streamFiles.size(); ++s) {
-    auto sdataPath = std::string(t3dmPath).substr(0, std::string(t3dmPath).size()-5);
-    sdataPath += "." + std::to_string(s) + ".sdata";
+    auto sdataPath = getStreamDataPath(t3dmPath, s);
     streamFiles[s].writeToFile(sdataPath.c_str());
     sdataSize += streamFiles[s].getSize();
   }

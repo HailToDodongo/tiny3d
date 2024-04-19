@@ -7,21 +7,30 @@
 #include <malloc.h>
 
 #define SQRT_2_INV 0.70710678118f
+#define KF_TIME_TICK (1.0f / 60.0f)
+
 const static char TARGET_TYPE[4] = {'T', 'S', 's', 'R'};
+
+typedef struct {
+  uint16_t nextTime;
+  uint16_t channelIdx;
+  uint16_t data[2];
+} T3DAnimKF;
 
 T3DAnim t3d_anim_create(const T3DModel *model, const char *name) {
   T3DChunkAnim* animDef = t3d_model_get_animation(model, name);
   assertf(animDef, "Animation '%s' not found in model", name);
 
-  T3DAnim result = {
+  return (T3DAnim){
     .animRef = animDef,
     .targets = NULL,
     .time = 0.0f,
     .speed = 1.0f,
     .timeNextKF = 0,
+    .nextKfSize = sizeof(T3DAnimKF),
+    .file = asset_fopen(animDef->filePath, NULL),
     //.pageData = memalign(16, animDef->maxPageSize),
   };
-  return result;
 }
 
 void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
@@ -88,17 +97,48 @@ static inline void unpack_quat(uint16_t dataHi, uint16_t dataLo, T3DQuat *out) {
   out->v[largestIdx] = sqrtf(1.0f - q0*q0 - q1*q1 - q2*q2);
 }
 
+static inline void load_kf(T3DAnim *anim) {
+  T3DAnimKF kf;
+  fread(&kf, anim->nextKfSize, 1, anim->file);
+
+  // KF Header
+  bool isLarge = kf.nextTime & 0x8000;
+  anim->nextKfSize = isLarge ? sizeof(T3DAnimKF) : (sizeof(T3DAnimKF)-2);
+  kf.nextTime &= 0x7FFF;
+  anim->timeNextKF += (float)kf.nextTime * KF_TIME_TICK;
+
+  // KF Data
+  T3DAnimChannelMapping *channelMap = &anim->animRef->channelMappings[kf.channelIdx];
+  T3DAnimTarget *target = &anim->targets[kf.channelIdx];
+
+  if(channelMap->targetType == T3D_ANIM_TARGET_ROTATION) {
+    T3DQuat quat;
+    debugf("KF | ch: %d, next: %.4fs -> (%04X %04X) ", kf.channelIdx, anim->timeNextKF, kf.data[0], kf.data[1]);
+    unpack_quat(kf.data[0], kf.data[1], &quat);
+    debugf("%.4f %.4f %.4f %.4f\n", quat.v[0], quat.v[1], quat.v[2], quat.v[3]);
+  } else {
+    float value = (float)kf.data[0] * channelMap->quantScale + channelMap->quantOffset;
+    debugf("KF | ch: %d, next: %.4fs -> %.4f\n", kf.channelIdx, anim->timeNextKF, value);
+  }
+}
+
 void t3d_anim_update(T3DAnim *anim, float deltaTime) {
   anim->time += deltaTime * anim->speed;
 
   if(anim->time >= anim->animRef->duration) {
     anim->time -= anim->animRef->duration;
     anim->timeNextKF = anim->time;
+    anim->nextKfSize = sizeof(T3DAnimKF);
+
+    // rewind(anim->file); // <- @TODO: use when libdragon allows for it
+    fclose(anim->file);
+    anim->file = asset_fopen(anim->animRef->filePath, NULL);
+
     debugf("Looping animation\n");
   }
 
-  if(anim->time >= anim->timeNextKF) {
-    load_keyframe(anim, 0);
+  while(anim->time >= anim->timeNextKF) {
+    load_kf(anim);
   }
 
   debugf("Time: %.2f\n", anim->time);
