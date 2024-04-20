@@ -292,12 +292,14 @@ int main(int argc, char* argv[])
 
     file.write(insertString(stringTable, anim.name));
     file.write<float>(anim.duration);
-    file.write<uint16_t>(anim.keyframes.size());
-    file.write<uint16_t>(anim.channelMap.size());
+    file.write<uint32_t>(anim.keyframes.size());
+    file.write<uint16_t>(anim.channelCountQuat);
+    file.write<uint16_t>(anim.channelCountScalar);
     file.write<uint32_t>(insertString(stringTable,
       getRomPath(getStreamDataPath(t3dmPath, animIdx))
     ));
 
+    std::unordered_set<uint32_t> channelHasKF{};
     for(int k=0; k<anim.keyframes.size(); ++k) {
       bool isLastKF = (k >= anim.keyframes.size()-1);
       const auto &kf = anim.keyframes[k];
@@ -307,7 +309,11 @@ int main(int argc, char* argv[])
 
       float timeRel = kfNext.time - kf.time;
       uint16_t timeNext = (uint16_t)roundf(timeRel * 60.0f);
-      if(isLastKF)timeNext = 0x7FFF; // last keyframe, force a long wait time to let the end of the animation play out
+
+      if(!channelHasKF.contains(kf.chanelIdx)) {
+        timeNext = 0x7FFF;
+        channelHasKF.insert(kf.chanelIdx);
+      }
 
       assert(timeNext < (1 << 15)); // prevent conflicts with size flag
       if(nextIsLarge)timeNext |= (1 << 15); // encode size of the next KF here
@@ -331,6 +337,7 @@ int main(int argc, char* argv[])
       file.write(ch.attributeIdx);
       file.write((ch.valueMax - ch.valueMin) / (float)0xFFFF);
       file.write(ch.valueMin);
+      file.write(ch.timeOffset);
     }
 
     ++animIdx;

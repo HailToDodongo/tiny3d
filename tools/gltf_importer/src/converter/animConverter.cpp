@@ -85,6 +85,23 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bo
     return a.time < b.time;
   });
 
+  // Now change the timestamps to point to the previous keyframe of the same channel
+  // this is done to actually load the next keyframe at any given time
+  std::unordered_map<uint32_t, float> kfChannelTime;
+  for(auto &kf : anim.keyframes)
+  {
+    auto it = kfChannelTime.find(kf.chanelIdx);
+    if(it != kfChannelTime.end()) {
+      auto &ch = anim.channelMap[kf.chanelIdx];
+      float prevTime = it->second;
+      if(ch.timeOffset == 0.0f)ch.timeOffset = kf.time - prevTime;
+      kfChannelTime[kf.chanelIdx] = kf.time;
+      kf.time = prevTime;
+    } else {
+      kfChannelTime[kf.chanelIdx] = kf.time;
+    }
+  }
+
   // Now quantize/compress the values
   for(auto &kf : anim.keyframes)
   {
@@ -94,6 +111,17 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bo
     } else {
       kf.valQuantSize = 1;
       kf.valQuant[0] = Quantizer::floatToU16(kf.valScalar, ch.valueMin, ch.valueMax - ch.valueMin);
+    }
+  }
+
+  // re-count channels
+  anim.channelCountQuat = 0;
+  anim.channelCountScalar = 0;
+  for(auto &ch : anim.channelMap) {
+    if(ch.targetType == AnimChannelTarget::ROTATION) {
+      anim.channelCountQuat++;
+    } else {
+      anim.channelCountScalar++;
     }
   }
 }

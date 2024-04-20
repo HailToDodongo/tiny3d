@@ -163,12 +163,15 @@ Each animation then contains a list of keyframe changing the state of a channel.
 |--------|--------------------|---------------------------------------|
 | 0x00   | `char*`            | Name, offset into string table        |
 | 0x04   | `f32`              | Duration (seconds)                    |
-| 0x08   | `u16`              | Keyframe count                        |
-| 0x0A   | `u16`              | Channel count                         |
-| 0x0C   | `char*`            | sdata path (offset into string table) |
-| 0x10   | `ChannelMapping[]` | Maps channel to targets               |
+| 0x08   | `u32`              | Keyframe count                        |
+| 0x0C   | `u16`              | Quaternion Channel count              |
+| 0x0E   | `u16`              | Scalar Channel count                  |
+| 0x10   | `char*`            | sdata path (offset into string table) |
+| 0x14   | `ChannelMapping[]` | Maps channel to targets               |
 
 #### `ChannelMapping`
+Array of channels that define the connection to the data to be modified.<br>
+They are sorted so that all rotation channels come first.
 
 | Offset | Type          | Description                                  |
 |--------|---------------|----------------------------------------------|
@@ -177,6 +180,7 @@ Each animation then contains a list of keyframe changing the state of a channel.
 | 0x03   | `u8`          | Attribute index (0-2 for x/y/z, 0 for quat.) |
 | 0x04   | `f32`         | Quantization scale                           |
 | 0x08   | `f32`         | Quantization offset                          |
+| 0x0C   | `f32`         | Time Offset (for first kf)                   |
 
 #### `Target Type`
 ```

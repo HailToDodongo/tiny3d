@@ -29,6 +29,17 @@ namespace
       fabsf(v[2]) < MIN_VALUE_DELTA ? 0.0f : v[2]
     };
   }
+
+  void insertScalarKeyframe(Anim &anim, float time, uint32_t chIdx, Vec3 value, bool isTranslate) {
+    value = cleanupVector(value);
+    if(isTranslate)value *= config.globalScale;
+
+    for(int i=0; i<3; ++i) {
+      anim.keyframes.push_back({.time = time, .chanelIdx = chIdx + i, .valScalar = value[i]});
+      anim.channelMap[chIdx + i].valueMin = std::min(anim.channelMap[chIdx + i].valueMin, value[i]);
+      anim.channelMap[chIdx + i].valueMax = std::max(anim.channelMap[chIdx + i].valueMax, value[i]);
+    }
+  }
 }
 
 Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::string, const Bone*> &nodeMap, uint32_t sampleRate)
@@ -44,9 +55,21 @@ Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::s
 
   float timeStart = 0.0f;
   float timeEnd = 0.0f;
-  uint32_t channelIdx = 0;
 
-  for(uint32_t c=0; c < anim.channels_count; ++c)
+  // get indices sorted by rotation/not-rotation
+  std::vector<uint32_t> channelIndices;
+  for(uint32_t c=0; c < anim.channels_count; ++c) {
+    auto &channel = anim.channels[c];
+    if(channel.target_path == cgltf_animation_path_type::cgltf_animation_path_type_rotation) {
+      channelIndices.insert(channelIndices.begin(), c);
+    } else {
+      channelIndices.push_back(c);
+    }
+  }
+
+  uint32_t chIdx = 0;
+
+  for(uint32_t c : channelIndices)
   {
     auto &channel = anim.channels[c];
     const auto &samplerIn = *channel.sampler->input;
@@ -59,7 +82,8 @@ Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::s
       continue;
     }
 
-    bool isRot = channel.target_path == cgltf_animation_path_type::cgltf_animation_path_type_rotation;
+    bool isRot = channel.target_path == cgltf_animation_path_type_rotation;
+    bool isTranslate = channel.target_path == cgltf_animation_path_type_translation;
 
     // create channels, rotation is always combined, the rest (translation, scale) are separate for each axis
     res.channelMap.push_back({
@@ -91,8 +115,8 @@ Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::s
     printf("    - Time Range: %.4fs -> %.4fs\n", timeStart, timeEnd);
 
     uint32_t frame = 0;
-
-    for(float t=timeStart; ; t += sampleStep)
+    float t;
+    for(t=timeStart; ; t += sampleStep)
     {
       while(dataOutput < dataOutputEnd) {
         time = Gltf::readAsFloat(dataInput, samplerIn.component_type);
@@ -102,9 +126,13 @@ Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::s
         dataOutput += samplerOut.stride;
         dataOutputNext += samplerOut.stride;
 
-        if(dataOutputNext >= dataOutputEnd)dataOutputNext = dataOutputStart;
+        if(dataOutputNext >= dataOutputEnd)dataOutputNext = dataOutputEnd - samplerOut.stride;
       }
-      if(dataOutput >= dataOutputEnd)break;
+
+      if(dataOutput >= dataOutputEnd) {
+        t -= sampleStep;
+        break;
+      }
 
       float sampleInterpol = (t - time) / (nextTime - time);
       //printf("Time: %.4f (%.4f - %.4f) -> %.4f\n", t, time, nextTime, sampleInterpol);
@@ -120,38 +148,29 @@ Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::s
           throw std::runtime_error("Invalid Quaternion in anim-parser: " + value.toString());
         }
 
-        res.keyframes.push_back({.time = t, .chanelIdx = channelIdx, .valQuat = value});
+        res.keyframes.push_back({.time = t, .chanelIdx = chIdx, .valQuat = value});
       } else {
         Vec3 value = Gltf::readAsVec3(dataOutput, samplerOut.type, samplerOut.component_type);
         Vec3 valueNext = Gltf::readAsVec3(dataOutputNext, samplerOut.type, samplerOut.component_type);
-
         value = value.mix(valueNext, sampleInterpol);
-        value = cleanupVector(value);
-
-        if(channel.target_path == cgltf_animation_path_type_translation) {
-          value *= config.globalScale;
-        }
-
         // printf("    - %.4fs/%.4f [f:%d]: b:%.4f i=%d: %.4f %.4f %.4f\n", t, timeEnd, frame, sampleInterpol, samplerIn.count, value[0], value[1], value[2]);
-
-        res.keyframes.push_back({.time = t, .chanelIdx = channelIdx+0, .valScalar = value[0]});
-        res.keyframes.push_back({.time = t, .chanelIdx = channelIdx+1, .valScalar = value[1]});
-        res.keyframes.push_back({.time = t, .chanelIdx = channelIdx+2, .valScalar = value[2]});
-
-        res.channelMap[channelIdx+0].valueMin = std::min(res.channelMap[channelIdx+0].valueMin, value[0]);
-        res.channelMap[channelIdx+0].valueMax = std::max(res.channelMap[channelIdx+0].valueMax, value[0]);
-
-        res.channelMap[channelIdx+1].valueMin = std::min(res.channelMap[channelIdx+1].valueMin, value[1]);
-        res.channelMap[channelIdx+1].valueMax = std::max(res.channelMap[channelIdx+1].valueMax, value[1]);
-
-        res.channelMap[channelIdx+2].valueMin = std::min(res.channelMap[channelIdx+2].valueMin, value[2]);
-        res.channelMap[channelIdx+2].valueMax = std::max(res.channelMap[channelIdx+2].valueMax, value[2]);
-
+        insertScalarKeyframe(res, t, chIdx, value, isTranslate);
       }
       ++frame;
     }
 
-    channelIdx += isRot ? 1 : 3;
+    if((timeEnd - t) > 0.0001f) {
+      // insert last keyframe in the data
+      if(channel.target_path == cgltf_animation_path_type_rotation) {
+        Quat value = Gltf::readAsVec4(dataOutputEnd - samplerOut.stride, samplerOut.type, samplerOut.component_type);
+        res.keyframes.push_back({.time = timeEnd, .chanelIdx = chIdx, .valQuat = value});
+      } else {
+        Vec3 value = Gltf::readAsVec3(dataOutputEnd - samplerOut.stride, samplerOut.type, samplerOut.component_type);
+        insertScalarKeyframe(res, timeEnd, chIdx, value, isTranslate);
+      }
+    }
+
+    chIdx += isRot ? 1 : 3;
   }
 
   res.duration = timeEnd - timeStart;

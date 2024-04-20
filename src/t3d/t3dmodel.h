@@ -94,13 +94,15 @@ typedef struct {
   uint8_t attributeIdx;
   float quantScale;
   float quantOffset;
+  float timeOffset;
 } T3DAnimChannelMapping;
 
 typedef struct {
   char* name;
   float duration;
-  uint16_t keyframeCount;
-  uint16_t channelCount;
+  uint32_t keyframeCount;
+  uint16_t channelsQuat;
+  uint16_t channelsScalar;
   char* filePath;
   T3DAnimChannelMapping channelMappings[];
 } T3DChunkAnim;

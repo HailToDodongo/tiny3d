@@ -23,57 +23,52 @@ T3DAnim t3d_anim_create(const T3DModel *model, const char *name) {
 
   return (T3DAnim){
     .animRef = animDef,
-    .targets = NULL,
+    .targetsScalar = NULL,
+    .targetsQuat = NULL,
     .time = 0.0f,
     .speed = 1.0f,
     .timeNextKF = 0,
     .nextKfSize = sizeof(T3DAnimKF),
     .file = asset_fopen(animDef->filePath, NULL),
-    //.pageData = memalign(16, animDef->maxPageSize),
   };
 }
 
 void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
-  if(anim->targets)free(anim->targets);
-  anim->targets = malloc(sizeof(T3DAnimTarget) * anim->animRef->channelCount);
-  for(int i = 0; i < anim->animRef->channelCount; i++)
+  if(anim->targetsQuat)free(anim->targetsQuat);
+  if(anim->targetsScalar)free(anim->targetsScalar);
+
+  anim->targetsQuat = malloc(sizeof(T3DAnimTargetQuat) * anim->animRef->channelsQuat);
+  anim->targetsScalar = malloc(sizeof(T3DAnimTargetScalar) * anim->animRef->channelsScalar);
+  uint32_t channelCount = anim->animRef->channelsScalar + anim->animRef->channelsQuat;
+
+  uint32_t idxQuat = 0;
+  uint32_t idxScalar = 0;
+  for(int i = 0; i < channelCount; i++)
   {
     T3DAnimChannelMapping *channelMap = &anim->animRef->channelMappings[i];
-    T3DAnimTarget *target = &anim->targets[i];
     T3DBone *bone = &skeleton->bones[channelMap->targetIdx];
 
-    target->changedFlag = &bone->hasChanged;
     switch(channelMap->targetType) {
       case T3D_ANIM_TARGET_TRANSLATION:
-        target->target = &bone->position.v[channelMap->attributeIdx];
+        anim->targetsScalar[idxScalar].targetScalar = &bone->position.v[channelMap->attributeIdx];
+        anim->targetsScalar[idxScalar].base.changedFlag = &bone->hasChanged;
+        ++idxScalar;
         break;
       case T3D_ANIM_TARGET_SCALE_XYZ:
-        target->target = &bone->scale.v[channelMap->attributeIdx];
+        anim->targetsScalar[idxScalar].targetScalar = &bone->scale.v[channelMap->attributeIdx];
+        anim->targetsScalar[idxScalar].base.changedFlag = &bone->hasChanged;
+        ++idxScalar;
         break;
-      case T3D_ANIM_TARGET_SCALE_S: target->target = &bone->scale; break;
-      case T3D_ANIM_TARGET_ROTATION: target->target = &bone->rotation; break;
+      case T3D_ANIM_TARGET_ROTATION:
+        anim->targetsQuat[idxQuat].targetQuat = &bone->rotation;
+        anim->targetsQuat[idxQuat].base.changedFlag = &bone->hasChanged;
+        ++idxQuat;
+      break;
       default: {
         assertf(false, "Unknown animation target %d", channelMap->targetType);
       }
     }
   }
-}
-
-static inline void load_keyframe(T3DAnim *anim, int index) {
-  /*bool isLastPage = index == anim->animRef->pageCount - 1;
-  const T3DAnimPage *page = &anim->animRef->pageTable[index];
-  const T3DAnimPage *nextPage = &anim->animRef->pageTable[isLastPage ? 0 : (index+1)];
-  uint32_t dataSize = isLastPage ? anim->animRef->maxPageSize : (nextPage->dataOffset - page->dataOffset);
-
-  data_cache_hit_writeback_invalidate(anim->pageData, dataSize);
-  dma_read(anim->pageData, anim->animRef->sdataAddrROM + page->dataOffset, dataSize);
-  anim->loadedPageIdx = index;
-
-  if(!isLastPage) {
-    anim->timeNextPage = nextPage->timeStart;
-  } else {
-    anim->timeNextPage = anim->animRef->duration;
-  }*/
 }
 
 static inline float s10ToFloat(uint32_t value, float offset, float scale) {
@@ -97,28 +92,55 @@ static inline void unpack_quat(uint16_t dataHi, uint16_t dataLo, T3DQuat *out) {
   out->v[largestIdx] = sqrtf(1.0f - q0*q0 - q1*q1 - q2*q2);
 }
 
-static inline void load_kf(T3DAnim *anim) {
+static inline void load_keyframe(T3DAnim *anim) {
   T3DAnimKF kf;
-  fread(&kf, anim->nextKfSize, 1, anim->file);
+  size_t readBytes = fread(&kf, anim->nextKfSize, 1, anim->file);
+  if(readBytes == 0) {
+    anim->timeNextKF = 999999.0f;
+    return;
+  }
+  float kfTime = anim->timeNextKF;
 
   // KF Header
+  bool isFirstKF = false;
   bool isLarge = kf.nextTime & 0x8000;
   anim->nextKfSize = isLarge ? sizeof(T3DAnimKF) : (sizeof(T3DAnimKF)-2);
   kf.nextTime &= 0x7FFF;
+  if(kf.nextTime == 0x7FFF) {
+    isFirstKF = true;
+    kf.nextTime = 0;
+  }
+
   anim->timeNextKF += (float)kf.nextTime * KF_TIME_TICK;
 
   // KF Data
   T3DAnimChannelMapping *channelMap = &anim->animRef->channelMappings[kf.channelIdx];
-  T3DAnimTarget *target = &anim->targets[kf.channelIdx];
 
+  float *timeStart;
+  float *timeEnd;
   if(channelMap->targetType == T3D_ANIM_TARGET_ROTATION) {
-    T3DQuat quat;
-    debugf("KF | ch: %d, next: %.4fs -> (%04X %04X) ", kf.channelIdx, anim->timeNextKF, kf.data[0], kf.data[1]);
-    unpack_quat(kf.data[0], kf.data[1], &quat);
-    debugf("%.4f %.4f %.4f %.4f\n", quat.v[0], quat.v[1], quat.v[2], quat.v[3]);
+    T3DAnimTargetQuat *target = &anim->targetsQuat[kf.channelIdx];
+    timeStart = &target->base.timeStart;
+    timeEnd = &target->base.timeEnd;
+
+    target->kfCurr = target->kfNext;
+    unpack_quat(kf.data[0], kf.data[1], &target->kfNext);
   } else {
-    float value = (float)kf.data[0] * channelMap->quantScale + channelMap->quantOffset;
-    debugf("KF | ch: %d, next: %.4fs -> %.4f\n", kf.channelIdx, anim->timeNextKF, value);
+    T3DAnimTargetScalar *target = &anim->targetsScalar[kf.channelIdx - anim->animRef->channelsQuat];
+    timeStart = &target->base.timeStart;
+    timeEnd = &target->base.timeEnd;
+    //debugf("KF | ch: %d, next: %.4fs (%.4f -> %.4f)\n", kf.channelIdx, anim->timeNextKF, target->base.timeStart, target->base.timeEnd);
+
+    target->kfCurr = target->kfNext;
+    target->kfNext = (float)kf.data[0] * channelMap->quantScale + channelMap->quantOffset;
+  }
+
+  if(isFirstKF) {
+    *timeStart = 0;
+    *timeEnd = 0;
+  } else {
+    *timeStart = *timeEnd;
+    *timeEnd = (kfTime + channelMap->timeOffset);
   }
 }
 
@@ -127,81 +149,46 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
 
   if(anim->time >= anim->animRef->duration) {
     anim->time -= anim->animRef->duration;
-    anim->timeNextKF = anim->time;
+    anim->timeNextKF = 0;
     anim->nextKfSize = sizeof(T3DAnimKF);
-
-    // rewind(anim->file); // <- @TODO: use when libdragon allows for it
-    fclose(anim->file);
-    anim->file = asset_fopen(anim->animRef->filePath, NULL);
-
+    rewind(anim->file);
     debugf("Looping animation\n");
   }
 
   while(anim->time >= anim->timeNextKF) {
-    load_kf(anim);
+    load_keyframe(anim);
   }
 
   debugf("Time: %.2f\n", anim->time);
-  return;
 
-  const char *data = anim->pageData;
-  for(int c=0; c<anim->animRef->channelCount; c++)
+  uint32_t channelCount = anim->animRef->channelsScalar + anim->animRef->channelsQuat;
+  for(int c=0; c<channelCount; c++)
   {
-    //debugf("  - Channel %d 0x%08lX:", c, (uint32_t)data);
-    T3DAnimChannelMapping *channelMap = &anim->animRef->channelMappings[c];
-    T3DAnimTarget *target = &anim->targets[c];
+    bool isRot = c < anim->animRef->channelsQuat;
+    T3DAnimTargetBase *target = isRot ?
+      (T3DAnimTargetBase*)&anim->targetsQuat[c] :
+      (T3DAnimTargetBase*)&anim->targetsScalar[c - anim->animRef->channelsQuat];
 
-    uint8_t sampleRate = data[0];
-    uint8_t sampleCount = data[1];
-    data += 2;
-
-    float kfIdxFloat = 0.0f;//(anim->time - page->timeStart) * sampleRate;
-    uint32_t kfIdx = (uint32_t)kfIdxFloat;
-    uint32_t kfIdxNext = kfIdx + 1;
-    float interp = kfIdxFloat - kfIdx;
-
-    if(kfIdx >= sampleCount)kfIdx = sampleCount-1;
-    if(kfIdxNext >= sampleCount)kfIdxNext = sampleCount-1;
-
-    if(channelMap->targetType == T3D_ANIM_TARGET_ROTATION) {
-      uint16_t* dataU16 = (uint16_t*)(data + (kfIdx*4));
-      uint16_t* dataU16Next = (uint16_t*)(data + (kfIdxNext*4));
-      T3DQuat quatNext;
-      unpack_quat(dataU16[0], dataU16[1], (T3DQuat*)target->target);
-      unpack_quat(dataU16Next[0], dataU16Next[1], &quatNext);
-      t3d_quat_nlerp((T3DQuat*)target->target, (T3DQuat*)target->target, &quatNext, interp);
-      //t3d_quat_slerp((T3DQuat*)target->target, (T3DQuat*)target->target, &quatNext, interp);
-
-      /*debugf(" %08lX @ %d -> %.2f %.2f %.2f %.2f (stride: %d)\n",
-        *dataU32, data - anim->pageData,
-        ((T3DQuat*)target->target)->v[0],
-        ((T3DQuat*)target->target)->v[1],
-        ((T3DQuat*)target->target)->v[2],
-        ((T3DQuat*)target->target)->v[3],
-        page->strideWords
-      );*/
-      data += sampleCount * 4;
-    } else {
-      uint16_t dataU16 = *(uint16_t*)(data + (kfIdx*2));
-      uint16_t dataU16Next = *(uint16_t*)(data + (kfIdxNext*2));
-      float valueA = (float)dataU16 * channelMap->quantScale + channelMap->quantOffset;
-      float valueB = (float)dataU16Next * channelMap->quantScale + channelMap->quantOffset; // @TODO: OOB
-
-      *(float*)target->target = valueA + (valueB - valueA) * interp;
-      //debugf(" (%c) %04X @ %d -> %.2f (stride: %d)\n", TARGET_TYPE[channelMap->targetType],
-      //*dataU16, data - anim->pageData, *(float*)target->target, page->strideWords);
-
-      data += sampleCount * 2;
-    }
+    float timeDiff = target->timeEnd - target->timeStart;
+    float interp = (anim->time - target->timeStart) / timeDiff;
     *target->changedFlag = 1;
+
+    if(isRot) {
+      T3DAnimTargetQuat *t = (T3DAnimTargetQuat*)target;
+      t3d_quat_nlerp(t->targetQuat, &t->kfCurr, &t->kfNext, interp);
+      //t3d_quat_slerp(target->target, &target->kfCurr, &target->kfNext, interp);
+    } else {
+      T3DAnimTargetScalar *t = (T3DAnimTargetScalar*)target;
+      *t->targetScalar = t3d_lerp(t->kfCurr, t->kfNext, interp);
+    }
   }
 }
 
 void t3d_anim_destroy(T3DAnim *anim) {
-  if(anim->targets)free(anim->targets);
-  anim->targets = NULL;
-  if(anim->pageData)free(anim->pageData);
-  anim->pageData = NULL;
+  if(anim->targetsScalar)free(anim->targetsScalar);
+  if(anim->targetsQuat)free(anim->targetsQuat);
+  anim->targetsScalar = NULL;
+  anim->targetsQuat = NULL;
 }
 
 void t3d_anim_set_time(T3DAnim *anim, float time) {

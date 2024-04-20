@@ -257,7 +257,7 @@ int main()
     posY += 10;
 
     rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-    t3d_debug_printf(posX, posY, "Channels: %d", anim->channelCount);
+    t3d_debug_printf(posX, posY, "Channels: %d+%d", anim->channelsQuat, anim->channelsScalar);
     posY += 10;
     /*for(int i = 0; i < anim->channelCount; i++)
     {

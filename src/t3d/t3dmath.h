@@ -49,6 +49,11 @@ inline static float s1616_to_float(int16_t partI, uint16_t partF)
   return res;
 }
 
+/// @brief Interpolates between two floats by 't'
+inline static float t3d_lerp(float a, float b, float t) {
+  return a + (b - a) * t;
+}
+
 /// @brief Sets 'res' to 'a + b'
 inline static void t3d_vec3_add(T3DVec3 *res, const T3DVec3 *a, const T3DVec3 *b) {
   res->v[0] = a->v[0] + b->v[0];

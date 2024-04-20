@@ -181,6 +181,7 @@ struct AnimChannelMapping {
   uint16_t targetIdx{};
   AnimChannelTarget targetType{};
   uint8_t attributeIdx{};
+  float timeOffset{};
 
   float valueMin{INFINITY};
   float valueMax{-INFINITY};
@@ -199,6 +200,8 @@ struct Keyframe {
 struct Anim {
   std::string name{};
   float duration{};
+  uint32_t channelCountQuat{};
+  uint32_t channelCountScalar{};
   std::vector<Keyframe> keyframes{};
   std::vector<AnimChannelMapping> channelMap{};
 };

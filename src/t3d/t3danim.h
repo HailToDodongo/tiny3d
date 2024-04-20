@@ -19,13 +19,29 @@ extern "C"
 #define T3D_ANIM_TARGET_ROTATION    3
 
 typedef struct {
-  void* target; // points to either a 'float' or 'Quat'
+  float timeStart;
+  float timeEnd;
   int* changedFlag; // flag to increment when target is changed
-} T3DAnimTarget;
+} T3DAnimTargetBase;
+
+typedef struct {
+  T3DAnimTargetBase base;
+  T3DQuat* targetQuat; // target to modify
+  T3DQuat kfCurr; // current keyframe value
+  T3DQuat kfNext; // next keyframe value
+} T3DAnimTargetQuat;
+
+typedef struct {
+  T3DAnimTargetBase base;
+  float* targetScalar;
+  float kfCurr;
+  float kfNext;
+} T3DAnimTargetScalar;
 
 typedef struct {
   T3DChunkAnim *animRef;
-  T3DAnimTarget *targets;
+  T3DAnimTargetQuat *targetsQuat;
+  T3DAnimTargetScalar *targetsScalar;
 
   float speed;
   float time;
@@ -33,7 +49,6 @@ typedef struct {
   FILE *file;
   float timeNextKF;
   int nextKfSize;
-  char* pageData;
 } T3DAnim;
 
 /**
