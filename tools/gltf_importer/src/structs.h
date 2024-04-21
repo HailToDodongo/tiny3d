@@ -176,17 +176,6 @@ typedef enum AnimChannelTarget : u8 {
   ROTATION
 } AnimChannelTarget;
 
-struct AnimChannelMapping {
-  std::string targetName{};
-  uint16_t targetIdx{};
-  AnimChannelTarget targetType{};
-  uint8_t attributeIdx{};
-  float timeOffset{};
-
-  float valueMin{INFINITY};
-  float valueMax{-INFINITY};
-};
-
 struct Keyframe {
   float time{};
   uint32_t chanelIdx;
@@ -197,12 +186,29 @@ struct Keyframe {
   uint16_t valQuant[2];
 };
 
+struct AnimChannelMapping {
+  std::string targetName{};
+  uint16_t targetIdx{};
+  AnimChannelTarget targetType{};
+  uint8_t attributeIdx{};
+  float timeOffset{};
+
+  float valueMin{INFINITY};
+  float valueMax{-INFINITY};
+
+  std::vector<Keyframe> keyframes{}; // temp. storage after parsing
+
+  [[nodiscard]] constexpr bool isRotation() const {
+    return targetType == AnimChannelTarget::ROTATION;
+  }
+};
+
 struct Anim {
   std::string name{};
   float duration{};
   uint32_t channelCountQuat{};
   uint32_t channelCountScalar{};
-  std::vector<Keyframe> keyframes{};
+  std::vector<Keyframe> keyframes{}; // output used for writing to the file
   std::vector<AnimChannelMapping> channelMap{};
 };
 

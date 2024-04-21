@@ -35,7 +35,7 @@ namespace
     if(isTranslate)value *= config.globalScale;
 
     for(int i=0; i<3; ++i) {
-      anim.keyframes.push_back({.time = time, .chanelIdx = chIdx + i, .valScalar = value[i]});
+      anim.channelMap[chIdx + i].keyframes.push_back({.time = time, .valScalar = value[i]});
       anim.channelMap[chIdx + i].valueMin = std::min(anim.channelMap[chIdx + i].valueMin, value[i]);
       anim.channelMap[chIdx + i].valueMax = std::max(anim.channelMap[chIdx + i].valueMax, value[i]);
     }
@@ -148,7 +148,7 @@ Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::s
           throw std::runtime_error("Invalid Quaternion in anim-parser: " + value.toString());
         }
 
-        res.keyframes.push_back({.time = t, .chanelIdx = chIdx, .valQuat = value});
+        res.channelMap.back().keyframes.push_back({.time = t, .valQuat = value});
       } else {
         Vec3 value = Gltf::readAsVec3(dataOutput, samplerOut.type, samplerOut.component_type);
         Vec3 valueNext = Gltf::readAsVec3(dataOutputNext, samplerOut.type, samplerOut.component_type);
@@ -163,7 +163,7 @@ Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::s
       // insert last keyframe in the data
       if(channel.target_path == cgltf_animation_path_type_rotation) {
         Quat value = Gltf::readAsVec4(dataOutputEnd - samplerOut.stride, samplerOut.type, samplerOut.component_type);
-        res.keyframes.push_back({.time = timeEnd, .chanelIdx = chIdx, .valQuat = value});
+        res.channelMap.back().keyframes.push_back({.time = timeEnd, .chanelIdx = chIdx, .valQuat = value});
       } else {
         Vec3 value = Gltf::readAsVec3(dataOutputEnd - samplerOut.stride, samplerOut.type, samplerOut.component_type);
         insertScalarKeyframe(res, timeEnd, chIdx, value, isTranslate);

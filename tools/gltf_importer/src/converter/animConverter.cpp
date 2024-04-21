@@ -12,43 +12,39 @@ namespace {
   constexpr float MIN_VALUE_DELTA = 0.00001f;
   constexpr float MIN_QUAT_DELTA = 0.000000001f;
 
-  bool hasConstValue(const std::vector<Quat> &values) {
-    Quat lastValue = values[0];
-    for(int i=1; i < values.size(); ++i) {
-      if(values[i] != lastValue)return false;
-    }
-    return true;
-  }
 
-  bool hasConstValue(const std::vector<float> &values) {
-    float lastValue = values[0];
-    for(int i=1; i < values.size(); ++i) {
-      if(fabs(values[i] - lastValue) > MIN_VALUE_DELTA)return false;
+  bool hasConstValue(const std::vector<Keyframe> &keyframes, bool isRotation) {
+    if(!isRotation) {
+      float lastValue = keyframes[0].valScalar;
+      for(int i=1; i < keyframes.size(); ++i) {
+        if(fabs(keyframes[i].valScalar - lastValue) > MIN_VALUE_DELTA)return false;
+      }
+    } else {
+      Quat lastValue = keyframes[0].valQuat;
+      for(int i=1; i < keyframes.size(); ++i) {
+        if(keyframes[i].valQuat != lastValue)return false;
+      }
     }
     return true;
   }
 
   // Filters any channel that has a constant value, and is also the identity value of the specific target
-  /*std::vector<AnimChannel> filterEmptyChannels(const std::vector<AnimChannel> &channels)
+  bool isEmptyChannel(AnimChannelMapping &channel)
   {
-    std::vector<AnimChannel> newChannels;
-    for(auto &channel : channels)
-    {
-      if(channel.isRotation() ? hasConstValue(channel.valQuat) : hasConstValue(channel.valScalar)) {
-        bool isIdentity = false;
-        switch(channel.targetType) {
-          case AnimChannelTarget::TRANSLATION  : isIdentity = fabsf(channel.valScalar[0]) < MIN_VALUE_DELTA; break;
-          case AnimChannelTarget::ROTATION     : isIdentity = channel.valQuat[0].isIdentity(); break;
-          case AnimChannelTarget::SCALE_UNIFORM:
-          case AnimChannelTarget::SCALE        : isIdentity = channel.valScalar[0] == 1.0f;    break;
-        }
-        if(isIdentity)printf("  - Channel %s %d.%d has identity value\n", channel.targetName.c_str(), channel.targetType, channel.targetIndex);
-        if(isIdentity)continue;
+    if(hasConstValue(channel.keyframes, channel.isRotation())) {
+      bool isIdentity = false;
+      const auto &kf = channel.keyframes[0];
+      switch(channel.targetType) {
+        case AnimChannelTarget::TRANSLATION  : isIdentity = fabsf(kf.valScalar) < MIN_VALUE_DELTA; break;
+        case AnimChannelTarget::ROTATION     : isIdentity = kf.valQuat.isIdentity(); break;
+        case AnimChannelTarget::SCALE_UNIFORM:
+        case AnimChannelTarget::SCALE        : isIdentity = kf.valScalar == 1.0f; break;
       }
-      newChannels.push_back(channel);
+      if(isIdentity)printf("  - Channel %s %d has identity value\n", channel.targetName.c_str(), channel.targetType);
+      return isIdentity;
     }
-    return newChannels;
-  }*/
+    return false;
+  }
 
   void quantizeRotation(Keyframe &kf)
   {
@@ -66,8 +62,14 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bo
 {
   printf("Convert: %s\n", anim.name.c_str());
 
-  // Apply optimizations to the animation
-  //anim.pages.back().channels = filterEmptyChannels(anim.pages.back().channels);
+  // remove all empty channels
+  anim.channelMap.erase(
+    std::remove_if(anim.channelMap.begin(), anim.channelMap.end(), isEmptyChannel),
+    anim.channelMap.end()
+  );
+
+  // resample keyframes
+  // @TODO:
 
   for(auto &ch : anim.channelMap) {
     auto it = nodeMap.find(ch.targetName);
@@ -78,6 +80,14 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bo
 
     ch.targetIdx = it->second->index;
     printf("  - ChannelMapping %s %d.%d\n", ch.targetName.c_str(), ch.targetType, ch.targetIdx);
+  }
+
+  // combine channel keyframes into the global timeline
+  for(uint32_t c=0; c<anim.channelMap.size(); ++c) {
+    for(auto &kf : anim.channelMap[c].keyframes) {
+      kf.chanelIdx = c;
+      anim.keyframes.push_back(kf);
+    }
   }
 
   // sort keyframes by time
