@@ -307,14 +307,7 @@ int main(int argc, char* argv[])
 
       bool nextIsLarge = kfNext.valQuantSize > 1;
 
-      float timeRel = kfNext.time - kf.time;
-      uint16_t timeNext = (uint16_t)roundf(timeRel * 60.0f);
-
-      if(!channelHasKF.contains(kf.chanelIdx)) {
-        timeNext = 0x7FFF;
-        channelHasKF.insert(kf.chanelIdx);
-      }
-
+      uint16_t timeNext = kf.timeNextInChannelTicks;
       assert(timeNext < (1 << 15)); // prevent conflicts with size flag
       if(nextIsLarge)timeNext |= (1 << 15); // encode size of the next KF here
 

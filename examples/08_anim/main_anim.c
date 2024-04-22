@@ -253,17 +253,18 @@ int main()
 
     t3d_debug_printf(posX, posY, "SData: %s", anim->filePath);
     posY += 10;
-    t3d_debug_printf(posX, posY, "KF: %d | Next: %.4f", anim->keyframeCount, md->animInst[activeAnim].timeNextKF);
+    t3d_debug_printf(posX, posY, "KF: %d/%d", md->animInst[activeAnim].kfIndex,  anim->keyframeCount);
     posY += 10;
 
     rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
     t3d_debug_printf(posX, posY, "Channels: %d+%d", anim->channelsQuat, anim->channelsScalar);
-    posY += 10;
-    /*for(int i = 0; i < anim->channelCount; i++)
+    /*posY += 10;
+    for(int i = 0; i < (anim->channelsQuat + anim->channelsScalar); i++)
     {
       T3DAnimChannelMapping *mapping = &anim->channelMappings[i];
       if(mapping->targetType == T3D_ANIM_TARGET_ROTATION) {
-        t3d_debug_printf(posX, posY, " B[%d] %c", mapping->targetIdx, TARGET_NAMES[mapping->targetType]);
+        T3DAnimTargetQuat *target = &md->animInst[activeAnim].targetsQuat[i];
+        t3d_debug_printf(posX, posY, " B[%d] %c, time: %.2f-%.2fs (%.2fs)", mapping->targetIdx, TARGET_NAMES[mapping->targetType], target->base.timeStart, target->base.timeEnd, target->base.timeNextKF);
       } else {
         t3d_debug_printf(posX, posY, " B[%d] %c.%d x%.2f %+.2f",
           mapping->targetIdx, TARGET_NAMES[mapping->targetType],

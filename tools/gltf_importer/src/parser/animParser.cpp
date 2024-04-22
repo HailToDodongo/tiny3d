@@ -68,6 +68,7 @@ Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::s
   }
 
   uint32_t chIdx = 0;
+  res.duration = 0;
 
   for(uint32_t c : channelIndices)
   {
@@ -116,7 +117,7 @@ Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::s
 
     uint32_t frame = 0;
     float t;
-    for(t=timeStart; ; t += sampleStep)
+    for(t=timeStart; t<=(timeEnd+sampleStep); t += sampleStep)
     {
       while(dataOutput < dataOutputEnd) {
         time = Gltf::readAsFloat(dataInput, samplerIn.component_type);
@@ -171,8 +172,8 @@ Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::s
     }
 
     chIdx += isRot ? 1 : 3;
+    res.duration = std::max(timeEnd - timeStart, res.duration);
   }
 
-  res.duration = timeEnd - timeStart;
   return res;
 }

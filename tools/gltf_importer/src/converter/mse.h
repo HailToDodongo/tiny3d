@@ -6,33 +6,48 @@
 #include "../structs.h"
 #include "../math/sampling.h"
 
-inline float calcMSE(const std::vector<Keyframe> &keyframes, const std::vector<Keyframe> &keyframesOrg, float duration, u32 channelIdx) {
+inline const Keyframe& safeKf(const std::vector<Keyframe> &kfs, int idx) {
+  if(idx < 0)return kfs[0];
+  if(idx >= kfs.size())return kfs.back();
+  return kfs[idx];
+}
+
+inline float calcMSE(const std::vector<Keyframe> &kfsNew, const std::vector<Keyframe> &kfsOrg, float duration, bool isRotation) {
   float sampleRate = 60.0f;
   float timeStep = 1.0f / sampleRate;
 
   int sampleCount = 0;
   float mse = 0.0f;
 
+  int idxNew = 0;
+  int idxOrg = 0;
+
   for(float t=0; t<duration; t += timeStep)
   {
-    float tPage = t;
-    auto idxOrg = (uint32_t)(t * sampleRate);
-    float interpOrg = (tPage * sampleRate) - (float)idxOrg;
+    while(t >= safeKf(kfsNew, idxNew+1).time) {
+      ++idxNew; if(idxNew >= kfsNew.size())break;
+    }
+    while(t >= safeKf(kfsOrg, idxOrg+1).time) {
+      ++idxOrg; if(idxOrg >= kfsOrg.size())break;
+    }
 
-    auto idxNew = (uint32_t)(t * sampleRate);
-    float interpNew = (t * sampleRate) - (float)idxNew;
+    const Keyframe &kfOrg = safeKf(kfsOrg, idxOrg);
+    const Keyframe &kfOrgNext = safeKf(kfsOrg, idxOrg + 1);
+    const Keyframe &kfNew = safeKf(kfsNew, idxNew);
+    const Keyframe &kfNewNext = safeKf(kfsNew, idxNew + 1);
 
-    //printf("idx: %d -> %d, interp: %f / %f\n", idxOrg, idxNew, interpOrg, interpNew);
+    float interpOrg = (t - kfOrg.time) / (kfOrgNext.time - kfOrg.time);
+    float interpNew = (t - kfNew.time) / (kfNewNext.time - kfNew.time);
 
-    /*if(channelOrg.isRotation()) {
-      auto quatOrg = interpolQuat(channelOrg.valQuat, idxOrg, interpOrg).toVec4();
-      auto quatNew = interpolQuat(channelNew.valQuat, idxNew, interpNew).toVec4();
+    if(isRotation) {
+      Vec4 quatOrg = kfOrg.valQuat.slerp(kfOrgNext.valQuat, interpOrg).toVec4();
+      Vec4 quatNew = kfNew.valQuat.slerp(kfNewNext.valQuat, interpNew).toVec4();
       mse += (quatOrg - quatNew).length2();
     } else {
-      float diff = interpolScalar(channelOrg.valScalar, idxOrg, interpOrg)
-                 - interpolScalar(channelNew.valScalar, idxNew, interpNew);
-      mse += diff * diff;
-    }*/
+      float valOrg = kfOrg.valScalar + (kfOrgNext.valScalar - kfOrg.valScalar) * interpOrg;
+      float valNew = kfNew.valScalar + (kfNewNext.valScalar - kfNew.valScalar) * interpNew;
+      mse += (valOrg - valNew) * (valOrg - valNew);
+    }
     ++sampleCount;
   }
 

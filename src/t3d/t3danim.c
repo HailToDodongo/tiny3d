@@ -27,8 +27,8 @@ T3DAnim t3d_anim_create(const T3DModel *model, const char *name) {
     .targetsQuat = NULL,
     .time = 0.0f,
     .speed = 1.0f,
-    .timeNextKF = 0,
     .nextKfSize = sizeof(T3DAnimKF),
+    .kfIndex = 0,
     .file = asset_fopen(animDef->filePath, NULL),
   };
 }
@@ -92,82 +92,77 @@ static inline void unpack_quat(uint16_t dataHi, uint16_t dataLo, T3DQuat *out) {
   out->v[largestIdx] = sqrtf(1.0f - q0*q0 - q1*q1 - q2*q2);
 }
 
-static inline void load_keyframe(T3DAnim *anim) {
+static inline T3DAnimTargetBase* get_base_target(T3DAnim *anim, uint64_t channelIdx, bool isRot) {
+  return isRot ?
+    (T3DAnimTargetBase*)&anim->targetsQuat[channelIdx] :
+    (T3DAnimTargetBase*)&anim->targetsScalar[channelIdx - anim->animRef->channelsQuat];
+}
+
+static inline bool load_keyframe(T3DAnim *anim) {
   T3DAnimKF kf;
   size_t readBytes = fread(&kf, anim->nextKfSize, 1, anim->file);
-  if(readBytes == 0) {
-    anim->timeNextKF = 999999.0f;
-    return;
-  }
-  float kfTime = anim->timeNextKF;
+  if(readBytes == 0)return false;
 
   // KF Header
-  bool isFirstKF = false;
   bool isLarge = kf.nextTime & 0x8000;
   anim->nextKfSize = isLarge ? sizeof(T3DAnimKF) : (sizeof(T3DAnimKF)-2);
   kf.nextTime &= 0x7FFF;
-  if(kf.nextTime == 0x7FFF) {
-    isFirstKF = true;
-    kf.nextTime = 0;
-  }
-
-  anim->timeNextKF += (float)kf.nextTime * KF_TIME_TICK;
 
   // KF Data
   T3DAnimChannelMapping *channelMap = &anim->animRef->channelMappings[kf.channelIdx];
 
-  float *timeStart;
-  float *timeEnd;
-  if(channelMap->targetType == T3D_ANIM_TARGET_ROTATION) {
-    T3DAnimTargetQuat *target = &anim->targetsQuat[kf.channelIdx];
-    timeStart = &target->base.timeStart;
-    timeEnd = &target->base.timeEnd;
+  bool isRot = kf.channelIdx < anim->animRef->channelsQuat;
+  T3DAnimTargetBase *targetBase = get_base_target(anim, kf.channelIdx, isRot);
 
+  targetBase->timeNextKF += (float)kf.nextTime * KF_TIME_TICK;
+  targetBase->timeStart = targetBase->timeEnd;
+  targetBase->timeEnd = targetBase->timeNextKF - channelMap->timeOffset;
+
+  if(channelMap->targetType == T3D_ANIM_TARGET_ROTATION) {
+    T3DAnimTargetQuat *target = (T3DAnimTargetQuat*)targetBase;
+    //debugf("Loading keyframe, %.4f - %.4f (%.4f, +%.4f)\n", target->base.timeStart, target->base.timeEnd, target->base.timeNextKF, (float)kf.nextTime * KF_TIME_TICK);
     target->kfCurr = target->kfNext;
     unpack_quat(kf.data[0], kf.data[1], &target->kfNext);
-  } else {
-    T3DAnimTargetScalar *target = &anim->targetsScalar[kf.channelIdx - anim->animRef->channelsQuat];
-    timeStart = &target->base.timeStart;
-    timeEnd = &target->base.timeEnd;
-    //debugf("KF | ch: %d, next: %.4fs (%.4f -> %.4f)\n", kf.channelIdx, anim->timeNextKF, target->base.timeStart, target->base.timeEnd);
 
+  } else {
+    T3DAnimTargetScalar *target = (T3DAnimTargetScalar*)targetBase;
+    //debugf("KF | ch: %d, next: %.4fs (%.4f -> %.4f)\n", kf.channelIdx, anim->timeNextKF, target->base.timeStart, target->base.timeEnd);
     target->kfCurr = target->kfNext;
     target->kfNext = (float)kf.data[0] * channelMap->quantScale + channelMap->quantOffset;
   }
 
-  if(isFirstKF) {
-    *timeStart = 0;
-    *timeEnd = 0;
-  } else {
-    *timeStart = *timeEnd;
-    *timeEnd = (kfTime + channelMap->timeOffset);
-  }
+  ++anim->kfIndex;
+  return true;
 }
 
 void t3d_anim_update(T3DAnim *anim, float deltaTime) {
   anim->time += deltaTime * anim->speed;
 
-  if(anim->time >= anim->animRef->duration) {
+  if(anim->time >= anim->animRef->duration)
+  {
     anim->time -= anim->animRef->duration;
-    anim->timeNextKF = 0;
+    for(int c=0; c<anim->animRef->channelsScalar; c++) {
+      anim->targetsScalar[c].base.timeNextKF = 0;
+    }
+    for(int c=0; c<anim->animRef->channelsQuat; c++) {
+      anim->targetsQuat[c].base.timeNextKF = 0;
+    }
     anim->nextKfSize = sizeof(T3DAnimKF);
+    anim->kfIndex = 0;
     rewind(anim->file);
     debugf("Looping animation\n");
   }
-
-  while(anim->time >= anim->timeNextKF) {
-    load_keyframe(anim);
-  }
-
-  debugf("Time: %.2f\n", anim->time);
 
   uint32_t channelCount = anim->animRef->channelsScalar + anim->animRef->channelsQuat;
   for(int c=0; c<channelCount; c++)
   {
     bool isRot = c < anim->animRef->channelsQuat;
-    T3DAnimTargetBase *target = isRot ?
-      (T3DAnimTargetBase*)&anim->targetsQuat[c] :
-      (T3DAnimTargetBase*)&anim->targetsScalar[c - anim->animRef->channelsQuat];
+    T3DAnimTargetBase *target = get_base_target(anim, c, isRot);
+
+    while(anim->time >= target->timeNextKF) {
+      if(!load_keyframe(anim))break;
+    }
+    //debugf("Time: %.2f (%.2f -> %.2f)\n", anim->time, target->timeStart, target->timeEnd);
 
     float timeDiff = target->timeEnd - target->timeStart;
     float interp = (anim->time - target->timeStart) / timeDiff;

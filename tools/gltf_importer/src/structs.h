@@ -178,6 +178,12 @@ typedef enum AnimChannelTarget : u8 {
 
 struct Keyframe {
   float time{};
+  float timeNeeded{};
+  float timeNextInChannel{};
+
+  uint16_t timeTicks{};
+  uint16_t timeNextInChannelTicks{};
+
   uint32_t chanelIdx;
   Quat valQuat;
   float valScalar;
