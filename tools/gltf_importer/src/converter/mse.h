@@ -12,7 +12,7 @@ inline const Keyframe& safeKf(const std::vector<Keyframe> &kfs, int idx) {
   return kfs[idx];
 }
 
-inline float calcMSE(const std::vector<Keyframe> &kfsNew, const std::vector<Keyframe> &kfsOrg, float duration, bool isRotation) {
+inline float calcMSE(const std::vector<Keyframe> &kfsNew, const std::vector<Keyframe> &kfsOrg, float timeStart, float timeEnd, bool isRotation) {
   float sampleRate = 60.0f;
   float timeStep = 1.0f / sampleRate;
 
@@ -22,7 +22,7 @@ inline float calcMSE(const std::vector<Keyframe> &kfsNew, const std::vector<Keyf
   int idxNew = 0;
   int idxOrg = 0;
 
-  for(float t=0; t<duration; t += timeStep)
+  for(float t=timeStart; t<timeEnd; t += timeStep)
   {
     while(t >= safeKf(kfsNew, idxNew+1).time) {
       ++idxNew; if(idxNew >= kfsNew.size())break;

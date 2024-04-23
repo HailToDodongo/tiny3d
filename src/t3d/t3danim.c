@@ -118,15 +118,15 @@ static inline bool load_keyframe(T3DAnim *anim) {
   targetBase->timeStart = targetBase->timeEnd;
   targetBase->timeEnd = targetBase->timeNextKF - channelMap->timeOffset;
 
+  //debugf("Load KF[%d], %.4f - %.4f (%.4f, +%d)\n", anim->kfIndex, 0.0f, 0.0f, 0.0f, kf.nextTime);
+
   if(channelMap->targetType == T3D_ANIM_TARGET_ROTATION) {
     T3DAnimTargetQuat *target = (T3DAnimTargetQuat*)targetBase;
-    //debugf("Loading keyframe, %.4f - %.4f (%.4f, +%.4f)\n", target->base.timeStart, target->base.timeEnd, target->base.timeNextKF, (float)kf.nextTime * KF_TIME_TICK);
     target->kfCurr = target->kfNext;
     unpack_quat(kf.data[0], kf.data[1], &target->kfNext);
 
   } else {
     T3DAnimTargetScalar *target = (T3DAnimTargetScalar*)targetBase;
-    //debugf("KF | ch: %d, next: %.4fs (%.4f -> %.4f)\n", kf.channelIdx, anim->timeNextKF, target->base.timeStart, target->base.timeEnd);
     target->kfCurr = target->kfNext;
     target->kfNext = (float)kf.data[0] * channelMap->quantScale + channelMap->quantOffset;
   }
@@ -184,6 +184,7 @@ void t3d_anim_destroy(T3DAnim *anim) {
   if(anim->targetsQuat)free(anim->targetsQuat);
   anim->targetsScalar = NULL;
   anim->targetsQuat = NULL;
+  // TODO: close file
 }
 
 void t3d_anim_set_time(T3DAnim *anim, float time) {

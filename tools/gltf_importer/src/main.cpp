@@ -311,6 +311,8 @@ int main(int argc, char* argv[])
       assert(timeNext < (1 << 15)); // prevent conflicts with size flag
       if(nextIsLarge)timeNext |= (1 << 15); // encode size of the next KF here
 
+      //printf("KF[%d]: %.4f, needed: %.4f, next: %.4f\n", k, kf.time, kf.timeNeeded, kf.timeNextInChannel);
+
       streamFile.write<uint16_t>(timeNext);
       streamFile.write<uint16_t>(kf.chanelIdx);
       for(int v=0; v<kf.valQuantSize; ++v) {

@@ -57,24 +57,33 @@ namespace {
   void optimizeChannel(AnimChannelMapping &channel, float time) {
     if(channel.keyframes.size() < 2)return;
     auto channelOrg = channel;
-    float mse = calcMSE(channel.keyframes, channelOrg.keyframes, time, channel.isRotation());
+    float mse = calcMSE(channel.keyframes, channelOrg.keyframes, 0, time, channel.isRotation());
     assert(mse < 0.00001f); //  initial MSE must be zero
     printf("  - Channel %s %d: %d keyframes, MSE: %f\n", channel.targetName.c_str(), channel.targetType, channel.keyframes.size(), mse);
 
     // now remove keyframes and keep the error below a certain threshold
-    /*float threshold = 0.0001f;
-    for(int i=1; i < channel.keyframes.size()-1; ++i) {
+    float threshold      = 0.000001f;
+    float thresholdLocal = 0.0000001f;
+
+    for(int i=1;; ++i) {
+      if(i >= channel.keyframes.size()-1)break;
+      float timeStart = channel.keyframes[i-1].time;
       auto kf = channel.keyframes[i];
+      float timeEnd = channel.keyframes[i+1].time;
+
       channel.keyframes.erase(channel.keyframes.begin() + i);
-      float newMSE = calcMSE(channel.keyframes, channelOrg.keyframes, time, channel.isRotation());
-      if(newMSE > threshold) {
+      float newMSELocal = calcMSE(channel.keyframes, channelOrg.keyframes, timeStart, timeEnd, channel.isRotation());
+      float newMSE = calcMSE(channel.keyframes, channelOrg.keyframes, 0, time, channel.isRotation());
+      if(newMSE > threshold || newMSELocal > thresholdLocal) {
+        printf("  - NOT Removed keyframe %d, MSE: %f\n", i, newMSE);
         channel.keyframes.insert(channel.keyframes.begin() + i, kf);
       } else {
         printf("  - Removed keyframe %d, new MSE: %f\n", i, newMSE);
+        --i;
       }
-    }*/
-    channel.keyframes.erase(channel.keyframes.begin() + 5);
-    channel.keyframes.erase(channel.keyframes.begin() + 5);
+    }
+
+    printf("New Size: %d\n", channel.keyframes.size());
   }
 
   void quantizeRotation(Keyframe &kf)
@@ -135,6 +144,7 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bo
       kf.timeNextInChannel = nextNeededTime - kf.timeNeeded;
 
       kf.timeTicks = time_to_ticks(kf.time);
+      kf.timeNeededTicks = time_to_ticks(kf.timeNeeded);
       kf.timeNextInChannelTicks = time_to_ticks(kf.timeNextInChannel);
       kf.chanelIdx = c;
       //printf("KF[%d]: %.4f, needed: %.4f, next: %.4f\n", k+1, kf.time, kf.timeNeeded, kf.timeNextInChannel);
@@ -144,8 +154,13 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bo
 
   // sort keyframes by time, if the time is the same, sort by channel index
   std::sort(anim.keyframes.begin(), anim.keyframes.end(), [](const Keyframe &a, const Keyframe &b) {
-    if(a.timeTicks == b.timeTicks)return a.chanelIdx < b.chanelIdx;
-    return a.timeTicks < b.timeTicks;
+    if(a.timeNeededTicks == b.timeNeededTicks) {
+      if(a.timeTicks == b.timeTicks) {
+        return a.chanelIdx < b.chanelIdx;
+      }
+      return a.timeTicks < b.timeTicks;
+    }
+    return a.timeNeededTicks < b.timeNeededTicks;
   });
 
   // Now quantize/compress the values

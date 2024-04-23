@@ -182,6 +182,7 @@ struct Keyframe {
   float timeNextInChannel{};
 
   uint16_t timeTicks{};
+  uint16_t timeNeededTicks{};
   uint16_t timeNextInChannelTicks{};
 
   uint32_t chanelIdx;
