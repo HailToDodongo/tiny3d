@@ -65,10 +65,10 @@ int main()
 
   #define MODEL_COUNT 5
   ModelAnim modelData[MODEL_COUNT] = {
+    { .model = t3d_model_load("rom:/cath.t3dm"), .scale = 0.0035f },
+    { .model = t3d_model_load("rom:/animTest.t3dm"), .scale = 0.08f },
     { .model = t3d_model_load("rom:/box.t3dm"), .scale = 0.08f },
     { .model = t3d_model_load("rom:/box2.t3dm"), .scale = 0.08f },
-    { .model = t3d_model_load("rom:/animTest.t3dm"), .scale = 0.08f },
-    { .model = t3d_model_load("rom:/cath.t3dm"), .scale = 0.0035f },
     { .model = t3d_model_load("rom:/enemyPlant00.t3dm"), .scale = 0.3f }
   };
 
@@ -114,7 +114,7 @@ int main()
 
   int modelIdx = 0;
   float colorTimer = 0.0f;
-  int activeAnim = 0;
+  int activeAnim = 5;
   int activeBlendAnim = -1;
   float lastTime = get_time_s() - (1.0f / 60.0f);
   float blendFactor = 0.0f;
@@ -264,7 +264,7 @@ int main()
 
     t3d_debug_printf(posX, posY, "SData: %s", anim->filePath);
     posY += 10;
-    t3d_debug_printf(posX, posY, "KF: %d/%d", md->animInst[activeAnim].kfIndex,  anim->keyframeCount);
+    t3d_debug_printf(posX, posY, "KF-Count: %d", anim->keyframeCount);
     posY += 10;
 
     rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));

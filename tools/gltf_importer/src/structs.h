@@ -198,7 +198,6 @@ struct AnimChannelMapping {
   uint16_t targetIdx{};
   AnimChannelTarget targetType{};
   uint8_t attributeIdx{};
-  float timeOffset{};
 
   float valueMin{INFINITY};
   float valueMax{-INFINITY};

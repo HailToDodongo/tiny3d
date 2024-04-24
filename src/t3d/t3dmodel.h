@@ -94,7 +94,6 @@ typedef struct {
   uint8_t attributeIdx;
   float quantScale;
   float quantOffset;
-  float timeOffset;
 } T3DAnimChannelMapping;
 
 typedef struct {

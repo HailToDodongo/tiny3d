@@ -36,8 +36,11 @@ inline float calcMSE(const std::vector<Keyframe> &kfsNew, const std::vector<Keyf
     const Keyframe &kfNew = safeKf(kfsNew, idxNew);
     const Keyframe &kfNewNext = safeKf(kfsNew, idxNew + 1);
 
-    float interpOrg = (t - kfOrg.time) / (kfOrgNext.time - kfOrg.time);
-    float interpNew = (t - kfNew.time) / (kfNewNext.time - kfNew.time);
+    float tDiffOrg = kfOrgNext.time - kfOrg.time;
+    float tDiffNew = kfNewNext.time - kfNew.time;
+
+    float interpOrg = (tDiffOrg > 0.00001f) ? ((t - kfOrg.time) / tDiffOrg) : 0.0f;
+    float interpNew = (tDiffNew > 0.00001f) ? ((t - kfNew.time) / tDiffNew) : 0.0f;
 
     if(isRotation) {
       Vec4 quatOrg = kfOrg.valQuat.slerp(kfOrgNext.valQuat, interpOrg).toVec4();
@@ -50,6 +53,5 @@ inline float calcMSE(const std::vector<Keyframe> &kfsNew, const std::vector<Keyf
     }
     ++sampleCount;
   }
-
   return mse / (float)sampleCount;
 }

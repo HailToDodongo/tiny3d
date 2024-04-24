@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
   const char* t3dmPath = argv[2];
 
   config.globalScale = 64.0f;
-  config.animSampleRate = 30;
+  config.animSampleRate = 60;
 
   auto t3dm = parseGLTF(gltfPath, config.globalScale);
   fs::path gltfBasePath{gltfPath};
@@ -332,7 +332,6 @@ int main(int argc, char* argv[])
       file.write(ch.attributeIdx);
       file.write((ch.valueMax - ch.valueMin) / (float)0xFFFF);
       file.write(ch.valueMin);
-      file.write(ch.timeOffset);
     }
 
     ++animIdx;

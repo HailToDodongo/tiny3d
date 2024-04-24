@@ -21,7 +21,6 @@ extern "C"
 typedef struct {
   float timeStart;
   float timeEnd;
-  float timeNextKF;
   int* changedFlag; // flag to increment when target is changed
 } T3DAnimTargetBase;
 
@@ -49,7 +48,6 @@ typedef struct {
 
   FILE *file;
   int nextKfSize;
-  int kfIndex;
 } T3DAnim;
 
 /**

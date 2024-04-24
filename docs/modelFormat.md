@@ -180,7 +180,6 @@ They are sorted so that all rotation channels come first.
 | 0x03   | `u8`          | Attribute index (0-2 for x/y/z, 0 for quat.) |
 | 0x04   | `f32`         | Quantization scale                           |
 | 0x08   | `f32`         | Quantization offset                          |
-| 0x0C   | `f32`         | Time Offset (for first kf)                   |
 
 #### `Target Type`
 ```
