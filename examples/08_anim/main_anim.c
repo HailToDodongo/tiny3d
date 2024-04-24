@@ -118,8 +118,7 @@ int main()
   int activeBlendAnim = -1;
   float lastTime = get_time_s() - (1.0f / 60.0f);
   float blendFactor = 0.0f;
-
-  //float modelScale = 0.25f;
+  float timeCursor = 0.5f;
 
   rspq_syncpoint_t syncPoint = 0;
   bool play = true;
@@ -140,7 +139,9 @@ int main()
     if(btn.c_down)++activeAnim;
     if(btn.c_left)--modelIdx;
     if(btn.c_right)++modelIdx;
-    if(btn.a)play = !play;
+    //if(btn.a)play = !play;
+
+    timeCursor += (float)joypad.stick_x * 0.0001f;
 
     modelIdx = (modelIdx + MODEL_COUNT) % MODEL_COUNT;
 
@@ -156,9 +157,13 @@ int main()
         t3d_anim_attach(&md->animInst[activeBlendAnim], &md->skelBlend);
       }
     }
+    if(btn.a) {
+      t3d_anim_set_time(&md->animInst[activeAnim], timeCursor);
+    }
 
     if(joypad.btn.c_left)blendFactor -= 0.0075f;
     if(joypad.btn.c_right)blendFactor += 0.0075f;
+
     if(blendFactor > 1.0f)blendFactor = 1.0f;
     if(blendFactor < 0.0f)blendFactor = 0.0f;
 
@@ -167,6 +172,12 @@ int main()
     if(lastAnim != activeAnim || !play) {
       t3d_skeleton_reset(&md->skel);
     }
+
+    md->animInst[activeAnim].speed += (float)joypad.stick_y * 0.0001f;
+    if(md->animInst[activeAnim].speed < 0.0f)md->animInst[activeAnim].speed = 0.0f;
+
+    if(timeCursor < 0.0f)timeCursor = md->animInst[activeAnim].animRef->duration;
+    if(timeCursor > md->animInst[activeAnim].animRef->duration)timeCursor = 0.0f;
 
     float newTime = get_time_s();
     float deltaTime = newTime - lastTime;
@@ -274,25 +285,31 @@ int main()
       posY += 10;
     }*/
 
-    posY += 10;
+    posY += 30;
+    t3d_debug_printf(posX, posY, "Speed: %.2fx", md->animInst[activeAnim].speed);
+
+    posY += 30;
     if(play) {
       t3d_debug_printf(posX, posY, "Time: %.2fs / %.2fs", md->animInst[activeAnim].time, anim->duration);
     }
+    posY -= 14;
 
+    float barWidth = 150.0f;
+    float barHeight = 10.0f;
+    float timeScale = barWidth / anim->duration;
 
-    /* // DEBUG: read sdata
-    uint16_t *data = malloc_uncached(anim->maxPageSize);
-    dma_read(data, anim->sdataAddrROM, anim->maxPageSize);
-    free_uncached(data);
-    posY += 10;
-    for(int i = 0; i < 16; ++i)
-    {
-      t3d_debug_printf(posX, posY, "%04X", data[i]);
-      posX += 38;
-      if(i%8 == 7) {
-        posX = 12; posY += 10;
-      }
-    }*/
+    // Timeline
+    rdpq_set_mode_fill(RGBA32(0x00, 0x00, 0x00, 0xFF)); // backdrop
+    rdpq_fill_rectangle(posX-2, posY-2, posX + barWidth+2, posY + barHeight+2);
+
+    rdpq_set_fill_color(RGBA32(0x33, 0x33, 0x33, 0xFF)); // background
+    rdpq_fill_rectangle(posX, posY, posX + barWidth, posY + barHeight);
+
+    rdpq_set_fill_color(RGBA32(0xAA, 0xAA, 0xAA, 0xFF)); // progress bar
+    rdpq_fill_rectangle(posX, posY, posX + (md->animInst[activeAnim].time * timeScale), posY + barHeight);
+
+    rdpq_set_fill_color(RGBA32(0x55, 0x55, 0xFF, 0xFF)); // cursor
+    rdpq_fill_rectangle(posX + (timeCursor * timeScale), posY-2, posX + (timeCursor * timeScale) + 2, posY + barHeight+2);
 
     rdpq_detach_show();
   }

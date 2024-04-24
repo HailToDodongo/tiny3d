@@ -33,12 +33,31 @@ T3DAnim t3d_anim_create(const T3DModel *model, const char *name) {
   };
 }
 
+static void rewind_anim(T3DAnim *anim)
+{
+  for(int c=0; c<anim->animRef->channelsScalar; c++) {
+    anim->targetsScalar[c].base.timeNextKF = 0;
+    anim->targetsScalar[c].base.timeStart = 0;
+    anim->targetsScalar[c].base.timeEnd = 0;
+  }
+  for(int c=0; c<anim->animRef->channelsQuat; c++) {
+    anim->targetsQuat[c].base.timeNextKF = 0;
+    anim->targetsQuat[c].base.timeStart = 0;
+    anim->targetsQuat[c].base.timeEnd = 0;
+  }
+  anim->nextKfSize = sizeof(T3DAnimKF);
+  anim->kfIndex = 0;
+  rewind(anim->file);
+}
+
 void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
   if(anim->targetsQuat)free(anim->targetsQuat);
   if(anim->targetsScalar)free(anim->targetsScalar);
 
   anim->targetsQuat = malloc(sizeof(T3DAnimTargetQuat) * anim->animRef->channelsQuat);
   anim->targetsScalar = malloc(sizeof(T3DAnimTargetScalar) * anim->animRef->channelsScalar);
+  rewind_anim(anim);
+
   uint32_t channelCount = anim->animRef->channelsScalar + anim->animRef->channelsQuat;
 
   uint32_t idxQuat = 0;
@@ -141,16 +160,7 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
   if(anim->time >= anim->animRef->duration)
   {
     anim->time -= anim->animRef->duration;
-    for(int c=0; c<anim->animRef->channelsScalar; c++) {
-      anim->targetsScalar[c].base.timeNextKF = 0;
-    }
-    for(int c=0; c<anim->animRef->channelsQuat; c++) {
-      anim->targetsQuat[c].base.timeNextKF = 0;
-    }
-    anim->nextKfSize = sizeof(T3DAnimKF);
-    anim->kfIndex = 0;
-    rewind(anim->file);
-    debugf("Looping animation\n");
+    rewind_anim(anim);
   }
 
   uint32_t channelCount = anim->animRef->channelsScalar + anim->animRef->channelsQuat;
@@ -182,12 +192,15 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
 void t3d_anim_destroy(T3DAnim *anim) {
   if(anim->targetsScalar)free(anim->targetsScalar);
   if(anim->targetsQuat)free(anim->targetsQuat);
+  if(anim->file)fclose(anim->file);
   anim->targetsScalar = NULL;
   anim->targetsQuat = NULL;
-  // TODO: close file
+  anim->file = NULL;
 }
 
 void t3d_anim_set_time(T3DAnim *anim, float time) {
-  assert(false); // @TODO: implement
+  if(time > anim->animRef->duration)time = anim->animRef->duration;
+  if(time < anim->time)rewind_anim(anim);
+  anim->time = time;
 }
 

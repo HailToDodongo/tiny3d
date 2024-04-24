@@ -44,7 +44,7 @@ namespace {
         case AnimChannelTarget::SCALE_UNIFORM:
         case AnimChannelTarget::SCALE        : isIdentity = kf.valScalar == 1.0f; break;
       }
-      if(isIdentity)printf("  - Channel %s %d has identity value\n", channel.targetName.c_str(), channel.targetType);
+      //if(isIdentity)printf("  - Channel %s %d has identity value\n", channel.targetName.c_str(), channel.targetType);
       return isIdentity;
     }
     return false;
@@ -59,7 +59,7 @@ namespace {
     auto channelOrg = channel;
     float mse = calcMSE(channel.keyframes, channelOrg.keyframes, 0, time, channel.isRotation());
     assert(mse < 0.00001f); //  initial MSE must be zero
-    printf("  - Channel %s %d: %d keyframes, MSE: %f\n", channel.targetName.c_str(), channel.targetType, channel.keyframes.size(), mse);
+    //printf("  - Channel %s %d: %d keyframes, MSE: %f\n", channel.targetName.c_str(), channel.targetType, channel.keyframes.size(), mse);
 
     // now remove keyframes and keep the error below a certain threshold
     float threshold      = 0.000001f;
@@ -75,15 +75,11 @@ namespace {
       float newMSELocal = calcMSE(channel.keyframes, channelOrg.keyframes, timeStart, timeEnd, channel.isRotation());
       float newMSE = calcMSE(channel.keyframes, channelOrg.keyframes, 0, time, channel.isRotation());
       if(newMSE > threshold || newMSELocal > thresholdLocal) {
-        printf("  - NOT Removed keyframe %d, MSE: %f\n", i, newMSE);
         channel.keyframes.insert(channel.keyframes.begin() + i, kf);
       } else {
-        printf("  - Removed keyframe %d, new MSE: %f\n", i, newMSE);
         --i;
       }
     }
-
-    printf("New Size: %d\n", channel.keyframes.size());
   }
 
   void quantizeRotation(Keyframe &kf)
