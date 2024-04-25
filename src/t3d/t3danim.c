@@ -79,6 +79,34 @@ void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
   }
 }
 
+inline static void attach_scalar(T3DAnim* anim, uint32_t targetIdx, T3DVec3* target, int32_t *updateFlag, uint8_t targetType) {
+  for(int i = 0; i < anim->animRef->channelsScalar; i++) {
+    T3DAnimChannelMapping *channelMap = &anim->animRef->channelMappings[i+anim->animRef->channelsQuat];
+    if(channelMap->targetIdx == targetIdx && channelMap->targetType == targetType) {
+      anim->targetsScalar[i].targetScalar = &target->v[channelMap->attributeIdx];
+      anim->targetsScalar[i].base.changedFlag = updateFlag;
+    }
+  }
+}
+
+void t3d_anim_attach_pos(T3DAnim* anim, uint32_t targetIdx, T3DVec3* target, int32_t *updateFlag) {
+  attach_scalar(anim, targetIdx, target, updateFlag, T3D_ANIM_TARGET_TRANSLATION);
+}
+
+void t3d_anim_attach_scale(T3DAnim *anim, uint32_t targetIdx, T3DVec3 *target, int32_t *updateFlag) {
+  attach_scalar(anim, targetIdx, target, updateFlag, T3D_ANIM_TARGET_SCALE_XYZ);
+}
+
+void t3d_anim_attach_rot(T3DAnim *anim, uint32_t targetIdx, T3DQuat *target, int32_t *updateFlag) {
+  for(int i = 0; i < anim->animRef->channelsQuat; i++) {
+    T3DAnimChannelMapping *channelMap = &anim->animRef->channelMappings[i];
+    if(channelMap->targetIdx == targetIdx && channelMap->targetType == T3D_ANIM_TARGET_ROTATION) {
+      anim->targetsQuat[i].targetQuat = target;
+      anim->targetsQuat[i].base.changedFlag = updateFlag;
+    }
+  }
+}
+
 static inline float s10ToFloat(uint32_t value, float offset, float scale) {
   return (float)value / 1023.0f * scale + offset;
 }
@@ -137,11 +165,14 @@ static inline bool load_keyframe(T3DAnim *anim) {
 }
 
 void t3d_anim_update(T3DAnim *anim, float deltaTime) {
+  uint64_t ticks = get_ticks();
   anim->time += deltaTime * anim->speed;
+  uint32_t updateFlag = 1;
 
   if(anim->time >= anim->animRef->duration) {
     anim->time -= anim->animRef->duration;
     rewind_anim(anim);
+    updateFlag = 2;
   }
 
   uint32_t channelCount = anim->animRef->channelsScalar + anim->animRef->channelsQuat;
@@ -157,7 +188,7 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
 
     float timeDiff = target->timeEnd - target->timeStart;
     float interp = (anim->time - target->timeStart) / timeDiff;
-    *target->changedFlag = 1;
+    *target->changedFlag = updateFlag;
 
     if(isRot) {
       T3DAnimTargetQuat *t = (T3DAnimTargetQuat*)target;
@@ -168,6 +199,9 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
       *t->targetScalar = t3d_lerp(t->kfCurr, t->kfNext, interp);
     }
   }
+  ticks = get_ticks() - ticks;
+  debugf("Anim %lldus\n", TICKS_TO_US(ticks));
+
 }
 
 void t3d_anim_destroy(T3DAnim *anim) {

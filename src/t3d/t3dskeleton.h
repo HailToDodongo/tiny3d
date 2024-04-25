@@ -22,7 +22,7 @@ typedef struct {
   T3DVec3 scale;
   T3DQuat rotation;
   T3DVec3 position;
-  int hasChanged;
+  int32_t hasChanged;
 } T3DBone;
 
 /**

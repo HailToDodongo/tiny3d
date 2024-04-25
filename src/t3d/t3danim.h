@@ -21,7 +21,7 @@ extern "C"
 typedef struct {
   float timeStart;
   float timeEnd;
-  int* changedFlag; // flag to increment when target is changed
+  int32_t* changedFlag; // flag to increment when target is changed
 } T3DAnimTargetBase;
 
 typedef struct {
@@ -64,6 +64,39 @@ T3DAnim t3d_anim_create(const T3DModel *model, const char* name);
  * @param skeleton The skeleton to attach the animation to
  */
 void t3d_anim_attach(T3DAnim* anim, const T3DSkeleton* skeleton);
+
+/**
+ * Attaches a single position target to a single channel target.
+ * This can be used to override an earlier attachment from 't3d_anim_attach'.
+ *
+ * @param anim animation to attach to
+ * @param targetIdx index of the target bone
+ * @param target position to update
+ * @param updateFlag set to '1' if changed, '2' if animation rolled over
+ */
+void t3d_anim_attach_pos(T3DAnim* anim, uint32_t targetIdx, T3DVec3* target, int32_t *updateFlag);
+
+/**
+ * Attaches a single rotation target to a single channel target.
+ * This can be used to override an earlier attachment from 't3d_anim_attach'.
+ *
+ * @param anim animation to attach to
+ * @param targetIdx index of the target bone
+ * @param target rotation to update
+ * @param updateFlag set to '1' if changed, '2' if animation rolled over
+ */
+void t3d_anim_attach_rot(T3DAnim* anim, uint32_t targetIdx, T3DQuat* target, int32_t *updateFlag);
+
+/**
+ * Attaches a single scale target to a single channel target.
+ * This can be used to override an earlier attachment from 't3d_anim_attach'.
+ *
+ * @param anim animation to attach to
+ * @param targetIdx index of the target bone
+ * @param target scale to update
+ * @param updateFlag set to '1' if changed, '2' if animation rolled over
+ */
+void t3d_anim_attach_scale(T3DAnim* anim, uint32_t targetIdx, T3DVec3* target, int32_t *updateFlag);
 
 /**
  * Updates an animation, this will actually play it and apply the changes to the skeleton.
