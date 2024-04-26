@@ -74,7 +74,6 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
       t3dm.skeletons.push_back(armature);
     }
   }
-  printf("\n\n\n");
 
   // Resting pose matrix stack, used to pre-transform vertices
   std::vector<Mat4> matrixStack{};
@@ -101,7 +100,6 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
     convertAnimation(anim, boneMap);
     t3dm.animations.push_back(anim);
   }
-  printf("\n\n\n");
 
   // Meshes
   printf("Node count: %d\n", data->nodes_count);

@@ -48,6 +48,8 @@ typedef struct {
 
   FILE *file;
   int nextKfSize;
+  uint8_t isPlaying;
+  uint8_t isLooping;
 } T3DAnim;
 
 /**
@@ -112,6 +114,36 @@ void t3d_anim_update(T3DAnim* anim, float deltaTime);
  * @param time time in seconds
  */
 void t3d_anim_set_time(T3DAnim* anim, float time);
+
+/**
+ * Sets the speed of the animation.
+ * Note: reverse playback (speed < 0) is currently not supported.
+ * @param anim animation to set speed for
+ * @param speed speed as a factor, default: 1.0
+ */
+inline static void t3d_anim_set_speed(T3DAnim* anim, float speed) {
+  anim->speed = speed < 0.0f ? 0.0f : speed;
+}
+
+/**
+ * Set the animation to playing or paused.
+ * Note: this works independently of setting the speed to 0.
+ * @param anim
+ * @param isPlaying true to play, false to pause
+ */
+inline static void t3d_anim_set_playing(T3DAnim* anim, bool isPlaying) {
+  anim->isPlaying = isPlaying;
+}
+
+/**
+ * Sets the animation to loop or not.
+ * If the animation is not set to loop, you will have to call 't3d_anim_set_playing' to play it again.
+ * @param anim animation to set loop for
+ * @param loop true to loop, false to stop at the end
+ */
+inline static void t3d_anim_set_looping(T3DAnim* anim, bool loop) {
+  anim->isLooping = loop;
+}
 
 /**
  * Frees data allocated in the animation struct.

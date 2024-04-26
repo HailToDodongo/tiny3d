@@ -110,7 +110,6 @@ T3DModel *t3d_model_load(const char *path) {
   int size = 0;
   T3DModel* model = asset_load(path, &size);
   int32_t ptrOffset = (int32_t)(void*)model;
-  uint32_t sdataAddr = 0;
 
   void* basePtrVertices = (void*)model + (model->chunkOffsets[model->chunkIdxVertices].offset & 0xFFFFFF);
   void* basePtrIndices = (void*)model + (model->chunkOffsets[model->chunkIdxIndices].offset & 0xFFFFFF);

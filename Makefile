@@ -60,6 +60,7 @@ run_examples:
 	$(EMU_PATH) examples/05_splitscreen/*.z64
 	$(EMU_PATH) examples/06_offscreen/*.z64
 	$(EMU_PATH) examples/07_skeleton/*.z64
+	$(EMU_PATH) examples/09_anim_viewer/*.z64
 	$(EMU_PATH) examples/99_testscene/*.z64
 
 clean:

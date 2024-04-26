@@ -4,7 +4,6 @@
 */
 #pragma once
 #include "../structs.h"
-#include "../math/sampling.h"
 
 inline const Keyframe& safeKf(const std::vector<Keyframe> &kfs, int idx) {
   if(idx < 0)return kfs[0];

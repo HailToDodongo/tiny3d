@@ -108,13 +108,13 @@ Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::s
     float sampleStep = 1.0f / sampleRate;
     float time = timeStart;
     float nextTime = timeStart;
-
+/*
     printf("  - Channel %d\n", c);
     printf("    - Target: %s -> %s\n", targetName, Gltf::getAnimTargetString(channel.target_path));
     printf("    - Input[%s]: %d @ %d (%s)\n", Gltf::getTypeString(channel.sampler->input->type), samplerIn.count, samplerIn.stride, Gltf::getInterpolationName(channel.sampler->interpolation));
     printf("    - Output[%s]: %d @ %d\n", Gltf::getTypeString(samplerOut.type), samplerOut.count, samplerOut.stride, samplerOut.type);
     printf("    - Time Range: %.4fs -> %.4fs\n", timeStart, timeEnd);
-
+*/
     uint32_t frame = 0;
     float t;
     for(t=timeStart; t<=(timeEnd+sampleStep); t += sampleStep)

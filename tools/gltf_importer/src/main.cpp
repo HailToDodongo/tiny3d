@@ -82,8 +82,6 @@ int main(int argc, char* argv[])
     return a.materialA.alphaMode < b.materialA.alphaMode;
   });
 
-  uint32_t animationSize = 0;
-
   uint32_t chunkIndex = 0;
   uint32_t chunkCount = 2; // vertices + indices
   std::vector<ModelChunked> modelChunks{};
@@ -378,15 +376,8 @@ int main(int argc, char* argv[])
   // write to actual file
   file.writeToFile(t3dmPath);
 
-  uint32_t sdataSize = 0;
   for(int s=0; s<streamFiles.size(); ++s) {
     auto sdataPath = getStreamDataPath(t3dmPath, s);
     streamFiles[s].writeToFile(sdataPath.c_str());
-    sdataSize += streamFiles[s].getSize();
   }
-
-  printf("Animation size:\n");
-  printf("  - Meta: %d\n", animationSize);
-  printf("  - Data: %d\n", sdataSize);
-  printf("  - Sum : %d\n", animationSize + sdataSize);
 }

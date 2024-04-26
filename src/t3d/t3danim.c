@@ -9,12 +9,11 @@
 #define SQRT_2_INV 0.70710678118f
 #define KF_TIME_TICK (1.0f / 60.0f)
 
-const static char TARGET_TYPE[4] = {'T', 'S', 's', 'R'};
-
+// Maps the input data streamed from the animation data file
 typedef struct {
   uint16_t nextTime;
   uint16_t channelIdx;
-  uint16_t data[2];
+  uint16_t data[2]; // can be either 1 or 2 16-bit values (scalar / quat)
 } T3DAnimKF;
 
 T3DAnim t3d_anim_create(const T3DModel *model, const char *name) {
@@ -29,6 +28,8 @@ T3DAnim t3d_anim_create(const T3DModel *model, const char *name) {
     .speed = 1.0f,
     .nextKfSize = sizeof(T3DAnimKF),
     .file = asset_fopen(animDef->filePath, NULL),
+    .isPlaying = 1,
+    .isLooping = 1
   };
 }
 
@@ -46,10 +47,11 @@ static void rewind_anim(T3DAnim *anim)
 
 void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
   if(anim->targetsQuat)free(anim->targetsQuat);
-  if(anim->targetsScalar)free(anim->targetsScalar);
 
-  anim->targetsQuat = malloc(sizeof(T3DAnimTargetQuat) * anim->animRef->channelsQuat);
-  anim->targetsScalar = malloc(sizeof(T3DAnimTargetScalar) * anim->animRef->channelsScalar);
+  size_t allocQuat = sizeof(T3DAnimTargetQuat) * anim->animRef->channelsQuat;
+  size_t allocScalar = sizeof(T3DAnimTargetScalar) * anim->animRef->channelsScalar;
+  anim->targetsQuat = malloc(allocQuat + allocScalar); // only allocate a single block
+  anim->targetsScalar = (T3DAnimTargetScalar*)((uint8_t*)anim->targetsQuat + allocQuat);
   rewind_anim(anim);
 
   uint32_t channelCount = anim->animRef->channelsScalar + anim->animRef->channelsQuat;
@@ -165,14 +167,19 @@ static inline bool load_keyframe(T3DAnim *anim) {
 }
 
 void t3d_anim_update(T3DAnim *anim, float deltaTime) {
-  uint64_t ticks = get_ticks();
+  if(!anim->isPlaying)return;
+  int32_t updateFlag = 1;
   anim->time += deltaTime * anim->speed;
-  uint32_t updateFlag = 1;
 
   if(anim->time >= anim->animRef->duration) {
     anim->time -= anim->animRef->duration;
     rewind_anim(anim);
     updateFlag = 2;
+
+    if(!anim->isLooping) {
+      anim->isPlaying = 0;
+      return;
+    }
   }
 
   uint32_t channelCount = anim->animRef->channelsScalar + anim->animRef->channelsQuat;
@@ -184,7 +191,6 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
     while(anim->time >= target->timeEnd) {
       if(!load_keyframe(anim))break;
     }
-    //debugf("Time: %.2f (%.2f -> %.2f)\n", anim->time, target->timeStart, target->timeEnd);
 
     float timeDiff = target->timeEnd - target->timeStart;
     float interp = (anim->time - target->timeStart) / timeDiff;
@@ -199,17 +205,13 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
       *t->targetScalar = t3d_lerp(t->kfCurr, t->kfNext, interp);
     }
   }
-  ticks = get_ticks() - ticks;
-  debugf("Anim %lldus\n", TICKS_TO_US(ticks));
-
 }
 
 void t3d_anim_destroy(T3DAnim *anim) {
-  if(anim->targetsScalar)free(anim->targetsScalar);
-  if(anim->targetsQuat)free(anim->targetsQuat);
+  if(anim->targetsQuat)free(anim->targetsQuat); // 'targetsScalar' is part of this memory-block
   if(anim->file)fclose(anim->file);
-  anim->targetsScalar = NULL;
   anim->targetsQuat = NULL;
+  anim->targetsScalar = NULL;
   anim->file = NULL;
 }
 

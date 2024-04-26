@@ -51,8 +51,6 @@ typedef struct {
   T3DMaterialAxis t;
 } T3DMaterial;
 
-static_assert(sizeof(T3DMaterial));
-
 typedef struct {
   T3DVertPacked *vert;
   uint16_t vertLoadCount;

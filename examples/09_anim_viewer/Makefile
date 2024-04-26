@@ -6,9 +6,9 @@ include $(T3D_INST)/t3d.mk
 
 N64_CFLAGS += -std=gnu2x -O2
 
-PROJECT_NAME=t3d_08_anim
+PROJECT_NAME=t3d_09_anim
 
-src = main_anim.c
+src = main.c
 assets_png = $(wildcard assets/*.png)
 assets_gltf = $(wildcard assets/*.glb)
 assets_ttf = $(wildcard assets/*.ttf)
