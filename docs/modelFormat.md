@@ -4,9 +4,8 @@ All data is stored in binary in a chunk-based file.<br>
 It starts with a header containing the number of chunks and their offsets followed by the data.<br>
 
 ### Streaming-Data
-A `.t3dm` file can be accompanied by a streaming-data file (`.t3ds`).<br>
-This file is stored uncompressed and contains data used for streaming (e.g. animations).<br>
-Data sections inside the file can be compressed however. 
+A `.t3dm` file can be accompanied by one or more streaming-data files (`.t3ds`).<br>
+This file can be compressed and contains data to be streamed in during runtime (e.g. animations).<br> 
 
 ## Header
 

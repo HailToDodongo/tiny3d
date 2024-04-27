@@ -135,7 +135,7 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bo
     for(uint32_t k=0; k<keyframes.size(); ++k) {
       auto &kf = keyframes[k];
 
-      // No calculate the relative time until the next keyframe is needed
+      // Now calculate the relative time until the next keyframe is needed
       float nextNeededTime = (k+1) < keyframes.size() ? keyframes[k+1].timeNeeded : anim.duration;
       kf.timeNextInChannel = nextNeededTime - kf.timeNeeded;
 
