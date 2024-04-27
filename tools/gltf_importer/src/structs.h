@@ -16,8 +16,6 @@
 #include "math/vec3.h"
 #include "math/mat4.h"
 
-constexpr float MODEL_SCALE = 64.0f;
-
 namespace DrawFlags {
   constexpr uint32_t DEPTH      = 1 << 0;
   constexpr uint32_t TEXTURED   = 1 << 1;
@@ -158,6 +156,10 @@ struct ModelChunked {
 
 struct Bone {
   std::string name;
+  Vec3 pos;
+  Quat rot;
+  Vec3 scale;
+
   Mat4 parentMatrix;
   Mat4 modelMatrix;
   Mat4 inverseBindPose;
@@ -167,7 +169,63 @@ struct Bone {
   std::vector<std::shared_ptr<Bone>> children;
 };
 
+typedef enum AnimChannelTarget : u8 {
+  TRANSLATION,
+  SCALE,
+  SCALE_UNIFORM,
+  ROTATION
+} AnimChannelTarget;
+
+struct Keyframe {
+  float time{};
+  float timeNeeded{};
+  float timeNextInChannel{};
+
+  uint16_t timeTicks{};
+  uint16_t timeNeededTicks{};
+  uint16_t timeNextInChannelTicks{};
+
+  uint32_t chanelIdx;
+  Quat valQuat;
+  float valScalar;
+
+  uint32_t valQuantSize = 0;
+  uint16_t valQuant[2];
+};
+
+struct AnimChannelMapping {
+  std::string targetName{};
+  uint16_t targetIdx{};
+  AnimChannelTarget targetType{};
+  uint8_t attributeIdx{};
+
+  float valueMin{INFINITY};
+  float valueMax{-INFINITY};
+
+  std::vector<Keyframe> keyframes{}; // temp. storage after parsing
+
+  [[nodiscard]] constexpr bool isRotation() const {
+    return targetType == AnimChannelTarget::ROTATION;
+  }
+};
+
+struct Anim {
+  std::string name{};
+  float duration{};
+  uint32_t channelCountQuat{};
+  uint32_t channelCountScalar{};
+  std::vector<Keyframe> keyframes{}; // output used for writing to the file
+  std::vector<AnimChannelMapping> channelMap{};
+};
+
 struct T3DMData {
   std::vector<Model> models{};
   std::vector<Bone> skeletons{};
+  std::vector<Anim> animations{};
 };
+
+struct Config {
+  float globalScale{64.0f};
+  uint32_t animSampleRate{30};
+};
+extern Config config;

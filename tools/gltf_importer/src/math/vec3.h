@@ -90,6 +90,14 @@ struct Vec3
     };
   }
 
+  [[nodiscard]] constexpr Vec3 mix(const Vec3 &b, float factor) const {
+    return {
+      data[0] + (b[0] - data[0]) * factor,
+      data[1] + (b[1] - data[1]) * factor,
+      data[2] + (b[2] - data[2]) * factor
+    };
+  }
+
   [[nodiscard]] constexpr bool isZero() const {
     return data[0] == 0.0f && data[1] == 0.0f && data[2] == 0.0f;
   }

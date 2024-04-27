@@ -47,7 +47,7 @@ typedef struct {
   /* 0x1C */ int16_t stB[2]; // UV fixed point 10.5 (pixel coords)
 } T3DVertPacked;
 
-static_assert(sizeof(T3DVertPacked) == 0x20, "T3DVertPacked has wrong size");
+_Static_assert(sizeof(T3DVertPacked) == 0x20, "T3DVertPacked has wrong size");
 
 enum T3DDrawFlags {
   T3D_FLAG_DEPTH      = 1 << 0,

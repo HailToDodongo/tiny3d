@@ -49,6 +49,18 @@ inline static float s1616_to_float(int16_t partI, uint16_t partF)
   return res;
 }
 
+/// @brief Interpolates between two floats by 't'
+inline static float t3d_lerp(float a, float b, float t) {
+  return a + (b - a) * t;
+}
+
+/// @brief Interpolates between two angles (radians) by 't'
+inline static float t3d_lerp_angle(float a, float b, float t) {
+  float angleDiff = fmodf((b - a), M_PI*2);
+  float shortDist = fmodf(angleDiff*2, M_PI*2) - angleDiff;
+  return a + shortDist * t;
+}
+
 /// @brief Sets 'res' to 'a + b'
 inline static void t3d_vec3_add(T3DVec3 *res, const T3DVec3 *a, const T3DVec3 *b) {
   res->v[0] = a->v[0] + b->v[0];
@@ -98,6 +110,14 @@ inline static float t3d_vec3_dot(const T3DVec3 *a, const T3DVec3 *b) {
   return a->v[0] * b->v[0] +
          a->v[1] * b->v[1] +
          a->v[2] * b->v[2];
+}
+
+/// @brief Linearly interpolates between 'a' and 'b' by 't' and stores it in 'res'
+inline static void t3d_vec3_lerp(T3DVec3 *res, const T3DVec3 *a, const T3DVec3 *b, float t)
+{
+  res->v[0] = a->v[0] + (b->v[0] - a->v[0]) * t;
+  res->v[1] = a->v[1] + (b->v[1] - a->v[1]) * t;
+  res->v[2] = a->v[2] + (b->v[2] - a->v[2]) * t;
 }
 
 // @brief Resets a quaternion to the identity quaternion
@@ -169,6 +189,41 @@ inline static void t3d_quat_rotate_euler(T3DQuat *quat, float axis[3], float ang
   t3d_quat_mul(&tmp, quat, &quatRot);
   *quat = tmp;
 }
+
+/**
+ * Dot product of a quaternion as a vec4
+ * @param a quaternion
+ * @param b quaternion
+ * @return dot product
+ */
+inline static float t3d_quat_dot(const T3DQuat *a, const T3DQuat *b)
+{
+  return a->v[0] * b->v[0] + a->v[1] * b->v[1] + a->v[2] * b->v[2] + a->v[3] * b->v[3];
+}
+
+/**
+ * Normalizes a quaternion
+ * @param quat
+ */
+inline static void t3d_quat_normalize(T3DQuat *quat)
+{
+  float scale = 1.0f / sqrtf(quat->v[0]*quat->v[0] + quat->v[1]*quat->v[1] + quat->v[2]*quat->v[2] + quat->v[3]*quat->v[3]);
+  quat->v[0] *= scale;
+  quat->v[1] *= scale;
+  quat->v[2] *= scale;
+  quat->v[3] *= scale;
+}
+
+/**
+ * Interpolates between two quaternions using a normalized linear interpolation.
+ * @param res interpolated quaternion
+ * @param a first quaternion
+ * @param b second quaternion
+ * @param t interpolation factor
+ */
+void t3d_quat_nlerp(T3DQuat *res, const T3DQuat *a, const T3DQuat *b, float t);
+
+void t3d_quat_slerp(T3DQuat *res, const T3DQuat *a, const T3DQuat *b, float t);
 
 /**
  * @brief Initializes a matrix to the identity matrix

@@ -51,8 +51,6 @@ typedef struct {
   T3DMaterialAxis t;
 } T3DMaterial;
 
-static_assert(sizeof(T3DMaterial));
-
 typedef struct {
   T3DVertPacked *vert;
   uint16_t vertLoadCount;
@@ -77,7 +75,9 @@ typedef struct {
   char* name;
   uint16_t parentIdx;
   uint16_t depth;
-  T3DMat4 transform;
+  T3DVec3 scale;
+  T3DQuat rotation;
+  T3DVec3 position;
 } T3DChunkBone;
 
 typedef struct {
@@ -85,6 +85,24 @@ typedef struct {
   uint16_t _reserved;
   T3DChunkBone bones[];
 } T3DChunkSkeleton;
+
+typedef struct {
+  uint16_t targetIdx;
+  uint8_t targetType;
+  uint8_t attributeIdx;
+  float quantScale;
+  float quantOffset;
+} T3DAnimChannelMapping;
+
+typedef struct {
+  char* name;
+  float duration;
+  uint32_t keyframeCount;
+  uint16_t channelsQuat;
+  uint16_t channelsScalar;
+  char* filePath;
+  T3DAnimChannelMapping channelMappings[];
+} T3DChunkAnim;
 
 typedef union {
   char type;
@@ -113,7 +131,7 @@ typedef struct {
  * @param path FS path
  * @return pointer to the model (that you now own)
  */
-T3DModel* t3d_model_load(const void *path);
+T3DModel* t3d_model_load(const char *path);
 
 // callback for custom drawing, this hooks into the tile-setting section
 typedef void (*T3DModelTileCb)(void* userData, rdpq_texparms_t *tileParams, rdpq_tile_t tile);
@@ -191,6 +209,37 @@ static inline const T3DChunkSkeleton* t3d_model_get_skeleton(const T3DModel *mod
   }
   return NULL;
 }
+
+/**
+ * Returns the number of animations in the model.
+ * @param model
+ * @return
+ */
+static inline uint32_t t3d_model_get_animation_count(const T3DModel *model) {
+  uint32_t count = 0;
+  for(int i = 0; i < model->chunkCount; i++) {
+    if(model->chunkOffsets[i].type == 'A')count++;
+  }
+  return count;
+}
+
+/**
+ * Stores the pointers to all animations inside the model into `anims`.
+ * Make sure to use `t3d_model_get_animation_count` to allocate enough memory.
+ * @param model
+ * @param anims array to store the pointers to
+ */
+void t3d_model_get_animations(const T3DModel *model, T3DChunkAnim **anims);
+
+/**
+ * Returns an animation definition by name.
+ * Note: if you want to create an animation instance, use 't3d_anim_create'.
+ *
+ * @param model
+ * @param name animation name
+ * @return pointer to the animation or NULL if not found
+ */
+T3DChunkAnim* t3d_model_get_animation(const T3DModel *model, const char* name);
 
 #ifdef __cplusplus
 }

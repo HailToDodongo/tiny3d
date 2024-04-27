@@ -14,7 +14,7 @@
 #include "lib/meshopt/meshoptimizer.h"
 #include "math/mat4.h"
 #include "parser/parser.h"
-#include "converter.h"
+#include "converter/converter.h"
 
 void printBoneTree(const Bone &bone, int depth)
 {
@@ -74,13 +74,14 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
       t3dm.skeletons.push_back(armature);
     }
   }
-  printf("\n\n\n");
 
   // Resting pose matrix stack, used to pre-transform vertices
   std::vector<Mat4> matrixStack{};
+  std::unordered_map<std::string, const Bone*> boneMap{};
   if(!t3dm.skeletons.empty()) {
     auto addBoneMax = [&](auto&& addBoneMax, const Bone &bone) -> void {
       matrixStack.push_back(bone.inverseBindPose);
+      boneMap[bone.name] = &bone;
       for(auto &child : bone.children) {
         addBoneMax(addBoneMax, *child);
       }
@@ -92,38 +93,20 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
 
   // Animations
   printf("Animations: %d\n", data->animations_count);
-/*
-  for(int i=0; i<data->animations_count; ++i) {
-    auto &anim = data->animations[i];
-    printf("Animation %d: %s\n", i, anim.name);
-    printf(" - Channels: %d\n", anim.channels_count);
-    printf(" - Samplers: %d\n", anim.samplers_count);
 
-    for(int j=0; j<anim.channels_count; ++j) {
-      auto &channel = anim.channels[j];
-      printf("  - Channel %d\n", j);
-      printf("    - Target: %s\n", channel.target_node->name);
-      printf("    - Path: %d\n", channel.target_path);
-      printf("    - Sampler: %d\n", channel.sampler->input->count);
-    }
+  for(int i=0; i<data->animations_count; ++i) {
+    auto anim = parseAnimation(data->animations[i], boneMap, config.animSampleRate);
+    printf(" - Animation %d: %s\n", i, anim.name.c_str());
+    convertAnimation(anim, boneMap);
+    t3dm.animations.push_back(anim);
   }
-  printf("\n\n\n");
-  */
 
   // Meshes
   printf("Node count: %d\n", data->nodes_count);
   for(int i=0; i<data->nodes_count; ++i)
   {
     auto node = &data->nodes[i];
-    printf("- Node %d: %s\n", i, node->name);
-
-    // check if it is a skeleton/armature, then read out the bone hierarchy
-    if(node->children_count > 0) {
-      printf("  - Children: %d\n", node->children_count);
-      for(int j=0; j<node->children_count; ++j) {
-        printf("    - %s\n", node->children[j]->name);
-      }
-    }
+    //printf("- Node %d: %s\n", i, node->name);
 
     auto mesh = node->mesh;
     if(!mesh)continue;
@@ -137,7 +120,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
       if(node->name)model.name = node->name;
 
       auto prim = &mesh->primitives[j];
-      printf("   - Primitive %d:\n", j);
+      //printf("   - Primitive %d:\n", j);
 
       if(prim->material) {
         parseMaterial(gltfBasePath, i, j, model, prim);
@@ -151,8 +134,6 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
           break;
         }
       }
-
-      printf("Vertex Input Count: %d\n", vertexCount);
 
       std::vector<VertexNorm> vertices{};
       vertices.resize(vertexCount, {.color = {1.0f, 1.0f, 1.0f, 1.0f}, .boneIndex = -1});
@@ -179,7 +160,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
         auto basePtr = ((uint8_t*)acc->buffer_view->buffer->data) + acc->buffer_view->offset + acc->offset;
         auto elemSize = Gltf::getDataSize(acc->component_type);
 
-        printf("     - Attribute %d: %s\n", k, attr->name);
+        // printf("     - Attribute %d: %s\n", k, attr->name);
         if(attr->type == cgltf_attribute_type_position)
         {
           assert(attr->data->type == cgltf_type_vec3);
@@ -240,8 +221,6 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
         if(attr->type == cgltf_attribute_type_joints)
         {
           assert(attr->data->type == cgltf_type_vec4);
-
-          printf("Joints (off: %d)\n", attr->index);
           for(int l = 0; l < acc->count; l++)
           {
             auto &v = vertices[l];

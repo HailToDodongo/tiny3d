@@ -5,6 +5,40 @@
 
 #include <t3d/t3dmath.h>
 
+void t3d_quat_nlerp(T3DQuat *res, const T3DQuat *a, const T3DQuat *b, float t) {
+  float blend = 1.0f - t;
+  if(t3d_quat_dot(a, b) < 0.0f) {
+    blend = -blend;
+  }
+  res->v[0] = blend * a->v[0] + t * b->v[0];
+  res->v[1] = blend * a->v[1] + t * b->v[1];
+  res->v[2] = blend * a->v[2] + t * b->v[2];
+  res->v[3] = blend * a->v[3] + t * b->v[3];
+  t3d_quat_normalize(res);
+}
+
+void t3d_quat_slerp(T3DQuat *res, const T3DQuat *a, const T3DQuat *b, float t) {
+  float dot = t3d_quat_dot(a, b);
+  float negated = 1.0f;
+  if(dot < 0.0f) {
+    dot = -dot;
+    negated = -1;
+  }
+
+  if(dot < 0.99999f)
+  {
+    float angle = acosf(dot);
+    float sinAngle = fm_sinf(angle);
+    float invSinAngle = 1.0f / sinAngle;
+    float coeff0 = fm_sinf((1.0f - t) * angle) * invSinAngle;
+    float coeff1 = fm_sinf(t * angle) * invSinAngle * negated;
+    res->v[0] = coeff0 * a->v[0] + coeff1 * b->v[0];
+    res->v[1] = coeff0 * a->v[1] + coeff1 * b->v[1];
+    res->v[2] = coeff0 * a->v[2] + coeff1 * b->v[2];
+    res->v[3] = coeff0 * a->v[3] + coeff1 * b->v[3];
+  }
+}
+
 void t3d_mat4_look_at(T3DMat4 *mat, const T3DVec3 *eye, const T3DVec3 *target, const T3DVec3 *up)
 {
   T3DVec3 forward, side, upCalc;
@@ -41,12 +75,23 @@ void t3d_mat4_perspective(T3DMat4 *mat, float fov, float aspect, float near, flo
 
 void t3d_mat4_from_srt(T3DMat4 *mat, float scale[3], float quat[4], float translate[3])
 {
+  float qxx = quat[0] * quat[0];
+  float qyy = quat[1] * quat[1];
+  float qzz = quat[2] * quat[2];
+  float qxz = quat[0] * quat[2];
+  float qxy = quat[0] * quat[1];
+  float qyz = quat[1] * quat[2];
+  float qwx = quat[3] * quat[0];
+  float qwy = quat[3] * quat[1];
+  float qwz = quat[3] * quat[2];
+  
   *mat = (T3DMat4){{
-    {(1.0f - 2.0f * quat[2] * quat[2] - 2.0f * quat[0] * quat[0]) * scale[0],        (2.0f * quat[1] * quat[2] - 2.0f * quat[3] * quat[0]) * scale[0],        (2.0f * quat[1] * quat[0] + 2.0f * quat[3] * quat[2]) * scale[0], 0.0f},
-    {       (2.0f * quat[1] * quat[2] + 2.0f * quat[3] * quat[0]) * scale[1], (1.0f - 2.0f * quat[1] * quat[1] - 2.0f * quat[0] * quat[0]) * scale[1],        (2.0f * quat[2] * quat[0] - 2.0f * quat[3] * quat[1]) * scale[1], 0.0f},
-    {       (2.0f * quat[1] * quat[0] - 2.0f * quat[3] * quat[2]) * scale[2],        (2.0f * quat[2] * quat[0] + 2.0f * quat[3] * quat[1]) * scale[2], (1.0f - 2.0f * quat[1] * quat[1] - 2.0f * quat[2] * quat[2]) * scale[2], 0.0f},
-    {translate[0], translate[1], translate[2], 1.0f}
+    {1.0f - 2.0f * (qyy + qzz),        2.0f * (qxy + qwz),        2.0f * (qxz - qwy), 0.0f},
+    {       2.0f * (qxy - qwz), 1.0f - 2.0f * (qxx + qzz),        2.0f * (qyz + qwx), 0.0f},
+    {       2.0f * (qxz + qwy),        2.0f * (qyz - qwx), 1.0f - 2.0f * (qxx + qyy), 0.0f},
+    {             translate[0],              translate[1],              translate[2], 1.0f}
   }};
+  t3d_mat4_scale(mat, scale[0], scale[1], scale[2]);
 }
 
 void t3d_mat4_from_srt_euler(T3DMat4 *mat, float scale[3], float rot[3], float translate[3])
@@ -113,3 +158,4 @@ void t3d_mat4_rotate(T3DMat4 *mat, const T3DVec3* axis, float angleRad)
   mat->m[3][2] = 0.0f;
   mat->m[3][3] = 1.0f;
 }
+

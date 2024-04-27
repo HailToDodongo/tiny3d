@@ -6,13 +6,16 @@
 #include <string>
 #include <filesystem>
 #include <algorithm>
+#include <cassert>
 
 #include "structs.h"
 #include "parser.h"
 #include "hash.h"
 
 #include "binaryFile.h"
-#include "converter.h"
+#include "converter/converter.h"
+
+Config config;
 
 namespace fs = std::filesystem;
 
@@ -34,12 +37,10 @@ namespace {
     file.write<uint16_t>(bone.parentIndex);
     file.write<uint16_t>(level); // level
 
-    auto matScaled = bone.parentMatrix;
-    matScaled[3][0] *= MODEL_SCALE;
-    matScaled[3][1] *= MODEL_SCALE;
-    matScaled[3][2] *= MODEL_SCALE;
-
-    file.writeArray(matScaled.ptr(), 4*4);
+    auto normPos = bone.pos * config.globalScale;
+    file.writeArray(bone.scale.data, 3);
+    file.writeArray(bone.rot.data, 4);
+    file.writeArray(normPos.data, 3);
 
     int boneCount = 1;
     for(const auto& child : bone.children) {
@@ -47,6 +48,18 @@ namespace {
     }
     return boneCount;
   };
+
+  std::string getRomPath(const std::string &path) {
+    if(path.find("filesystem/") == 0) {
+      return std::string("rom:/") + path.substr(11);
+    }
+    return path;
+  }
+
+  std::string getStreamDataPath(const char* filePath, uint32_t idx) {
+    auto sdataPath = std::string(filePath).substr(0, std::string(filePath).size()-5);
+    return sdataPath + "." + std::to_string(idx) + ".sdata";
+  }
 }
 
 int main(int argc, char* argv[])
@@ -54,7 +67,10 @@ int main(int argc, char* argv[])
   const char* gltfPath = argv[1];
   const char* t3dmPath = argv[2];
 
-  auto t3dm = parseGLTF(gltfPath, MODEL_SCALE);
+  config.globalScale = 64.0f;
+  config.animSampleRate = 60;
+
+  auto t3dm = parseGLTF(gltfPath, config.globalScale);
   fs::path gltfBasePath{gltfPath};
 
   // sort models by transparency mode (opaque -> cutout -> transparent)
@@ -75,6 +91,9 @@ int main(int argc, char* argv[])
     chunkCount += 1 + 2; // object + material A/B (@TODO: optimize material count)
   }
   chunkCount += t3dm.skeletons.empty() ? 0 : 1;
+  chunkCount += t3dm.animations.size();
+
+  std::vector<BinaryFile> streamFiles{};
 
   // Main file
   BinaryFile file{};
@@ -263,6 +282,59 @@ int main(int argc, char* argv[])
     ++m;
   }
 
+  uint16_t animIdx = 0;
+  for(const auto &anim : t3dm.animations) {
+    BinaryFile streamFile{};
+    file.align(4);
+    addToChunkTable('A');
+
+    file.write(insertString(stringTable, anim.name));
+    file.write<float>(anim.duration);
+    file.write<uint32_t>(anim.keyframes.size());
+    file.write<uint16_t>(anim.channelCountQuat);
+    file.write<uint16_t>(anim.channelCountScalar);
+    file.write<uint32_t>(insertString(stringTable,
+      getRomPath(getStreamDataPath(t3dmPath, animIdx))
+    ));
+
+    std::unordered_set<uint32_t> channelHasKF{};
+    for(int k=0; k<anim.keyframes.size(); ++k) {
+      bool isLastKF = (k >= anim.keyframes.size()-1);
+      const auto &kf = anim.keyframes[k];
+      const auto &kfNext = isLastKF ? kf : anim.keyframes[k+1];
+
+      bool nextIsLarge = kfNext.valQuantSize > 1;
+
+      uint16_t timeNext = kf.timeNextInChannelTicks;
+      assert(timeNext < (1 << 15)); // prevent conflicts with size flag
+      if(nextIsLarge)timeNext |= (1 << 15); // encode size of the next KF here
+
+      //printf("KF[%d]: %.4f, needed: %.4f, next: %.4f\n", k, kf.time, kf.timeNeeded, kf.timeNextInChannel);
+
+      streamFile.write<uint16_t>(timeNext);
+      streamFile.write<uint16_t>(kf.chanelIdx);
+      for(int v=0; v<kf.valQuantSize; ++v) {
+        streamFile.write<uint16_t>(kf.valQuant[v]);
+      }
+
+      // force the first keyframe to have 2 values, this is to have a known initial state
+      if(k == 0 && kf.valQuantSize == 1) {
+        streamFile.write<uint16_t>(0);
+      }
+    }
+    streamFiles.push_back(streamFile);
+
+    for(const auto &ch : anim.channelMap) {
+      file.write(ch.targetIdx);
+      file.write(ch.targetType);
+      file.write(ch.attributeIdx);
+      file.write((ch.valueMax - ch.valueMin) / (float)0xFFFF);
+      file.write(ch.valueMin);
+    }
+
+    ++animIdx;
+  }
+
   // Now patch all chunks together and write out the chunk-table
 
   file.align(16);
@@ -303,4 +375,9 @@ int main(int argc, char* argv[])
 
   // write to actual file
   file.writeToFile(t3dmPath);
+
+  for(int s=0; s<streamFiles.size(); ++s) {
+    auto sdataPath = getStreamDataPath(t3dmPath, s);
+    streamFiles[s].writeToFile(sdataPath.c_str());
+  }
 }

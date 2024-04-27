@@ -100,13 +100,13 @@ static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *co
     if(mat->texReference) {
       if(conf->dynTextureCb)conf->dynTextureCb(conf->userData, mat, &tex, tile);
     } else {
-    rdpq_sync_tile();
+      rdpq_sync_tile();
       rdpq_sprite_upload(tile, mat->texture, &tex);
     }
   }
 }
 
-T3DModel *t3d_model_load(const void *path) {
+T3DModel *t3d_model_load(const char *path) {
   int size = 0;
   T3DModel* model = asset_load(path, &size);
   int32_t ptrOffset = (int32_t)(void*)model;
@@ -152,6 +152,12 @@ T3DModel *t3d_model_load(const void *path) {
         T3DChunkBone *bone = &skel->bones[j];
         bone->name = patch_pointer(bone->name, (uint32_t)model->stringTablePtr);
       }
+    }
+
+    if(chunkType == 'A') {
+      T3DChunkAnim *anim = (void*)model + offset;
+      anim->name = patch_pointer(anim->name, (uint32_t)model->stringTablePtr);
+      anim->filePath = patch_pointer(anim->filePath, (uint32_t)model->stringTablePtr);
     }
   }
 
@@ -318,5 +324,26 @@ void t3d_model_free(T3DModel *model) {
     }
   }
   free(model);
+}
+
+T3DChunkAnim *t3d_model_get_animation(const T3DModel *model, const char *name) {
+  for(int i = 0; i < model->chunkCount; i++) {
+    if(model->chunkOffsets[i].type == 'A') {
+      uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
+      T3DChunkAnim *anim = (T3DChunkAnim*)((char*)model + offset);
+      if(strcmp(anim->name, name) == 0)return anim;
+    }
+  }
+  return NULL;
+}
+
+void t3d_model_get_animations(const T3DModel *model, T3DChunkAnim **anims) {
+  uint32_t count = 0;
+  for(int i = 0; i < model->chunkCount; i++) {
+    if(model->chunkOffsets[i].type == 'A') {
+      uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
+      anims[count++] = (T3DChunkAnim*)((char*)model + offset);
+    }
+  }
 }
 

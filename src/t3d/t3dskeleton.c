@@ -14,24 +14,49 @@ T3DSkeleton t3d_skeleton_create(const T3DModel *model) {
     .skeletonRef = skelRef
   };
 
-  //debugf("Skeleton: %d bones\n", skelRef->boneCount);
-  for(int i = 0; i < skelRef->boneCount; i++) {
-    t3d_mat4_identity(&skel.bones[i].matrix);
-    t3d_quat_identity(&skel.bones[i].rotation);
-    skel.bones[i].position = (T3DVec3){{0, 0, 0}};
-    skel.bones[i].scale = (T3DVec3){{1, 1, 1}};
-    skel.bones[i].hasChanged = true; // force an initial update
-    //debugf("Bone %d -> %d\n", i, skelRef->bones[i].parentIdx);
-
-    t3d_mat4fp_identity(&skel.boneMatricesFP[i]);
-  }
-
+  t3d_skeleton_reset(&skel);
   return skel;
+}
+
+T3DSkeleton t3d_skeleton_clone(const T3DSkeleton *skel, bool useMatrices) {
+  T3DSkeleton result = {
+    .bones = malloc(sizeof(T3DBone) * skel->skeletonRef->boneCount),
+    .boneMatricesFP = NULL,
+    .skeletonRef = skel->skeletonRef,
+  };
+  memcpy(result.bones, skel->bones, sizeof(T3DBone) * skel->skeletonRef->boneCount);
+
+  if(useMatrices) {
+    result.boneMatricesFP = malloc_uncached(sizeof(T3DMat4FP) * skel->skeletonRef->boneCount);
+    memcpy(result.boneMatricesFP, skel->boneMatricesFP, sizeof(T3DMat4FP) * skel->skeletonRef->boneCount);
+  }
+  return result;
+}
+
+void t3d_skeleton_reset(T3DSkeleton *skeleton) {
+  for(int i = 0; i < skeleton->skeletonRef->boneCount; i++) {
+    const T3DChunkBone *boneDef = &skeleton->skeletonRef->bones[i];
+    memcpy(skeleton->bones[i].scale.v, boneDef->scale.v,
+      sizeof(T3DVec3) + sizeof(T3DQuat) + sizeof(T3DVec3) // copy all 3 vectors (SRT) at once
+    );
+    skeleton->bones[i].hasChanged = true;
+  }
+}
+
+void t3d_skeleton_blend(const T3DSkeleton *skelRes, const T3DSkeleton *skelA, const T3DSkeleton *skelB, float factor) {
+  for(int i = 0; i < skelRes->skeletonRef->boneCount; i++) {
+    T3DBone *boneRes = &skelRes->bones[i];
+    T3DBone *boneA = &skelA->bones[i];
+    T3DBone *boneB = &skelB->bones[i];
+
+    t3d_quat_nlerp(&boneRes->rotation, &boneA->rotation, &boneB->rotation, factor);
+    t3d_vec3_lerp(&boneRes->position, &boneA->position, &boneB->position, factor);
+    t3d_vec3_lerp(&boneRes->scale, &boneA->scale, &boneB->scale, factor);
+  }
 }
 
 void t3d_skeleton_update(const T3DSkeleton *skeleton)
 {
-  T3DMat4 tmpMat;
   int updateLevel = -1;
   bool forceUpdate = false;
 
@@ -52,16 +77,12 @@ void t3d_skeleton_update(const T3DSkeleton *skeleton)
       if(!forceUpdate)updateLevel = boneDef->depth;
       forceUpdate = true;
 
-      t3d_mat4_from_srt(&tmpMat, bone->scale.v, bone->rotation.v, bone->position.v);
-
-      const T3DMat4 *baseMatrix = &boneDef->transform;
-
       if(boneDef->parentIdx != 0xFFFF) {
-        T3DMat4 tmpMat2;
-        t3d_mat4_mul(&tmpMat2, baseMatrix, &tmpMat);
-        t3d_mat4_mul(&bone->matrix, &skeleton->bones[boneDef->parentIdx].matrix, &tmpMat2);
+        T3DMat4 tmp;
+        t3d_mat4_from_srt(&tmp, bone->scale.v, bone->rotation.v, bone->position.v);
+        t3d_mat4_mul(&bone->matrix, &skeleton->bones[boneDef->parentIdx].matrix, &tmp);
       } else {
-        t3d_mat4_mul(&bone->matrix, baseMatrix, &tmpMat);
+        t3d_mat4_from_srt(&bone->matrix, bone->scale.v, bone->rotation.v, bone->position.v);
       }
 
       t3d_mat4_to_fixed(&skeleton->boneMatricesFP[i], &bone->matrix);
