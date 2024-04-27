@@ -14,6 +14,11 @@ Features include:
 - Matrix stack and functions
 - Lighting with ambient and directional lighting
 - Normals & Color at the same time with 16bytes per vertex
+- Skinned Meshes & Animation support 
+    - fake-blending with 1 bone per vertex / up to 3 bones per triangle
+    - animation blending
+    - (compressed) animation streaming from ROM
+    - attachment of non-skeletal targets (e.g. camera)
 - GLTF importer with Fast64 support
     - Vertex cache optimization
     - Automatic texture loading
