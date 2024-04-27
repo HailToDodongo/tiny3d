@@ -55,9 +55,16 @@ void convertVertex(
   //auto posInt = mat * v.pos * modelScale;
   auto posInt = v.pos;
 
+  Vec3 norm = v.norm;
   if(v.boneIndex >= 0) {
+    // pre-transform position into bone space
     auto boneMat = matrices[v.boneIndex];
     posInt = boneMat * (posInt);
+
+    // also transform normals
+    auto normMat = boneMat;
+    normMat[3] = Vec4{0.0f, 0.0f, 0.0f, 1.0f};
+    norm = (normMat * norm).normalize();
   }
 
   posInt = mat * posInt * modelScale;
@@ -66,7 +73,7 @@ void convertVertex(
   vT3D.pos[1] = (int16_t)posInt.y();
   vT3D.pos[2] = (int16_t)posInt.z();
 
-  auto normPacked = (v.norm * Vec3{15.5f, 31.5f, 15.5f})
+  auto normPacked = (norm * Vec3{15.5f, 31.5f, 15.5f})
     .round()
     .clamp(
       Vec3{-16.0f, -32.0f, -16.0f},

@@ -54,6 +54,13 @@ inline static float t3d_lerp(float a, float b, float t) {
   return a + (b - a) * t;
 }
 
+/// @brief Interpolates between two angles (radians) by 't'
+inline static float t3d_lerp_angle(float a, float b, float t) {
+  float angleDiff = fmodf((b - a), M_PI*2);
+  float shortDist = fmodf(angleDiff*2, M_PI*2) - angleDiff;
+  return a + shortDist * t;
+}
+
 /// @brief Sets 'res' to 'a + b'
 inline static void t3d_vec3_add(T3DVec3 *res, const T3DVec3 *a, const T3DVec3 *b) {
   res->v[0] = a->v[0] + b->v[0];
