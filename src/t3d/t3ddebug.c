@@ -51,7 +51,7 @@ void t3d_debug_printf(float x, float y, const char *fmt, ...) {
   char buffer[128];
   va_list args;
   va_start(args, fmt);
-  vsnprintf(buffer, 256, fmt, args);
+  vsnprintf(buffer, 128, fmt, args);
   va_end(args);
   t3d_debug_print(x, y, buffer);
 }
