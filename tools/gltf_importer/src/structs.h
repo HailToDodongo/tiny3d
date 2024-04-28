@@ -124,6 +124,8 @@ struct Material {
   uint32_t uuid{};
   uint8_t alphaMode{};
   uint8_t fogMode{};
+  uint8_t primColor[4]{};
+  bool setPrimColor{false};
 };
 
 struct MeshChunk {

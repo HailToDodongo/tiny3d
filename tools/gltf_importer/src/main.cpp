@@ -170,7 +170,10 @@ int main(int argc, char* argv[])
 
       f->write(material.alphaMode);
       f->write(material.fogMode);
-      f->skip(2); // reserved/padding
+      f->write<uint8_t>(material.setPrimColor);
+      f->skip(1); // reserved/padding
+
+      f->writeArray(material.primColor, 4);
 
       f->write(material.texReference);
 

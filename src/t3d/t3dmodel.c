@@ -175,6 +175,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
   uint8_t lastAlphaMode = 0xFF;
   uint32_t lastRenderFlags = 0;
   uint64_t lastCC = 0;
+  color_t lastPrimColor = (color_t){0,0,0,0};
   bool hadMatrixPush = false;
 
   for(uint32_t c = 0; c < model->chunkCount; c++) {
@@ -292,6 +293,14 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
           }
 
           lastAlphaMode = matMain->alphaMode;
+        }
+      }
+
+      // Apply primary color if needed, no sync needed here
+      if(matMain->setPrimColor) {
+        if(color_to_packed32(lastPrimColor) != color_to_packed32(matMain->primColor)) {
+          rdpq_set_prim_color(matMain->primColor);
+          lastPrimColor = matMain->primColor;
         }
       }
 

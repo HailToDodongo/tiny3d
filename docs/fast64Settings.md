@@ -8,7 +8,9 @@ Here is a full list of all settings currently supported:
 
 - Combiner
   - Color-Combiner
+  - Draw Layer
 - Sources
+  - Primitive Color (color & flag to use it or not) 
   - Use Texture-Reference
   - Texture Reference
   - Texture Size 
@@ -37,4 +39,5 @@ The address you can set has no meaning in t3d, it will be used as a arbitrary va
 For a full example making use of this, see `06_offscreen`.
 
 The "Render Mode" will map to one of the abstract "alpha modes" in t3d (Opaque, Cutout, Transparent).<br>
-Other settings usually contained in the render mode can be set as usual with te RDPQ API on top.
+Other settings usually contained in the render mode can be set as usual with te RDPQ API on top.<br>
+If no value was set in the "Lower" tab, the "Draw Layer" is used instead.

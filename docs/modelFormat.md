@@ -68,20 +68,22 @@ Directly mapped to the struct `T3DMaterial`.
 Objects can have two materials assigned (with two textures),
 only the first materials CC and draw flags are used.
 
-| Offset | Type                 | Description                   |
-|--------|----------------------|-------------------------------|
-| 0x00   | `u64`                | Color-Combiner                |
-| 0x08   | `u32`                | T3D Draw flags                |
-| 0x0C   | `u8 (AlphaMode)`     | Alpha mode                    |
-| 0x0D   | `u8 (FogMode)`       | Fog mode                      |
-| 0x0E   | `u8[2]`              | _reserved_                    |
-| 0x10   | `u32`                | Texture reference (offscreen) |
-| 0x14   | `u32`                | Texture path offset           |
-| 0x18   | `u32`                | Texture hash / ID             |
-| 0x1C   | `u32`                | Runtime texture pointer (`0`) |
-| 0x20   | `u16`                | Texture width                 |
-| 0x22   | `u16`                | Texture height                |
-| 0x24   | `T3DMaterialAxis[2]` | Setting per UV axis           |
+| Offset | Type                 | Description                     |
+|--------|----------------------|---------------------------------|
+| 0x00   | `u64`                | Color-Combiner                  |
+| 0x08   | `u32`                | T3D Draw flags                  |
+| 0x0C   | `u8 (AlphaMode)`     | Alpha mode                      |
+| 0x0D   | `u8 (FogMode)`       | Fog mode                        |
+| 0x0E   | `u8`                 | Source flags (1=use prim-color) |
+| 0x0F   | `u8`                 | _reserved_                      |
+| 0x10   | `u8[4]`              | Prim-Color (zero if unused)     |
+| 0x14   | `u32`                | Texture reference (offscreen)   |
+| 0x18   | `u32`                | Texture path offset             |
+| 0x1C   | `u32`                | Texture hash / ID               |
+| 0x20   | `u32`                | Runtime texture pointer (`0`)   |
+| 0x24   | `u16`                | Texture width                   |
+| 0x26   | `u16`                | Texture height                  |
+| 0x28   | `T3DMaterialAxis[2]` | Setting per UV axis             |
 
 #### `T3DMaterialAxis`
 
