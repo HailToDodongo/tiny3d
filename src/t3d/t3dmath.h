@@ -14,6 +14,7 @@ extern "C"
 
 #define T3D_DEG_TO_RAD(deg) (deg * 0.01745329252f)
 #define T3D_F32_TO_FIXED(val) (int32_t)((val) * (float)(1<<16))
+#define T3D_PI 3.14159265358979f
 
 // 3D float vector
 typedef struct {
@@ -56,8 +57,8 @@ inline static float t3d_lerp(float a, float b, float t) {
 
 /// @brief Interpolates between two angles (radians) by 't'
 inline static float t3d_lerp_angle(float a, float b, float t) {
-  float angleDiff = fmodf((b - a), M_PI*2);
-  float shortDist = fmodf(angleDiff*2, M_PI*2) - angleDiff;
+  float angleDiff = fmodf((b - a), T3D_PI*2);
+  float shortDist = fmodf(angleDiff*2, T3D_PI*2) - angleDiff;
   return a + shortDist * t;
 }
 
