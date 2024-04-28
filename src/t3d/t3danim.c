@@ -58,7 +58,7 @@ void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
 
   uint32_t idxQuat = 0;
   uint32_t idxScalar = 0;
-  for(int i = 0; i < channelCount; i++)
+  for(uint32_t i = 0; i < channelCount; i++)
   {
     T3DAnimChannelMapping *channelMap = &anim->animRef->channelMappings[i];
     T3DBone *bone = &skeleton->bones[channelMap->targetIdx];
@@ -183,7 +183,7 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
   }
 
   uint32_t channelCount = anim->animRef->channelsScalar + anim->animRef->channelsQuat;
-  for(int c=0; c<channelCount; c++)
+  for(uint32_t c=0; c<channelCount; c++)
   {
     bool isRot = c < anim->animRef->channelsQuat;
     T3DAnimTargetBase *target = get_base_target(anim, c, isRot);

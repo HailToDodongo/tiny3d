@@ -19,7 +19,7 @@ static uint32_t textureCacheSize = 0;
 static T3DTextureEntry *textureCache = NULL;
 
 static sprite_t* texture_cache_get(uint32_t hash) {
-  for(int i = 0; i < textureCacheSize; i++) {
+  for(uint32_t i = 0; i < textureCacheSize; i++) {
     if(textureCache[i].hash == hash) {
       textureCache[i].count++;
       return textureCache[i].texture;
@@ -30,7 +30,7 @@ static sprite_t* texture_cache_get(uint32_t hash) {
 
 static void texture_cache_add(uint32_t hash, sprite_t *texture) {
   T3DTextureEntry *cacheEntry = NULL;
-  for(int i = 0; i < textureCacheSize; i++) {
+  for(uint32_t i = 0; i < textureCacheSize; i++) {
     if(textureCache[i].hash == 0) {
       cacheEntry = &textureCache[i];
       break;
@@ -54,7 +54,7 @@ static void texture_cache_add(uint32_t hash, sprite_t *texture) {
 
 static void texture_cache_free(uint32_t hash)
 {
-  for(int i = 0; i < textureCacheSize; i++) {
+  for(uint32_t i = 0; i < textureCacheSize; i++) {
     if(textureCache[i].hash == hash) {
       textureCache[i].count--;
       //debugf("Free Texture: %08lX, count=%ld\n", hash, textureCache[i].count);
@@ -111,26 +111,26 @@ T3DModel *t3d_model_load(const char *path) {
   T3DModel* model = asset_load(path, &size);
   int32_t ptrOffset = (int32_t)(void*)model;
 
-  void* basePtrVertices = (void*)model + (model->chunkOffsets[model->chunkIdxVertices].offset & 0xFFFFFF);
-  void* basePtrIndices = (void*)model + (model->chunkOffsets[model->chunkIdxIndices].offset & 0xFFFFFF);
+  void* basePtrVertices = (char*)model + (model->chunkOffsets[model->chunkIdxVertices].offset & 0xFFFFFF);
+  void* basePtrIndices = (char*)model + (model->chunkOffsets[model->chunkIdxIndices].offset & 0xFFFFFF);
   model->stringTablePtr = patch_pointer(model->stringTablePtr, ptrOffset);
 
-  for(int i = 0; i < model->chunkCount; i++)
+  for(uint32_t i = 0; i < model->chunkCount; i++)
   {
     char chunkType = model->chunkOffsets[i].type;
     uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
     //debugf("Chunk[%d] '%c': %lx\n", i, chunkType, offset);
 
     if(chunkType == 'O') {
-      T3DObject *obj = (void*)model + offset;
+      T3DObject *obj = (T3DObject*)((char*)model + offset);
       if(obj->name != NULL) {
         obj->name = patch_pointer(obj->name, (uint32_t)model->stringTablePtr);
       }
 
       uint32_t matIdxA = model->chunkIdxMaterials + (uint32_t)obj->materialA;
       uint32_t matIdxB = model->chunkIdxMaterials + (uint32_t)obj->materialB;
-      obj->materialA = (void*)model + (model->chunkOffsets[matIdxA].offset & 0xFFFFFF);
-      obj->materialB = (void*)model + (model->chunkOffsets[matIdxB].offset & 0xFFFFFF);
+      obj->materialA = (T3DMaterial*)((char*)model + (model->chunkOffsets[matIdxA].offset & 0xFFFFFF));
+      obj->materialB = (T3DMaterial*)((char*)model + (model->chunkOffsets[matIdxB].offset & 0xFFFFFF));
 
       if(obj->materialA->texPath) {
         obj->materialA->texPath += (uint32_t)model->stringTablePtr;
@@ -139,7 +139,7 @@ T3DModel *t3d_model_load(const char *path) {
         obj->materialB->texPath += (uint32_t)model->stringTablePtr;
       }
 
-      for(int j = 0; j < obj->numParts; j++) {
+      for(uint32_t j = 0; j < obj->numParts; j++) {
         T3DObjectPart *part = &obj->parts[j];
         part->indices = patch_pointer(part->indices, (uint32_t)basePtrIndices);
         part->vert = patch_pointer(part->vert, (uint32_t)basePtrVertices);
@@ -147,7 +147,7 @@ T3DModel *t3d_model_load(const char *path) {
     }
 
     if(chunkType == 'S') {
-      T3DChunkSkeleton *skel = (void*)model + offset;
+      T3DChunkSkeleton *skel = (T3DChunkSkeleton*)((char*)model + offset);
       for(int j = 0; j < skel->boneCount; j++) {
         T3DChunkBone *bone = &skel->bones[j];
         bone->name = patch_pointer(bone->name, (uint32_t)model->stringTablePtr);
@@ -155,7 +155,7 @@ T3DModel *t3d_model_load(const char *path) {
     }
 
     if(chunkType == 'A') {
-      T3DChunkAnim *anim = (void*)model + offset;
+      T3DChunkAnim *anim = (T3DChunkAnim*)((char*)model + offset);
       anim->name = patch_pointer(anim->name, (uint32_t)model->stringTablePtr);
       anim->filePath = patch_pointer(anim->filePath, (uint32_t)model->stringTablePtr);
     }
@@ -177,12 +177,12 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
   uint64_t lastCC = 0;
   bool hadMatrixPush = false;
 
-  for(int c = 0; c < model->chunkCount; c++) {
+  for(uint32_t c = 0; c < model->chunkCount; c++) {
     char chunkType = model->chunkOffsets[c].type;
     if(chunkType != 'O')break;
 
     uint32_t offset = model->chunkOffsets[c].offset & 0x00FFFFFF;
-    const T3DObject *obj = (void*)model + offset;
+    const T3DObject *obj = (T3DObject*)((char*)model + offset);
 
     // check a user-provided object filter
     if(conf.filterCb && !conf.filterCb(conf.userData, obj)) {
@@ -208,7 +208,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
     }
 
     bool hadMaterial = false;
-    for (int p = 0; p < obj->numParts; p++)
+    for(uint32_t p = 0; p < obj->numParts; p++)
     {
       const T3DObjectPart *part = &obj->parts[p];
 
@@ -315,10 +315,10 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
 }
 
 void t3d_model_free(T3DModel *model) {
-  for(int c = 0; c < model->chunkCount; c++) {
+  for(uint32_t c = 0; c < model->chunkCount; c++) {
     char chunkType = model->chunkOffsets[c].type;
     if(chunkType != 'M')break;
-    T3DMaterial *mat = (void*)model + (model->chunkOffsets[c].offset & 0x00FFFFFF);
+    T3DMaterial *mat = (T3DMaterial*)((char*)model + (model->chunkOffsets[c].offset & 0x00FFFFFF));
     if(mat->texture) {
       texture_cache_free(mat->textureHash);
     }
@@ -327,7 +327,7 @@ void t3d_model_free(T3DModel *model) {
 }
 
 T3DChunkAnim *t3d_model_get_animation(const T3DModel *model, const char *name) {
-  for(int i = 0; i < model->chunkCount; i++) {
+  for(uint32_t i = 0; i < model->chunkCount; i++) {
     if(model->chunkOffsets[i].type == 'A') {
       uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
       T3DChunkAnim *anim = (T3DChunkAnim*)((char*)model + offset);
@@ -339,7 +339,7 @@ T3DChunkAnim *t3d_model_get_animation(const T3DModel *model, const char *name) {
 
 void t3d_model_get_animations(const T3DModel *model, T3DChunkAnim **anims) {
   uint32_t count = 0;
-  for(int i = 0; i < model->chunkCount; i++) {
+  for(uint32_t i = 0; i < model->chunkCount; i++) {
     if(model->chunkOffsets[i].type == 'A') {
       uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
       anims[count++] = (T3DChunkAnim*)((char*)model + offset);

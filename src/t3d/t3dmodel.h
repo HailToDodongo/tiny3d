@@ -201,7 +201,7 @@ static inline T3DVertPacked* t3d_model_get_vertices(const T3DModel *model) {
  * @return pointer to the skeleton or NULL if not found
  */
 static inline const T3DChunkSkeleton* t3d_model_get_skeleton(const T3DModel *model) {
-  for(int i = 0; i < model->chunkCount; i++) {
+  for(uint32_t i = 0; i < model->chunkCount; i++) {
     if(model->chunkOffsets[i].type == 'S') {
       uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
       return (T3DChunkSkeleton*)((char*)model + offset);
@@ -217,7 +217,7 @@ static inline const T3DChunkSkeleton* t3d_model_get_skeleton(const T3DModel *mod
  */
 static inline uint32_t t3d_model_get_animation_count(const T3DModel *model) {
   uint32_t count = 0;
-  for(int i = 0; i < model->chunkCount; i++) {
+  for(uint32_t i = 0; i < model->chunkCount; i++) {
     if(model->chunkOffsets[i].type == 'A')count++;
   }
   return count;

@@ -357,10 +357,10 @@ inline static float t3d_mat4fp_get_float(const T3DMat4FP *mat, uint32_t y, uint3
 inline static void t3d_mat4fp_identity(T3DMat4FP *mat)
 {
   *mat = (T3DMat4FP){{
-    {{1, 0, 0, 0}},
-    {{0, 1, 0, 0}},
-    {{0, 0, 1, 0}},
-    {{0, 0, 0, 1}},
+    {{1, 0, 0, 0}, {0, 0, 0, 0}},
+    {{0, 1, 0, 0}, {0, 0, 0, 0}},
+    {{0, 0, 1, 0}, {0, 0, 0, 0}},
+    {{0, 0, 0, 1}, {0, 0, 0, 0}},
   }};
 }
 /**
