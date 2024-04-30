@@ -158,11 +158,23 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
     if(f3dData.contains("set_prim")) {
       model.materialA.setPrimColor = f3dData["set_prim"].get<uint32_t>() != 0;
 
-      auto &primColor = f3dData["prim_color"];
-      model.materialA.primColor[0] = (uint8_t)(primColor[0].get<float>() * 255.0f);
-      model.materialA.primColor[1] = (uint8_t)(primColor[1].get<float>() * 255.0f);
-      model.materialA.primColor[2] = (uint8_t)(primColor[2].get<float>() * 255.0f);
-      model.materialA.primColor[3] = (uint8_t)(primColor[3].get<float>() * 255.0f);
+      auto &primColorNode = f3dData["prim_color"];
+      float primColor[4] = {
+        primColorNode[0].get<float>(),
+        primColorNode[1].get<float>(),
+        primColorNode[2].get<float>(),
+        primColorNode[3].get<float>()
+      };
+
+      // linear to gamma
+      for(int c=0; c<3; ++c) {
+        primColor[c] = powf(primColor[c], 0.4545f);
+      }
+
+      model.materialA.primColor[0] = (uint8_t)(primColor[0] * 255.0f);
+      model.materialA.primColor[1] = (uint8_t)(primColor[1] * 255.0f);
+      model.materialA.primColor[2] = (uint8_t)(primColor[2] * 255.0f);
+      model.materialA.primColor[3] = (uint8_t)(primColor[3] * 255.0f);
     }
 
     if(f3dData.contains("rdp_settings"))
