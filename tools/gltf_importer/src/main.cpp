@@ -58,6 +58,7 @@ namespace {
 
   std::string getStreamDataPath(const char* filePath, uint32_t idx) {
     auto sdataPath = std::string(filePath).substr(0, std::string(filePath).size()-5);
+    std::replace(sdataPath.begin(), sdataPath.end(), '\\', '/');
     return sdataPath + "." + std::to_string(idx) + ".sdata";
   }
 }
@@ -180,6 +181,7 @@ int main(int argc, char* argv[])
       std::string texPath = "";
       if(!material.texPath.empty()) {
         texPath = fs::relative(material.texPath, std::filesystem::current_path()).string();
+        std::replace(texPath.begin(), texPath.end(), '\\', '/');
 
         if(texPath.find("assets/") == 0) {
           texPath.replace(0, 7, "rom:/");
