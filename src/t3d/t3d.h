@@ -70,6 +70,9 @@ typedef struct {
   T3DMat4 matCamera; // view matrix, can be set via `t3d_viewport_look_at`
   T3DMat4 matProj;   // projection matrix, can be set via `t3d_viewport_set_projection`
 
+  T3DMat4 matCamProj; // combined view-projection matrix, calculated automatically on demand
+  bool _isCamProjDirty; // flag to indicate if the combined matrix needs to be recalculated
+
   int32_t offset[2];  // screen offset in pixel, [0,0] by default
   int32_t size[2];    // screen size in pixel, same as the allocated framebuffer size by default
   int guardBandScale; // guard band for clipping, 2 by default
@@ -118,6 +121,7 @@ void t3d_screen_clear_depth();
  */
 inline static T3DViewport t3d_viewport_create() {
   return (T3DViewport){
+    ._isCamProjDirty = true,
     .offset = {0, 0},
     .size = {(int32_t)display_get_width(), (int32_t)display_get_height()},
     .guardBandScale = 2,
@@ -184,6 +188,16 @@ inline static void t3d_viewport_set_w_normalize(T3DViewport *viewport, float nea
  * @param up camera up vector, expected to be {0,1,0} by default
  */
 void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVec3 *target, const T3DVec3 *up);
+
+/**
+ * Calculates the view-space position of a given world-space position.
+ * This will also handle offset viewports (e.g. for splitscreens)
+ *
+ * @param viewport viewport to calculate for
+ * @param out output screen-space vector
+ * @param pos input world-space position
+ */
+void t3d_viewport_calc_viewspace_pos(T3DViewport *viewport, T3DVec3 *out, const T3DVec3 *pos);
 
 /**
  * @brief Draws a single triangle, referencing loaded vertices

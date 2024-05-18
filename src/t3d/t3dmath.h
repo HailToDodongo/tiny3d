@@ -21,6 +21,10 @@ typedef struct {
   float v[3];
 } T3DVec3;
 
+typedef struct {
+  float v[4];
+} T3DVec4;
+
 // float quaternion, stored as XYZW
 typedef struct {
   float v[4];
@@ -453,6 +457,23 @@ inline static void t3d_mat3_mul_vec3(T3DVec3* vecOut, const T3DMat4 *mat, const 
     vecOut->v[i] = mat->m[0][i] * vec->v[0] +
                    mat->m[1][i] * vec->v[1] +
                    mat->m[2][i] * vec->v[2];
+  }
+}
+
+/**
+ * Multiplies a 4x4 matrix with a 3D vector.
+ * The W component of the vector is assumed to be 1.
+ * @param vecOut result
+ * @param mat matrix
+ * @param vec input-vector
+ */
+inline static void t3d_mat4_mul_vec3(T3DVec4* vecOut, const T3DMat4 *mat, const T3DVec3* vec)
+{
+  for(uint32_t i=0; i<4; i++) {
+    vecOut->v[i] = mat->m[0][i] * vec->v[0] +
+                   mat->m[1][i] * vec->v[1] +
+                   mat->m[2][i] * vec->v[2] +
+                   mat->m[3][i];
   }
 }
 

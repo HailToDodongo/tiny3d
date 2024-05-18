@@ -300,9 +300,41 @@ void t3d_viewport_set_projection(T3DViewport *viewport, float fov, float near, f
   float aspectRatio = (float)viewport->size[0] / (float)viewport->size[1];
   t3d_viewport_set_w_normalize(viewport, near, far);
   t3d_mat4_perspective(&viewport->matProj, fov, aspectRatio, near, far);
+  viewport->_isCamProjDirty = true;
 }
 
 void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVec3 *target, const T3DVec3 *up) {
   t3d_mat4_look_at(&viewport->matCamera, eye, target, up);
+  viewport->_isCamProjDirty = true;
+}
+
+void t3d_viewport_calc_viewspace_pos(T3DViewport *viewport, T3DVec3 *out, const T3DVec3 *pos)
+{
+  T3DMat4 matVP;
+  T3DVec4 posScreen;
+
+  if(viewport->_isCamProjDirty) {
+    t3d_mat4_mul(&matVP, &viewport->matProj, &viewport->matCamera);
+    viewport->_isCamProjDirty = false;
+  }
+
+  t3d_mat4_mul_vec3(&posScreen, &matVP, pos);
+
+  if(posScreen.v[3] == 0) {
+    return; // invalid matrix, just ignore for now
+  }
+
+  out->v[0] = posScreen.v[0] / posScreen.v[3];
+  out->v[1] = posScreen.v[1] / posScreen.v[3];
+  out->v[2] = posScreen.v[2] / posScreen.v[3];
+
+  out->v[0] *= viewport->size[0] / 2;
+  out->v[1] *= -viewport->size[1] / 2;
+
+  out->v[0] += viewport->size[0] / 2;
+  out->v[1] += viewport->size[1] / 2;
+
+  out->v[0] += viewport->offset[0];
+  out->v[1] += viewport->offset[1];
 }
 
