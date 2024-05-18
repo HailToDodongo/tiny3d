@@ -4,7 +4,7 @@ T3D_INST=$(shell realpath ../..)
 include $(N64_INST)/include/n64.mk
 include $(T3D_INST)/t3d.mk
 
-N64_CFLAGS += -std=gnu2x -Og -g
+N64_CFLAGS += -std=gnu2x
 
 PROJECT_NAME=t3d_04_dynamic
 

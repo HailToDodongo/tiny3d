@@ -73,7 +73,7 @@ void t3d_mat4_perspective(T3DMat4 *mat, float fov, float aspect, float near, flo
   mat->m[3][2] = -2.0f * (far * near) / (far - near);
 }
 
-void t3d_mat4_from_srt(T3DMat4 *mat, float scale[3], float quat[4], float translate[3])
+void t3d_mat4_from_srt(T3DMat4 *mat, const float scale[3], const  float quat[4], const  float translate[3])
 {
   float qxx = quat[0] * quat[0];
   float qyy = quat[1] * quat[1];
@@ -94,7 +94,7 @@ void t3d_mat4_from_srt(T3DMat4 *mat, float scale[3], float quat[4], float transl
   t3d_mat4_scale(mat, scale[0], scale[1], scale[2]);
 }
 
-void t3d_mat4_from_srt_euler(T3DMat4 *mat, float scale[3], float rot[3], float translate[3])
+void t3d_mat4_from_srt_euler(T3DMat4 *mat, const float scale[3], const float rot[3], const float translate[3])
 {
   float cosR0 = fm_cosf(rot[0]);
   float cosR2 = fm_cosf(rot[2]);
@@ -112,13 +112,13 @@ void t3d_mat4_from_srt_euler(T3DMat4 *mat, float scale[3], float rot[3], float t
   }};
 }
 
-void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, float scale[3], float rot[3], float translate[3]) {
+void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, const float scale[3], const float rot[3], const float translate[3]) {
   T3DMat4 matF; // @TODO: avoid temp matrix
   t3d_mat4_from_srt_euler(&matF, scale, rot, translate);
   t3d_mat4_to_fixed(mat, &matF);
 }
 
-void t3d_mat4fp_from_srt(T3DMat4FP *mat, float scale[3], float rotQuat[4], float translate[3]) {
+void t3d_mat4fp_from_srt(T3DMat4FP *mat, const float scale[3], const float rotQuat[4], const float translate[3]) {
   T3DMat4 matF; // @TODO: avoid temp matrix
   t3d_mat4_from_srt(&matF, scale, rotQuat, translate);
   t3d_mat4_to_fixed(mat, &matF);

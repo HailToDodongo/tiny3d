@@ -84,10 +84,27 @@ inline static void t3d_vec3_diff(T3DVec3 *res, const T3DVec3 *a, const T3DVec3 *
 }
 
 /// @brief Returns the squared length of 'v'
-inline static float t3d_vec3_len2(T3DVec3 *vec) {
+inline static float t3d_vec3_len2(const T3DVec3 *vec) {
   return vec->v[0] * vec->v[0]
        + vec->v[1] * vec->v[1]
        + vec->v[2] * vec->v[2];
+}
+
+/// @brief Returns the length of 'v'
+inline static float t3d_vec3_len(const T3DVec3 *vec) {
+  return sqrtf(t3d_vec3_len2(vec));
+}
+
+/// @brief Returns the squared distance between 'vecA' and 'vecB'
+inline static float t3d_vec3_distance2(const T3DVec3 *vecA, const T3DVec3 *vecB) {
+  T3DVec3 diff;
+  t3d_vec3_diff(&diff, vecA, vecB);
+  return t3d_vec3_len2(&diff);
+}
+
+/// @brief Returns the distance between 'vecA' and 'vecB'
+inline static float t3d_vec3_distance(const T3DVec3 *vecA, const T3DVec3 *vecB) {
+  return sqrtf(t3d_vec3_distance2(vecA, vecB));
 }
 
 /// @brief Normalizes 'res', this does NOT check for a zero-length vector
@@ -133,7 +150,7 @@ inline static void t3d_quat_identity(T3DQuat *quat) {
  * @param y
  * @param z
  */
-inline static void t3d_quat_from_euler(T3DQuat *quat, float rotEuler[3])
+inline static void t3d_quat_from_euler(T3DQuat *quat, const float rotEuler[3])
 {
   float c1 = fm_cosf(rotEuler[0] / 2.0f);
   float s1 = fm_sinf(rotEuler[0] / 2.0f);
@@ -296,7 +313,7 @@ void t3d_mat4_rotate(T3DMat4 *mat, const T3DVec3* axis, float angleRad);
  * @param rot rotation quaternion
  * @param translate offsets
  */
-void t3d_mat4_from_srt(T3DMat4 *mat, float scale[3], float quat[4], float translate[3]);
+void t3d_mat4_from_srt(T3DMat4 *mat, const float scale[3], const float quat[4], const  float translate[3]);
 
 /**
  * Directly constructs a matrix from scale, rotation (euler) and translation
@@ -307,7 +324,7 @@ void t3d_mat4_from_srt(T3DMat4 *mat, float scale[3], float quat[4], float transl
  * @param rot
  * @param translate
  */
-void t3d_mat4_from_srt_euler(T3DMat4 *mat, float scale[3], float rot[3], float translate[3]);
+void t3d_mat4_from_srt_euler(T3DMat4 *mat, const float scale[3], const float rot[3], const float translate[3]);
 
 /**
  * Directly constructs a matrix from scale, rotation (euler) and translation
@@ -317,7 +334,7 @@ void t3d_mat4_from_srt_euler(T3DMat4 *mat, float scale[3], float rot[3], float t
  * @param rot
  * @param translate
  */
-void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, float scale[3], float rot[3], float translate[3]);
+void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, const float scale[3], const float rot[3], const float translate[3]);
 
 /**
  * Directly constructs a matrix from scale, rotation (quaternion) and translation
@@ -327,20 +344,32 @@ void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, float scale[3], float rot[3], flo
  * @param rot
  * @param translate
  */
-void t3d_mat4fp_from_srt(T3DMat4FP *mat, float scale[3], float rotQuat[4], float translate[3]);
+void t3d_mat4fp_from_srt(T3DMat4FP *mat, const float scale[3], const float rotQuat[4], const float translate[3]);
 
 /**
  * @brief Sets a value in a fixed-point matrix
  * @param mat matrix to be changed
- * @param y row
- * @param x column
+ * @param column
+ * @param row
  * @param val value to be set as a float
  */
-inline static void t3d_mat4fp_set_float(T3DMat4FP *mat, uint32_t y, uint32_t x, float val)
+inline static void t3d_mat4fp_set_float(T3DMat4FP *mat, uint32_t column, uint32_t row, float val)
 {
   int32_t fixed = T3D_F32_TO_FIXED(val);
-  mat->m[y].i[x] = (int16_t)(fixed >> 16);
-  mat->m[y].f[x] = fixed & 0xFFFF;
+  mat->m[column].i[row] = (int16_t)(fixed >> 16);
+  mat->m[column].f[row] = fixed & 0xFFFF;
+}
+
+/**
+ * Sets the position of a fixed-point matrix.
+ * Note: that this will just set the values without any further checks/calculations.
+ * @param mat matrix to be changed
+ * @param pos position as a float[3]
+ */
+inline static void t3d_mat4fp_set_pos(T3DMat4FP *mat, const float pos[3]) {
+  t3d_mat4fp_set_float(mat, 3, 0, pos[0]);
+  t3d_mat4fp_set_float(mat, 3, 1, pos[1]);
+  t3d_mat4fp_set_float(mat, 3, 2, pos[2]);
 }
 
 /**
