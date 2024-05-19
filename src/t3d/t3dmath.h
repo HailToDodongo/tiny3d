@@ -424,6 +424,18 @@ inline static void t3d_mat4_to_fixed(T3DMat4FP *matOut, const T3DMat4 *matIn)
 void t3d_mat4_perspective(T3DMat4 *mat, float fov, float aspect, float near, float far);
 
 /**
+ * Constructs an orthographic projection matrix
+ * @param mat result
+ * @param left
+ * @param right
+ * @param bottom
+ * @param top
+ * @param near near plane distance
+ * @param far far plane distance
+ */
+void t3d_mat4_ortho(T3DMat4 *mat, float left, float right, float bottom, float top, float near, float far);
+
+/**
  * @brief Creates a look-at matrix from an eye and target vector
  * @param mat destination matrix
  * @param eye camera position

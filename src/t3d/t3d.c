@@ -303,6 +303,12 @@ void t3d_viewport_set_projection(T3DViewport *viewport, float fov, float near, f
   viewport->_isCamProjDirty = true;
 }
 
+void t3d_viewport_set_ortho(T3DViewport *viewport, float left, float right, float bottom, float top, float near, float far) {
+  t3d_viewport_set_w_normalize(viewport, near, far);
+  t3d_mat4_ortho(&viewport->matProj, left, right, bottom, top, near, far);
+  viewport->_isCamProjDirty = true;
+}
+
 void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVec3 *target, const T3DVec3 *up) {
   t3d_mat4_look_at(&viewport->matCamera, eye, target, up);
   viewport->_isCamProjDirty = true;

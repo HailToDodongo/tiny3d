@@ -167,6 +167,19 @@ inline static void t3d_viewport_set_area(T3DViewport *viewport, int32_t x, int32
 void t3d_viewport_set_projection(T3DViewport *viewport, float fov, float near, float far);
 
 /**
+ * Sets an orthographic projection matrix for the given viewport.
+ * The matrix gets auto. applied at the next `t3d_viewport_attach` call.
+ * @param viewport
+ * @param left
+ * @param right
+ * @param bottom
+ * @param top
+ * @param near near plane distance
+ * @param far far plane distance (should be >=40 to avoid depth-precision issues)
+ */
+void t3d_viewport_set_ortho(T3DViewport *viewport, float left, float right, float bottom, float top, float near, float far);
+
+/**
  * Sets the normalization factor for W in the ucode.
  * NOTE: this gets called automatically by `t3d_viewport_set_projection`.
  * You only need to call this if you want to provide your own projection matrix.

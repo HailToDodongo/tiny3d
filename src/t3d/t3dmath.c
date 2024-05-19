@@ -73,6 +73,17 @@ void t3d_mat4_perspective(T3DMat4 *mat, float fov, float aspect, float near, flo
   mat->m[3][2] = -2.0f * (far * near) / (far - near);
 }
 
+void t3d_mat4_ortho(T3DMat4 *mat, float left, float right, float bottom, float top, float near, float far) {
+  *mat = (T3DMat4){0};
+  mat->m[0][0] = 2.0f / (right - left);
+  mat->m[1][1] = 2.0f / (top - bottom);
+  mat->m[2][2] = -2.0f / (far - near);
+  mat->m[3][0] = -(right + left) / (right - left);
+  mat->m[3][1] = -(top + bottom) / (top - bottom);
+  mat->m[3][2] = -(far + near) / (far - near);
+  mat->m[3][3] = 1.0f;
+}
+
 void t3d_mat4_from_srt(T3DMat4 *mat, const float scale[3], const  float quat[4], const  float translate[3])
 {
   float qxx = quat[0] * quat[0];
@@ -84,7 +95,7 @@ void t3d_mat4_from_srt(T3DMat4 *mat, const float scale[3], const  float quat[4],
   float qwx = quat[3] * quat[0];
   float qwy = quat[3] * quat[1];
   float qwz = quat[3] * quat[2];
-  
+
   *mat = (T3DMat4){{
     {1.0f - 2.0f * (qyy + qzz),        2.0f * (qxy + qwz),        2.0f * (qxz - qwy), 0.0f},
     {       2.0f * (qxy - qwz), 1.0f - 2.0f * (qxx + qzz),        2.0f * (qyz + qwx), 0.0f},
