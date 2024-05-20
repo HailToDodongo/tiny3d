@@ -73,6 +73,31 @@ void t3d_mat4_perspective(T3DMat4 *mat, float fov, float aspect, float near, flo
   mat->m[3][2] = -2.0f * (far * near) / (far - near);
 }
 
+void t3d_mat4_to_fixed(T3DMat4FP *matOut, const T3DMat4 *matIn) {
+  for(uint32_t y=0; y<4; ++y) {
+    // unrolling the inner loop here is faster, even though code size gets bigger (~1.8x)
+    uint32_t fixed0 = T3D_F32_TO_FIXED(matIn->m[y][0]);
+    uint32_t fixed1 = T3D_F32_TO_FIXED(matIn->m[y][1]);
+    uint32_t fixed2 = T3D_F32_TO_FIXED(matIn->m[y][2]);
+    uint32_t fixed3 = T3D_F32_TO_FIXED(matIn->m[y][3]);
+
+    // prepare 64bit values, this creates writes to memory later
+    uint64_t I = (fixed0 & 0xFFFF0000) | (fixed1 >> 16);
+    I <<= 32; // needs to be separate, otherwise -Os generates wrong code
+    I |= (fixed2 & 0xFFFF0000) | (fixed3 >> 16);
+
+    uint64_t F = (fixed0 << 16) | (fixed1 & 0xFFFF);
+    F <<= 32; // needs to be separate, otherwise -Os generates wrong code
+    F |= (fixed2 << 16) | (fixed3 & 0xFFFF);
+
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wstrict-aliasing"
+      *(uint64_t*)matOut->m[y].i = I; // guaranteed to be 64-bit aligned
+      *(uint64_t*)matOut->m[y].f = F;
+    #pragma GCC diagnostic pop
+  }
+}
+
 void t3d_mat4_ortho(T3DMat4 *mat, float left, float right, float bottom, float top, float near, float far) {
   *mat = (T3DMat4){0};
   mat->m[0][0] = 2.0f / (right - left);

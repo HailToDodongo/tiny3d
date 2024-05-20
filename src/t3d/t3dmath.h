@@ -402,16 +402,7 @@ inline static void t3d_mat4fp_identity(T3DMat4FP *mat)
  * @param matOut result
  * @param matIn input
  */
-inline static void t3d_mat4_to_fixed(T3DMat4FP *matOut, const T3DMat4 *matIn)
-{
-  for(uint32_t y=0; y<4; ++y) {
-    for(uint32_t x=0; x<4; ++x) {
-      int32_t fixed = T3D_F32_TO_FIXED(matIn->m[y][x]);
-      matOut->m[y].i[x] = (int16_t)(fixed >> 16);
-      matOut->m[y].f[x] = fixed & 0xFFFF;
-    }
-  }
-}
+void t3d_mat4_to_fixed(T3DMat4FP *matOut, const T3DMat4 *matIn);
 
 /**
  * Constructs a perspective projection matrix
