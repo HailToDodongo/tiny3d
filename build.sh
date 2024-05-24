@@ -1,6 +1,6 @@
 set -e
 
-if [ $1 = "clean" ] ; then
+if [ "$1" = "clean" ] ; then
   echo "Cleaning up..."
   make clean
   make -C tools/gltf_importer clean
