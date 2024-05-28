@@ -405,6 +405,15 @@ inline static void t3d_mat4fp_identity(T3DMat4FP *mat)
 void t3d_mat4_to_fixed(T3DMat4FP *matOut, const T3DMat4 *matIn);
 
 /**
+ * Converts a float 4x4 matrix to a fixed-point 4x4 matrix.
+ * The last row of the matrix is assumed to be {0,0,0,1}.
+ * This should be preferred over 't3d_mat4_to_fixed' when possible as it is faster.
+ * @param matOut result
+ * @param matIn input
+ */
+void t3d_mat4_to_fixed_3x4(T3DMat4FP *matOut, const T3DMat4 *matIn);
+
+/**
  * Constructs a perspective projection matrix
  * @param mat result
  * @param fov fov in radians

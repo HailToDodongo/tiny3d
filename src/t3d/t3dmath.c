@@ -81,7 +81,7 @@ void t3d_mat4_to_fixed(T3DMat4FP *matOut, const T3DMat4 *matIn) {
     uint32_t fixed2 = T3D_F32_TO_FIXED(matIn->m[y][2]);
     uint32_t fixed3 = T3D_F32_TO_FIXED(matIn->m[y][3]);
 
-    // prepare 64bit values, this creates writes to memory later
+    // prepare 64bit values, this creates less writes to memory later
     uint64_t I = (fixed0 & 0xFFFF0000) | (fixed1 >> 16);
     I <<= 32; // needs to be separate, otherwise -Os generates wrong code
     I |= (fixed2 & 0xFFFF0000) | (fixed3 >> 16);
@@ -89,6 +89,32 @@ void t3d_mat4_to_fixed(T3DMat4FP *matOut, const T3DMat4 *matIn) {
     uint64_t F = (fixed0 << 16) | (fixed1 & 0xFFFF);
     F <<= 32; // needs to be separate, otherwise -Os generates wrong code
     F |= (fixed2 << 16) | (fixed3 & 0xFFFF);
+
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wstrict-aliasing"
+      *(uint64_t*)matOut->m[y].i = I; // guaranteed to be 64-bit aligned
+      *(uint64_t*)matOut->m[y].f = F;
+    #pragma GCC diagnostic pop
+  }
+}
+
+void t3d_mat4_to_fixed_3x4(T3DMat4FP *matOut, const T3DMat4 *matIn) {
+  for(uint32_t y=0; y<4; ++y) {
+    uint32_t fixed0 = T3D_F32_TO_FIXED(matIn->m[y][0]);
+    uint32_t fixed1 = T3D_F32_TO_FIXED(matIn->m[y][1]);
+    uint32_t fixed2 = T3D_F32_TO_FIXED(matIn->m[y][2]);
+
+    // prepare 64bit values, this creates less writes to memory later
+    uint64_t I = (fixed0 & 0xFFFF0000) | (fixed1 >> 16);
+    I <<= 32; // needs to be separate, otherwise -Os generates wrong code
+    I |= (fixed2 & 0xFFFF0000);
+
+    // puts a '1' into the last value of the matrix (seems to be faster than 'I |= y > 2')
+    I |= (y+1) >> 2;
+
+    uint64_t F = (fixed0 << 16) | (fixed1 & 0xFFFF);
+    F <<= 32; // needs to be separate, otherwise -Os generates wrong code
+    F |= (fixed2 << 16);
 
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wstrict-aliasing"
@@ -149,15 +175,15 @@ void t3d_mat4_from_srt_euler(T3DMat4 *mat, const float scale[3], const float rot
 }
 
 void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, const float scale[3], const float rot[3], const float translate[3]) {
-  T3DMat4 matF; // @TODO: avoid temp matrix
+  T3DMat4 matF;
   t3d_mat4_from_srt_euler(&matF, scale, rot, translate);
-  t3d_mat4_to_fixed(mat, &matF);
+  t3d_mat4_to_fixed_3x4(mat, &matF);
 }
 
 void t3d_mat4fp_from_srt(T3DMat4FP *mat, const float scale[3], const float rotQuat[4], const float translate[3]) {
-  T3DMat4 matF; // @TODO: avoid temp matrix
+  T3DMat4 matF;
   t3d_mat4_from_srt(&matF, scale, rotQuat, translate);
-  t3d_mat4_to_fixed(mat, &matF);
+  t3d_mat4_to_fixed_3x4(mat, &matF);
 }
 
 void t3d_mat4_rotate(T3DMat4 *mat, const T3DVec3* axis, float angleRad)
