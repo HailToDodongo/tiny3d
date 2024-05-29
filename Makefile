@@ -65,6 +65,7 @@ run_examples:
 	$(EMU_PATH) examples/07_skeleton/*.z64
 	$(EMU_PATH) examples/08_animation/*.z64
 	$(EMU_PATH) examples/09_anim_viewer/*.z64
+	$(EMU_PATH) examples/10_flipbook_tex/*.z64
 	$(EMU_PATH) examples/99_testscene/*.z64
 
 clean:

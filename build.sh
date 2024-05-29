@@ -14,6 +14,7 @@ if [ "$1" = "clean" ] ; then
   make -C examples/07_skeleton clean
   make -C examples/08_animation clean
   make -C examples/09_anim_viewer clean
+  make -C examples/10_flipbook_tex clean
   make -C examples/99_testscene clean
 fi
 
@@ -37,6 +38,7 @@ make -C examples/06_offscreen -j4
 make -C examples/07_skeleton -j4
 make -C examples/08_animation -j4
 make -C examples/09_anim_viewer -j4
+make -C examples/10_flipbook_tex -j4
 make -C examples/99_testscene -j4
 
 echo "Build done!"
