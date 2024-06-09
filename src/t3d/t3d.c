@@ -5,7 +5,19 @@
 #include <t3d/t3d.h>
 #include "rsp/rsp_tiny3d.h"
 
+_Static_assert(RSP_T3D_TEMP_STATE_MEM_END == RSP_T3D_CLIP_TEMP_STATE_MEM_END, "Overlay data doesn't match!");
+_Static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_Async == RSP_T3D_CODE_CLIP_RDPQ_Triangle_Send_Async, "Overlay code doesn't match!");
+_Static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_End == RSP_T3D_CODE_CLIP_RDPQ_Triangle_Send_End, "Overlay code doesn't match!");
+_Static_assert(RSP_T3D_CODE_RSPQCmd_RdpAppendBuffer == RSP_T3D_CODE_CLIP_RSPQCmd_RdpAppendBuffer, "Overlay code doesn't match!");
+
+_Static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_Async < RSP_T3D_CODE_CLIPPING_CODE_TARGET, "Triangle functions must come before the clipping code!");
+_Static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_End < RSP_T3D_CODE_CLIPPING_CODE_TARGET, "Triangle functions must come before the clipping code!");
+_Static_assert(RSP_T3D_CODE_RSPQCmd_RdpAppendBuffer < RSP_T3D_CODE_CLIPPING_CODE_TARGET, "Triangle functions must come before the clipping code!");
+
+_Static_assert(RSP_T3D_CODE_CLIPPING_CODE_TARGET % 8 == 0, "Clipping code must be aligned to 8 bytes!");
+
 DEFINE_RSP_UCODE(rsp_tiny3d);
+DEFINE_RSP_UCODE(rsp_tiny3d_clipping);
 uint32_t T3D_RSP_ID = 0;
 
 #define MAX(a,b) (a) > (b) ? (a) : (b)
@@ -18,18 +30,47 @@ uint32_t T3D_RSP_ID = 0;
 static T3DViewport *currentViewport = NULL;
 static T3DMat4FP *matrixStack = NULL;
 
+static bool patch_ucode(rsp_ucode_t* ucode, uint32_t orgInstr, uint32_t newInstr) {
+  bool found = false;
+  for(uint32_t* inst = (uint32_t*)ucode->code; inst < (uint32_t*)ucode->code_end; inst++) {
+    if(*inst == orgInstr) {
+      found = true;
+      *inst = newInstr;
+    }
+  }
+  return found;
+}
+
 void t3d_init(T3DInitParams params)
 {
   if(params.matrixStackSize <= 0)params.matrixStackSize = 8;
 
   rspq_init();
   char* state = (char*)UncachedAddr(rspq_overlay_get_state(&rsp_tiny3d));
+  char* stateClipping = (char*)UncachedAddr(rspq_overlay_get_state(&rsp_tiny3d_clipping));
 
   // Allocate matrix stack and let the ucode know where it is
   matrixStack = malloc_uncached(sizeof(T3DMat4FP) * params.matrixStackSize);
 
   uint32_t *stackPtr = (uint32_t*)((char*)state + ((RSP_T3D_MATRIX_STACK_PTR - RSP_T3D_STATE_MEM_START) & 0xFFFF));
   *stackPtr = (uint32_t)UncachedAddr(matrixStack);
+
+  // set the address for the clipping ucode from the other overlay, and that of the main one.
+  // this is used to lazy-load a new section of IMEM if clipping is needed, and switch back afterward.
+  uint32_t *clipAddrPtr = (uint32_t*)((char*)state + ((RSP_T3D_CLIP_CODE_ADDR - RSP_T3D_STATE_MEM_START) & 0xFFFF));
+  uint16_t *clipSizePtr = (uint16_t*)((char*)state + ((RSP_T3D_CLIP_CODE_SIZE - RSP_T3D_STATE_MEM_START) & 0xFFFF));
+  clipAddrPtr[0] = (uint32_t)PhysicalAddr(rsp_tiny3d_clipping.code + (RSP_T3D_CODE_CLIP_clipTriangle & 0xFFF));
+  clipAddrPtr[1] = (uint32_t)PhysicalAddr(rsp_tiny3d.code + (RSP_T3D_CODE_CLIPPING_CODE_TARGET & 0xFFF));
+  *clipSizePtr = RSP_T3D_CODE_CLIP__text_end - RSP_T3D_CODE_CLIP_clipTriangle + 7;
+  int relocDiff = RSP_T3D_CODE_CLIPPING_CODE_TARGET - RSP_T3D_CODE_CLIP_clipTriangle;
+
+  // The clipping code contains a single absolute address for a register assignment, relocate that here:
+  // Instruction: "ori $sp, $zero, %lo(CLIP_AFTER_EMIT)" -> "0x341d****"
+  bool patchSuccess = patch_ucode(&rsp_tiny3d_clipping,
+    0x341D0000 | (RSP_T3D_CODE_CLIP_CLIP_AFTER_EMIT & 0xFFFF),
+    0x341D0000 | ((RSP_T3D_CODE_CLIP_CLIP_AFTER_EMIT & 0xFFFF) + relocDiff)
+  );
+  assert(patchSuccess);
 
   T3D_RSP_ID = rspq_overlay_register(&rsp_tiny3d);
 
