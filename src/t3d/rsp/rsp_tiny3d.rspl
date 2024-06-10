@@ -300,17 +300,19 @@ command<0> T3DCmd_TriDraw(u32 vert0, u32 vert1)
 command<12> T3DCmd_TriSync()
 {
   u8 clipLoaded = load(CLIP_CODE_ADDR);
-  if(clipLoaded) {
-    u32<$s4> targetImem = CLIPPING_CODE_TARGET;
-    u32<$s0> codeAddr = load(CLIP_CODE_ORG_ADDR);
-    u16<$t0> codeSize = load(CLIP_CODE_SIZE);
+  u32<$s4> targetImem = CLIPPING_CODE_TARGET; // (delay-slot filler)
 
-    //printf("main: %x, s:%x -> %x\n", codeAddr, codeSize, targetImem);
-    dma_in_async(targetImem, codeAddr, codeSize); // RDPQ_Triangle_Send_End waits for DMA
-  }
+  // no clipping happened, just sync the triangle
+  if(!clipLoaded)goto RDPQ_Triangle_Send_End;
+
+  u32<$s0> codeAddr = load(CLIP_CODE_ORG_ADDR);
+  u16<$t0> codeSize = load(CLIP_CODE_SIZE);
+
+  //printf("main: %x, s:%x -> %x\n", codeAddr, codeSize, targetImem);
+  dma_in_async(targetImem, codeAddr, codeSize); // RDPQ_Triangle_Send_End waits for DMA
 
   store(ZERO:u8, CLIP_CODE_ADDR); // mark as not loaded
-  RDPQ_Triangle_Send_End();
+  goto RDPQ_Triangle_Send_End;
 }
 
 /**
@@ -322,6 +324,7 @@ command<12> T3DCmd_TriSync()
  * @param rdramVerts RDRAM address to load vertices from
  * @param bufferSize 2 u16 DMEM addresses, MSBs set where to DMA the input to, LSBs set where to store the result
  */
+@Align(8)
 command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 {
   CLIPPING_CODE_TARGET: // marks the place where the clipping code can be loaded in to
