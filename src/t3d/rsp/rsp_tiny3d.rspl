@@ -311,6 +311,7 @@ command<12> T3DCmd_TriSync()
   //printf("main: %x, s:%x -> %x\n", codeAddr, codeSize, targetImem);
   dma_in_async(targetImem, codeAddr, codeSize); // RDPQ_Triangle_Send_End waits for DMA
 
+  RA = RSPQ_Loop;
   store(ZERO:u8, CLIP_CODE_ADDR); // mark as not loaded
   goto RDPQ_Triangle_Send_End;
 }
