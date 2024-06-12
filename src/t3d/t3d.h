@@ -20,7 +20,7 @@ enum T3DCmd {
   T3D_CMD_TRI_DRAW     = 0x0,
   T3D_CMD_SCREEN_SIZE  = 0x1,
   T3D_CMD_MATRIX_STACK = 0x2,
-  T3D_CMD_DEBUG_READ   = 0x3,
+  T3D_CMD_SET_WORD      = 0x3,
   T3D_CMD_VERT_LOAD    = 0x4,
   T3D_CMD_LIGHT_SET    = 0x5,
   T3D_CMD_DRAWFLAGS    = 0x6,
@@ -55,6 +55,17 @@ enum T3DDrawFlags {
   T3D_FLAG_SHADED     = 1 << 2,
   T3D_FLAG_CULL_FRONT = 1 << 3,
   T3D_FLAG_CULL_BACK  = 1 << 4,
+};
+
+// Segment addresses, some are used internally but can be set by the user too
+enum T3DSegment {
+  T3D_SEGMENT_1 = 1,
+  T3D_SEGMENT_2 = 2,
+  T3D_SEGMENT_3 = 3,
+  T3D_SEGMENT_4 = 4,
+  T3D_SEGMENT_5 = 5,
+  T3D_SEGMENT_6 = 6,
+  T3D_SEGMENT_SKELETON = 7,
 };
 
 /**
@@ -366,6 +377,40 @@ uint16_t t3d_vert_pack_normal(const T3DVec3 *normal);
  * @param drawFlags
  */
 void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags);
+
+/**
+ * Sets a new address in the segment table.
+ * This acts ase a base-address for addresses in matrices/vertices
+ * with a matching segment index.
+ * Segment 0 is reserved and always has a zero value.
+ * @param segmentId id (1-7)
+ * @param address base RDRAM address
+ */
+void t3d_segment_set(uint8_t segmentId, void* address);
+
+/**
+ * Creates a dummy address to be used for vertex/matrix loads.
+ * This will cause the address in the segment table to be used instead.
+ * If you need relative addressing instead, use 't3d_segment_address'
+ * @param segmentId id (1-7)
+ * @return segmented address
+ */
+static inline void* t3d_segment_placeholder(uint8_t segmentId) {
+  return (void*)(uint32_t)(segmentId << (8*3 + 2));
+}
+
+/**
+ * Converts an address into a segmented one.
+ * If used in a vertex/matrix load, it will cause the segment table to be used
+ * and the address in there to be added on top.
+ * To set entries in the segment table use 't3d_segment_set'.
+ * @param segmentId id (1-7)
+ * @param ptr pointer, can ber NULL for absolute addressing
+ * @return segmented address
+ */
+static inline void* t3d_segment_address(uint8_t segmentId, void* ptr) {
+  return (void*)(PhysicalAddr(ptr) | (segmentId << (8*3 + 2)));
+}
 
 // Vertex-buffer helpers:
 

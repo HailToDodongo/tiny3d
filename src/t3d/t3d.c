@@ -96,8 +96,10 @@ void t3d_screen_clear_depth() {
 }
 
 inline static void t3d_matrix_stack(void *mat, int32_t stackAdvance, bool doMultiply, bool onlyStackMove) {
+  uint32_t advanceMask = (uint32_t)(stackAdvance << 8) & 0x00FFFF00;
   rspq_write(T3D_RSP_ID, T3D_CMD_MATRIX_STACK,
-    PhysicalAddr(mat), (stackAdvance << 16) | (onlyStackMove ? 2 : 0) | (doMultiply ? 1 : 0)
+    advanceMask | (onlyStackMove ? 2 : 0) | (doMultiply ? 1 : 0),
+    PhysicalAddr(mat)
   );
 }
 
@@ -122,13 +124,6 @@ void t3d_matrix_push_pos(int count) {
 void t3d_matrix_set_proj(const T3DMat4FP *mat) {
   rspq_write(T3D_RSP_ID, T3D_CMD_PROJ_SET, PhysicalAddr(mat));
 }
-
-/*void t3d_debug_read(void *mat) {
-  rspq_write(T3D_RSP_ID, T3D_CMD_DEBUG_READ,
-    0,
-    PhysicalAddr(mat)
-  );
-}*/
 
 void t3d_vert_load(const T3DVertPacked *vertices, uint32_t offset, uint32_t count) {
   uint32_t inputSize = (count & ~1) * VERT_INPUT_SIZE; // always load in pairs of 2
@@ -241,6 +236,15 @@ void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags)
   uint32_t cmd = drawFlags | RDPQ_CMD_TRI;
   cmd = 0xC000 | (cmd << 8);
   rspq_write(T3D_RSP_ID, T3D_CMD_DRAWFLAGS, cullMask, cmd);
+}
+
+void t3d_segment_set(uint8_t segmentId, void *address) {
+  assert(segmentId >= 1 && segmentId <= 7);
+
+  rspq_write(T3D_RSP_ID, T3D_CMD_SET_WORD,
+     ((RSP_T3D_SEGMENT_TABLE & 0xFFF) + segmentId*sizeof(uint32_t)),
+     (uint32_t)PhysicalAddr(address)
+  );
 }
 
 void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
