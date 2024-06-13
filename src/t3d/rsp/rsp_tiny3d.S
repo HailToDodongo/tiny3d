@@ -209,9 +209,8 @@ T3DCmd_TriDraw:
   sh $ra, %lo(CLIP_RA)($zero)
 T3DCmd_TriSync:
   lbu $s7, %lo(CLIP_CODE_ADDR + 0)
-  ori $s4, $zero, %lo(CLIPPING_CODE_TARGET)
   beq $s7, $zero, RDPQ_Triangle_Send_End
-  nop
+  ori $s4, $zero, %lo(CLIPPING_CODE_TARGET)
   lhu $t0, %lo(CLIP_CODE_SIZE + 0)
   lw $s0, %lo(CLIP_CODE_ORG_ADDR + 0)
   or $t2, $zero, $zero

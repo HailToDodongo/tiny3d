@@ -229,6 +229,13 @@ macro loadCurrentNormalMat(vec16 mat0, vec16 mat1, vec16 mat2)
   mat2 = load(address, 0x10).xyzwxyzw;
 }
 
+// resolves a (potentially) segmented RDRAM address into a physical one
+macro resolveSegmentAddr(u32 addrOut, u32 addrIn) {
+  u32 segment = addrIn >> 24;
+  segment = load(segment, SEGMENT_TABLE);
+  addrOut = addrIn + segment;
+}
+
 #ifdef OVERLAY_CLIPPING
   #include "clipping.rspl"
 #else
@@ -340,7 +347,10 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
   u32<$t0> copySize = bufferSize & 0xFFFF;
   u32 ptr3dEnd = prt3d + copySize;
-  dma_in_async(prt3d, rdramVerts, copySize);
+
+  u32<$s0> dmaAddrRDRAM;
+  resolveSegmentAddr(dmaAddrRDRAM, rdramVerts);
+  dma_in_async(prt3d, dmaAddrRDRAM, copySize);
 
   vec32 mat0, mat1, mat2, mat3;
   loadCurrentModelProjMat(mat0, mat1, mat2, mat3);
@@ -693,12 +703,6 @@ function normalizeMatrixVector(u32<$s4> addrIn, u32<$t1> addrOut)
   addrOut += 0x8;
 }
 
-macro resolveSegmentAddr(u32 addr) {
-  u32 segment = addr >> 24;
-  segment = load(segment, SEGMENT_TABLE);
-  addr += segment;
-}
-
 /**
  * Manages the matrix stack, implements 'push'/'pop' as well as 'set'.
  * The actual stack itself is held in RDRAM, only the current matrix is in DMEM.
@@ -726,7 +730,7 @@ command<2> T3DCmd_MatrixStack(s32 stackAdvance, u32 addressMat)
   // only move the stack pointer, can be used to prepare following matrix_set calls
   if(onlyStackMove)exit;
   dmaDest = MATRIX_TEMP_MV; // load new matrix
-  resolveSegmentAddr(addressMat);
+  resolveSegmentAddr(addressMat, addressMat);
 
   // stackAdvance less than zero -> matrix pop, load matrix from stack
   if(stackAdvance < 0)addressMat = stackPtr;
