@@ -223,13 +223,15 @@ T3DCmd_TriSync:
 .align 3
 T3DCmd_VertLoad:
   CLIPPING_CODE_TARGET:
-  andi $t0, $a0, 65535
   srl $s4, $a2, 16
-  or $s0, $zero, $a1
-  or $t2, $zero, $zero
+  srl $s6, $a1, 24
+  lw $s6, %lo(SEGMENT_TABLE)($s6)
+  andi $t0, $a0, 65535
   addu $s7, $s4, $t0
-  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   addiu $t0, $t0, -1
+  or $t2, $zero, $zero
+  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  addu $s0, $a1, $s6
   ori $s6, $zero, %lo(MATRIX_MVP)
   ori $at, $zero, %lo(NORMAL_MASK_SHIFT)
   ldv $v17, 0, 0, $at
