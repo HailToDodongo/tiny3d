@@ -40,30 +40,32 @@ int main()
   T3DViewport viewport = t3d_viewport_create();
 
   // allocate a matrix per frame here, this can be done in a single buffer
-  T3DMat4FP* boxSegMatFP = malloc_uncached(sizeof(T3DMat4FP) * display_get_num_buffers());
+  T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP) * display_get_num_buffers());
 
-  T3DVec3 camPos    = {{0, 90, 120}};
-  T3DVec3 camTarget = {{0, 90, 0}};
+  T3DVec3 camPos    = {{0, 100, 140}};
+  T3DVec3 camTarget = {{0, 100, 0}};
 
   T3DVec3 lightDirVec = {{1.0f, 1.0f, 1.0f}};
   t3d_vec3_norm(&lightDirVec);
 
   uint8_t colorAmbient[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 
-  T3DModel *modelTube = t3d_model_load("rom:/box.t3dm");
-  // for skinned meshes (which contains a matrix per bone) we can use this helper function to do a buffered allocation
-  T3DSkeleton skel = t3d_skeleton_create_buffered(modelTube, display_get_num_buffers());
+  // Model Credits: Quaternius (CC0) https://quaternius.com/packs/ultimatemonsters.html
+  T3DModel *modelPlayer = t3d_model_load("rom:/player.t3dm");
 
-  T3DAnim animWiggle = t3d_anim_create(modelTube, "Wiggle");
-  t3d_anim_attach(&animWiggle, &skel);
+  // for skinned meshes (which contains a matrix per bone) we can use this helper function to do a buffered allocation
+  T3DSkeleton skel = t3d_skeleton_create_buffered(modelPlayer, display_get_num_buffers());
+
+  T3DAnim animFly = t3d_anim_create(modelPlayer, "Fast_Flying");
+  t3d_anim_attach(&animFly, &skel);
 
   rspq_block_begin();
     // instead of directly setting a matrix, we can use a placeholder segment.
     // this returns a segmented dummy pointer that can be set later before the actual draw
     t3d_matrix_push(t3d_segment_placeholder(1));
-    t3d_model_draw_skinned(modelTube, &skel); // for the skeleton, no special function is required
+    t3d_model_draw_skinned(modelPlayer, &skel); // for the skeleton, no special function is required
     t3d_matrix_pop(1);
-  rspq_block_t *dplTube = rspq_block_end();
+  rspq_block_t *dplPlayer = rspq_block_end();
 
   float lastTime = get_time_s() - (1.0f / 60.0f);
 
@@ -74,20 +76,21 @@ int main()
     float deltaTime = newTime - lastTime;
     lastTime = newTime;
 
-    t3d_anim_update(&animWiggle, deltaTime);
+    t3d_anim_update(&animFly, deltaTime);
     // the skeleton update also stays the same, internally it will handle the switch between buffers
     t3d_skeleton_update(&skel);
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(90.0f), 5.0f, 200.0f);
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(80.0f), 5.0f, 180.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     // for our model matrix, determine an index based on the frame...
     uint32_t matrixIdx = frame % display_get_num_buffers();
 
-    float posX = sinf(newTime) * 60.0f - 20.0f;
-    t3d_mat4fp_from_srt_euler(&boxSegMatFP[matrixIdx], //...then update that specific matrix
-      (float[3]){0.35f, 0.35f, 0.35f},
-      (float[3]){0, 0, 0},
+    float posX = sinf(newTime) * 65.0f;
+    float rotY = fm_fmodf(newTime * 0.75f, T3D_PI * 2.0f);
+    t3d_mat4fp_from_srt_euler(&modelMatFP[matrixIdx], //...then update that specific matrix
+      (float[3]){0.8f, 0.8f, 0.8f},
+      (float[3]){0, rotY, 0},
       (float[3]){posX, 0, 0}
     );
 
@@ -96,7 +99,7 @@ int main()
     t3d_frame_start();
 
     t3d_viewport_attach(&viewport);
-    t3d_screen_clear_color(RGBA32(34, 46, 64, 0xFF));
+    t3d_screen_clear_color(RGBA32(140, 227, 237, 0xFF));
     t3d_screen_clear_depth();
     t3d_light_set_count(0);
 
@@ -104,12 +107,12 @@ int main()
     t3d_light_set_ambient(colorAmbient);
 
     // To fill the placeholder for our model matrix, set the segment to the correct matrix
-    t3d_segment_set(1, &boxSegMatFP[matrixIdx]);
+    t3d_segment_set(1, &modelMatFP[matrixIdx]);
 
     // For skeletons, there is a helper function to do so:
     // (Note that for un-buffered skeletons this is a no-op, but still safe to call)
     t3d_skeleton_use(&skel);
-    rspq_block_run(dplTube);
+    rspq_block_run(dplPlayer);
 
     rdpq_detach_show();
   }
