@@ -12,7 +12,12 @@
  ***************************************/
 
 #define TRI_BUFFER_COUNT 70
-#define LIGHT_COUNT 8
+
+#ifdef PROFILING
+  #define LIGHT_COUNT 6
+#else
+  #define LIGHT_COUNT 8
+#endif
 
 // settings for RDPQ_Triangle
 #define RDPQ_TRIANGLE_CUSTOM_VTX 1
@@ -60,6 +65,7 @@
 
 include "rsp_queue.inc"
 include "rdpq_macros.h"
+include "./rspq_triangle.inc"
 
 state
 {
@@ -67,10 +73,11 @@ state
   extern u32 RDPQ_OTHER_MODES;
   extern u16 RSPQ_Loop;
   extern u16 RSPQ_SCRATCH_MEM;
+  extern u16 CLIPPING_CODE_TARGET;
 
-  vec16 MATRIX_PROJ[4];   // projection matrix
-  vec16 MATRIX_MVP[4];    // view * model * projection
-  vec16 MATRIX_NORMAL[2]; // fractional normal matrix (@TODO: only needs 1.5 vec16's)
+  alignas(8) vec16 MATRIX_PROJ[4];   // projection matrix
+  alignas(8) vec16 MATRIX_MVP[4];    // view * model * projection
+  alignas(8) u8 MATRIX_NORMAL[24]; // fractional normal matrix (@TODO: only needs 1.5 vec16's)
 
   /**
    * Buffer format (RDPQ_Triangle compatible):
@@ -119,8 +126,7 @@ state
   };
 
   // Plane-normals for clipping, the guard value can be overwritten with a command.
-  alignas(16)
-  s8 CLIPPING_PLANES[5][4] = {
+  alignas(8) s8 CLIPPING_PLANES[5][4] = {
   // X  Y  Z | guard
      1, 0, 0,   1,
      0, 1, 0,   1,
@@ -131,18 +137,16 @@ state
 
   // scales clip-space W to be 1 in the middle of near to far
   // the `0` are set at runtime to a fractional value
-  vec16 NORM_SCALE_W = {
+  alignas(8) vec16 NORM_SCALE_W = {
     0xFFFF, 0xFFFF, 0xFFFF, 0x0000,
     0x0000, 0x0000, 0x0000, 0xFFFF
   };
 
+  u32 SEGMENT_TABLE[8] = {0};
+
   // Lighting
   u32 COLOR_AMBIENT[2];   // RGBA8 (duplicated) | <unused> (saved IMEM)
   alignas(4) u8 LIGHT_DIR_COLOR[LIGHT_SIZE][LIGHT_COUNT]; // RGBA8 (duplicated) | Direction packed as s8 (duplicated)
-
-  #ifdef DEBUG_LOG_TRIS
-    u16 DEBUG_TRI_COUNT[4] = {0};
-  #endif
 
   u32 TRI_COMMAND = {0}; // for RDPQ_Triangle
   s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
@@ -151,33 +155,26 @@ state
   // The last value is used as a limiter to prevent overflows.
   s16 FOG_SCALE_OFFSET[4] = {0, 0, 0, 32767};
 
-  u16 CURRENT_MAT_ADDR = {0};
   u16 RDPQ_TRI_BUFF_OFFSET = {0};
 
-  u8 USE_REJECT   = {0}; // 0=use-clipping, 1=use-rejection
   u8 FACE_CULLING = {0}; // 0=cull front, 1=cull back, 2=no-culling
   u8 USE_FOG      = {0}; // 0=no-fog, 1=use-fog
-
   u8 ACTIVE_LIGHT_SIZE = {0}; // light count * light size
+}
+
+temp_state {
+
+  // address of the clipping code to load in RDRAM
+  // first byte (MSB) stores if th code is already loaded or not
+  u32 CLIP_CODE_ADDR = {0};
+  u32 CLIP_CODE_ORG_ADDR = {0}; // address of the original code (this overlay here)
+  u16 CLIP_CODE_SIZE = {0}; // size to copy
+  u16 CLIP_RA; // backup of a return address
 }
 
 // Libdragon functions
 function RDPQ_Triangle_Send_Async(u32<$a0> ptrVert0, u32<$a1> ptrVert1, u32<$a2> ptrVert2);
 function RDPQ_Triangle_Send_End();
-
-macro debugLogClip() {
-#ifdef DEBUG_LOG_TRIS
-  u16 tmp = load(DEBUG_TRI_COUNT, 2); tmp += 1;
-  store(tmp, DEBUG_TRI_COUNT, 2);
-#endif
-}
-
-macro debugLogTri() {
-#ifdef DEBUG_LOG_TRIS
-  u16 tmp = load(DEBUG_TRI_COUNT); tmp += 1;
-  store(tmp, DEBUG_TRI_COUNT);
-#endif
-}
 
 // Packs +xyz & -xyz into a single byte
 macro packClipCode(u32 res, u32 clipCode)
@@ -232,6 +229,103 @@ macro loadCurrentNormalMat(vec16 mat0, vec16 mat1, vec16 mat2)
   mat2 = load(address, 0x10).xyzwxyzw;
 }
 
+// resolves a (potentially) segmented RDRAM address into a physical one
+macro resolveSegmentAddr(u32 addrOut, u32 addrIn) {
+  u32 segment = addrIn >> 24;
+  segment = load(segment, SEGMENT_TABLE);
+  addrOut = addrIn + segment;
+}
+
+#ifdef OVERLAY_CLIPPING
+  #include "clipping.rspl"
+#else
+
+/**
+ * Draws a triangle to the screen, if necessary also performs clipping.
+ *
+ * @param vert0 16-LSB contain DMEM address for the first vertex
+ * @param vert1 LSB/MSB contain DMEM address for the second + third vertex
+ */
+command<0> T3DCmd_TriDraw(u32 vert0, u32 vert1)
+{
+  //asm("emux_trace_start"); //asm("emux_trace_stop");
+
+  // Note: vert1 & vert2 are switched, this avoids an additional instruction here.
+  // We can't switch them on the CPU, as RDPQ_Triangle loads them from DMEM, so the order is different
+  u32<$a2> vert2 = vert1 >> 16;
+
+  {
+    u32<$v1> vertAddr = get_cmd_address(2); // where to load the vertex pointers from
+    u32<$sp> rejectDest = RSPQ_Loop; // jump-target for rejected/culled tris
+
+    RDPQ_Triangle_Send_Async(vert0, vert1, vert2);
+    u16 currOffset = load(RDPQ_TRI_BUFF_OFFSET);
+
+    if(vertAddr == 0)
+    {
+      // if a triangle was generated, change the offset to swap output-buffers
+      // the DMA is still active at this point, so we can only re-use it after a next send or sync
+      currOffset ^= RDP_CMD_MAX_SIZE; // note: overflows into the next buffer
+      store(currOffset, RDPQ_TRI_BUFF_OFFSET);
+      exit;
+    }
+
+    // reload vertex indices, 'RDPQ_Triangle_Send_Async' may have modified them
+    vert2:u16 = load_arg(0x06);
+    vert1:u16 = load_arg(0x04);
+
+    // we need to clip now, first wait for any triangle still in flight
+    // this is necessary as clipping uses both buffers used as outputs
+    RDPQ_Triangle_Send_End(); // <- resets 'RDPQ_TRI_BUFF_OFFSET' to zero
+
+    vert0:u16 = load_arg(0x02); // a0 gets overwritten by 'RDPQ_Triangle_Send_End'
+  }
+
+  // Now we need to perform clipping, the code for this is in a separate overlay.
+  // Check if already loaded, or load it in here otherwise.
+  // It will stay until the next tri-sync command (or if a different overlay is executed)
+  u8 clipLoaded = load(CLIP_CODE_ADDR);
+  if(!clipLoaded)
+  {
+    u32<$s4> targetImem = CLIPPING_CODE_TARGET;
+    u32<$s0> codeAddr = load(CLIP_CODE_ADDR);
+    u16<$t0> codeSize = load(CLIP_CODE_SIZE);
+
+    // mark as loaded, 'codeSize' is guaranteed to be non-zero in the LSB
+    store(codeSize:u8, CLIP_CODE_ADDR);
+
+    //printf("clip: %x, s:%x -> %x\n", codeAddr, codeSize, targetImem);
+    dma_in(targetImem, codeAddr, codeSize);
+  }
+
+  DO_CLIPPING:
+    RA:u16 = RSPQ_Loop;
+    store(RA:u16, CLIP_RA);
+    goto CLIPPING_CODE_TARGET;
+}
+
+/**
+ * Syncs triangle calls, wrapper for 'RDPQ_Triangle_Send_Async'.
+ */
+command<12> T3DCmd_TriSync()
+{
+  u8 clipLoaded = load(CLIP_CODE_ADDR);
+  u32<$s4> targetImem = CLIPPING_CODE_TARGET; // (delay-slot filler)
+
+  // no clipping happened, just sync the triangle
+  if(!clipLoaded)goto RDPQ_Triangle_Send_End;
+
+  u32<$s0> codeAddr = load(CLIP_CODE_ORG_ADDR);
+  u16<$t0> codeSize = load(CLIP_CODE_SIZE);
+
+  //printf("main: %x, s:%x -> %x\n", codeAddr, codeSize, targetImem);
+  dma_in_async(targetImem, codeAddr, codeSize); // RDPQ_Triangle_Send_End waits for DMA
+
+  RA = RSPQ_Loop;
+  store(ZERO:u8, CLIP_CODE_ADDR); // mark as not loaded
+  goto RDPQ_Triangle_Send_End;
+}
+
 /**
  * Loads & transforms 3D vertices into the internal buffer, later to be used by triangles.
  * This fully prepares them to be used by RDPQ_Triangle, while still being able to
@@ -241,8 +335,11 @@ macro loadCurrentNormalMat(vec16 mat0, vec16 mat1, vec16 mat2)
  * @param rdramVerts RDRAM address to load vertices from
  * @param bufferSize 2 u16 DMEM addresses, MSBs set where to DMA the input to, LSBs set where to store the result
  */
+@Align(8)
 command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 {
+  CLIPPING_CODE_TARGET: // marks the place where the clipping code can be loaded in to
+
   // load all vertices in a single DMA, processing them as the loop goes.
   // NOTE: the input vertex-size is smaller than the internal one, so we can't do it in place.
   // Instead, offset the buffer enough to not cause an overlap with read/writes on the same vertex.
@@ -250,7 +347,10 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
   u32<$t0> copySize = bufferSize & 0xFFFF;
   u32 ptr3dEnd = prt3d + copySize;
-  dma_in_async(prt3d, rdramVerts, copySize);
+
+  u32<$s0> dmaAddrRDRAM;
+  resolveSegmentAddr(dmaAddrRDRAM, rdramVerts);
+  dma_in_async(prt3d, dmaAddrRDRAM, copySize);
 
   vec32 mat0, mat1, mat2, mat3;
   loadCurrentModelProjMat(mat0, mat1, mat2, mat3);
@@ -416,341 +516,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 }
 
 /**
- * Calculates the intersection point against a clipping plane.
- * ---- Output ----
- * @param resPosUV    new point / UV (in .xyzw / .XY)
- * @param resColor    new color (in .xyzw)
- * @param newClipCode new clip-code for the interpolated-point
- *
- * ---- Input ----
- * @param planePtr  DMEM address for the plane normals
- *
- * @param posBase   base point inside the frustum
- * @param colorBase base color inside the frustum
- * @param pos       position/UV to be clipped
- * @param color     color to be clipped
- */
-macro intersection(
-  vec32 resPosUV, vec16 resColor, u32 newClipCode,
-  u32 planePtr,
-  vec32 posBase, vec16 colorBase,
-  vec32 pos, vec16 color
-) {
-  vec16 normScaleWInv = load(NORM_SCALE_W, 8).xyzwxyzw;
-  {
-    vec16 colorDiff = color - colorBase;
-    vec32 posUVDiff = pos - posBase;
-
-    vec32 planeNorm:sint = load_vec_s8(planePtr);
-    planeNorm:sfract = 0;
-    planeNorm >>= 8;
-    planeNorm:sint.XYZW = planeNorm:sint.xyzw;
-    planeNorm *= normScaleWInv:ufract;
-
-    vec32 vpos = posBase;
-    vpos.XYZW = pos.xyzw;
-
-    vec32 dot;
-    dotXYZW(dot, vpos, planeNorm);
-
-    vec32 fac = dot - dot.X;
-
-    fac.x = invert_half(fac).x;
-    fac += fac;
-    fac *= dot.x;
-
-    //printf("%v d:%v\t", fac.x, dot.x);
-
-    // From now on we only need the fractional part.
-    // Prevent overflow (>1.0) by checking the integer part
-    // and then clamping the fraction if it's not in 0<=x<1.
-    fac:ufract = fac:sint < 1 ? fac:ufract : normScaleWInv:ufract.w; // <- contains 0.9999
-    fac:ufract = fac:sint >= 0 ? fac:ufract : VZERO;
-
-    dot = posUVDiff * fac:sfract.x;
-    // @TODO: add auto opt. for this in RSPL
-    resPosUV = posBase +* 1; // abuse add-mul to add diff onto pos.
-
-    colorDiff:sfract *= fac:sfract.x;
-    resColor:uint = colorBase + colorDiff;
-  }
-
-  vec32 clipBase = resPosUV * normScaleWInv:ufract;
-  newClipCode = clip(clipBase, resPosUV.w);
-  packClipCode(newClipCode, newClipCode);
-}
-
-/**
- * Copies a vertex, only includes data relevant for clipping.
- * @param ptrDst DMEM address to copy to
- * @param ptrSrc DMEM address to copy from
- */
-function copyClippingVertex(u32<$s5> ptrDst, u32<$s0> ptrSrc)
-{
-  vec16 tmp1 = load(ptrSrc, 0x00).xyzw;
-  vec16 tmp2 = load(ptrSrc, 0x08).xyzw;
-  vec16 tmp3 = load(ptrSrc, 0x10).xyzw;
-  vec16 tmp4 = load(ptrSrc, 0x18).xyzw;
-  store(tmp1.xyzw, ptrDst, 0x00);
-  store(tmp2.xyzw, ptrDst, 0x08);
-  store(tmp3.xyzw, ptrDst, 0x10);
-  store(tmp4.xyzw, ptrDst, 0x18);
-
-  ptrDst += TRI_SIZE;
-}
-
-/**
- * Emits a clipped triangle into the current clipping-buffer.
- * Note: this advances the buffer-pointer by TRI_SIZE.
- *
- * @param ptrWrite destination buffer
- * @param lastClipCode CC to save
- * @param lastPosUV  pos + UV to save
- * @param lastColor color to save
- */
-function emitClippedTri(u32<$s5> ptrWrite, u8<$s1> lastClipCode, vec32<$v26> lastPosUV, vec16<$v28> lastColor)
-{
-  @Barrier("uv") store_vec_u8(lastColor,  ptrWrite, VTX_ATTR_RGBA);
-  @Barrier("uv") store(lastPosUV:sint.XY, ptrWrite, VTX_ATTR_ST);
-
-  store(lastClipCode:u8,   ptrWrite, VTX_ATTR_CLIPFLAGS);
-  store(lastPosUV.xyzw,    ptrWrite, VTX_ATTR_CLIPPOSi);
-  ptrWrite += TRI_SIZE;
-}
-
-/**
- * Performs clipping on a 3D triangle.
- * This implements the Sutherland-Hodgman algorithm:
- * (See: https://en.wikipedia.org/wiki/Sutherland%E2%80%93Hodgman_algorithm)
- *
- * @param arraySize output size in bytes of the clipped triangle buffer
- * @param ptrVertA vertex 0 of the tri. to be clipped
- * @param ptrVertB vertex 1
- * @param ptrVertC vertex 2
- */
-macro clipTriangle(u32 arraySize, u32 ptrVertA, u32 ptrVertB, u32 ptrVertC)
-{
-  arraySize = TRI_SIZE_3; // 3-verts by default
-
-  // The loop streams vertices in and out at the same time.
-  // To avoid corruption, alternate between two buffers.
-  u32 ptrBuff0 = CLIP_BUFFER_RESULT;
-  u32 ptrBuff1 = CLIP_BUFFER_TMP;
-  u32 ptrWrite = CLIP_BUFFER_TMP;
-
-  // copy original verts into the first buffer (@TODO: avoid this somehow?)
-  {
-    u32<$s0> ptrSrc;
-    ptrSrc = ptrVertA; copyClippingVertex(ptrWrite, ptrSrc);
-    ptrSrc = ptrVertB; copyClippingVertex(ptrWrite, ptrSrc);
-    ptrSrc = ptrVertC; copyClippingVertex(ptrWrite, ptrSrc);
-  }
-
-  u32 planePtr = CLIPPING_PLANES;
-  s32 planeIdx = 1;
-
-
-  // check 5 planes, we shift instead of incr. for direct clip-code checks
-  // the z-far plane is ignored
-  loop
-  {
-    u32 ptrLast = ptrWrite - TRI_SIZE;
-
-    vec16 lastColor   = load_vec_u8(ptrLast, VTX_ATTR_RGBA);
-    vec32 lastPosUV   = load(ptrLast, VTX_ATTR_CLIPPOSi).xyzw;
-    lastPosUV:sint.XY = load(ptrLast, VTX_ATTR_ST).xy;
-    u8 lastClipCode   = load(ptrLast, VTX_ATTR_CLIPFLAGS);
-
-    undef ptrLast;
-
-    swap(ptrBuff0, ptrBuff1);
-
-    ptrWrite = ptrBuff1;
-    u32 ptrRead = ptrBuff0;
-    u32 ptrReadEnd = ptrBuff0 + arraySize;
-
-    // check all clipped points so far
-    loop
-    {
-      vec32 currentPosUV   = load(ptrRead, VTX_ATTR_CLIPPOSi).xyzw;
-      currentPosUV:sint.XY = load(ptrRead, VTX_ATTR_ST).xy;
-      vec16 currentColor   = load_vec_u8(ptrRead, VTX_ATTR_RGBA);
-
-      u8 clipCode = load(ptrRead, VTX_ATTR_CLIPFLAGS);
-
-      // check if the current and last point are contained in the clip-plane
-      u8 exclIntersect = clipCode ^ lastClipCode;
-      u8 isInsideCurr = ~clipCode;
-      exclIntersect &= planeIdx;
-      isInsideCurr &= planeIdx;
-
-      if(exclIntersect)
-      {
-        intersection(
-          lastPosUV, lastColor, lastClipCode, // output
-          planePtr,
-          lastPosUV, lastColor, currentPosUV, currentColor);
-        emitClippedTri(ptrWrite, lastClipCode, lastPosUV, lastColor);
-      }
-
-      lastPosUV = currentPosUV;
-      lastClipCode = clipCode;
-      lastColor = currentColor;
-
-      if(isInsideCurr) {
-        emitClippedTri(ptrWrite, lastClipCode, lastPosUV, lastColor);
-      }
-
-      ptrRead += TRI_SIZE;
-
-    } while(ptrRead != ptrReadEnd)
-
-    planeIdx <<= 1;
-    arraySize = ptrWrite - ptrBuff1;
-    if(arraySize == 0)exit; // @TODO: change for multi-triangle draws
-
-    planePtr += 0x04;
-  } while(planeIdx != 0b100'000)
-
-  CLIP_END:
-}
-
-/**
- * Converts a triangle generated from clipping back into screen-space.
- * @param ptr vertex to be converted
- */
-function triToScreenSpace(u32<$s6> ptr)
-{
-  // Note: these values need to be loaded each time, as RDPQ_Triangle wipes most regs
-  vec32 screenSize = load(SCREEN_SCALE_OFFSET).xyzw;
-  screenSize:sfract = 0;
-  screenSize >>= 4;
-
-  vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzw;
-
-  vec32 posClip = load(ptr, VTX_ATTR_CLIPPOSi).xyzw;
-  posClip.w = invert_half(posClip).w;
-  store(posClip.w, ptr, VTX_ATTR_INVWi);
-
-  posClip *= posClip.w;
-  posClip *= screenSize;
-  posClip:sint += screenOffset;
-
-  @Barrier("cc") store(posClip:sint.xyzw, ptr, VTX_ATTR_XY);
-
-  // write dummy clip-codes to avoid re-clipping (screenOffset.w = 0x00FF)
-  @Barrier("cc") store(screenOffset.w, ptr, VTX_ATTR_CLIPFLAGS);
-
-  ptr -= TRI_SIZE;
-}
-
-/**
- * Draws a list of triangles that have been clipped.
- *
- * @param arraySize size in bytes of the list to draw (multiple of TRI_SIZE)
- */
-macro drawTrianglesClipped(u32<$t0> arraySize)
-{
-  u32<$s6> ptrVertIn = CLIP_BUFFER_RESULT;
-  u32<$s5> ptrVertInEnd = ptrVertIn + arraySize;
-  ptrVertInEnd -= TRI_SIZE_2;
-
-  // we need to save the vertex-addresses to memory for RDPQ_Triangle.
-  // set the first one here (is constant) the rest is set in each loop iteration
-  store(ptrVertIn:u16, RSPQ_SCRATCH_MEM, 0);
-
-  // convert the base-vertex and the one from the first iteration
-  // for each triangle-fan part we then only need to convert one new vert
-  triToScreenSpace(ptrVertIn);
-  ptrVertIn += TRI_SIZE_2;
-  triToScreenSpace(ptrVertIn);
-
-  // draw clipped triangles as a triangle-fan
-  loop
-  {
-    ptrVertIn += TRI_SIZE_2;
-    triToScreenSpace(ptrVertIn); // Note: this moves 'ptrVertIn' back by TRI_SIZE
-
-    vert0 = CLIP_BUFFER_RESULT;
-    vert2 = ptrVertIn;
-    vert1 = ptrVertIn + TRI_SIZE;
-
-    u32<$v1> vertAddr = RSPQ_SCRATCH_MEM;
-    store(vert2:u16, RSPQ_SCRATCH_MEM, 2);
-    store(vert1:u16, RSPQ_SCRATCH_MEM, 4);
-
-    #ifdef DRAW_TRIS
-      u32<$sp> cullDest = CLIP_AFTER_EMIT;
-
-      RDPQ_Triangle_Send_Async(vert0, vert1, vert2);
-      //if(vertAddr == 0) { // necessary? saves IMEM
-        RDPQ_Triangle_Send_End();
-      //}
-      CLIP_AFTER_EMIT:
-    #endif
-
-    debugLogClip();
-  } while(ptrVertIn != ptrVertInEnd)
-}
-
-/**
- * Draws a triangle to the screen, if necessary also performs clipping.
- *
- * @param vert0 16-LSB contain DMEM address for the first vertex
- * @param vert1 LSB/MSB contain DMEM address for the second + third vertex
- */
-command<0> T3DCmd_TriDraw(u32 vert0, u32 vert1)
-{
-  //asm("emux_trace_start"); //asm("emux_trace_stop");
-
-  // Note: vert1 & vert2 are switched, this avoids an additional instruction here.
-  // We can't switch them on the CPU, as RDPQ_Triangle loads them from DMEM, so the order is different
-  u32<$a2> vert2 = vert1 >> 16;
-
-  {
-    u32<$v1> vertAddr = get_cmd_address(2); // where to load the vertex pointers from
-    u32<$sp> rejectDest = RSPQ_Loop; // jump-target for rejected/culled tris
-
-    RDPQ_Triangle_Send_Async(vert0, vert1, vert2);
-    u16 currOffset = load(RDPQ_TRI_BUFF_OFFSET);
-
-    if(vertAddr == 0)
-    {
-      // if a triangle was generated, change the offset to swap output-buffers
-      // the DMA is still active at this point, so we can only re-use it after a next send or sync
-      currOffset ^= RDP_CMD_MAX_SIZE; // note: overflows into the next buffer
-      store(currOffset, RDPQ_TRI_BUFF_OFFSET);
-      exit;
-    }
-
-    //u8 useReject = load(USE_REJECT); //@TODO: do this branch-less?
-    //if(useReject)exit;
-
-    // reload vertex indices, 'RDPQ_Triangle_Send_Async' may have modified them
-    vert2:u16 = load_arg(0x06);
-    vert1:u16 = load_arg(0x04);
-
-    // we need to clip now, first wait for any triangle still in flight
-    // this is necessary as clipping uses both buffers used as outputs
-    RDPQ_Triangle_Send_End(); // <- resets 'RDPQ_TRI_BUFF_OFFSET' to zero
-
-    vert0:u16 = load_arg(0x02); // a0 gets overwritten by 'RDPQ_Triangle_Send_End'
-  }
-
-  u32<$t0> arraySize;
-  clipTriangle(arraySize, vert0, vert1, vert2);
-  drawTrianglesClipped(arraySize);
-}
-
-/**
- * Syncs triangle calls, wrapper for 'RDPQ_Triangle_Send_Async'.
- */
-command<12> T3DCmd_TriSync()
-{
-  goto RDPQ_Triangle_Send_End;
-}
-
-/**
  * Sets current screen-size in pixel.
  * @param guardBandFactor s16 with the guard multiplier (should be 1-4)
  * @param screenScale screen-size * 2
@@ -766,9 +531,6 @@ command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 scre
   store(depthAndWScale:s16, NORM_SCALE_W, 8);
   store(depthAndWScale:s16, NORM_SCALE_W, 10);
   store(depthAndWScale:s16, NORM_SCALE_W, 12);
-
-  //u8 useReject = guardBandFactor >> 16;
-  //store(useReject, USE_REJECT);
 
   // guard-band multiplier (W value of the clipping plane, integer)
   guardBandFactor &= 0xF;
@@ -945,19 +707,21 @@ function normalizeMatrixVector(u32<$s4> addrIn, u32<$t1> addrOut)
  * Manages the matrix stack, implements 'push'/'pop' as well as 'set'.
  * The actual stack itself is held in RDRAM, only the current matrix is in DMEM.
  *
+ * @param stackAdvance byte 0  : (internal)
+ *                     byte 1-2: bytes to advance the stack pointer as an s16
+ *                     byte 3  : flags (1=mul, 2=only advance)
  * @param addressMat RDRAM address to load matrix from
- * @param stackAdvance s16 LSB: amount by which to advance the matrix stack
- *                     MSB 0: multiply or not
- *                     MSB 1: only move pointer
  */
-command<2> T3DCmd_MatrixStack(u32 addressMat, s32 stackAdvance)
+command<2> T3DCmd_MatrixStack(s32 stackAdvance, u32 addressMat)
 {
   #define MATRIX_TEMP_MV  CLIP_BUFFER_TMP
   #define MATRIX_TEMP_MUL CLIP_BUFFER_RESULT
+  u32<$s4> dmaDest;
 
   u16 doMultiply = stackAdvance & 0b01;
   u16 onlyStackMove = stackAdvance & 0b10;
-  stackAdvance >>= 16;
+
+  stackAdvance:s16 = load_arg(1); // re-load from args to get sign extension
 
   s32 stackPtr = load(MATRIX_STACK_PTR);
   stackPtr += stackAdvance;
@@ -965,7 +729,8 @@ command<2> T3DCmd_MatrixStack(u32 addressMat, s32 stackAdvance)
 
   // only move the stack pointer, can be used to prepare following matrix_set calls
   if(onlyStackMove)exit;
-  u32<$s4> dmaDest = MATRIX_TEMP_MV; // load new matrix
+  dmaDest = MATRIX_TEMP_MV; // load new matrix
+  resolveSegmentAddr(addressMat, addressMat);
 
   // stackAdvance less than zero -> matrix pop, load matrix from stack
   if(stackAdvance < 0)addressMat = stackPtr;
@@ -1020,18 +785,16 @@ command<8> T3DCmd_MatProjectionSet(u32 addressMat) {
 }
 
 /**
- * Reads out debugging data (e.g. face-count).
- * The flag 'DEBUG_LOG_TRIS' must be set.
+ * Stores a 32-bit word at an arbitrary address in DMEM.
+ * This can be used to set segment addresses.
+ * @param DMEM address in LSB 16 bits
+ * @param value value to store
  */
-#ifdef DEBUG_LOG_TRIS
-  command<3> T3DCmd_DebugRead(u32 _, u32 addressRDRAM)
-  {
-    dma_out(DEBUG_TRI_COUNT, addressRDRAM, 16);
-    store(ZERO, DEBUG_TRI_COUNT);
-    store(ZERO, DEBUG_TRI_COUNT, 4);
-  }
+command<3> T3DCmd_SetWord(u16 addrDMEM, u32 value) {
+  store(value, addrDMEM);
+}
+
 #endif
 
-// RDPQ_Tri
-include "./rspq_triangle.inc"
+
 

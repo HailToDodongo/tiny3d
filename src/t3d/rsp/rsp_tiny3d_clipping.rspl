@@ -1,0 +1,2 @@
+#define OVERLAY_CLIPPING 1
+#include "rsp_tiny3d.rspl"

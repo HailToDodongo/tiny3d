@@ -71,7 +71,7 @@ static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *co
 {
   if(mat->texPath || mat->texReference)
   {
-    debugf("Load Texture: %s (%08lX)\n", mat->texPath, mat->textureHash);
+    //debugf("Load Texture: %s (%08lX)\n", mat->texPath, mat->textureHash);
     if(mat->texPath && !mat->texture) {
       mat->texture = texture_cache_get(mat->textureHash);
       if(mat->texture == NULL) {

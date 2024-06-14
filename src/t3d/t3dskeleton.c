@@ -4,14 +4,16 @@
 */
 #include "t3dskeleton.h"
 
-T3DSkeleton t3d_skeleton_create(const T3DModel *model) {
+T3DSkeleton t3d_skeleton_create_buffered(const T3DModel *model, int bufferCount) {
   const T3DChunkSkeleton *skelRef = t3d_model_get_skeleton(model);
   assert(skelRef != NULL);
 
   T3DSkeleton skel = (T3DSkeleton){
     .bones = malloc(sizeof(T3DBone) * skelRef->boneCount),
-    .boneMatricesFP = malloc_uncached(sizeof(T3DMat4FP) * skelRef->boneCount),
-    .skeletonRef = skelRef
+    .boneMatricesFP = malloc_uncached(sizeof(T3DMat4FP) * skelRef->boneCount * bufferCount),
+    .skeletonRef = skelRef,
+    .bufferCount = bufferCount,
+    .currentBufferIdx = 0,
   };
 
   t3d_skeleton_reset(&skel);
@@ -27,8 +29,9 @@ T3DSkeleton t3d_skeleton_clone(const T3DSkeleton *skel, bool useMatrices) {
   memcpy(result.bones, skel->bones, sizeof(T3DBone) * skel->skeletonRef->boneCount);
 
   if(useMatrices) {
-    result.boneMatricesFP = malloc_uncached(sizeof(T3DMat4FP) * skel->skeletonRef->boneCount);
-    memcpy(result.boneMatricesFP, skel->boneMatricesFP, sizeof(T3DMat4FP) * skel->skeletonRef->boneCount);
+    size_t copySize = sizeof(T3DMat4FP) * skel->skeletonRef->boneCount * skel->bufferCount;
+    result.boneMatricesFP = malloc_uncached(copySize);
+    memcpy(result.boneMatricesFP, skel->boneMatricesFP, copySize);
   }
   return result;
 }
@@ -55,10 +58,13 @@ void t3d_skeleton_blend(const T3DSkeleton *skelRes, const T3DSkeleton *skelA, co
   }
 }
 
-void t3d_skeleton_update(const T3DSkeleton *skeleton)
+void t3d_skeleton_update(T3DSkeleton *skeleton)
 {
   int updateLevel = -1;
   bool forceUpdate = false;
+
+  skeleton->currentBufferIdx = (skeleton->currentBufferIdx + 1) % skeleton->bufferCount;
+  T3DMat4FP* matStackFP = &skeleton->boneMatricesFP[skeleton->skeletonRef->boneCount * skeleton->currentBufferIdx];
 
   for(int i = 0; i < skeleton->skeletonRef->boneCount; i++)
   {
@@ -85,7 +91,7 @@ void t3d_skeleton_update(const T3DSkeleton *skeleton)
         t3d_mat4_from_srt(&bone->matrix, bone->scale.v, bone->rotation.v, bone->position.v);
       }
 
-      t3d_mat4_to_fixed(&skeleton->boneMatricesFP[i], &bone->matrix);
+      t3d_mat4_to_fixed(&matStackFP[i], &bone->matrix);
       skeleton->bones[i].hasChanged = false;
     }
   }

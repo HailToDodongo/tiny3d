@@ -32,15 +32,43 @@ typedef struct {
 typedef struct {
   T3DBone* bones;
   T3DMat4FP* boneMatricesFP; // fixed point matrix, used for rendering
+  uint8_t bufferCount; // number of matrices buffers
+  uint8_t currentBufferIdx;
   const T3DChunkSkeleton* skeletonRef; // reference to the model, defines skeleton structure
 } T3DSkeleton;
+
+/**
+ * Creates a skeleton instance from a model's skeleton definition.
+ * It will internally reserve multiple matrix stacks to allow for buffering.
+ * This can be used to update a skeleton while the last frame is still being rendered.
+ * Note that only the fixed-point matrices are buffered, the bone data itself is not.
+ *
+ * @param model The model to create the skeleton from
+ * @param bufferCount number of buffers, should match the frame-buffer count
+ * @return The created skeleton
+ */
+T3DSkeleton t3d_skeleton_create_buffered(const T3DModel *model, int bufferCount);
 
 /**
  * Creates a skeleton instance from a model's skeleton definition
  * @param model The model to create the skeleton from
  * @return The created skeleton
  */
-T3DSkeleton t3d_skeleton_create(const T3DModel *model);
+static inline T3DSkeleton t3d_skeleton_create(const T3DModel *model) {
+  return t3d_skeleton_create_buffered(model, 1);
+}
+
+/**
+ * Sets the given skeleton up for the next draw call.
+ * This has to be used for buffered skeletons, but is a no-op for single-buffer skeletons.
+ * @param skel skeleton to use in the next draw
+ */
+static inline void t3d_skeleton_use(const T3DSkeleton *skel) {
+  if(skel->bufferCount > 1) {
+    void* mat = skel->boneMatricesFP + skel->currentBufferIdx * skel->skeletonRef->boneCount;
+    t3d_segment_set(T3D_SEGMENT_SKELETON, mat);
+  }
+}
 
 /**
  * Clones a skeleton instance.
@@ -75,7 +103,7 @@ void t3d_skeleton_blend(const T3DSkeleton *skelRes, const T3DSkeleton *skelA, co
  * To make this work, the `hasChanged` flag in the bone must also be set
  * @param skeleton The skeleton to update
  */
-void t3d_skeleton_update(const T3DSkeleton *skeleton);
+void t3d_skeleton_update(T3DSkeleton *skeleton);
 
 /**
  * Frees data allocated in the skeleton struct.
@@ -103,7 +131,9 @@ static inline void t3d_model_draw_skinned(const T3DModel* model, const T3DSkelet
     .userData = NULL,
     .tileCb = NULL,
     .filterCb = NULL,
-    .matrices = skeleton->boneMatricesFP
+    .matrices = skeleton->bufferCount == 1
+      ? skeleton->boneMatricesFP
+      : t3d_segment_placeholder(T3D_SEGMENT_SKELETON)
   });
 }
 
