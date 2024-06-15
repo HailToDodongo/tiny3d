@@ -202,7 +202,7 @@ function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, 
     #ifdef DRAW_TRIS
       u32<$sp> cullDest = CLIP_AFTER_EMIT;
 
-      RDPQ_Triangle_Send_Async(ptrVertA, ptrVertB, ptrVertC);
+      RDPQ_Triangle_Send_Async(ptrVertA, ptrVertB, ptrVertC, cullDest);
       RDPQ_Triangle_Send_End();
       CLIP_AFTER_EMIT:
     #endif
