@@ -312,9 +312,9 @@ clipTriangle:
   or $a2, $zero, $s6
   sh $a2, %lo(2 + RSPQ_SCRATCH_MEM)($zero)
   sh $a1, %lo(4 + RSPQ_SCRATCH_MEM)($zero)
-  ori $v1, $zero, %lo(RSPQ_SCRATCH_MEM)
-  jal RDPQ_Triangle_Send_Async ## Args: $a0, $a1, $a2
   ori $sp, $zero, %lo(CLIP_AFTER_EMIT)
+  jal RDPQ_Triangle_Send_Async ## Args: $a0, $a1, $a2
+  ori $v1, $zero, %lo(RSPQ_SCRATCH_MEM)
   jal RDPQ_Triangle_Send_End
   nop
   CLIP_AFTER_EMIT:
