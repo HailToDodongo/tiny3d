@@ -174,6 +174,12 @@ int main()
       dplDraw = rspq_block_end();
     }
 
+    if(joypad.btn.l) {
+      t3d_state_set_uvgen(T3D_UVGEN_SPHERE, 32, 32);
+    } else {
+      t3d_state_set_uvgen(T3D_UVGEN_NONE, 0, 0);
+    }
+
     t3d_matrix_push(modelMatFP);
     rspq_block_run(dplDraw);
     t3d_matrix_pop(1);
