@@ -75,7 +75,7 @@ only the first materials CC and draw flags are used.
 | 0x0C   | `u8 (AlphaMode)`     | Alpha mode                      |
 | 0x0D   | `u8 (FogMode)`       | Fog mode                        |
 | 0x0E   | `u8`                 | Source flags (1=use prim-color) |
-| 0x0F   | `u8`                 | _reserved_                      |
+| 0x0F   | `u8 (UVFunc)`        | Generated UV function           |
 | 0x10   | `u8[4]`              | Prim-Color (zero if unused)     |
 | 0x14   | `u32`                | Texture reference (offscreen)   |
 | 0x18   | `u32`                | Texture path offset             |
@@ -109,6 +109,12 @@ only the first materials CC and draw flags are used.
 0 - Default (no change applied)
 1 - Fog Disabled
 2 - Fog Active
+```
+
+#### `UVFunc`
+```
+0 - None
+1 - Spherical
 ```
 
 ### Object (`O`)

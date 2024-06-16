@@ -24,7 +24,7 @@ enum T3DCmd {
   T3D_CMD_VERT_LOAD    = 0x4,
   T3D_CMD_LIGHT_SET    = 0x5,
   T3D_CMD_DRAWFLAGS    = 0x6,
-  T3D_CMD_SET_CAMERA   = 0x7,
+  T3D_CMD_SET_UV_GEN   = 0x7,
   T3D_CMD_PROJ_SET     = 0x8,
   T3D_CMD_LIGHT_COUNT  = 0x9,
   T3D_CMD_FOG_RANGE    = 0xA,
@@ -66,6 +66,12 @@ enum T3DSegment {
   T3D_SEGMENT_5 = 5,
   T3D_SEGMENT_6 = 6,
   T3D_SEGMENT_SKELETON = 7,
+};
+
+// UV generation functions
+enum T3DUVGen {
+  T3D_UVGEN_NONE   = 0,
+  T3D_UVGEN_SPHERE = 1,
 };
 
 /**
@@ -338,34 +344,6 @@ static inline void t3d_fog_set_enabled(bool isEnabled) {
 }
 
 /**
- * Sets up a matrix for the camera from a given pos/direction.
- * This matrix is then also applied as the current view matrix.
- *
- * @param pos world-space camera position
- * @param dir world-space camera direction
- */
-static inline void t3d_set_camera(const T3DVec3 *pos, const T3DVec3 *dir)
-{
-  int16_t posFP[3] = {
-    (int16_t)(int32_t)(pos->v[0]),
-    (int16_t)(int32_t)(pos->v[1]),
-    (int16_t)(int32_t)(pos->v[2]),
-  };
-
-  uint8_t dirFP[3] = {
-    (uint8_t)(int8_t)(dir->v[0] * 127.0f),
-    (uint8_t)(int8_t)(dir->v[1] * 127.0f),
-    (uint8_t)(int8_t)(dir->v[2] * 127.0f),
-  };
-
-  rspq_write(T3D_RSP_ID, T3D_CMD_SET_CAMERA,
-    (dirFP[0] << 16) | (dirFP[1] << 8) | (dirFP[2] << 0),
-    (posFP[0] << 16) | (posFP[1] << 0),
-    posFP[2]
-  );
-}
-
-/**
  * Packs a floating-point normal into the internal 5.6.5 format.
  * @param normal normal vector
  * @return packed normal
@@ -377,6 +355,22 @@ uint16_t t3d_vert_pack_normal(const T3DVec3 *normal);
  * @param drawFlags
  */
 void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags);
+
+/**
+ * Sets a function for generated UVs.
+ * To disable it, set the function to 'T3D_UVGEN_NONE'.
+ * The arg0/arg1 values are stored ín DMEM and are used by the ucode.
+ *
+ * The meaning of those arguments depends on the type:
+ * - T3D_UVGEN_NONE: (no arguments)
+ * - T3D_UVGEN_SPHERE: texture size X/Y in pixels
+ * - T3D_UVGEN_WIGGLE:
+ *
+ * @param func UV generation function
+ * @param arg0 first argument
+ * @param arg1 second argument
+ */
+void t3d_state_set_uvgen(enum T3DUVGen func, int16_t arg0, int16_t arg1);
 
 /**
  * Sets a new address in the segment table.

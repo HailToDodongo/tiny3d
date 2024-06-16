@@ -192,6 +192,10 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
       model.materialA.fogMode = rdpSettings["g_fog"].get<uint32_t>() + 1;
       model.materialB.fogMode = model.materialA.fogMode;
 
+      uint32_t texGen = rdpSettings["g_tex_gen"].get<uint32_t>();
+      model.materialA.uvGenFunc = (texGen != 0) ? UvGenFunc::SPHERE : UvGenFunc::NONE;
+      model.materialB.uvGenFunc = model.materialA.uvGenFunc;
+
       bool setRenderMode = rdpSettings["set_rendermode"].get<uint32_t>() != 0;
       if(setRenderMode) {
         int renderMode1Raw = rdpSettings["rendermode_preset_cycle_1"].get<uint32_t>();

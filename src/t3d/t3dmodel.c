@@ -177,6 +177,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
   uint64_t lastCC = 0;
   color_t lastPrimColor = (color_t){0,0,0,0};
   bool hadMatrixPush = false;
+  uint8_t lastUvGenFunc = T3D_UVGEN_NONE;
 
   for(uint32_t c = 0; c < model->chunkCount; c++) {
     char chunkType = model->chunkOffsets[c].type;
@@ -227,6 +228,11 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
             hadMatrixPush = false;
           }
         }
+      }
+
+      if(matMain) {
+        lastUvGenFunc = matMain->uvGenFunc;
+        t3d_state_set_uvgen(lastUvGenFunc, (int16_t)matMain->texWidth, (int16_t)matMain->texHeight);
       }
 
       // load vertices, this will already do T&L (so matrices/fog/lighting must be set before)
@@ -318,9 +324,8 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
     }
   }
 
-  if(hadMatrixPush) {
-    t3d_matrix_pop(1);
-  }
+  if(hadMatrixPush)t3d_matrix_pop(1);
+  if(lastUvGenFunc != T3D_UVGEN_NONE)t3d_state_set_uvgen(T3D_UVGEN_NONE, 0, 0);
 }
 
 void t3d_model_free(T3DModel *model) {

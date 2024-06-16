@@ -12,12 +12,7 @@
  ***************************************/
 
 #define TRI_BUFFER_COUNT 70
-
-#ifdef PROFILING
-  #define LIGHT_COUNT 6
-#else
-  #define LIGHT_COUNT 8
-#endif
+#define LIGHT_COUNT 6
 
 // settings for RDPQ_Triangle
 #define RDPQ_TRIANGLE_CUSTOM_VTX 1
@@ -105,6 +100,8 @@ state
   alignas(16)
   u8 CLIP_BUFFER_TMP[7][TRI_SIZE];
 
+  // NOTE: this space must stay empty to allow overflows into the next buffer!
+
   // Last buffer where final clipping triangles are stored.
   // During clipping, vertices alternate between CLIP_BUFFER_TMP & B.
   alignas(16)
@@ -135,6 +132,8 @@ state
      0, 1, 0,  -1
   };
 
+  u16 UV_GEN_PARAMS[2] = {0, 0}; // user defined args. for the UV function
+
   // scales clip-space W to be 1 in the middle of near to far
   // the `0` are set at runtime to a fractional value
   alignas(8) vec16 NORM_SCALE_W = {
@@ -154,8 +153,8 @@ state
   // Fog settings: index 0/1 is the scale as a s16.16, index 2 the scale as a s16 int.
   // The last value is used as a limiter to prevent overflows.
   s16 FOG_SCALE_OFFSET[4] = {0, 0, 0, 32767};
-
   u16 RDPQ_TRI_BUFF_OFFSET = {0};
+  u16 UV_GEN_FUNCTION = {0}; // point to the current UV function to be used during vertex load
 
   u8 FACE_CULLING = {0}; // 0=cull front, 1=cull back, 2=no-culling
   u8 USE_FOG      = {0}; // 0=no-fog, 1=use-fog
@@ -326,6 +325,21 @@ command<12> T3DCmd_TriSync()
   goto RDPQ_Triangle_Send_End;
 }
 
+function UVGen_None(vec16<$v08> uv, vec16<$v05> norm, vec16<$v09> uvGenArgs, u32<$s6> ptrBuffA, u32<$s5> ptrBuffB)
+{
+  store(uv.xy, ptrBuffA, VTX_ATTR_ST);
+  store(uv.zw, ptrBuffB, VTX_ATTR_ST);
+}
+
+function UVGen_Spherical(vec16<$v08> uv, vec16<$v05> norm, vec16<$v09> uvGenArgs, u32<$s6> ptrBuffA, u32<$s5> ptrBuffB)
+{
+  uv:sfract = norm * uvGenArgs;
+  uv += uvGenArgs.x;
+
+  store(uv.xy, ptrBuffA, VTX_ATTR_ST);
+  store(uv.XY, ptrBuffB, VTX_ATTR_ST);
+}
+
 /**
  * Loads & transforms 3D vertices into the internal buffer, later to be used by triangles.
  * This fully prepares them to be used by RDPQ_Triangle, while still being able to
@@ -381,6 +395,10 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   u8 ptrLightEnd = load(ACTIVE_LIGHT_SIZE);
   ptrLightEnd += ptrLight;
 
+  vec16 uvGenArgs;
+  uvGenArgs.xy = load(UV_GEN_PARAMS).xy;
+  uvGenArgs.XY = load(UV_GEN_PARAMS).xy;
+
   // @TODO: racing the DMA is ~40us faster, doesn't work in ares, retest later again
   dma_await();
 
@@ -391,11 +409,12 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     // Position & Normals
     vec32 posClip;
     vec16 color;
+    vec16 norm;
     {
       vec16 pos = load(prt3d, 0x00);
       // load & transform normals, this in not needed when no directional light is present
       // however, an if-statement + the lost ability for reordering is not worth it. (@TODO: do more tests)
-      vec16 norm = normMask & pos.wwwwWWWW;
+      norm = normMask & pos.wwwwWWWW;
       norm *= normShift;
 
       posClip:sfract = matN0:sfract  * norm.xxxxXXXX; // (assign to dummy value)
@@ -491,17 +510,21 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     @Barrier("pos-cc") store(posClip:sint.xyzw, ptrBuffA, VTX_ATTR_XY);
     @Barrier("pos-cc") store(posClip:sint.XYZW, ptrBuffB, VTX_ATTR_XY);
 
-    @Barrier("uv") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
-    @Barrier("uv") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
+    store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
+    store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
 
     undef posClip;
 
-    // copy UV over, color overlaps UV during a save so add a barrier here
     vec16 uv = load(prt3d, 0x18).xyzw;
-    @Barrier("uv") store(uv.xy, ptrBuffA, VTX_ATTR_ST);
-    @Barrier("uv") store(uv.zw, ptrBuffB, VTX_ATTR_ST);
-
     prt3d += 0x20;
+
+    {
+      u16 uvGenFunc = load(UV_GEN_FUNCTION);
+      uvGenFunc();
+    }
+    //UVGen_Scroll(uv, norm, uvGenArgs, ptrBuffA, ptrBuffB);
+    //UVGen_Spherical(uv, norm, uvGenArgs, ptrBuffA, ptrBuffB);
+    //UVGen_None(uv, norm, uvGenArgs, ptrBuffA, ptrBuffB);
 
     @Barrier("pos-cc") store(clipCodeA:u8, ptrBuffA, VTX_ATTR_CLIPFLAGS);
     @Barrier("pos-cc") store(clipCodeB:u8, ptrBuffB, VTX_ATTR_CLIPFLAGS);
@@ -609,17 +632,6 @@ command<6> T3DCmd_RenderMode(u8 culling, u32 triCommand) {
 
   store(triCommand, TRI_COMMAND);
 }
-
-/**
- * Sets current camera, only used for culling and FX.
- * @param dirXYZ normalized direction, packed s8
- * @param posXY world-space pos (XY) as s16
- * @param posZ  world-space pos (Z) as s16
- */
-/*command<7> T3DCmd_SetCam(u32 dirXYZ, u32 posXY, u16 posZ)
-{
-  // @TODO: implement this if anything needs the camera
-}*/
 
 /**
  * Multiplies two matrices in memory.
@@ -792,6 +804,16 @@ command<8> T3DCmd_MatProjectionSet(u32 addressMat) {
  */
 command<3> T3DCmd_SetWord(u16 addrDMEM, u32 value) {
   store(value, addrDMEM);
+}
+
+/**
+ * Sets the UV generation function.
+ * @param uvFunc function address in IMEM
+ * @param params user-defined parameters (2x u16 value)
+ */
+command<7> T3DCmd_SetUVGen(u16 uvFunc, u32 params) {
+  store(uvFunc, UV_GEN_FUNCTION);
+  store(params, UV_GEN_PARAMS);
 }
 
 #endif

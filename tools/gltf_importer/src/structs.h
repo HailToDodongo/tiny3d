@@ -53,6 +53,11 @@ namespace FogMode {
   constexpr uint8_t INVALID = 0xFF;
 }
 
+namespace UvGenFunc {
+  constexpr uint8_t NONE  = 0;
+  constexpr uint8_t SPHERE = 1;
+}
+
 // Normalized vertex, this is then used to generate the final vertex data
 struct VertexNorm {
   Vec3 pos{};
@@ -124,6 +129,7 @@ struct Material {
   uint32_t uuid{};
   uint8_t alphaMode{};
   uint8_t fogMode{};
+  uint8_t uvGenFunc{};
   uint8_t primColor[4]{};
   bool setPrimColor{false};
 };

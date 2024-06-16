@@ -37,7 +37,7 @@ typedef struct {
   uint8_t alphaMode; // see: T3D_ALPHA_MODE_xxx
   uint8_t fogMode; // see: T3D_FOG_MODE_xxx
   uint8_t setPrimColor;
-  uint8_t _reserved;
+  uint8_t uvGenFunc;
 
   color_t primColor;
   uint32_t texReference; // dynamic/offscreen texture if non-zero, can be set in fast64

@@ -55,6 +55,9 @@ void t3d_init(T3DInitParams params)
   uint32_t *stackPtr = (uint32_t*)((char*)state + ((RSP_T3D_MATRIX_STACK_PTR - RSP_T3D_STATE_MEM_START) & 0xFFFF));
   *stackPtr = (uint32_t)UncachedAddr(matrixStack);
 
+  uint16_t *uvGenFunc = (uint16_t*)((char*)state + ((RSP_T3D_UV_GEN_FUNCTION - RSP_T3D_STATE_MEM_START) & 0xFFFF));
+  *uvGenFunc = RSP_T3D_CODE_UVGen_None & 0xFFF;
+
   // set the address for the clipping ucode from the other overlay, and that of the main one.
   // this is used to lazy-load a new section of IMEM if clipping is needed, and switch back afterward.
   uint32_t *clipAddrPtr = (uint32_t*)((char*)state + ((RSP_T3D_CLIP_CODE_ADDR - RSP_T3D_STATE_MEM_START) & 0xFFFF));
@@ -236,6 +239,24 @@ void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags)
   uint32_t cmd = drawFlags | RDPQ_CMD_TRI;
   cmd = 0xC000 | (cmd << 8);
   rspq_write(T3D_RSP_ID, T3D_CMD_DRAWFLAGS, cullMask, cmd);
+}
+
+void t3d_state_set_uvgen(enum T3DUVGen func, int16_t arg0, int16_t arg1)
+{
+  uint32_t funcIMEM = RSP_T3D_CODE_UVGen_None;
+  switch (func) {
+    case T3D_UVGEN_SPHERE:
+      arg0 *= 16;
+      arg1 *= -16;
+      funcIMEM = RSP_T3D_CODE_UVGen_Spherical;
+    break;
+    case T3D_UVGEN_NONE  : funcIMEM = RSP_T3D_CODE_UVGen_None;   break;
+  }
+
+  uint32_t args = (uint16_t)arg1;
+  args |= (uint16_t)arg0 << 16;
+
+  rspq_write(T3D_RSP_ID, T3D_CMD_SET_UV_GEN, funcIMEM & 0xFFF, args);
 }
 
 void t3d_segment_set(uint8_t segmentId, void *address) {
