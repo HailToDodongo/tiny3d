@@ -230,7 +230,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
         }
       }
 
-      if(matMain) {
+      if(matMain && lastUvGenFunc != matMain->uvGenFunc) {
         lastUvGenFunc = matMain->uvGenFunc;
         t3d_state_set_uvgen(lastUvGenFunc, (int16_t)matMain->texWidth, (int16_t)matMain->texHeight);
       }

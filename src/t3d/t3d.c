@@ -15,6 +15,7 @@ _Static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_End < RSP_T3D_CODE_CLIPPING_CODE_
 _Static_assert(RSP_T3D_CODE_RSPQCmd_RdpAppendBuffer < RSP_T3D_CODE_CLIPPING_CODE_TARGET, "Triangle functions must come before the clipping code!");
 
 _Static_assert(RSP_T3D_CODE_CLIPPING_CODE_TARGET % 8 == 0, "Clipping code must be aligned to 8 bytes!");
+_Static_assert(RSP_T3D_CODE_CLIPPING_CODE_TARGET == RSP_T3D_CODE_CLIP_clipTriangle, "Clipping code and target must have the same address");
 
 DEFINE_RSP_UCODE(rsp_tiny3d);
 DEFINE_RSP_UCODE(rsp_tiny3d_clipping);
@@ -29,17 +30,6 @@ uint32_t T3D_RSP_ID = 0;
 
 static T3DViewport *currentViewport = NULL;
 static T3DMat4FP *matrixStack = NULL;
-
-static bool patch_ucode(rsp_ucode_t* ucode, uint32_t orgInstr, uint32_t newInstr) {
-  bool found = false;
-  for(uint32_t* inst = (uint32_t*)ucode->code; inst < (uint32_t*)ucode->code_end; inst++) {
-    if(*inst == orgInstr) {
-      found = true;
-      *inst = newInstr;
-    }
-  }
-  return found;
-}
 
 void t3d_init(T3DInitParams params)
 {
@@ -65,15 +55,6 @@ void t3d_init(T3DInitParams params)
   clipAddrPtr[0] = (uint32_t)PhysicalAddr(rsp_tiny3d_clipping.code + (RSP_T3D_CODE_CLIP_clipTriangle & 0xFFF));
   clipAddrPtr[1] = (uint32_t)PhysicalAddr(rsp_tiny3d.code + (RSP_T3D_CODE_CLIPPING_CODE_TARGET & 0xFFF));
   *clipSizePtr = RSP_T3D_CODE_CLIP__text_end - RSP_T3D_CODE_CLIP_clipTriangle + 7;
-  int relocDiff = RSP_T3D_CODE_CLIPPING_CODE_TARGET - RSP_T3D_CODE_CLIP_clipTriangle;
-
-  // The clipping code contains a single absolute address for a register assignment, relocate that here:
-  // Instruction: "ori $sp, $zero, %lo(CLIP_AFTER_EMIT)" -> "0x341d****"
-  bool patchSuccess = patch_ucode(&rsp_tiny3d_clipping,
-    0x341D0000 | (RSP_T3D_CODE_CLIP_CLIP_AFTER_EMIT & 0xFFFF),
-    0x341D0000 | ((RSP_T3D_CODE_CLIP_CLIP_AFTER_EMIT & 0xFFFF) + relocDiff)
-  );
-  assert(patchSuccess);
 
   T3D_RSP_ID = rspq_overlay_register(&rsp_tiny3d);
 
