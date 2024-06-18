@@ -154,6 +154,7 @@ state
   // The last value is used as a limiter to prevent overflows.
   s16 FOG_SCALE_OFFSET[4] = {0, 0, 0, 32767};
   u16 RDPQ_TRI_BUFF_OFFSET = {0};
+  u16 SCREEN_UVGEN_SCALE = {0};
 
   u8 UV_GEN_FUNCTION = {0}; // point to the current UV function to be used during vertex load
   u8 FACE_CULLING = {0}; // 0=cull front, 1=cull back, 2=no-culling
@@ -297,6 +298,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   vec16 uvGenArgs;
   uvGenArgs.xy = load(UV_GEN_PARAMS).xy;
   uvGenArgs.XY = load(UV_GEN_PARAMS).xy;
+  uvGenArgs.w = load(SCREEN_UVGEN_SCALE).x;
 
   // @TODO: racing the DMA is ~40us faster, doesn't work in ares, retest later again
   dma_await();
@@ -419,8 +421,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
     store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
 
-    undef posClip;
-
     @Barrier("pos-cc") store(clipCodeA:u8, ptrBuffA, VTX_ATTR_CLIPFLAGS);
     @Barrier("pos-cc") store(clipCodeB:u8, ptrBuffB, VTX_ATTR_CLIPFLAGS);
 
@@ -445,10 +445,19 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       if(prt3d == ptr3dEnd)goto RSPQ_Loop;
       goto LOOP_START;
     }
-
     // Spherical UVs, this generates UVs based on the normal vector
+
+    // this factor approximates a UV offset that would occur due to perspective / a different angle to the camera
+    // since that is expensive, rather calc. a scalar based on the screen-space pos
+    // and tone it down depending on the normals Z factor (aka how tilted away from the camera it is)
+    vec16 uvOffsetFactor = posClip:sint - screenOffset; // move back to center=0
+    uvOffsetFactor *= uvGenArgs.w; // undo screen-space conversion into a normalized factor
+    uvOffsetFactor:sfract *= oldNorm.zzzzZZZZ; // the less aligned to the camera, the less offset
+    uvOffsetFactor:sfract *= uvGenArgs.x; // scale down to texture size
+
     uv:sfract = oldNorm * uvGenArgs;
     uv += uvGenArgs.x;
+    uv += uvOffsetFactor;
 
     ptrBuffA += TRI_SIZE_2; // delay stall for uv by subtracting in the store
     ptrBuffB += TRI_SIZE_2;
@@ -485,6 +494,17 @@ command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 scre
   store(guardBandFactorNeg, CLIPPING_PLANES, 15); // -X Plane
   store(guardBandFactorNeg, CLIPPING_PLANES, 19); // -Y Plane
 
+  // prepare additional inverse screen-scale, this is used for generated UVs
+  {
+    vec32 screenSize:sfract = 0;
+    s16 screenScaleX = screenScaleXY >> 16;
+    screenSize:sint.x = screenScaleX;
+    screenSize.x = invert_half(screenSize).x;
+
+    vec16 scaleFactor = screenSize:sfract >> 2;
+    scaleFactor += 1;
+    store(scaleFactor.x, SCREEN_UVGEN_SCALE);
+  }
    //printf("\033[2J"); // clear console
 }
 

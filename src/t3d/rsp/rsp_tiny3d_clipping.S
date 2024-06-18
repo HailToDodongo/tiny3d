@@ -160,6 +160,8 @@
     FOG_SCALE_OFFSET: .half 0, 0, 0, 32767
     .align 1
     RDPQ_TRI_BUFF_OFFSET: .half 0
+    .align 1
+    SCREEN_UVGEN_SCALE: .half 0
     UV_GEN_FUNCTION: .byte 0
     FACE_CULLING: .byte 0
     USE_FOG: .byte 0
