@@ -36,7 +36,7 @@ typedef struct {
 
   uint8_t alphaMode; // see: T3D_ALPHA_MODE_xxx
   uint8_t fogMode; // see: T3D_FOG_MODE_xxx
-  uint8_t setPrimColor;
+  uint8_t zModeSetPrim;
   uint8_t uvGenFunc;
 
   color_t primColor;

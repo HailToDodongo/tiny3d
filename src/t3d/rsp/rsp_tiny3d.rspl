@@ -12,7 +12,7 @@
  ***************************************/
 
 #define TRI_BUFFER_COUNT 70
-#define LIGHT_COUNT 4
+#define LIGHT_COUNT 8
 
 // settings for RDPQ_Triangle
 #define RDPQ_TRIANGLE_CUSTOM_VTX 1

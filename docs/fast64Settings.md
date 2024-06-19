@@ -25,6 +25,7 @@ Here is a full list of all settings currently supported:
   - Shade-Alpha = Fog
   - Cull Front
   - Cull Back
+  - Texture UV Generate 
 - Upper
   - Cycle Type (1 Cycle, 2 Cycle)
 - Lower

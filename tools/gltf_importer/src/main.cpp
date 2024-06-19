@@ -171,7 +171,7 @@ int main(int argc, char* argv[])
 
       f->write(material.alphaMode);
       f->write(material.fogMode);
-      f->write<uint8_t>(material.setPrimColor);
+      f->write<uint8_t>((material.zMode << 4) | material.setPrimColor);
       f->write(material.uvGenFunc);
 
       f->writeArray(material.primColor, 4);

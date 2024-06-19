@@ -74,7 +74,8 @@ only the first materials CC and draw flags are used.
 | 0x08   | `u32`                | T3D Draw flags                  |
 | 0x0C   | `u8 (AlphaMode)`     | Alpha mode                      |
 | 0x0D   | `u8 (FogMode)`       | Fog mode                        |
-| 0x0E   | `u8`                 | Source flags (1=use prim-color) |
+| 0x0E:0 | `u4`                 | Z-Mode mask                     |
+| 0x0E:4 | `u4`                 | Source flags (1=use prim-color) |
 | 0x0F   | `u8 (UVFunc)`        | Generated UV function           |
 | 0x10   | `u8[4]`              | Prim-Color (zero if unused)     |
 | 0x14   | `u32`                | Texture reference (offscreen)   |

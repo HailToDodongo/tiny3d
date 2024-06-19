@@ -203,6 +203,9 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
         uint8_t alphaMode1 = F64_RENDER_MODE_1_TO_ALPHA[renderMode1Raw];
         uint8_t alphaMode2 = F64_RENDER_MODE_2_TO_ALPHA[renderMode2Raw];
 
+        model.materialA.zMode = F64_RENDER_MODE_1_TO_ZMODE[renderMode1Raw] | F64_RENDER_MODE_2_TO_ZMODE[renderMode2Raw];
+        model.materialB.zMode = model.materialA.zMode;
+
         if(alphaMode1 == AlphaMode::INVALID || alphaMode2 == AlphaMode::INVALID) {
           printf("\n\nInvalid render-modes: %d, please only use Opaque, Cutout, Transparent, Fog-Shade\n", renderMode1Raw);
           throw std::runtime_error("Invalid render-modes!");
