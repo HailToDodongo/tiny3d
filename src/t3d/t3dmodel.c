@@ -178,6 +178,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
   color_t lastPrimColor = (color_t){0,0,0,0};
   bool hadMatrixPush = false;
   uint8_t lastUvGenFunc = T3D_UVGEN_NONE;
+  uint16_t lastUvGenParams[2] = {0,0};
 
   for(uint32_t c = 0; c < model->chunkCount; c++) {
     char chunkType = model->chunkOffsets[c].type;
@@ -230,9 +231,15 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
         }
       }
 
-      if(matMain && lastUvGenFunc != matMain->uvGenFunc) {
-        lastUvGenFunc = matMain->uvGenFunc;
-        t3d_state_set_uvgen(lastUvGenFunc, (int16_t)matMain->texWidth, (int16_t)matMain->texHeight);
+      if(matMain) {
+        if(lastUvGenFunc != matMain->uvGenFunc || (
+          matMain->uvGenFunc && (lastUvGenParams[0] != matMain->texWidth || lastUvGenParams[1] != matMain->texHeight)
+        )) {
+          lastUvGenFunc = matMain->uvGenFunc;
+          lastUvGenParams[0] = matMain->texWidth;
+          lastUvGenParams[1] = matMain->texHeight;
+          t3d_state_set_uvgen(lastUvGenFunc, (int16_t)matMain->texWidth, (int16_t)matMain->texHeight);
+        }
       }
 
       // load vertices, this will already do T&L (so matrices/fog/lighting must be set before)
@@ -287,6 +294,10 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
             case T3D_ALPHA_MODE_TRANSP:
               rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY);
               rdpq_mode_alphacompare(0); // always zero in fast64?
+              /*rdpq_change_other_modes_raw(
+                SOM_ZMODE_DECAL,
+                SOM_ZMODE_DECAL
+              );*/
             break;
             case T3D_ALPHA_MODE_CUTOUT:
               rdpq_mode_blender(0);
@@ -295,6 +306,10 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
             case T3D_ALPHA_MODE_OPAQUE:
               rdpq_mode_blender(0);
               rdpq_mode_alphacompare(0);
+              /*rdpq_change_other_modes_raw(
+                SOM_ZMODE_DECAL,
+                0
+              );*/
             break;
           }
 
