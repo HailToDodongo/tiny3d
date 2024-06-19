@@ -57,7 +57,7 @@ namespace {
     ZMode::DECAL, // Opaque Decal
     ZMode::INTERSECT, // Opaque Intersecting
     ZMode::OPAQUE, // Cutout
-    ZMode::TRANSP, // Transparent
+    ZMode::OPAQUE, // Transparent
     ZMode::DECAL, // Transparent Decal
     ZMode::INTERSECT, // Transparent Intersecting
     ZMode::OPAQUE, // Fog Shade
@@ -67,7 +67,7 @@ namespace {
     ZMode::OPAQUE, // No Op
     ZMode::OPAQUE, // Opaque (No AA)
     ZMode::DECAL, // Opaque Decal (No AA)
-    ZMode::TRANSP, // Transparent (No AA)
+    ZMode::OPAQUE, // Transparent (No AA)
     ZMode::DECAL, // Transparent Decal (No AA)
     ZMode::OPAQUE, // Opaque (No AA, No ZBuf)
     ZMode::OPAQUE, // Cloud (No AA)
@@ -80,14 +80,14 @@ namespace {
     ZMode::DECAL, // Opaque Decal
     ZMode::INTERSECT, // Opaque Intersecting
     ZMode::OPAQUE, // Cutout
-    ZMode::TRANSP, // Transparent
+    ZMode::OPAQUE, // Transparent
     ZMode::DECAL, // Transparent Decal
     ZMode::INTERSECT, // Transparent Intersecting
     ZMode::OPAQUE, // Add
     ZMode::OPAQUE, // No Op
     ZMode::OPAQUE, // Opaque (No AA)
     ZMode::DECAL, // Opaque Decal (No AA)
-    ZMode::TRANSP, // Transparent (No AA)
+    ZMode::OPAQUE, // Transparent (No AA)
     ZMode::DECAL, // Transparent Decal (No AA)
     ZMode::OPAQUE, // Opaque (No AA, No ZBuf)
     ZMode::OPAQUE, // Cloud (No AA)
