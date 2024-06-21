@@ -47,25 +47,33 @@ int main()
   Model models[] = {
     (Model){.model = t3d_model_load("rom:/sphere.t3dm"), .scale = 0.13f,
       .text = "Smooth Shapes",
-      .subText = "Basic uv-gen. with high-res texture"
+      .subText = "Basic uv-gen. with 44x44 texture"
     },
     (Model){.model = t3d_model_load("rom:/teapot.t3dm"), .scale = 0.08f,
       .text = "Teapot",
       .subText = "Rough-Metallic (blurred env. texture)"
     },
+    (Model){.model = t3d_model_load("rom:/gold.t3dm"), .scale = 0.03f,
+      .text = "Golden Egg",
+      .subText = "LERP between two env. textures"
+    },
+    (Model){.model = t3d_model_load("rom:/can.t3dm"), .scale = 0.13f,
+      .text = "Soda-Can",
+      .subText = "Alpha-blend, two meshes (normal & uv-gen)"
+    },
+    (Model){.model = t3d_model_load("rom:/color.t3dm"), .scale = 0.15f,
+      .text = "Colored Cube",
+      .subText = "LERP between vert. color and env. texture"
+    },
     (Model){.model = t3d_model_load("rom:/flat.t3dm"), .scale = 0.05f,
       .text = "Flat Shapes",
       .subText = "Flat-shaded mesh, smooth uv-gen."
     },
-    (Model){.model = t3d_model_load("rom:/can.t3dm"), .scale = 0.13f,
-      .text = "Soda-Can",
-      .subText = "Alpha-blended, regular & uv-gen. model"
-    },
     (Model){.model = t3d_model_load("rom:/gem.t3dm"), .scale = 0.05f,
       .text = "Gem Stone",
-      .subText = "Flat-shaded mesh, low-res env. texture"
+      .subText = "Flat-shaded mesh, 4x4 env. texture"
     },
-    (Model){.model = t3d_model_load("rom:/brew_logo.t3dm"), .scale = 0.06f,
+    (Model){.model = t3d_model_load("rom:/brew_logo.t3dm"), .scale = 0.07f,
       .text = "N64Brew Logo",
       .subText = "Model by: Arthur"
     },
@@ -115,8 +123,6 @@ int main()
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 4.0f, 160.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
-    // slowly rotate model, for more information on matrices and how to draw objects
-    // see the example: "03_objects"
     t3d_mat4fp_from_srt_euler(model->modelMatFP,
       (float[3]){model->scale, model->scale, model->scale},
       (float[3]){0.0f, rotAngle*0.8f - 1.5f, rotAngle*0.1f},
@@ -128,7 +134,7 @@ int main()
     t3d_frame_start();
     t3d_viewport_attach(&viewport);
 
-    t3d_screen_clear_color(RGBA32(5, 80, 80, 0xFF));
+    t3d_screen_clear_color(RGBA32(217, 174, 147, 0xFF));
     t3d_screen_clear_depth();
 
     t3d_light_set_ambient(colorAmbient);
@@ -142,12 +148,12 @@ int main()
         .width = display_get_width(),
         .align = ALIGN_CENTER,
     };
+
     rdpq_text_printf(&texParam, FONT_BUILTIN_DEBUG_MONO, 0, 24,
       "< [%ld/%ld] %s >", currModelIdx+1, modelCount, model->text
     );
-    if(model->subText) {
-      rdpq_text_print(&texParam, FONT_BUILTIN_DEBUG_MONO, 0, display_get_height()-24, model->subText);
-    }
+    rdpq_text_print(&texParam, FONT_BUILTIN_DEBUG_MONO, 0, display_get_height()-24, model->subText);
+
     rdpq_detach_show();
   }
 
