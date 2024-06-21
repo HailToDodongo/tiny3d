@@ -75,7 +75,7 @@ int main()
     },
     (Model){.model = t3d_model_load("rom:/brew_logo.t3dm"), .scale = 0.07f,
       .text = "N64Brew Logo",
-      .subText = "Model by: Arthur"
+      .subText = "Various env. textures (Model by: Arthur)"
     },
   };
   uint32_t modelCount = sizeof(models)/sizeof(models[0]);
