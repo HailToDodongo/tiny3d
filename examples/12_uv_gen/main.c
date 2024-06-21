@@ -91,7 +91,7 @@ int main()
 
   uint32_t currModelIdx = 0;
   float rotAngle = 0.0f;
-
+  rspq_syncpoint_t syncPoint = 0;
   T3DVec3 currentPos = {{0,0,0}};
 
   for(;;)
@@ -123,6 +123,7 @@ int main()
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 4.0f, 160.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
+    if(syncPoint)rspq_syncpoint_wait(syncPoint);
     t3d_mat4fp_from_srt_euler(model->modelMatFP,
       (float[3]){model->scale, model->scale, model->scale},
       (float[3]){0.0f, rotAngle*0.8f - 1.5f, rotAngle*0.1f},
@@ -142,6 +143,7 @@ int main()
 
     rdpq_set_prim_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
     rspq_block_run(model->dplModel);
+    syncPoint = rspq_syncpoint_new();
 
     // ======== 2D ======== //
     rdpq_sync_pipe();
