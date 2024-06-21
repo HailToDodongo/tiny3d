@@ -364,7 +364,6 @@ void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags);
  * The meaning of those arguments depends on the type:
  * - T3D_UVGEN_NONE: (no arguments)
  * - T3D_UVGEN_SPHERE: texture size X/Y in pixels
- * - T3D_UVGEN_WIGGLE:
  *
  * @param func UV generation function
  * @param arg0 first argument
