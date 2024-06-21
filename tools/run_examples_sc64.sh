@@ -1,6 +1,8 @@
 set -e
-
 for d in examples/*/*.z64 ; do
+  curl 192.168.0.6:9065/off
+  sleep 1
+
   n=0
   until [ "$n" -ge 5 ]
   do
@@ -9,6 +11,6 @@ for d in examples/*/*.z64 ; do
      sleep 2
   done
 
-  curl 192.168.0.6:9065/reset
+  curl 192.168.0.6:9065/on
   read -n 1 -s
 done

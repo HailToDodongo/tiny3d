@@ -85,6 +85,7 @@ macro intersection(
  * @param ptrVertB vertex 1
  * @param ptrVertC vertex 2
  */
+@Align(8)
 function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, u32<$a2> ptrVertC)
 {
   arraySize = TRI_SIZE_3; // 3-verts by default

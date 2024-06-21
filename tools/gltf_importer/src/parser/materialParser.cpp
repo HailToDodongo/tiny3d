@@ -192,12 +192,19 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
       model.materialA.fogMode = rdpSettings["g_fog"].get<uint32_t>() + 1;
       model.materialB.fogMode = model.materialA.fogMode;
 
+      uint32_t texGen = rdpSettings["g_tex_gen"].get<uint32_t>();
+      model.materialA.uvGenFunc = (texGen != 0) ? UvGenFunc::SPHERE : UvGenFunc::NONE;
+      model.materialB.uvGenFunc = model.materialA.uvGenFunc;
+
       bool setRenderMode = rdpSettings["set_rendermode"].get<uint32_t>() != 0;
       if(setRenderMode) {
         int renderMode1Raw = rdpSettings["rendermode_preset_cycle_1"].get<uint32_t>();
         int renderMode2Raw = rdpSettings["rendermode_preset_cycle_2"].get<uint32_t>();
         uint8_t alphaMode1 = F64_RENDER_MODE_1_TO_ALPHA[renderMode1Raw];
         uint8_t alphaMode2 = F64_RENDER_MODE_2_TO_ALPHA[renderMode2Raw];
+
+        model.materialA.zMode = F64_RENDER_MODE_1_TO_ZMODE[renderMode1Raw] | F64_RENDER_MODE_2_TO_ZMODE[renderMode2Raw];
+        model.materialB.zMode = model.materialA.zMode;
 
         if(alphaMode1 == AlphaMode::INVALID || alphaMode2 == AlphaMode::INVALID) {
           printf("\n\nInvalid render-modes: %d, please only use Opaque, Cutout, Transparent, Fog-Shade\n", renderMode1Raw);

@@ -45,12 +45,24 @@ namespace AlphaMode {
   constexpr uint8_t INVALID = 0xFF;
 }
 
+namespace ZMode {
+  constexpr uint8_t OPAQUE    = 0;
+  constexpr uint8_t INTERSECT = 1;
+  constexpr uint8_t TRANSP    = 2;
+  constexpr uint8_t DECAL     = 3;
+}
+
 namespace FogMode {
   constexpr uint8_t DEFAULT  = 0;
   constexpr uint8_t DISABLED = 1;
   constexpr uint8_t ACTIVE   = 2;
 
   constexpr uint8_t INVALID = 0xFF;
+}
+
+namespace UvGenFunc {
+  constexpr uint8_t NONE  = 0;
+  constexpr uint8_t SPHERE = 1;
 }
 
 // Normalized vertex, this is then used to generate the final vertex data
@@ -123,7 +135,9 @@ struct Material {
   uint32_t texReference{};
   uint32_t uuid{};
   uint8_t alphaMode{};
+  uint8_t zMode{};
   uint8_t fogMode{};
+  uint8_t uvGenFunc{};
   uint8_t primColor[4]{};
   bool setPrimColor{false};
 };
