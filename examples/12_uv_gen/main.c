@@ -144,6 +144,8 @@ int main()
     rspq_block_run(model->dplModel);
 
     // ======== 2D ======== //
+    rdpq_sync_pipe();
+
     rdpq_textparms_t texParam = {
         .width = display_get_width(),
         .align = ALIGN_CENTER,
