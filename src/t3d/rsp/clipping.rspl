@@ -1,7 +1,7 @@
 // force specific order, 'clipTriangle' must be first
 function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, u32<$a2> ptrVertC);
 function copyClippingVertex(u32<$t3> ptrDst, u32<$s0> ptrSrc);
-function emitClippedTri(u32<$t3> ptrWrite, u8<$t7> lastClipCode, vec32<$v02> lastPosUV, vec16<$v01> lastColor);
+function emitClippedTri(u32<$t3> ptrWrite, u8<$t7> lastClipCode, vec32<$v04> lastPosUV, vec16<$v03> lastColor);
 function triToScreenSpace(u32<$s6> ptr);
 
 macro returnBack() {
@@ -31,30 +31,42 @@ macro intersection(
   vec32 posBase, vec16 colorBase,
   vec32 pos, vec16 color
 ) {
-  vec16 normScaleWInv = load(NORM_SCALE_W, 8).xyzwxyzw;
   {
-    vec16 colorDiff = color - colorBase;
-    vec32 posUVDiff = pos - posBase;
+    vec32 posUVDiff;
+    vec32 vpos;
+    vec16 colorDiff;
 
+    // load and transform current clipping plane
     vec32 planeNorm:sint = load_vec_s8(planePtr);
+    planeNorm:sint.XYZW = planeNorm:sint.xyzw;
     planeNorm:sfract = 0;
     planeNorm >>= 8;
-    planeNorm:sint.XYZW = planeNorm:sint.xyzw;
     planeNorm *= normScaleWInv:ufract;
 
-    vec32 vpos = posBase;
-    vpos.XYZW = pos.xyzw;
+    // contains last clip-code for current plane
+    // when set, switch points for interpolation to have consistent results
+    // if not done, it will result in tiny sub-pixel gaps between edges
+    if(newClipCode)
+    {
+      posUVDiff = posBase - pos;
+      vpos = pos;
+      vpos.XYZW = posBase.xyzw;
 
-    vec32 dot;
-    dotXYZW(dot, vpos, planeNorm);
+      colorDiff = colorBase - color;
+    } else {
+      posUVDiff = pos - posBase;
+      vpos = posBase;
+      vpos.XYZW = pos.xyzw;
 
+      colorDiff = color - colorBase;
+    }
+
+    vec32 dot = dotXYZW(vpos, planeNorm);
     vec32 fac = dot - dot.X;
 
     fac.x = invert_half(fac).x;
     fac += fac;
     fac *= dot.x;
-
-    //printf("%v d:%v\t", fac.x, dot.x);
 
     // From now on we only need the fractional part.
     // Prevent overflow (>1.0) by checking the integer part
@@ -62,17 +74,25 @@ macro intersection(
     fac:ufract = fac:sint < 1 ? fac:ufract : normScaleWInv:ufract.w; // <- contains 0.9999
     fac:ufract = fac:sint >= 0 ? fac:ufract : VZERO;
 
-    dot = posUVDiff * fac:sfract.x;
-    // @TODO: add auto opt. for this in RSPL
-    resPosUV = posBase +* 1; // abuse add-mul to add diff onto pos.
-
     colorDiff:sfract *= fac:sfract.x;
-    resColor:uint = colorBase + colorDiff;
+
+    if(newClipCode) {
+      // @TODO: add auto opt. for this in RSPL
+      dot = posUVDiff * fac:ufract.x;
+      resPosUV = pos +* 1; // abuse add-mul to add diff onto pos.
+      resColor:uint = color + colorDiff;
+    } else {
+      dot = posUVDiff * fac:ufract.x;
+      resPosUV = posBase +* 1;
+      resColor:uint = colorBase + colorDiff;
+    }
   }
 
   vec32 clipBase = resPosUV * normScaleWInv:ufract;
-  newClipCode = clip(clipBase, resPosUV.w);
-  packClipCode(newClipCode, newClipCode);
+  vec32 clipPlaneW = guardBandScale * resPosUV.wwwwWWWW;
+
+  newClipCode = clip(clipBase, clipPlaneW.w);
+  newClipCode = packClipCode(newClipCode);
 }
 
 /**
@@ -106,6 +126,10 @@ function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, 
 
   u32 planePtr = CLIPPING_PLANES;
   s32 planeIdx = 1;
+
+  vec16 normScaleWInv = load(NORM_SCALE_W, 8).xyzwxyzw;
+  vec16 guardBandScale = load(CLIPPING_PLANES).xy;
+  guardBandScale = guardBandScale.y;
 
   // check 5 planes, we shift instead of incr. for direct clip-code checks
   // the z-far plane is ignored
@@ -143,10 +167,12 @@ function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, 
 
       if(exclIntersect)
       {
+        lastClipCode &= planeIdx;
         intersection(
           lastPosUV, lastColor, lastClipCode, // output
           planePtr,
           lastPosUV, lastColor, currentPosUV, currentColor);
+
         @Relative emitClippedTri(ptrWrite, lastClipCode, lastPosUV, lastColor);
       }
 
@@ -242,7 +268,7 @@ function copyClippingVertex(u32<$t3> ptrDst, u32<$s0> ptrSrc)
  * @param lastPosUV  pos + UV to save
  * @param lastColor color to save
  */
-function emitClippedTri(u32<$t3> ptrWrite, u8<$t7> lastClipCode, vec32<$v02> lastPosUV, vec16<$v01> lastColor)
+function emitClippedTri(u32<$t3> ptrWrite, u8<$t7> lastClipCode, vec32<$v04> lastPosUV, vec16<$v03> lastColor)
 {
   @Barrier("uv") store_vec_u8(lastColor,  ptrWrite, VTX_ATTR_RGBA);
   @Barrier("uv") store(lastPosUV:sint.XY, ptrWrite, VTX_ATTR_ST);

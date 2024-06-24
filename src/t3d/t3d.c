@@ -54,7 +54,7 @@ void t3d_init(T3DInitParams params)
   uint16_t *clipSizePtr = (uint16_t*)((char*)state + ((RSP_T3D_CLIP_CODE_SIZE - RSP_T3D_STATE_MEM_START) & 0xFFFF));
   clipAddrPtr[0] = (uint32_t)PhysicalAddr(rsp_tiny3d_clipping.code + (RSP_T3D_CODE_CLIP_clipTriangle & 0xFFF));
   clipAddrPtr[1] = (uint32_t)PhysicalAddr(rsp_tiny3d.code + (RSP_T3D_CODE_CLIPPING_CODE_TARGET & 0xFFF));
-  *clipSizePtr = RSP_T3D_CODE_CLIP__text_end - RSP_T3D_CODE_CLIP_clipTriangle + 7;
+  *clipSizePtr = RSP_T3D_CODE_CLIP_OVERLAY_CODE_END - RSP_T3D_CODE_CLIP_clipTriangle + 7;
 
   T3D_RSP_ID = rspq_overlay_register(&rsp_tiny3d);
 
