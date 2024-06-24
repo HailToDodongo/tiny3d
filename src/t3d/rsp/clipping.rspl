@@ -1,7 +1,5 @@
 // force specific order, 'clipTriangle' must be first
 function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, u32<$a2> ptrVertC);
-function copyClippingVertex(u32<$t3> ptrDst, u32<$s0> ptrSrc);
-function emitClippedTri(u32<$t3> ptrWrite, u8<$t7> lastClipCode, vec32<$v04> lastPosUV, vec16<$v03> lastColor);
 function triToScreenSpace(u32<$s6> ptr);
 
 macro returnBack() {
@@ -38,10 +36,6 @@ macro intersection(
 
     // load and transform current clipping plane
     vec32 planeNorm:sint = load_vec_s8(planePtr);
-    planeNorm:sint.XYZW = planeNorm:sint.xyzw;
-    planeNorm:sfract = 0;
-    planeNorm >>= 8;
-    planeNorm *= normScaleWInv:ufract;
 
     // contains last clip-code for current plane
     // when set, switch points for interpolation to have consistent results
@@ -61,6 +55,11 @@ macro intersection(
       colorDiff = color - colorBase;
     }
 
+    planeNorm:sint.XYZW = planeNorm:sint.xyzw;
+    planeNorm:sfract = 0;
+    planeNorm >>= 8;
+    planeNorm *= normScaleWInv:ufract;
+
     vec32 dot = dotXYZW(vpos, planeNorm);
     vec32 fac = dot - dot.X;
 
@@ -68,11 +67,14 @@ macro intersection(
     fac += fac;
     fac *= dot.x;
 
-    // From now on we only need the fractional part.
-    // Prevent overflow (>1.0) by checking the integer part
-    // and then clamping the fraction if it's not in 0<=x<1.
-    fac:ufract = fac:sint < 1 ? fac:ufract : normScaleWInv:ufract.w; // <- contains 0.9999
-    fac:ufract = fac:sint >= 0 ? fac:ufract : VZERO;
+    s16 facX = fac:sint.x;
+    if(facX != 0) {
+      // From now on we only need the fractional part.
+      // Prevent overflow (>1.0) by checking the integer part
+      // and then clamping the fraction if it's not in 0<=x<1.
+      fac:ufract = fac:sint < 1 ? fac:ufract : normScaleWInv:ufract.w; // <- contains 0.9999
+      fac:ufract = fac:sint >= 0 ? fac:ufract : VZERO;
+    }
 
     colorDiff:sfract *= fac:sfract.x;
 
@@ -118,10 +120,9 @@ function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, 
 
   // copy original verts into the first buffer (@TODO: avoid this somehow?)
   {
-    u32<$s0> ptrSrc;
-    ptrSrc = ptrVertA; @Relative copyClippingVertex(ptrWrite, ptrSrc);
-    ptrSrc = ptrVertB; @Relative copyClippingVertex(ptrWrite, ptrSrc);
-    ptrSrc = ptrVertC; @Relative copyClippingVertex(ptrWrite, ptrSrc);
+    copyClippingVertex(ptrWrite, ptrVertA);
+    copyClippingVertex(ptrWrite, ptrVertB);
+    copyClippingVertex(ptrWrite, ptrVertC);
   }
 
   u32 planePtr = CLIPPING_PLANES;
@@ -173,7 +174,7 @@ function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, 
           planePtr,
           lastPosUV, lastColor, currentPosUV, currentColor);
 
-        @Relative emitClippedTri(ptrWrite, lastClipCode, lastPosUV, lastColor);
+        emitClippedTri(ptrWrite, lastClipCode, lastPosUV, lastColor);
       }
 
       lastPosUV = currentPosUV;
@@ -181,7 +182,7 @@ function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, 
       lastColor = currentColor;
 
       if(isInsideCurr) {
-        @Relative emitClippedTri(ptrWrite, lastClipCode, lastPosUV, lastColor);
+        emitClippedTri(ptrWrite, lastClipCode, lastPosUV, lastColor);
       }
 
       ptrRead += TRI_SIZE;
@@ -245,12 +246,13 @@ function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, 
  * @param ptrDst DMEM address to copy to
  * @param ptrSrc DMEM address to copy from
  */
-function copyClippingVertex(u32<$t3> ptrDst, u32<$s0> ptrSrc)
+macro copyClippingVertex(u32 ptrDst, u32 ptrSrc)
 {
   vec16 tmp1 = load(ptrSrc, 0x00).xyzw;
   vec16 tmp2 = load(ptrSrc, 0x08).xyzw;
   vec16 tmp3 = load(ptrSrc, 0x10).xyzw;
   vec16 tmp4 = load(ptrSrc, 0x18).xyzw;
+
   store(tmp1.xyzw, ptrDst, 0x00);
   store(tmp2.xyzw, ptrDst, 0x08);
   store(tmp3.xyzw, ptrDst, 0x10);
@@ -268,7 +270,7 @@ function copyClippingVertex(u32<$t3> ptrDst, u32<$s0> ptrSrc)
  * @param lastPosUV  pos + UV to save
  * @param lastColor color to save
  */
-function emitClippedTri(u32<$t3> ptrWrite, u8<$t7> lastClipCode, vec32<$v04> lastPosUV, vec16<$v03> lastColor)
+macro emitClippedTri(u32 ptrWrite, u8 lastClipCode, vec32 lastPosUV, vec16 lastColor)
 {
   @Barrier("uv") store_vec_u8(lastColor,  ptrWrite, VTX_ATTR_RGBA);
   @Barrier("uv") store(lastPosUV:sint.XY, ptrWrite, VTX_ATTR_ST);
