@@ -169,7 +169,7 @@ int main(int argc, char* argv[])
       f->write(material.colorCombiner);
       f->write(material.drawFlags);
 
-      f->write(material.alphaMode);
+      f->write<uint8_t>((material.texFilter << 4) | material.alphaMode);
       f->write(material.fogMode);
       f->write<uint8_t>((material.zMode << 4) | material.setPrimColor);
       f->write(material.uvGenFunc);

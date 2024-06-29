@@ -135,6 +135,7 @@ struct Material {
   uint32_t texReference{};
   uint32_t uuid{};
   uint8_t alphaMode{};
+  uint8_t texFilter{};
   uint8_t zMode{};
   uint8_t fogMode{};
   uint8_t uvGenFunc{};

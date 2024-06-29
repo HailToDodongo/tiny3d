@@ -34,7 +34,7 @@ typedef struct {
   uint64_t colorCombiner;
   uint32_t renderFlags;
 
-  uint8_t alphaMode; // see: T3D_ALPHA_MODE_xxx
+  uint8_t filterAlphaMode; // see: T3D_ALPHA_MODE_xxx
   uint8_t fogMode; // see: T3D_FOG_MODE_xxx
   uint8_t zModeSetPrim;
   uint8_t uvGenFunc;
@@ -242,6 +242,14 @@ void t3d_model_get_animations(const T3DModel *model, T3DChunkAnim **anims);
  * @return pointer to the animation or NULL if not found
  */
 T3DChunkAnim* t3d_model_get_animation(const T3DModel *model, const char* name);
+
+/**
+ * Returns an object by name.
+ * @param model model
+ * @param name object name
+ * @return object or NULL if not found
+ */
+T3DObject* t3d_model_get_object(const T3DModel *model, const char *name);
 
 #ifdef __cplusplus
 }

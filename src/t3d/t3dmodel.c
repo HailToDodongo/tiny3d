@@ -173,6 +173,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
   uint32_t lastTextureHashB = 0;
   uint8_t lastFogMode = 0xFF;
   uint8_t lastAlphaMode = 0xFF;
+  uint8_t lastTexFilter = 0xFF;
   uint32_t lastRenderFlags = 0;
   uint64_t lastCC = 0;
   color_t lastPrimColor = (color_t){0,0,0,0};
@@ -293,14 +294,26 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
           rdpq_change_other_modes_raw(zMode << SOM_ZMODE_SHIFT, SOM_ZMODE_MASK);
         }
 
-        if(matMain->alphaMode != lastAlphaMode || hadTexLoad) // @TODO: why 'hadTexLoad'?
+        uint8_t alphaMode = matMain->filterAlphaMode & 0xF;
+        uint8_t texFilter = matMain->filterAlphaMode >> 4;
+
+        if(texFilter != lastTexFilter) {
+          if(!hadPipeSync) {
+            rdpq_sync_pipe();
+            hadPipeSync = true;
+          }
+          rdpq_mode_filter(texFilter);
+          lastTexFilter = texFilter;
+        }
+
+        if(alphaMode != lastAlphaMode || hadTexLoad) // @TODO: why 'hadTexLoad'?
         {
           if(!hadPipeSync) {
             rdpq_sync_pipe();
             hadPipeSync = true;
           }
 
-          switch (matMain->alphaMode) {
+          switch (alphaMode) {
             case T3D_ALPHA_MODE_TRANSP:
               rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY);
               rdpq_mode_alphacompare(0); // always zero in fast64?
@@ -315,7 +328,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
             break;
           }
 
-          lastAlphaMode = matMain->alphaMode;
+          lastAlphaMode = alphaMode;
         }
       }
 
@@ -363,6 +376,17 @@ T3DChunkAnim *t3d_model_get_animation(const T3DModel *model, const char *name) {
       uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
       T3DChunkAnim *anim = (T3DChunkAnim*)((char*)model + offset);
       if(strcmp(anim->name, name) == 0)return anim;
+    }
+  }
+  return NULL;
+}
+
+T3DObject* t3d_model_get_object(const T3DModel *model, const char *name) {
+  for(uint32_t i = 0; i < model->chunkCount; i++) {
+    if(model->chunkOffsets[i].type == 'O') {
+      uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
+      T3DObject *obj = (T3DObject*)((char*)model + offset);
+      if(obj->name && strcmp(obj->name, name) == 0)return obj;
     }
   }
   return NULL;

@@ -72,6 +72,8 @@ enum T3DSegment {
 enum T3DUVGen {
   T3D_UVGEN_NONE   = 0,
   T3D_UVGEN_SPHERE = 1,
+  T3D_UVGEN_CELSHADE_COLOR = 2,
+  T3D_UVGEN_CELSHADE_ALPHA = 3,
 };
 
 /**

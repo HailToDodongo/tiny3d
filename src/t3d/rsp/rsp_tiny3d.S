@@ -1,6 +1,6 @@
 ## Auto-generated file, transpiled with RSPL
 #define TRI_BUFFER_COUNT 70
-#define LIGHT_COUNT 4
+#define LIGHT_COUNT 8
 #define RDPQ_TRIANGLE_CUSTOM_VTX 1
 #define VTX_ATTR_XY 0x00
 #define VTX_ATTR_Z 0x04
@@ -133,6 +133,8 @@
     TRI_BUFFER: .ds.b 2520
     .align 4
     CLIP_BUFFER_TMP: .ds.b 252
+    .align 1
+    CLIP_RA: .ds.b 2
     .align 4
     CLIP_BUFFER_RESULT: .ds.b 288
     .align 4
@@ -161,7 +163,8 @@
     RDPQ_TRI_BUFF_OFFSET: .half 0
     .align 1
     SCREEN_UVGEN_SCALE: .half 0
-    UV_GEN_FUNCTION: .byte 0
+    .align 1
+    UV_GEN_FUNCTION: .half 0
     FACE_CULLING: .byte 0
     USE_FOG: .byte 0
     ACTIVE_LIGHT_SIZE: .byte 0
@@ -175,80 +178,79 @@
     CLIP_CODE_ORG_ADDR: .word 0
     .align 1
     CLIP_CODE_SIZE: .half 0
-    .align 1
-    CLIP_RA: .ds.b 2
   TEMP_STATE_MEM_END:
 
 .text
+OVERLAY_CODE_START:
 
 .align 3
 T3DCmd_VertLoad:
   CLIPPING_CODE_TARGET:
-  andi $t0, $a0, 65535
-  srl $s6, $a1, 24
   srl $s4, $a2, 16
-  or $t2, $zero, $zero
-  lw $s6, %lo(SEGMENT_TABLE)($s6)
+  srl $s6, $a1, 24
+  andi $t0, $a0, 65535
   addu $s7, $s4, $t0
   addiu $t0, $t0, -1
+  lw $s6, %lo(SEGMENT_TABLE)($s6)
+  or $t2, $zero, $zero
   jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   addu $s0, $a1, $s6
-  ori $s6, $zero, %lo(MATRIX_MVP)
   ori $at, $zero, %lo(NORMAL_MASK_SHIFT)
-  ldv $v21, 0, 48, $s6
-  ldv $v25, 0, 16, $s6
-  ldv $v21, 8, 48, $s6
   ldv $v17, 0, 0, $at
-  ldv $v24, 0, 40, $s6
-  ldv $v17, 8, 0, $at
   ldv $v16, 0, 8, $at
+  ori $s6, $zero, %lo(MATRIX_MVP)
+  lbu $s2, %lo(ACTIVE_LIGHT_SIZE + 0)
+  ldv $v24, 0, 40, $s6
+  ori $s3, $zero, %lo(LIGHT_DIR_COLOR)
   ldv $v26, 0, 24, $s6
+  ldv $v28, 0, 8, $s6
+  ldv $v17, 8, 0, $at
   ldv $v27, 0, 0, $s6
+  ldv $v27, 8, 0, $s6
   ldv $v16, 8, 8, $at
   ori $at, $zero, %lo(CLIPPING_PLANES)
-  ldv $v28, 0, 8, $s6
   llv $v15, 0, 0, $at
-  ldv $v22, 0, 56, $s6
-  ldv $v25, 8, 16, $s6
   ori $at, $zero, %lo(SCREEN_SCALE_OFFSET)
-  ldv $v13, 0, 0, $at
-  vor $v15, $v00, $v15.e1
-  ldv $v12, 0, 8, $at
-  ldv $v12, 8, 8, $at
-  ldv $v13, 8, 0, $at
   ldv $v24, 8, 40, $s6
+  ldv $v25, 0, 16, $s6
+  ldv $v22, 0, 56, $s6
+  vor $v15, $v00, $v15.e1
+  ldv $v13, 0, 0, $at
   ldv $v26, 8, 24, $s6
-  ori $s3, $zero, %lo(LIGHT_DIR_COLOR)
   ldv $v23, 0, 32, $s6
-  ldv $v27, 8, 0, $s6
+  ldv $v21, 0, 48, $s6
   ldv $v22, 8, 56, $s6
+  addu $s2, $s2, $s3
   ldv $v28, 8, 8, $s6
+  ldv $v21, 8, 48, $s6
+  ldv $v12, 0, 8, $at
+  ldv $v13, 8, 0, $at
+  ldv $v12, 8, 8, $at
   ldv $v23, 8, 32, $s6
+  ldv $v25, 8, 16, $s6
   ori $s6, $zero, %lo(MATRIX_NORMAL)
-  ori $at, $zero, %lo(FOG_SCALE_OFFSET)
-  vmudl $v14, $v00, $v31.e3
+  ldv $v20, 0, 0, $s6
   ldv $v19, 0, 8, $s6
+  ldv $v18, 0, 16, $s6
+  ori $at, $zero, %lo(FOG_SCALE_OFFSET)
   ldv $v11, 0, 0, $at
-  lbu $s2, %lo(ACTIVE_LIGHT_SIZE + 0)
+  ldv $v20, 8, 0, $s6
   ori $at, $zero, %lo(NORM_SCALE_W)
   ldv $v10, 0, 0, $at
   ldv $v10, 8, 0, $at
-  ldv $v20, 0, 0, $s6
   ori $at, $zero, %lo(UV_GEN_PARAMS)
-  llv $v09, 0, 0, $at
-  llv $v09, 8, 0, $at
-  ldv $v19, 8, 8, $s6
-  ori $at, $zero, %lo(SCREEN_UVGEN_SCALE)
-  vmadm $v13, $v13, $v31.e3
-  addu $s2, $s2, $s3
-  ldv $v18, 0, 16, $s6
-  ldv $v20, 8, 0, $s6
-  lsv $v09, 6, 0, $at
   ldv $v18, 8, 16, $s6
-  vmadn $v14, $v00, $v00
+  ldv $v19, 8, 8, $s6
+  llv $v09, 0, 0, $at
+  vmudl $v14, $v00, $v31.e3
   andi $s6, $a2, 65535
-  jal DMAWaitIdle
   addiu $s5, $s6, 36
+  llv $v09, 8, 0, $at
+  vmadm $v13, $v13, $v31.e3
+  vmadn $v14, $v00, $v00
+  ori $at, $zero, %lo(SCREEN_UVGEN_SCALE)
+  jal DMAWaitIdle
+  lsv $v09, 6, 0, $at
   lqv $v08, 0, 0, $s4
   vand $v07, $v17, $v08.h3
   vmudn $v07, $v07, $v16.v
@@ -256,34 +258,36 @@ T3DCmd_VertLoad:
   ori $at, $zero, %lo(CLIPPING_PLANES)
   lsv $v08, 6, 4, $at
   lsv $v08, 14, 4, $at
-  lpv $v03, 0, 8, $s3
-  vmulf $v06, $v20, $v07.h0
+  lhu $s1, %lo(UV_GEN_FUNCTION + 0)
   luv $v04, 0, 16, $s4
+  vmulf $v06, $v20, $v07.h0
   vmacf $v06, $v19, $v07.h1
-  lbu $s1, %lo(UV_GEN_FUNCTION + 0)
   vmacf $v07, $v18, $v07.h2
+  ori $at, $zero, %lo(COLOR_AMBIENT)
   vmudn $v06, $v28, $v08.h0
+  lbu $fp, %lo(USE_FOG + 0)
+  lpv $v03, 0, 8, $s3
   vmadh $v05, $v27, $v08.h0
   vmadn $v06, $v26, $v08.h1
   vmadh $v05, $v25, $v08.h1
-  ori $at, $zero, %lo(COLOR_AMBIENT)
   vmadn $v06, $v24, $v08.h2
   vmadh $v05, $v23, $v08.h2
-  lbu $fp, %lo(USE_FOG + 0)
   vmadn $v06, $v22, $v08.h3
   vmadh $v05, $v21, $v08.h3
   luv $v08, 0, 0, $at
   LABEL_0003:
   beq $s3, $s2, LABEL_0004
+  nop
   vmulf $v02, $v07, $v03.v
   vadd $v01, $v02, $v02.h1
   vadd $v02, $v02, $v01.h2
   luv $v01, 0, 0, $s3
+  vmulu $v02, $v01, $v02.h0
   addiu $s3, $s3, 16
   lpv $v03, 0, 8, $s3
-  vmulu $v02, $v01, $v02.h0
-  j LABEL_0003
   vadd $v08, $v08, $v02.v
+  j LABEL_0003
+  nop
   LABEL_0004:
   vmulf $v04, $v04, $v08.v
   vmudl $v29, $v00, $v06.h3
@@ -291,68 +295,68 @@ T3DCmd_VertLoad:
   vmadn $v03, $v00, $v05.h3
   vmadh $v02, $v15, $v05.h3
   vch $v29, $v05, $v02
-  vcl $v29, $v06, $v03
   ori $s3, $zero, %lo(LIGHT_DIR_COLOR)
+  vcl $v29, $v06, $v03
   cfc2 $t8, $vcc
   vch $v29, $v05, $v05.h3
   vcl $v29, $v06, $v06.h3
   vmudl $v06, $v06, $v10.v
   vmadm $v05, $v05, $v10.v
+  srl $k1, $t8, 4
   andi $sp, $t8, 1799
   srl $t7, $sp, 5
-  srl $k1, $t8, 4
   vmadn $v06, $v00, $v00
   or $sp, $sp, $t7
-  sdv $v05, 8, 16, $s5
   sdv $v05, 0, 16, $s6
-  vrcph $v05.e3, $v05.e3
+  sdv $v05, 8, 16, $s5
   sdv $v06, 8, 24, $s5
+  vrcph $v05.e3, $v05.e3
   sdv $v06, 0, 24, $s6
   vrcpl $v06.e3, $v06.e3
   andi $k1, $k1, 1799
   srl $t7, $k1, 5
   vrcph $v05.e3, $v05.e7
-  vrcpl $v06.e7, $v06.e7
   or $k1, $k1, $t7
-  cfc2 $t7, $vcc
+  vrcpl $v06.e7, $v06.e7
   vrcph $v05.e7, $v00.e7
+  cfc2 $t7, $vcc
   vaddc $v03, $v06, $v11.e2
-  srl $t9, $t7, 4
-  andi $k0, $t7, 1799
   vadd $v02, $v05, $v11.e1
+  andi $k0, $t7, 1799
+  srl $t9, $t7, 4
   andi $t9, $t9, 1799
   srl $t6, $k0, 5
   vmudn $v03, $v03, $v11.e0
   vmadh $v02, $v02, $v11.e0
   nor $k0, $k0, $t6
-  vor $v01, $v00, $v11.e3
   srl $t6, $t9, 5
-  nor $t9, $t9, $t6
+  vor $v01, $v00, $v11.e3
   vsub $v02, $v01, $v02.v
+  nor $t9, $t9, $t6
   beq $fp, $zero, LABEL_0005
   nop
   vmov $v04.e3, $v02.e2
   vmov $v04.e7, $v02.e6
   LABEL_0005:
-  ssv $v05, 14, 32, $s5
   ssv $v06, 6, 34, $s6
+  ssv $v06, 14, 34, $s5
   vmudl $v29, $v06, $v06.h3
   vmadm $v29, $v05, $v06.h3
-  ssv $v06, 14, 34, $s5
-  ssv $v05, 6, 32, $s6
+  ssv $v05, 14, 32, $s5
   vmadn $v06, $v06, $v05.h3
-  vmadh $v05, $v05, $v05.h3
+  ssv $v05, 6, 32, $s6
   suv $v04, 4, 8, $s5
-  vmudl $v29, $v06, $v14.v
+  vmadh $v05, $v05, $v05.h3
+  suv $v04, 0, 8, $s6
   ldv $v03, 0, 24, $s4
+  vmudl $v29, $v06, $v14.v
   vmadm $v29, $v05, $v14.v
-  addiu $s4, $s4, 32
   vmadn $v06, $v06, $v13.v
   vmadh $v05, $v05, $v13.v
-  lqv $v08, 0, 0, $s4
-  vadd $v05, $v05, $v12.v
-  suv $v04, 0, 8, $s6
+  addiu $s4, $s4, 32
   vor $v02, $v00, $v07
+  vadd $v05, $v05, $v12.v
+  lqv $v08, 0, 0, $s4
   vand $v07, $v17, $v08.h3
   sdv $v05, 0, 0, $s6 ## Barrier: 0x1
   sdv $v05, 8, 0, $s5 ## Barrier: 0x1
@@ -360,54 +364,75 @@ T3DCmd_VertLoad:
   sb $k1, 6($s5) ## Barrier: 0x1
   sb $k0, 7($s6) ## Barrier: 0x1
   vmudn $v07, $v07, $v16.v
-  bne $s1, $zero, LABEL_0006
+  jal $s1
   sb $t9, 7($s5) ## Barrier: 0x1
-  slv $v03, 4, 12, $s5
-  slv $v03, 0, 12, $s6
-  addiu $s6, $s6, 72
   bne $s4, $s7, LOOP_START
-  addiu $s5, $s5, 72
-  j RSPQ_Loop
   nop
-  LABEL_0006:
-  vsubc $v01, $v05, $v12.v
-  vmudn $v01, $v01, $v09.e3
-  vmulf $v03, $v02, $v09.v
-  vmulf $v01, $v01, $v02.h2
-  vaddc $v03, $v03, $v09.e0
-  addiu $s6, $s6, 72
-  vmulf $v01, $v01, $v09.e0
-  vaddc $v03, $v03, $v01.v
-  addiu $s5, $s5, 72
-  slv $v03, 8, -60, $s5
-  bne $s4, $s7, LOOP_START
-  slv $v03, 0, -60, $s6
   LABEL_0002:
   j RSPQ_Loop
   nop
+UVGen_None:
+  slv $v03, 0, 12, $s6
+  addiu $s6, $s6, 72
+  slv $v03, 4, 12, $s5
+  bne $s4, $s7, LOOP_START
+  addiu $s5, $s5, 72
+  j RSPQ_Loop
+  nop
+UVGen_Spherical:
+  vsubc $v04, $v05, $v12.v
+  vmudn $v04, $v04, $v09.e3
+  vmulf $v03, $v02, $v09.v
+  addiu $s5, $s5, 72
+  vmulf $v04, $v04, $v02.h2
+  vaddc $v03, $v03, $v09.e0
+  addiu $s6, $s6, 72
+  vmulf $v04, $v04, $v09.e0
+  vaddc $v03, $v03, $v04.v
+  slv $v03, 0, -60, $s6
+  jr $ra
+  slv $v03, 8, -60, $s5
+UVGen_CelShadeColor:
+  vge $v04, $v04, $v04
+  addiu $s5, $s5, 72
+  vge $v04, $v04, $v04
+  addiu $s6, $s6, 72
+  vmov $v03.e2, $v04.e4
+  vmov $v03.e0, $v04.e0
+  slv $v03, 0, -60, $s6
+  jr $ra
+  slv $v03, 4, -60, $s5
+UVGen_CelShadeAlpha:
+  vmov $v03.e0, $v04.e3
+  vmov $v03.e2, $v04.e7
+  addiu $s5, $s5, 72
+  addiu $s6, $s6, 72
+  slv $v03, 4, -60, $s5
+  jr $ra
+  slv $v03, 0, -60, $s6
 T3DCmd_SetScreenSize:
+  vxor $v28, $v00, $v00.e0
   sra $s6, $a2, 16
   mtc2 $s6, $v27.e0
-  sh $a3, %lo(6 + NORM_SCALE_W)($zero)
-  vxor $v28, $v00, $v00.e0
-  sw $a1, %lo(8 + SCREEN_SCALE_OFFSET)($zero)
-  andi $a0, $a0, 15
-  vrcph $v27.e0, $v27.e0
-  vrcpl $v28.e0, $v28.e0
-  sb $a0, %lo(7 + CLIPPING_PLANES)($zero)
-  subu $s7, $zero, $a0
-  sw $a3, %lo(4 + SCREEN_SCALE_OFFSET)($zero)
-  vrcph $v27.e0, $v00.e0
-  ori $at, $zero, %lo(SCREEN_UVGEN_SCALE)
   sh $a3, %lo(12 + NORM_SCALE_W)($zero)
+  andi $a0, $a0, 15
+  ori $at, $zero, %lo(SCREEN_UVGEN_SCALE)
+  vrcph $v27.e0, $v27.e0
+  sb $a0, %lo(3 + CLIPPING_PLANES)($zero)
+  vrcpl $v28.e0, $v28.e0
+  sw $a1, %lo(8 + SCREEN_SCALE_OFFSET)($zero)
+  sh $a3, %lo(6 + NORM_SCALE_W)($zero)
+  vrcph $v27.e0, $v00.e0
+  subu $s7, $zero, $a0
+  sw $a2, %lo(0 + SCREEN_SCALE_OFFSET)($zero)
   vmudm $v26, $v28, $v31.e1
   sb $s7, %lo(19 + CLIPPING_PLANES)($zero)
-  sb $s7, %lo(15 + CLIPPING_PLANES)($zero)
+  sw $a3, %lo(4 + SCREEN_SCALE_OFFSET)($zero)
   sh $a3, %lo(8 + NORM_SCALE_W)($zero)
-  sh $a3, %lo(10 + NORM_SCALE_W)($zero)
+  sb $a0, %lo(7 + CLIPPING_PLANES)($zero)
   vaddc $v26, $v26, $v30.e7
-  sb $a0, %lo(3 + CLIPPING_PLANES)($zero)
-  sw $a2, %lo(0 + SCREEN_SCALE_OFFSET)($zero)
+  sh $a3, %lo(10 + NORM_SCALE_W)($zero)
+  sb $s7, %lo(15 + CLIPPING_PLANES)($zero)
   j RSPQ_Loop
   ssv $v26, 0, 0, $at
 T3DCmd_SetFogRange:
@@ -418,11 +443,11 @@ T3DCmd_SetFogState:
   j RSPQ_Loop
   sb $a0, %lo(USE_FOG)($zero)
 T3DCmd_LightSet:
-  beq $a2, $zero, LABEL_0008
+  beq $a2, $zero, LABEL_0007
   sw $a1, 0($a0)
   sw $a2, 8($a0)
   sw $a2, 12($a0)
-  LABEL_0008:
+  LABEL_0007:
   j RSPQ_Loop
   sw $a1, 4($a0)
 T3DCmd_LightCount:
@@ -436,41 +461,41 @@ T3DCmd_RenderMode:
   j RSPQ_Loop
   sw $a1, %lo(TRI_COMMAND)($zero)
 mulMat4Mat4:
-  ldv $v01, 0, 0, $s3
-  ldv $v02, 0, 8, $s3
-  ldv $v10, 0, 8, $s4
   ldv $v03, 0, 16, $s3
-  ldv $v01, 8, 0, $s3
+  ldv $v10, 0, 8, $s4
+  ldv $v02, 0, 8, $s3
+  ldv $v09, 0, 0, $s4
+  ldv $v01, 0, 0, $s3
   ldv $v04, 0, 24, $s3
   ldv $v02, 8, 8, $s3
-  ldv $v05, 0, 32, $s3
-  ldv $v09, 0, 0, $s4
   ldv $v10, 8, 24, $s4
-  ldv $v09, 8, 16, $s4
-  ldv $v04, 8, 24, $s3
+  ldv $v01, 8, 0, $s3
   ldv $v03, 8, 16, $s3
-  ldv $v07, 0, 48, $s3
-  vmudl $v29, $v02, $v10.h0
-  ldv $v08, 0, 56, $s3
-  vmadm $v29, $v01, $v10.h0
-  vmadn $v14, $v02, $v09.h0
+  ldv $v09, 8, 16, $s4
   ldv $v06, 0, 40, $s3
-  ldv $v07, 8, 48, $s3
-  vmadh $v13, $v01, $v09.h0
-  vmadl $v29, $v04, $v10.h1
+  vmudl $v29, $v02, $v10.h0
+  ldv $v04, 8, 24, $s3
+  vmadm $v29, $v01, $v10.h0
   ldv $v06, 8, 40, $s3
-  ldv $v05, 8, 32, $s3
-  vmadm $v29, $v03, $v10.h1
-  vmadn $v14, $v04, $v09.h1
-  ldv $v12, 0, 40, $s4
-  ldv $v08, 8, 56, $s3
-  vmadh $v13, $v03, $v09.h1
-  vmadl $v29, $v06, $v10.h2
-  vmadm $v29, $v05, $v10.h2
   ldv $v11, 0, 32, $s4
+  vmadn $v14, $v02, $v09.h0
+  ldv $v05, 0, 32, $s3
+  vmadh $v13, $v01, $v09.h0
+  ldv $v05, 8, 32, $s3
+  vmadl $v29, $v04, $v10.h1
+  ldv $v08, 0, 56, $s3
+  vmadm $v29, $v03, $v10.h1
+  ldv $v07, 0, 48, $s3
+  vmadn $v14, $v04, $v09.h1
+  vmadh $v13, $v03, $v09.h1
+  ldv $v07, 8, 48, $s3
+  vmadl $v29, $v06, $v10.h2
+  ldv $v08, 8, 56, $s3
+  vmadm $v29, $v05, $v10.h2
+  ldv $v12, 0, 40, $s4
   vmadn $v14, $v06, $v09.h2
-  ldv $v12, 8, 56, $s4
   vmadh $v13, $v05, $v09.h2
+  ldv $v12, 8, 56, $s4
   vmadl $v29, $v08, $v10.h3
   vmadm $v29, $v07, $v10.h3
   vmadn $v10, $v08, $v09.h3
@@ -485,22 +510,22 @@ mulMat4Mat4:
   vmadn $v14, $v04, $v11.h1
   vmadh $v13, $v03, $v11.h1
   vmadl $v29, $v06, $v12.h2
-  sdv $v09, 8, 16, $s2
+  sdv $v10, 0, 8, $s2
   vmadm $v29, $v05, $v12.h2
+  sdv $v09, 0, 0, $s2
   vmadn $v14, $v06, $v11.h2
   vmadh $v13, $v05, $v11.h2
   vmadl $v29, $v08, $v12.h3
   vmadm $v29, $v07, $v12.h3
+  sdv $v10, 8, 24, $s2
   vmadn $v12, $v08, $v11.h3
   vmadh $v11, $v07, $v11.h3
-  sdv $v09, 0, 0, $s2
-  sdv $v10, 0, 8, $s2
-  sdv $v10, 8, 24, $s2
+  sdv $v09, 8, 16, $s2
+  sdv $v12, 0, 40, $s2
   sdv $v12, 8, 56, $s2
   sdv $v11, 0, 32, $s2
-  sdv $v11, 8, 48, $s2
   jr $ra
-  sdv $v12, 0, 40, $s2
+  sdv $v11, 8, 48, $s2
 normalizeMatrixVector:
   ldv $v02, 0, 8, $s4
   ldv $v01, 0, 0, $s4
@@ -511,8 +536,8 @@ normalizeMatrixVector:
   vaddc $v06, $v04, $v04.h1
   vadd $v05, $v03, $v03.h1
   vaddc $v04, $v04, $v06.h2
-  addiu $s4, $s4, 16
   vadd $v03, $v03, $v05.h2
+  addiu $s4, $s4, 16
   vrsqh $v03.e3, $v03.e0
   vrsql $v04.e3, $v04.e0
   vrsqh $v03.e3, $v00.e0
@@ -539,28 +564,28 @@ T3DCmd_MatrixStack:
   slt $at, $a0, $zero
   lw $s3, %lo(SEGMENT_TABLE)($s3)
   ori $s4, $zero, %lo(CLIP_BUFFER_TMP)
-  beq $at, $zero, LABEL_000A
+  beq $at, $zero, LABEL_0009
   addu $a1, $a1, $s3
   or $a1, $zero, $s5
-  LABEL_000A:
+  LABEL_0009:
+  addiu $t2, $zero, 12
+  ori $t0, $zero, 63
   lui $at, 0xFF
-  addiu $t2, $zero, 12
   ori $at, $at, 0xFFFF
+  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   and $s0, $a1, $at
-  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
-  ori $t0, $zero, 63
-  beq $s7, $zero, LABEL_000B
+  beq $s7, $zero, LABEL_000A
   ori $t1, $zero, %lo(MATRIX_NORMAL)
-  addiu $t2, $zero, 12
-  addiu $s0, $s5, 65472
   ori $s4, $zero, %lo(CLIP_BUFFER_RESULT)
-  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  addiu $t2, $zero, 12
   ori $t0, $zero, 63
+  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  addiu $s0, $s5, 65472
   ori $s2, $zero, %lo(CLIP_BUFFER_TMP)
-  ori $s4, $zero, %lo(CLIP_BUFFER_TMP)
-  jal mulMat4Mat4 ## Args: $s2, $s3, $s4
   ori $s3, $zero, %lo(CLIP_BUFFER_RESULT)
-  LABEL_000B:
+  jal mulMat4Mat4 ## Args: $s2, $s3, $s4
+  ori $s4, $zero, %lo(CLIP_BUFFER_TMP)
+  LABEL_000A:
   or $s0, $zero, $s5
   ori $t0, $zero, 63
   jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
@@ -576,10 +601,10 @@ T3DCmd_MatrixStack:
   j RSPQ_Loop
   nop
 T3DCmd_MatProjectionSet:
-  lui $at, 0xFF
-  ori $t0, $zero, 63
   addiu $t2, $zero, 12
   ori $s4, $zero, %lo(MATRIX_PROJ)
+  lui $at, 0xFF
+  ori $t0, $zero, 63
   ori $at, $at, 0xFFFF
   j DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   and $s0, $a0, $at
@@ -587,33 +612,33 @@ T3DCmd_SetWord:
   j RSPQ_Loop
   sw $a1, ($a0)
 T3DCmd_SetUVGen:
-  sb $a0, %lo(UV_GEN_FUNCTION)($zero)
+  sh $a0, %lo(UV_GEN_FUNCTION)($zero)
   j RSPQ_Loop
   sw $a1, %lo(UV_GEN_PARAMS)($zero)
 T3DCmd_TriDraw:
   srl $a2, $a1, 16
-  ori $sp, $zero, %lo(RSPQ_Loop)
-  jal RDPQ_Triangle_Send_Async ## Args: $a0, $a1, $a2
   addiu $v1, $gp, %lo(RSPQ_DMEM_BUFFER)  -6
+  jal RDPQ_Triangle_Send_Async ## Args: $a0, $a1, $a2, $sp
+  ori $sp, $zero, %lo(RSPQ_Loop)
   lhu $s7, %lo(RDPQ_TRI_BUFF_OFFSET + 0)
-  bne $v1, $zero, LABEL_0001
+  bne $v1, $zero, LABEL_000B
   nop
   xori $s7, $s7, 176
   j RSPQ_Loop
   sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
-  LABEL_0001:
-  lhu $a2, %lo(RSPQ_DMEM_BUFFER  -2)($gp)
-  jal RDPQ_Triangle_Send_End
+  LABEL_000B:
   lhu $a1, %lo(RSPQ_DMEM_BUFFER  -4)($gp)
+  jal RDPQ_Triangle_Send_End
+  lhu $a2, %lo(RSPQ_DMEM_BUFFER  -2)($gp)
   lbu $s7, %lo(CLIP_CODE_ADDR + 0)
   lhu $a0, %lo(RSPQ_DMEM_BUFFER  -6)($gp)
   bne $s7, $zero, DO_CLIPPING
   nop
   lhu $t0, %lo(CLIP_CODE_SIZE + 0)
-  addiu $t2, $zero, 12
   ori $s4, $zero, %lo(CLIPPING_CODE_TARGET)
-  sb $t0, %lo(CLIP_CODE_ADDR)($zero)
+  addiu $t2, $zero, 12
   lw $s0, %lo(CLIP_CODE_ADDR + 0)
+  sb $t0, %lo(CLIP_CODE_ADDR)($zero)
   jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   addiu $t0, $t0, -1
   DO_CLIPPING:
@@ -622,16 +647,19 @@ T3DCmd_TriDraw:
   sh $ra, %lo(CLIP_RA)($zero)
 T3DCmd_TriSync:
   lbu $s7, %lo(CLIP_CODE_ADDR + 0)
-  beq $s7, $zero, RDPQ_Triangle_Send_End
   ori $s4, $zero, %lo(CLIPPING_CODE_TARGET)
+  beq $s7, $zero, RDPQ_Triangle_Send_End
+  nop
   lhu $t0, %lo(CLIP_CODE_SIZE + 0)
   lw $s0, %lo(CLIP_CODE_ORG_ADDR + 0)
   or $t2, $zero, $zero
   jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   addiu $t0, $t0, -1
-  sb $zero, %lo(CLIP_CODE_ADDR)($zero)
-  j RDPQ_Triangle_Send_End
   ori $ra, $zero, %lo(RSPQ_Loop)
+  j RDPQ_Triangle_Send_End
+  sb $zero, %lo(CLIP_CODE_ADDR)($zero)
+
+OVERLAY_CODE_END:
 
 #define zero $0
 #define v0 $2

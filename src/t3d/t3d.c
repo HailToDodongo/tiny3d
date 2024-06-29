@@ -45,8 +45,8 @@ void t3d_init(T3DInitParams params)
   uint32_t *stackPtr = (uint32_t*)((char*)state + ((RSP_T3D_MATRIX_STACK_PTR - RSP_T3D_STATE_MEM_START) & 0xFFFF));
   *stackPtr = (uint32_t)UncachedAddr(matrixStack);
 
-  uint8_t *uvGenFunc = (uint8_t*)((char*)state + ((RSP_T3D_UV_GEN_FUNCTION - RSP_T3D_STATE_MEM_START) & 0xFFFF));
-  *uvGenFunc = 0;
+  uint16_t *uvGenFunc = (uint16_t*)((char*)state + ((RSP_T3D_UV_GEN_FUNCTION - RSP_T3D_STATE_MEM_START) & 0xFFFF));
+  *uvGenFunc = RSP_T3D_CODE_UVGen_None & 0xFFF;
 
   // set the address for the clipping ucode from the other overlay, and that of the main one.
   // this is used to lazy-load a new section of IMEM if clipping is needed, and switch back afterward.
@@ -224,14 +224,22 @@ void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags)
 
 void t3d_state_set_uvgen(enum T3DUVGen func, int16_t arg0, int16_t arg1)
 {
+  uint16_t rspFunc = RSP_T3D_CODE_UVGen_None & 0xFFF;
   if(func == T3D_UVGEN_SPHERE) {
     arg0 *= 16;
     arg1 *= -16;
+    rspFunc = RSP_T3D_CODE_UVGen_Spherical & 0xFFF;
+  }
+  if(func == T3D_UVGEN_CELSHADE_COLOR) {
+    rspFunc = RSP_T3D_CODE_UVGen_CelShadeColor & 0xFFF;
+  }
+  if(func == T3D_UVGEN_CELSHADE_ALPHA) {
+    rspFunc = RSP_T3D_CODE_UVGen_CelShadeAlpha & 0xFFF;
   }
 
   uint32_t args = (uint16_t)arg1;
   args |= (uint16_t)arg0 << 16;
-  rspq_write(T3D_RSP_ID, T3D_CMD_SET_UV_GEN, func, args);
+  rspq_write(T3D_RSP_ID, T3D_CMD_SET_UV_GEN, rspFunc, args);
 }
 
 void t3d_segment_set(uint8_t segmentId, void *address) {
