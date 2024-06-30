@@ -93,4 +93,47 @@ namespace {
     ZMode::OPAQUE, // Cloud (No AA)
     ZMode::OPAQUE, // Terrain
   };
+
+  constexpr uint64_t F64_RENDER_MODE_1_TO_OTHERMODE[] = {
+  /* Background */                0,
+  /* Opaque */                    0,
+  /* Opaque Decal */              0,
+  /* Opaque Intersecting */       0,
+  /* Cutout */                    RDP::SOM::ALPHA_COMPARE,
+  /* Transparent */               0,
+  /* Transparent Decal */         0,
+  /* Transparent Intersecting */  0,
+  /* Fog Shade */                 0,
+  /* Fog Primitive */             0,
+  /* Pass */                      0,
+  /* Add */                       0,
+  /* No Op */                     0,
+  /* Opaque (No AA) */            0,
+  /* Opaque Decal (No AA) */      0,
+  /* Transparent (No AA) */       0,
+  /* Transparent Decal (No AA) */ 0,
+  /* Opaque (No AA, No ZBuf) */   0,
+  /* Cloud (No AA) */             0,
+  /* Terrain */                   0,
+  };
+
+  constexpr uint64_t F64_RENDER_MODE_2_TO_OTHERMODE[] = {
+  /* Background */                0,
+  /* Opaque */                    0,
+  /* Opaque Decal */              0,
+  /* Opaque Intersecting */       0,
+  /* Cutout */                    RDP::SOM::ALPHA_COMPARE,
+  /* Transparent */               0,
+  /* Transparent Decal */         0,
+  /* Transparent Intersecting */  0,
+  /* Add */                       0,
+  /* No Op */                     0,
+  /* Opaque (No AA) */            0,
+  /* Opaque Decal (No AA) */      0,
+  /* Transparent (No AA) */       0,
+  /* Transparent Decal (No AA) */ 0,
+  /* Opaque (No AA, No ZBuf) */   0,
+  /* Cloud (No AA) */             0,
+  /* Terrain */                   0,
+  };
 }

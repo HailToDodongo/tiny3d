@@ -68,24 +68,28 @@ Directly mapped to the struct `T3DMaterial`.
 Objects can have two materials assigned (with two textures),
 only the first materials CC and draw flags are used.
 
-| Offset | Type                 | Description                     |
-|--------|----------------------|---------------------------------|
-| 0x00   | `u64`                | Color-Combiner                  |
-| 0x08   | `u32`                | T3D Draw flags                  |
-| 0x0C   | `u8 (AlphaMode)`     | Alpha mode                      |
-| 0x0D:0 | `u4 (TextureFilter)` | Texture Filter                  |
-| 0x0D:4 | `u4 (FogMode)`       | Fog mode                        |
-| 0x0E:0 | `u4`                 | Z-Mode mask                     |
-| 0x0E:4 | `u4`                 | Source flags (1=use prim-color) |
-| 0x0F   | `u8 (UVFunc)`        | Generated UV function           |
-| 0x10   | `u8[4]`              | Prim-Color (zero if unused)     |
-| 0x14   | `u32`                | Texture reference (offscreen)   |
-| 0x18   | `u32`                | Texture path offset             |
-| 0x1C   | `u32`                | Texture hash / ID               |
-| 0x20   | `u32`                | Runtime texture pointer (`0`)   |
-| 0x24   | `u16`                | Texture width                   |
-| 0x26   | `u16`                | Texture height                  |
-| 0x28   | `T3DMaterialAxis[2]` | Setting per UV axis             |
+| Offset | Type                 | Description                    |
+|--------|----------------------|--------------------------------|
+| 0x00   | `u64`                | Color-Combiner                 |
+| 0x08   | `u64`                | Other-mode values              |
+| 0x10   | `u64`                | Other-mode mask                |
+| 0x18   | `u32`                | T3D Draw flags                 |
+| 0x1C   | `u8 (AlphaMode)`     | Alpha mode                     |
+| 0x1D:0 | `u4 (TextureFilter)` | Texture Filter                 |
+| 0x1D:4 | `u4 (FogMode)`       | Fog mode                       |
+| 0x1E:0 | `u4`                 | Z-Mode mask                    |
+| 0x1E:4 | `u4`                 | Color flags (prim, env, blend) |
+| 0x1F   | `u8 (UVFunc)`        | Generated UV function          |
+| 0x20   | `u8[4]`              | Prim-Color                     |
+| 0x24   | `u8[4]`              | Env-Color                      |
+| 0x28   | `u8[4]`              | Blend-Color                    |
+| 0x2C   | `u32`                | Texture reference (offscreen)  |
+| 0x30   | `u32`                | Texture path offset            |
+| 0x34   | `u32`                | Texture hash / ID              |
+| 0x38   | `u32`                | Runtime texture pointer (`0`)  |
+| 0x3C   | `u16`                | Texture width                  |
+| 0x3E   | `u16`                | Texture height                 |
+| 0x40   | `T3DMaterialAxis[2]` | Setting per UV axis            |
 
 #### `T3DMaterialAxis`
 

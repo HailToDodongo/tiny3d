@@ -5,6 +5,7 @@
 
 #include "parser.h"
 #include "../hash.h"
+#include "./rdp.h"
 #include "../fast64Types.h"
 
 #include "../lib/lodepng.h"
@@ -144,6 +145,9 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
   }
   auto &f3dData = data["f3d_mat"];
 
+  uint64_t otherModeValue = 0;
+  uint64_t otherModeMask = 0;
+
   if(!f3dData.empty()) {
     //printf("  - %s\n", f3dData.dump(2).c_str());
     //printf("  - %s\n", f3dData["combiner2"].dump(2).c_str());
@@ -206,6 +210,14 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
         int renderMode2Raw = rdpSettings["rendermode_preset_cycle_2"].get<uint32_t>();
         uint8_t alphaMode1 = F64_RENDER_MODE_1_TO_ALPHA[renderMode1Raw];
         uint8_t alphaMode2 = F64_RENDER_MODE_2_TO_ALPHA[renderMode2Raw];
+
+        auto otherMode1 = F64_RENDER_MODE_1_TO_OTHERMODE[renderMode1Raw];
+        auto otherMode2 = F64_RENDER_MODE_2_TO_OTHERMODE[renderMode2Raw];
+
+        otherModeValue |= otherMode1 | otherMode2;
+        otherModeMask |= RDP::SOM::ALPHA_COMPARE_MASK;
+
+        model.materialA.blendColor[3] = 128;
 
         model.materialA.zMode = F64_RENDER_MODE_1_TO_ZMODE[renderMode1Raw] | F64_RENDER_MODE_2_TO_ZMODE[renderMode2Raw];
         model.materialB.zMode = model.materialA.zMode;
@@ -274,6 +286,10 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
   } else {
     printf("No Fast64 Material data found!\n");
   }
+
+  model.materialA.otherModeValue = otherModeValue;
+  model.materialA.otherModeMask = otherModeMask;
+
   model.materialB.colorCombiner = model.materialA.colorCombiner;
   model.materialB.drawFlags = model.materialA.drawFlags;
   model.materialB.uuid = model.materialA.uuid ^ 0x12345678;

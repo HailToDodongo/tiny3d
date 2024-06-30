@@ -167,14 +167,22 @@ int main(int argc, char* argv[])
     auto writeMaterial = [&chunkMaterials, &stringTable, &gltfBasePath](const Material &material) {
       auto f = std::make_shared<BinaryFile>();
       f->write(material.colorCombiner);
+      f->write(material.otherModeValue);
+      f->write(material.otherModeMask);
       f->write(material.drawFlags);
 
       f->write<uint8_t>((material.texFilter << 4) | material.alphaMode);
       f->write(material.fogMode);
-      f->write<uint8_t>((material.zMode << 4) | material.setPrimColor);
+      f->write<uint8_t>((material.zMode << 4) | (
+        material.setPrimColor |
+        (material.setEnvColor << 1) |
+        (material.setBlendColor << 2)
+      ));
       f->write(material.uvGenFunc);
 
       f->writeArray(material.primColor, 4);
+      f->writeArray(material.envColor, 4);
+      f->writeArray(material.blendColor, 4);
 
       f->write(material.texReference);
 

@@ -182,6 +182,8 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
   uint16_t lastUvGenParams[2] = {0,0};
   uint8_t lastZMode = 0xFF;
 
+  uint64_t lastOtherMode = 0;
+
   for(uint32_t c = 0; c < model->chunkCount; c++) {
     char chunkType = model->chunkOffsets[c].type;
     if(chunkType != 'O')break;
@@ -249,12 +251,13 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
       //debugf("Load Vertices[%d]: %d, %d | bone: %d\n", p, part->vertDestOffset, part->vertLoadCount, part->matrixIdx);
       if(part->numIndices == 0)continue; // partial-load, last chunk of a sequence will both indices & material data
 
+      bool hadPipeSync = false;
+
       // now apply rdpq settings, these are independent of the t3d state
       // and only need to happen before a `t3d_tri_draw` call
       if(!hadMaterial && matMain && matMain->colorCombiner)
       {
         hadMaterial = true;
-        bool hadPipeSync = false;
         bool hadTexLoad = false;
 
         //debugf("TexA: %08lX (ref: %08lX), TexB: %08lX (ref: %08lX)\n",
@@ -285,7 +288,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
           rdpq_mode_combiner(obj->materialA->colorCombiner);
         }
 
-        uint8_t zMode = matMain->zModeSetPrim >> 4;
+        uint8_t zMode = matMain->zModeColorMask >> 4;
         if(zMode != lastZMode) {
           if(!hadPipeSync) {
             rdpq_sync_pipe();
@@ -316,28 +319,44 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
           switch (alphaMode) {
             case T3D_ALPHA_MODE_TRANSP:
               rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY);
-              rdpq_mode_alphacompare(0); // always zero in fast64?
-            break;
+              break;
             case T3D_ALPHA_MODE_CUTOUT:
-              rdpq_mode_blender(0);
-              rdpq_mode_alphacompare(128);
-            break;
             case T3D_ALPHA_MODE_OPAQUE:
               rdpq_mode_blender(0);
-              rdpq_mode_alphacompare(0);
             break;
           }
 
           lastAlphaMode = alphaMode;
         }
-      }
 
-      // Apply primary color if needed, no sync needed here
-      if(matMain->zModeSetPrim & 1) {
-        if(color_to_packed32(lastPrimColor) != color_to_packed32(matMain->primColor)) {
-          rdpq_set_prim_color(matMain->primColor); // @TODO: have t3d version of this
-          lastPrimColor = matMain->primColor;
+        bool setPrimColor  = matMain->zModeColorMask & 0b001;
+        bool setEnvColor   = matMain->zModeColorMask & 0b010;
+        bool setBlendColor = matMain->zModeColorMask & 0b100;
+
+        // Apply primary color if needed, no sync needed here
+        if(setPrimColor) {
+          if(color_to_packed32(lastPrimColor) != color_to_packed32(matMain->primColor)) {
+            rdpq_set_prim_color(matMain->primColor); // @TODO: have t3d version of this
+            lastPrimColor = matMain->primColor;
+          }
         }
+
+        if(lastOtherMode != matMain->otherModeValue) {
+          if(!hadPipeSync) {
+            rdpq_sync_pipe();
+            hadPipeSync = true;
+          }
+          __rdpq_mode_change_som(matMain->otherModeMask, matMain->otherModeValue);
+          lastOtherMode = matMain->otherModeValue;
+
+          if(matMain->otherModeValue & SOM_ALPHACOMPARE_THRESHOLD) {
+            rdpq_set_blend_color(matMain->blendColor); // alpha used as threshold
+            setBlendColor = false;
+          }
+        }
+
+        if(setEnvColor)rdpq_set_env_color(matMain->envColor);
+        if(setBlendColor)rdpq_set_blend_color(matMain->blendColor);
       }
 
       // now draw all triangles of the part

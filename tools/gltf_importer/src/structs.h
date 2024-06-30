@@ -128,6 +128,8 @@ struct Material {
   TileParam s{};
   TileParam t{};
   uint64_t colorCombiner{};
+  uint64_t otherModeValue{};
+  uint64_t otherModeMask{};
   uint32_t drawFlags{};
   std::string texPath{};
   uint32_t texWidth{};
@@ -139,8 +141,14 @@ struct Material {
   uint8_t zMode{};
   uint8_t fogMode{};
   uint8_t uvGenFunc{};
+
   uint8_t primColor[4]{};
+  uint8_t envColor[4]{};
+  uint8_t blendColor[4]{};
+
   bool setPrimColor{false};
+  bool setEnvColor{false};
+  bool setBlendColor{false};
 };
 
 struct MeshChunk {

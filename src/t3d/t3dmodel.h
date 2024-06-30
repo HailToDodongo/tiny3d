@@ -32,14 +32,18 @@ typedef struct {
 
 typedef struct {
   uint64_t colorCombiner;
+  uint64_t otherModeValue;
+  uint64_t otherModeMask;
   uint32_t renderFlags;
 
   uint8_t filterAlphaMode; // see: T3D_ALPHA_MODE_xxx
   uint8_t fogMode; // see: T3D_FOG_MODE_xxx
-  uint8_t zModeSetPrim;
+  uint8_t zModeColorMask;
   uint8_t uvGenFunc;
 
   color_t primColor;
+  color_t envColor;
+  color_t blendColor;
   uint32_t texReference; // dynamic/offscreen texture if non-zero, can be set in fast64
   char* texPath;
   uint32_t textureHash;
