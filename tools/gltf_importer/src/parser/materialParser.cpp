@@ -201,8 +201,8 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
       model.materialB.texFilter = texFilter;
 
       uint32_t texGen = rdpSettings["g_tex_gen"].get<uint32_t>();
-      model.materialA.uvGenFunc = (texGen != 0) ? UvGenFunc::SPHERE : UvGenFunc::NONE;
-      model.materialB.uvGenFunc = model.materialA.uvGenFunc;
+      model.materialA.vertexFxFunc = (texGen != 0) ? UvGenFunc::SPHERE : UvGenFunc::NONE;
+      model.materialB.vertexFxFunc = model.materialA.vertexFxFunc;
 
       bool setRenderMode = rdpSettings["set_rendermode"].get<uint32_t>() != 0;
       if(setRenderMode) {

@@ -12,7 +12,7 @@
  ***************************************/
 
 #define TRI_BUFFER_COUNT 70
-#define LIGHT_COUNT 8
+#define LIGHT_COUNT 4
 
 // settings for RDPQ_Triangle
 #define RDPQ_TRIANGLE_CUSTOM_VTX 1
@@ -69,7 +69,6 @@ state
   extern u16 RSPQ_Loop;
   extern u16 RSPQ_SCRATCH_MEM;
   extern u16 CLIPPING_CODE_TARGET;
-  extern u16 UVGen_Spherical;
 
   alignas(8) vec16 MATRIX_PROJ[4];   // projection matrix
   alignas(8) vec16 MATRIX_MVP[4];    // view * model * projection
@@ -158,7 +157,7 @@ state
   s16 FOG_SCALE_OFFSET[4] = {0, 0, 0, 32767};
   u16 RDPQ_TRI_BUFF_OFFSET = {0};
   u16 SCREEN_UVGEN_SCALE = {0};
-  u16 UV_GEN_FUNCTION = {0}; // point to the current UV function to be used during vertex load
+  u16 VERTEX_FX_FUNC = {0}; // points top the current 'VertexFX_' function in IMEM
 
   u8 FACE_CULLING = {0}; // 0=cull front, 1=cull back, 2=no-culling
   u8 USE_FOG      = {0}; // 0=no-fog, 1=use-fog
@@ -242,28 +241,6 @@ macro resolveSegmentAddr(u32 addrOut, u32 addrIn) {
   #include "clipping.rspl"
 #else
 
-function UVGen_None(
-  u32<$s4> prt3d, u32<$s7> ptr3dEnd,
-  vec16<$v03> uv,
-  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
-);
-
-function UVGen_Spherical(
-  vec16<$v01> uvOffsetFactor, vec16<$v05> posClipInt, vec16<$v12> screenOffset,
-  vec16<$v09> uvGenArgs, vec16<$v02> normal, vec16<$v03> uv,
-  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
-);
-
-function UVGen_CelShadeColor(
-  vec16<$v03> uv, vec16<$v04> color,
-  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
-);
-
-function UVGen_CelShadeAlpha(
-  vec16<$v03> uv, vec16<$v04> color,
-  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
-);
-
 /**
  * Loads & transforms 3D vertices into the internal buffer, later to be used by triangles.
  * This fully prepares them to be used by RDPQ_Triangle, while still being able to
@@ -341,7 +318,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     vec32 posClip;
     vec16 color;
 
-    u16 uvGenFunc = load(UV_GEN_FUNCTION);
+    u16 vertexFxFunc = load(VERTEX_FX_FUNC);
     u8 useFog = load(USE_FOG);
 
     {
@@ -458,79 +435,11 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     norm *= normShift;
 
     vec16 temp; // can be used by 'uvGenFunc'
-    uvGenFunc();
-
-    //UVGen_None(prt3d, ptr3dEnd, uv, ptrBuffA, ptrBuffB);
-    //UVGen_Spherical(temp, posClip:sint, screenOffset, uvGenArgs, oldNorm, uv, ptrBuffA, ptrBuffB);
-    //UVGen_CelShadeColor(uv, color, ptrBuffA, ptrBuffB);
-    //UVGen_CelShadeAlpha(uv, color, ptrBuffA, ptrBuffB);
-  } while(prt3d != ptr3dEnd)
+    vertexFxFunc(); // handles the loop condition internally
+  }
 }
 
-function UVGen_None(
-  u32<$s4> prt3d, u32<$s7> ptr3dEnd, vec16<$v03> uv,
-  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
-) {
-  store(uv.xy, ptrBuffA, VTX_ATTR_ST);
-  store(uv.zw, ptrBuffB, VTX_ATTR_ST);
-
-  // to avoid a double-jump, check the loop-end here directly
-  ptrBuffA += TRI_SIZE_2;
-  ptrBuffB += TRI_SIZE_2;
-
-  if(prt3d == ptr3dEnd)goto RSPQ_Loop;
-  goto LOOP_START;
-}
-
-function UVGen_Spherical(
-  vec16<$v04> uvOffsetFactor, vec16<$v05> posClipInt, vec16<$v12> screenOffset,
-  vec16<$v09> uvGenArgs, vec16<$v02> normal, vec16<$v03> uv,
-  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
-) {
-  uvOffsetFactor = posClipInt - screenOffset; // move back to center=0
-  uvOffsetFactor *= uvGenArgs.w; // undo screen-space conversion into a normalized factor
-  uvOffsetFactor:sfract *= normal.zzzzZZZZ; // the less aligned to the camera, the less offset
-  uvOffsetFactor:sfract *= uvGenArgs.x; // scale down to texture size
-
-  uv:sfract = normal * uvGenArgs;
-  uv += uvGenArgs.x;
-  uv += uvOffsetFactor;
-
-  ptrBuffA += TRI_SIZE_2; // delay stall for uv by subtracting in the store
-  ptrBuffB += TRI_SIZE_2;
-  store(uv.xy, ptrBuffA, VTX_ATTR_ST, -TRI_SIZE_2);
-  store(uv.XY, ptrBuffB, VTX_ATTR_ST, -TRI_SIZE_2);
-}
-
-function UVGen_CelShadeColor(
-  vec16<$v03> uv, vec16<$v04> color,
-  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
-)
-{
-  color = max(color, color.yyyyYYYY);
-  color = max(color, color.zzzzZZZZ);
-  uv.x = color.x;
-  uv.z = color.X;
-
-  ptrBuffA += TRI_SIZE_2; // delay stall for uv by subtracting in the store
-  ptrBuffB += TRI_SIZE_2;
-  store(uv.xy, ptrBuffA, VTX_ATTR_ST, -TRI_SIZE_2);
-  store(uv.zw, ptrBuffB, VTX_ATTR_ST, -TRI_SIZE_2);
-}
-
-function UVGen_CelShadeAlpha(
-  vec16<$v03> uv, vec16<$v04> color,
-  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
-)
-{
-  uv.x = color.w;
-  uv.z = color.W;
-
-  ptrBuffA += TRI_SIZE_2; // delay stall for uv by subtracting in the store
-  ptrBuffB += TRI_SIZE_2;
-  store(uv.xy, ptrBuffA, VTX_ATTR_ST, -TRI_SIZE_2);
-  store(uv.zw, ptrBuffB, VTX_ATTR_ST, -TRI_SIZE_2);
-}
+#include "vertexFX.rspl"
 
 /**
  * Sets current screen-size in pixel.
@@ -817,7 +726,7 @@ command<3> T3DCmd_SetWord(u16 addrDMEM, u32 value) {
  * @param params user-defined parameters (2x u16 value)
  */
 command<7> T3DCmd_SetUVGen(u16 uvFunc, u32 params) {
-  store(uvFunc, UV_GEN_FUNCTION);
+  store(uvFunc, VERTEX_FX_FUNC);
   store(params, UV_GEN_PARAMS);
 }
 

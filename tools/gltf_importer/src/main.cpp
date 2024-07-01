@@ -178,7 +178,7 @@ int main(int argc, char* argv[])
         (material.setEnvColor << 1) |
         (material.setBlendColor << 2)
       ));
-      f->write(material.uvGenFunc);
+      f->write(material.vertexFxFunc);
 
       f->writeArray(material.primColor, 4);
       f->writeArray(material.envColor, 4);

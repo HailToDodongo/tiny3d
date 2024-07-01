@@ -140,7 +140,7 @@ struct Material {
   uint8_t texFilter{};
   uint8_t zMode{};
   uint8_t fogMode{};
-  uint8_t uvGenFunc{};
+  uint8_t vertexFxFunc{};
 
   uint8_t primColor[4]{};
   uint8_t envColor[4]{};

@@ -175,9 +175,9 @@ int main()
     }
 
     if(joypad.btn.l) {
-      t3d_state_set_uvgen(T3D_UVGEN_SPHERE, 32, 32);
+      t3d_state_set_vertex_fx(T3D_VERTEX_FX_SPHERICAL_UV, 32, 32);
     } else {
-      t3d_state_set_uvgen(T3D_UVGEN_NONE, 0, 0);
+      t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);
     }
 
     t3d_matrix_push(modelMatFP);

@@ -1,0 +1,98 @@
+macro VertexFX_End() {
+  if(prt3d == ptr3dEnd)goto RSPQ_Loop;
+  goto LOOP_START;
+}
+
+function VertexFX_None(
+  u32<$s4> prt3d, u32<$s7> ptr3dEnd, vec16<$v03> uv,
+  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
+) {
+  store(uv.xy, ptrBuffA, VTX_ATTR_ST);
+  store(uv.zw, ptrBuffB, VTX_ATTR_ST);
+
+  // to avoid a double-jump, check the loop-end here directly
+  ptrBuffA += TRI_SIZE_2;
+  ptrBuffB += TRI_SIZE_2;
+  VertexFX_End();
+}
+
+function VertexFX_Spherical(
+  u32<$s4> prt3d, u32<$s7> ptr3dEnd,
+  vec16<$v04> uvOffsetFactor, vec16<$v05> posClipInt, vec16<$v12> screenOffset,
+  vec16<$v09> uvGenArgs, vec16<$v02> normal, vec16<$v03> uv,
+  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
+) {
+  uvOffsetFactor = posClipInt - screenOffset; // move back to center=0
+  uvOffsetFactor *= uvGenArgs.w; // undo screen-space conversion into a normalized factor
+  uvOffsetFactor:sfract *= normal.zzzzZZZZ; // the less aligned to the camera, the less offset
+  uvOffsetFactor:sfract *= uvGenArgs.x; // scale down to texture size
+
+  uv:sfract = normal * uvGenArgs;
+  uv += uvGenArgs.x;
+  uv += uvOffsetFactor;
+
+  ptrBuffA += TRI_SIZE_2; // delay stall for uv by subtracting in the store
+  ptrBuffB += TRI_SIZE_2;
+  store(uv.xy, ptrBuffA, VTX_ATTR_ST, -TRI_SIZE_2);
+  store(uv.XY, ptrBuffB, VTX_ATTR_ST, -TRI_SIZE_2);
+
+  VertexFX_End();
+}
+
+function VertexFX_CelShadeColor(
+  u32<$s4> prt3d, u32<$s7> ptr3dEnd,
+  vec16<$v03> uv, vec16<$v04> color,
+  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
+)
+{
+  color = max(color, color.yyyyYYYY);
+  color = max(color, color.zzzzZZZZ);
+  uv.x = color.x;
+  uv.z = color.X;
+
+  ptrBuffA += TRI_SIZE_2; // delay stall for uv by subtracting in the store
+  ptrBuffB += TRI_SIZE_2;
+  store(uv.xy, ptrBuffA, VTX_ATTR_ST, -TRI_SIZE_2);
+  store(uv.zw, ptrBuffB, VTX_ATTR_ST, -TRI_SIZE_2);
+
+  VertexFX_End();
+}
+
+function VertexFX_CelShadeAlpha(
+  u32<$s4> prt3d, u32<$s7> ptr3dEnd,
+  vec16<$v03> uv, vec16<$v04> color,
+  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
+)
+{
+  uv.x = color.w;
+  uv.z = color.W;
+
+  ptrBuffA += TRI_SIZE_2; // delay stall for uv by subtracting in the store
+  ptrBuffB += TRI_SIZE_2;
+  store(uv.xy, ptrBuffA, VTX_ATTR_ST, -TRI_SIZE_2);
+  store(uv.zw, ptrBuffB, VTX_ATTR_ST, -TRI_SIZE_2);
+
+  VertexFX_End();
+}
+
+function VertexFX_Outline(
+  u32<$s4> prt3d, u32<$s7> ptr3dEnd,
+  vec16<$v04> uvOffsetFactor, vec16<$v05> posClipInt, vec16<$v12> screenOffset,
+  vec16<$v09> uvGenArgs, vec16<$v02> normal, vec16<$v03> uv,
+  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
+)
+{
+
+  VTEMP = normal:sfract * uvGenArgs;
+  posClipInt:sint = posClipInt:sint +* 1; // (@TODO: add accumulate opt. to RSPL)
+
+  // @TODO: check for rejection (normals don't work reliably)
+  // reject: store(ZERO:u8, ptrBuffA, VTX_ATTR_REJFLAGS);
+
+  ptrBuffA += TRI_SIZE_2; // delay stall for uv by subtracting in the store
+  ptrBuffB += TRI_SIZE_2;
+  store(posClipInt.xy, ptrBuffA, VTX_ATTR_XY, -TRI_SIZE_2);
+  store(posClipInt.XY, ptrBuffB, VTX_ATTR_XY, -TRI_SIZE_2);
+
+  VertexFX_End();
+}

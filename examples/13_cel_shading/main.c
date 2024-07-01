@@ -25,10 +25,11 @@
 typedef struct {
   T3DModel *model;
   rspq_block_t *dplModel;
+  rspq_block_t *dplOutline;
   T3DMat4FP *modelMatFP;
   uint8_t colorAmbient[4];
   uint8_t colorDir[4];
-  enum T3DUVGen uvGen;
+  enum T3DVertexFX vertexFx;
   const char* text;
   const char* subText;
   float scale;
@@ -68,7 +69,7 @@ int main()
     (Model){.model = t3d_model_load("rom:/pot.t3dm"), .scale = 0.12f,
       .colorAmbient = {0x55, 0x55, 0x55, 0xFF},
       .colorDir = {0xFF, 0xFF, 0xFF, 0xFF},
-      .uvGen = T3D_UVGEN_CELSHADE_COLOR,
+      .vertexFx = T3D_VERTEX_FX_CELSHADE_COLOR,
       .text = "Outlined Pot (Soft)",
       .subText = "UVGen, 1D texture, soft lights (color)\n"
                  "Single draw, no blending"
@@ -76,7 +77,7 @@ int main()
     (Model){.model = t3d_model_load("rom:/pot.t3dm"), .scale = 0.12f,
       .colorAmbient = {0xFF, 0xFF, 0xFF, 0x55},
       .colorDir = {0, 0, 0, 0xFF},
-      .uvGen = T3D_UVGEN_CELSHADE_ALPHA,
+      .vertexFx = T3D_VERTEX_FX_CELSHADE_ALPHA,
       .text = "Outlined Pot (Flat)",
       .subText = "UVGen, 1D texture, flat lights (alpha)\n"
                  "Single draw, no blending"
@@ -84,7 +85,7 @@ int main()
     (Model){.model = t3d_model_load("rom:/sphereColor.t3dm"), .scale = 0.12f,
       .colorAmbient = {0x55, 0x55, 0x55, 0x00},
       .colorDir = {0xFF, 0xFF, 0xFF, 0xFF},
-      .uvGen = T3D_UVGEN_CELSHADE_ALPHA,
+      .vertexFx = T3D_VERTEX_FX_CELSHADE_ALPHA,
       .text = "Planet",
       .subText = "UVGen, no texture/color, flat lights\n"
                  "Single draw, no blending"
@@ -92,7 +93,7 @@ int main()
     (Model){.model = t3d_model_load("rom:/monkey.t3dm"), .scale = 0.12f,
       .colorAmbient = {0x33, 0x33, 0x33, 0xFF},
       .colorDir = {0xFF, 0xFF, 0xFF, 0xFF},
-      .uvGen = T3D_UVGEN_CELSHADE_COLOR,
+      .vertexFx = T3D_VERTEX_FX_CELSHADE_COLOR,
       .text = "Suzanne",
       .subText = "UVGen, vert. color, flat lights\n"
                  "Single draw, no blending"
@@ -100,7 +101,7 @@ int main()
     (Model){.model = t3d_model_load("rom:/potTex.t3dm"), .scale = 0.15f,
       .colorAmbient = {0x33, 0x33, 0x33, 0x00},
       .colorDir = {0xFF, 0xFF, 0xFF, 0xFF},
-      .uvGen = T3D_UVGEN_CELSHADE_ALPHA,
+      .vertexFx = T3D_VERTEX_FX_CELSHADE_ALPHA,
       .text = "Textured Pot",
       .subText = "UVGen, regular mesh & cel-shading\n"
                  "Two draws, fixed alpha blend"
@@ -108,7 +109,7 @@ int main()
     (Model){.model = t3d_model_load("rom:/potTexLight.t3dm"), .scale = 0.15f,
       .colorAmbient = {0x33, 0x33, 0x33, 0x00},
       .colorDir = {0xFF, 0xFF, 0xFF, 0xFF},
-      .uvGen = T3D_UVGEN_CELSHADE_ALPHA,
+      .vertexFx = T3D_VERTEX_FX_CELSHADE_ALPHA,
       .text = "Textured Pot",
       .subText = "UVGen, regular mesh & cel-shading\n"
                  "Two draws, intensity alpha blend (light)"
@@ -116,7 +117,7 @@ int main()
     (Model){.model = t3d_model_load("rom:/potTexDark.t3dm"), .scale = 0.15f,
       .colorAmbient = {0x33, 0x33, 0x33, 0x00},
       .colorDir = {0xFF, 0xFF, 0xFF, 0xFF},
-      .uvGen = T3D_UVGEN_CELSHADE_ALPHA,
+      .vertexFx = T3D_VERTEX_FX_CELSHADE_ALPHA,
       .text = "Textured Pot",
       .subText = "UVGen, regular mesh & cel-shading\n"
                  "Two draws, intensity alpha blend (dark)"
@@ -124,7 +125,7 @@ int main()
     (Model){.model = t3d_model_load("rom:/gold.t3dm"), .scale = 0.12f,
       .colorAmbient = {0x33, 0x33, 0x33, 0x00},
       .colorDir = {0xFF, 0xFF, 0xFF, 0xFF},
-      .uvGen = T3D_UVGEN_CELSHADE_ALPHA,
+      .vertexFx = T3D_VERTEX_FX_CELSHADE_ALPHA,
       .text = "Reflective Sphere",
       .subText = "UVGen, spherical-UVs & cel-shading\n"
                  "Two draws, fixed alpha blend"
@@ -139,16 +140,34 @@ int main()
       if(md->chunkOffsets[c].type == 'M') {
         T3DMaterial *mat = (T3DMaterial*)((char*)md + (md->chunkOffsets[c].offset & 0x00FFFFFF));
         if(i>=4 && (c < 6))continue;
-        mat->uvGenFunc = models[i].uvGen;
+        mat->vertexFxFunc = models[i].vertexFx;
       }
     }
 
     models[i].modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
+
     rspq_block_begin();
-      t3d_matrix_push(models[i].modelMatFP);
+      t3d_state_set_vertex_fx(models[i].vertexFx, 0, 0);
       t3d_model_draw(models[i].model);
-      t3d_matrix_pop(1);
+      t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);
     models[i].dplModel = rspq_block_end();
+
+    if(i < 4)
+    {
+      rspq_block_begin();
+        t3d_state_set_drawflags(T3D_FLAG_CULL_FRONT | T3D_FLAG_DEPTH);
+        t3d_state_set_vertex_fx(T3D_VERTEX_FX_OUTLINE, 16, 16);
+        rdpq_sync_pipe();
+        rdpq_mode_combiner(RDPQ_COMBINER_FLAT);
+        rdpq_set_prim_color((color_t){0, 0, 0, 0xFF});
+        t3d_model_draw_manual(models[i].model, NULL, NULL, NULL);
+        t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);
+      models[i].dplOutline = rspq_block_end();
+    }
+
+    /*bool draw_manual(void* userData, const T3DObject *obj, const T3DObjectPart *part, uint32_t objIdx, uint32_t partIdx) {
+        return true;
+    }*/
   }
 
   rspq_block_begin();
@@ -168,6 +187,7 @@ int main()
   rspq_syncpoint_t syncPoint = 0;
   T3DVec3 currentPos = {{0,0,0}};
   bool useTwoLights = false;
+  bool showOutline = true;
 
   for(;;)
   {
@@ -251,7 +271,13 @@ int main()
     }
 
     rdpq_set_prim_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
+
+    t3d_matrix_push(model->modelMatFP);
     rspq_block_run(model->dplModel);
+    if(showOutline && model->dplOutline) {
+      rspq_block_run(model->dplOutline);
+    }
+    t3d_matrix_pop(1);
 
     syncPoint = rspq_syncpoint_new();
 

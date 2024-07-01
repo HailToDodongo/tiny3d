@@ -178,7 +178,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
   uint64_t lastCC = 0;
   color_t lastPrimColor = (color_t){0,0,0,0};
   bool hadMatrixPush = false;
-  uint8_t lastUvGenFunc = T3D_UVGEN_NONE;
+  uint8_t lastVertFXFunc = T3D_VERTEX_FX_NONE;
   uint16_t lastUvGenParams[2] = {0,0};
   uint8_t lastZMode = 0xFF;
 
@@ -236,13 +236,13 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
       }
 
       if(matMain) {
-        if(lastUvGenFunc != matMain->uvGenFunc || (
-          matMain->uvGenFunc && (lastUvGenParams[0] != matMain->texWidth || lastUvGenParams[1] != matMain->texHeight)
+        if(lastVertFXFunc != matMain->vertexFxFunc || (
+          matMain->vertexFxFunc && (lastUvGenParams[0] != matMain->texWidth || lastUvGenParams[1] != matMain->texHeight)
         )) {
-          lastUvGenFunc = matMain->uvGenFunc;
+          lastVertFXFunc = matMain->vertexFxFunc;
           lastUvGenParams[0] = matMain->texWidth;
           lastUvGenParams[1] = matMain->texHeight;
-          t3d_state_set_uvgen(lastUvGenFunc, (int16_t)matMain->texWidth, (int16_t)matMain->texHeight);
+          t3d_state_set_vertex_fx(lastVertFXFunc, (int16_t)matMain->texWidth, (int16_t)matMain->texHeight);
         }
       }
 
@@ -374,7 +374,51 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
   }
 
   if(hadMatrixPush)t3d_matrix_pop(1);
-  if(lastUvGenFunc != T3D_UVGEN_NONE)t3d_state_set_uvgen(T3D_UVGEN_NONE, 0, 0);
+  if(lastVertFXFunc != T3D_VERTEX_FX_NONE)t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);
+}
+
+void t3d_model_draw_manual(const T3DModel* model, T3DModelManualCb cb, void* userData, const T3DMat4FP *boneMatrices)
+{
+  bool hadMatrixPush = false;
+  uint32_t objectIdx = 0;
+
+  for(uint32_t c = 0; c < model->chunkCount; c++) {
+    char chunkType = model->chunkOffsets[c].type;
+    if(chunkType != 'O')break;
+
+    uint32_t offset = model->chunkOffsets[c].offset & 0x00FFFFFF;
+    const T3DObject *obj = (T3DObject*)((char*)model + offset);
+
+    for(uint32_t p = 0; p < obj->numParts; p++)
+    {
+      const T3DObjectPart *part = &obj->parts[p];
+      if(cb && !cb(userData, obj, part, objectIdx++, p))continue;
+
+      if(boneMatrices) {
+        if(part->matrixIdx != 0xFFFF) {
+          if(!hadMatrixPush) {
+            t3d_matrix_push(&boneMatrices[part->matrixIdx]);
+          } else {
+            t3d_matrix_set(&boneMatrices[part->matrixIdx], true);
+          }
+          hadMatrixPush = true;
+        } else {
+          if(hadMatrixPush) {
+            t3d_matrix_pop(1);
+            hadMatrixPush = false;
+          }
+        }
+      }
+
+      t3d_vert_load(part->vert, part->vertDestOffset, part->vertLoadCount);
+      for(int i = 0; i < part->numIndices; i+=3) {
+        t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
+      }
+      t3d_tri_sync();
+    }
+  }
+
+  if(hadMatrixPush)t3d_matrix_pop(1);
 }
 
 void t3d_model_free(T3DModel *model) {

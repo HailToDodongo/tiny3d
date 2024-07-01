@@ -45,8 +45,8 @@ void t3d_init(T3DInitParams params)
   uint32_t *stackPtr = (uint32_t*)((char*)state + ((RSP_T3D_MATRIX_STACK_PTR - RSP_T3D_STATE_MEM_START) & 0xFFFF));
   *stackPtr = (uint32_t)UncachedAddr(matrixStack);
 
-  uint16_t *uvGenFunc = (uint16_t*)((char*)state + ((RSP_T3D_UV_GEN_FUNCTION - RSP_T3D_STATE_MEM_START) & 0xFFFF));
-  *uvGenFunc = RSP_T3D_CODE_UVGen_None & 0xFFF;
+  uint16_t *uvGenFunc = (uint16_t*)((char*)state + ((RSP_T3D_VERTEX_FX_FUNC - RSP_T3D_STATE_MEM_START) & 0xFFFF));
+  *uvGenFunc = RSP_T3D_CODE_VertexFX_None & 0xFFF;
 
   // set the address for the clipping ucode from the other overlay, and that of the main one.
   // this is used to lazy-load a new section of IMEM if clipping is needed, and switch back afterward.
@@ -222,19 +222,26 @@ void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags)
   rspq_write(T3D_RSP_ID, T3D_CMD_DRAWFLAGS, cullMask, cmd);
 }
 
-void t3d_state_set_uvgen(enum T3DUVGen func, int16_t arg0, int16_t arg1)
+void t3d_state_set_vertex_fx(enum T3DVertexFX func, int16_t arg0, int16_t arg1)
 {
-  uint16_t rspFunc = RSP_T3D_CODE_UVGen_None & 0xFFF;
-  if(func == T3D_UVGEN_SPHERE) {
-    arg0 *= 16;
-    arg1 *= -16;
-    rspFunc = RSP_T3D_CODE_UVGen_Spherical & 0xFFF;
-  }
-  if(func == T3D_UVGEN_CELSHADE_COLOR) {
-    rspFunc = RSP_T3D_CODE_UVGen_CelShadeColor & 0xFFF;
-  }
-  if(func == T3D_UVGEN_CELSHADE_ALPHA) {
-    rspFunc = RSP_T3D_CODE_UVGen_CelShadeAlpha & 0xFFF;
+  uint16_t rspFunc = RSP_T3D_CODE_VertexFX_None & 0xFFF;
+  switch (func) {
+    case T3D_VERTEX_FX_SPHERICAL_UV:
+      arg0 *= 16;
+      arg1 *= -16;
+      rspFunc = RSP_T3D_CODE_VertexFX_Spherical & 0xFFF;
+    break;
+    case T3D_VERTEX_FX_CELSHADE_COLOR:
+      rspFunc = RSP_T3D_CODE_VertexFX_CelShadeColor & 0xFFF;
+    break;
+    case T3D_VERTEX_FX_CELSHADE_ALPHA:
+      rspFunc = RSP_T3D_CODE_VertexFX_CelShadeAlpha & 0xFFF;
+    break;
+    case T3D_VERTEX_FX_OUTLINE:
+      arg1 = -arg1;
+      rspFunc = RSP_T3D_CODE_VertexFX_Outline & 0xFFF;
+    break;
+    default: break;
   }
 
   uint32_t args = (uint16_t)arg1;

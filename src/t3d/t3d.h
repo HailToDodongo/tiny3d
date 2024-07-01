@@ -68,12 +68,13 @@ enum T3DSegment {
   T3D_SEGMENT_SKELETON = 7,
 };
 
-// UV generation functions
-enum T3DUVGen {
-  T3D_UVGEN_NONE   = 0,
-  T3D_UVGEN_SPHERE = 1,
-  T3D_UVGEN_CELSHADE_COLOR = 2,
-  T3D_UVGEN_CELSHADE_ALPHA = 3,
+// Vertex effect functions
+enum T3DVertexFX {
+  T3D_VERTEX_FX_NONE           = 0,
+  T3D_VERTEX_FX_SPHERICAL_UV   = 1,
+  T3D_VERTEX_FX_CELSHADE_COLOR = 2,
+  T3D_VERTEX_FX_CELSHADE_ALPHA = 3,
+  T3D_VERTEX_FX_OUTLINE        = 4,
 };
 
 /**
@@ -359,19 +360,23 @@ uint16_t t3d_vert_pack_normal(const T3DVec3 *normal);
 void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags);
 
 /**
- * Sets a function for generated UVs.
- * To disable it, set the function to 'T3D_UVGEN_NONE'.
+ * Sets a function for vertex effects.
+ * To disable it, set the function to 'T3D_VERTEX_FX_NONE'.
  * The arg0/arg1 values are stored ín DMEM and are used by the ucode.
  *
  * The meaning of those arguments depends on the type:
- * - T3D_UVGEN_NONE: (no arguments)
- * - T3D_UVGEN_SPHERE: texture size X/Y in pixels
+ * - T3D_VERTEX_FX_NONE          : (no arguments)
+ * - T3D_VERTEX_FX_SPHERICAL_UV  : texture width/height
+ * - T3D_VERTEX_FX_CELSHADE_COLOR: (no arguments)
+ * - T3D_VERTEX_FX_CELSHADE_ALPHA: (no arguments)
+ * - T3D_VERTEX_FX_OUTLINE       : pixel size X/Y
  *
- * @param func UV generation function
+ *
+ * @param func vertex effect function
  * @param arg0 first argument
  * @param arg1 second argument
  */
-void t3d_state_set_uvgen(enum T3DUVGen func, int16_t arg0, int16_t arg1);
+void t3d_state_set_vertex_fx(enum T3DVertexFX func, int16_t arg0, int16_t arg1);
 
 /**
  * Sets a new address in the segment table.
