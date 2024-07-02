@@ -34,11 +34,12 @@ typedef struct {
   uint64_t colorCombiner;
   uint64_t otherModeValue;
   uint64_t otherModeMask;
+  uint32_t blendMode;
   uint32_t renderFlags;
 
-  uint8_t filterAlphaMode; // see: T3D_ALPHA_MODE_xxx
+  uint8_t _unused00_; // see: T3D_ALPHA_MODE_xxx
   uint8_t fogMode; // see: T3D_FOG_MODE_xxx
-  uint8_t zModeColorMask;
+  uint8_t setColorFlags;
   uint8_t vertexFxFunc;
 
   color_t primColor;

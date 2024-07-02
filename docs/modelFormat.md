@@ -73,23 +73,22 @@ only the first materials CC and draw flags are used.
 | 0x00   | `u64`                | Color-Combiner                 |
 | 0x08   | `u64`                | Other-mode values              |
 | 0x10   | `u64`                | Other-mode mask                |
-| 0x18   | `u32`                | T3D Draw flags                 |
-| 0x1C   | `u8 (AlphaMode)`     | Alpha mode                     |
-| 0x1D:0 | `u4 (TextureFilter)` | Texture Filter                 |
-| 0x1D:4 | `u4 (FogMode)`       | Fog mode                       |
-| 0x1E:0 | `u4`                 | Z-Mode mask                    |
-| 0x1E:4 | `u4`                 | Color flags (prim, env, blend) |
-| 0x1F   | `u8 (UVFunc)`        | Generated UV function          |
-| 0x20   | `u8[4]`              | Prim-Color                     |
-| 0x24   | `u8[4]`              | Env-Color                      |
-| 0x28   | `u8[4]`              | Blend-Color                    |
-| 0x2C   | `u32`                | Texture reference (offscreen)  |
-| 0x30   | `u32`                | Texture path offset            |
-| 0x34   | `u32`                | Texture hash / ID              |
-| 0x38   | `u32`                | Runtime texture pointer (`0`)  |
-| 0x3C   | `u16`                | Texture width                  |
-| 0x3E   | `u16`                | Texture height                 |
-| 0x40   | `T3DMaterialAxis[2]` | Setting per UV axis            |
+| 0x18   | `u32`                | Blend Mode, 0 for none         |
+| 0x1C   | `u32`                | T3D Draw flags                 |
+| 0x20   | `u8`                 | <now unused>                   |
+| 0x21   | `u8 (FogMode)`       | Fog mode                       |
+| 0x22   | `u8`                 | Color flags (prim, env, blend) |
+| 0x23   | `u8 (VertexFX)`      | Vertex Effect                  |
+| 0x24   | `u8[4]`              | Prim-Color                     |
+| 0x28   | `u8[4]`              | Env-Color                      |
+| 0x2C   | `u8[4]`              | Blend-Color                    |
+| 0x30   | `u32`                | Texture reference (offscreen)  |
+| 0x34   | `u32`                | Texture path offset            |
+| 0x38   | `u32`                | Texture hash / ID              |
+| 0x3C   | `u32`                | Runtime texture pointer (`0`)  |
+| 0x40   | `u16`                | Texture width                  |
+| 0x42   | `u16`                | Texture height                 |
+| 0x44   | `T3DMaterialAxis[2]` | Setting per UV axis            |
 
 #### `T3DMaterialAxis`
 
@@ -102,20 +101,6 @@ only the first materials CC and draw flags are used.
 | 0x0A   | `u8`  | Mirror      |
 | 0x0B   | `u8`  | Clamp       |
 
-#### `AlphaMode`
-```
-0 - Default (no change applied)
-1 - Opaque
-2 - Cutout
-3 - Transparent
-```
-
-#### `TextureFilter`
-```
-0 - Point
-2 - Linear
-3 - Bilinear
-```
 
 #### `FogMode`
 ```
@@ -124,7 +109,7 @@ only the first materials CC and draw flags are used.
 2 - Fog Active
 ```
 
-#### `UVFunc`
+#### `VertexFX`
 ```
 0 - None
 1 - Spherical

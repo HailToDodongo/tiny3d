@@ -8,110 +8,67 @@
 
 namespace {
   // Maps the rendermodes to the alpha modes
-  constexpr uint8_t F64_RENDER_MODE_1_TO_ALPHA[] = {
-    AlphaMode::DEFAULT, // Background
-    AlphaMode::OPAQUE, // Opaque
-    AlphaMode::OPAQUE, // Opaque Decal
-    AlphaMode::OPAQUE, // Opaque Intersecting
-    AlphaMode::CUTOUT, // Cutout
-    AlphaMode::TRANSP, // Transparent
-    AlphaMode::TRANSP, // Transparent Decal
-    AlphaMode::TRANSP, // Transparent Intersecting
-    AlphaMode::OPAQUE, // Fog Shade
-    AlphaMode::OPAQUE, // Fog Primitive
-    AlphaMode::INVALID, // Pass
-    AlphaMode::INVALID, // Add
-    AlphaMode::INVALID, // No Op
-    AlphaMode::OPAQUE, // Opaque (No AA)
-    AlphaMode::OPAQUE, // Opaque Decal (No AA)
-    AlphaMode::TRANSP, // Transparent (No AA)
-    AlphaMode::TRANSP, // Transparent Decal (No AA)
-    AlphaMode::OPAQUE, // Opaque (No AA, No ZBuf)
-    AlphaMode::INVALID, // Cloud (No AA)
-    AlphaMode::INVALID, // Terrain
+  constexpr uint32_t F64_RENDER_MODE_1_TO_BLENDER[] = {
+    RDP::BLEND::NONE, // Background
+    RDP::BLEND::NONE, // Opaque
+    RDP::BLEND::NONE, // Opaque Decal
+    RDP::BLEND::NONE, // Opaque Intersecting
+    RDP::BLEND::NONE, // Cutout
+    RDP::BLEND::MULTIPLY, // Transparent
+    RDP::BLEND::MULTIPLY, // Transparent Decal
+    RDP::BLEND::MULTIPLY, // Transparent Intersecting
+    RDP::BLEND::NONE, // Fog Shade
+    RDP::BLEND::NONE, // Fog Primitive
+    RDP::BLEND::NONE, // Pass
+    RDP::BLEND::NONE, // Add
+    RDP::BLEND::NONE, // No Op
+    RDP::BLEND::NONE, // Opaque (No AA)
+    RDP::BLEND::NONE, // Opaque Decal (No AA)
+    RDP::BLEND::MULTIPLY, // Transparent (No AA)
+    RDP::BLEND::MULTIPLY, // Transparent Decal (No AA)
+    RDP::BLEND::NONE, // Opaque (No AA, No ZBuf)
+    RDP::BLEND::NONE, // Cloud (No AA)
+    RDP::BLEND::NONE, // Terrain
   };
 
-  constexpr uint8_t F64_RENDER_MODE_2_TO_ALPHA[] = {
-    AlphaMode::DEFAULT, // Background
-    AlphaMode::OPAQUE, // Opaque
-    AlphaMode::OPAQUE, // Opaque Decal
-    AlphaMode::OPAQUE, // Opaque Intersecting
-    AlphaMode::CUTOUT, // Cutout
-    AlphaMode::TRANSP, // Transparent
-    AlphaMode::TRANSP, // Transparent Decal
-    AlphaMode::TRANSP, // Transparent Intersecting
-    AlphaMode::INVALID, // Add
-    AlphaMode::INVALID, // No Op
-    AlphaMode::OPAQUE, // Opaque (No AA)
-    AlphaMode::OPAQUE, // Opaque Decal (No AA)
-    AlphaMode::TRANSP, // Transparent (No AA)
-    AlphaMode::TRANSP, // Transparent Decal (No AA)
-    AlphaMode::OPAQUE, // Opaque (No AA, No ZBuf)
-    AlphaMode::INVALID, // Cloud (No AA)
-    AlphaMode::INVALID, // Terrain
-  };
-
-  constexpr uint8_t F64_RENDER_MODE_1_TO_ZMODE[] = {
-    ZMode::OPAQUE, // Background
-    ZMode::OPAQUE, // Opaque
-    ZMode::DECAL, // Opaque Decal
-    ZMode::INTERSECT, // Opaque Intersecting
-    ZMode::OPAQUE, // Cutout
-    ZMode::OPAQUE, // Transparent
-    ZMode::DECAL, // Transparent Decal
-    ZMode::INTERSECT, // Transparent Intersecting
-    ZMode::OPAQUE, // Fog Shade
-    ZMode::OPAQUE, // Fog Primitive
-    ZMode::OPAQUE, // Pass
-    ZMode::OPAQUE, // Add
-    ZMode::OPAQUE, // No Op
-    ZMode::OPAQUE, // Opaque (No AA)
-    ZMode::DECAL, // Opaque Decal (No AA)
-    ZMode::OPAQUE, // Transparent (No AA)
-    ZMode::DECAL, // Transparent Decal (No AA)
-    ZMode::OPAQUE, // Opaque (No AA, No ZBuf)
-    ZMode::OPAQUE, // Cloud (No AA)
-    ZMode::OPAQUE, // Terrain
-  };
-
-  constexpr uint8_t F64_RENDER_MODE_2_TO_ZMODE[] = {
-    ZMode::OPAQUE, // Background
-    ZMode::OPAQUE, // Opaque
-    ZMode::DECAL, // Opaque Decal
-    ZMode::INTERSECT, // Opaque Intersecting
-    ZMode::OPAQUE, // Cutout
-    ZMode::OPAQUE, // Transparent
-    ZMode::DECAL, // Transparent Decal
-    ZMode::INTERSECT, // Transparent Intersecting
-    ZMode::OPAQUE, // Add
-    ZMode::OPAQUE, // No Op
-    ZMode::OPAQUE, // Opaque (No AA)
-    ZMode::DECAL, // Opaque Decal (No AA)
-    ZMode::OPAQUE, // Transparent (No AA)
-    ZMode::DECAL, // Transparent Decal (No AA)
-    ZMode::OPAQUE, // Opaque (No AA, No ZBuf)
-    ZMode::OPAQUE, // Cloud (No AA)
-    ZMode::OPAQUE, // Terrain
+  constexpr uint32_t F64_RENDER_MODE_2_TO_BLENDER[] = {
+    RDP::BLEND::NONE, // Background
+    RDP::BLEND::NONE, // Opaque
+    RDP::BLEND::NONE, // Opaque Decal
+    RDP::BLEND::NONE, // Opaque Intersecting
+    RDP::BLEND::NONE, // Cutout
+    RDP::BLEND::MULTIPLY, // Transparent
+    RDP::BLEND::MULTIPLY, // Transparent Decal
+    RDP::BLEND::MULTIPLY, // Transparent Intersecting
+    RDP::BLEND::NONE, // Add
+    RDP::BLEND::NONE, // No Op
+    RDP::BLEND::NONE, // Opaque (No AA)
+    RDP::BLEND::NONE, // Opaque Decal (No AA)
+    RDP::BLEND::MULTIPLY, // Transparent (No AA)
+    RDP::BLEND::MULTIPLY, // Transparent Decal (No AA)
+    RDP::BLEND::NONE, // Opaque (No AA, No ZBuf)
+    RDP::BLEND::NONE, // Cloud (No AA)
+    RDP::BLEND::NONE, // Terrain
   };
 
   constexpr uint64_t F64_RENDER_MODE_1_TO_OTHERMODE[] = {
   /* Background */                0,
   /* Opaque */                    0,
-  /* Opaque Decal */              0,
-  /* Opaque Intersecting */       0,
+  /* Opaque Decal */              RDP::SOM::ZMODE_DECAL,
+  /* Opaque Intersecting */       RDP::SOM::ZMODE_INTERPEN,
   /* Cutout */                    RDP::SOM::ALPHA_COMPARE,
   /* Transparent */               0,
-  /* Transparent Decal */         0,
-  /* Transparent Intersecting */  0,
+  /* Transparent Decal */         RDP::SOM::ZMODE_DECAL,
+  /* Transparent Intersecting */  RDP::SOM::ZMODE_INTERPEN,
   /* Fog Shade */                 0,
   /* Fog Primitive */             0,
   /* Pass */                      0,
   /* Add */                       0,
   /* No Op */                     0,
   /* Opaque (No AA) */            0,
-  /* Opaque Decal (No AA) */      0,
+  /* Opaque Decal (No AA) */      RDP::SOM::ZMODE_DECAL,
   /* Transparent (No AA) */       0,
-  /* Transparent Decal (No AA) */ 0,
+  /* Transparent Decal (No AA) */ RDP::SOM::ZMODE_DECAL,
   /* Opaque (No AA, No ZBuf) */   0,
   /* Cloud (No AA) */             0,
   /* Terrain */                   0,
@@ -120,18 +77,18 @@ namespace {
   constexpr uint64_t F64_RENDER_MODE_2_TO_OTHERMODE[] = {
   /* Background */                0,
   /* Opaque */                    0,
-  /* Opaque Decal */              0,
-  /* Opaque Intersecting */       0,
+  /* Opaque Decal */              RDP::SOM::ZMODE_DECAL,
+  /* Opaque Intersecting */       RDP::SOM::ZMODE_INTERPEN,
   /* Cutout */                    RDP::SOM::ALPHA_COMPARE,
   /* Transparent */               0,
-  /* Transparent Decal */         0,
-  /* Transparent Intersecting */  0,
+  /* Transparent Decal */         RDP::SOM::ZMODE_DECAL,
+  /* Transparent Intersecting */  RDP::SOM::ZMODE_INTERPEN,
   /* Add */                       0,
   /* No Op */                     0,
   /* Opaque (No AA) */            0,
-  /* Opaque Decal (No AA) */      0,
+  /* Opaque Decal (No AA) */      RDP::SOM::ZMODE_DECAL,
   /* Transparent (No AA) */       0,
-  /* Transparent Decal (No AA) */ 0,
+  /* Transparent Decal (No AA) */ RDP::SOM::ZMODE_DECAL,
   /* Opaque (No AA, No ZBuf) */   0,
   /* Cloud (No AA) */             0,
   /* Terrain */                   0,

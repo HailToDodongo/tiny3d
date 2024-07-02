@@ -14,6 +14,7 @@
 
 #include "binaryFile.h"
 #include "converter/converter.h"
+#include "parser/rdp.h"
 
 Config config;
 
@@ -77,10 +78,17 @@ int main(int argc, char* argv[])
   // sort models by transparency mode (opaque -> cutout -> transparent)
   // within the same transparency mode, sort by material
   std::sort(t3dm.models.begin(), t3dm.models.end(), [](const Model &a, const Model &b) {
-    if(a.materialA.alphaMode == b.materialA.alphaMode) {
+    bool isTranspA = a.materialA.blendMode == RDP::BLEND::MULTIPLY;
+    bool isTranspB = b.materialA.blendMode == RDP::BLEND::MULTIPLY;
+    if(isTranspA == isTranspB) {
       return a.materialA.uuid < b.materialA.uuid;
     }
-    return a.materialA.alphaMode < b.materialA.alphaMode;
+    if(!isTranspA && !isTranspB) {
+       int isDecalA = (a.materialA.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
+       int isDecalB = (b.materialA.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
+       return isDecalA < isDecalB;
+    }
+    return isTranspB;
   });
 
   uint32_t chunkIndex = 0;
@@ -169,15 +177,16 @@ int main(int argc, char* argv[])
       f->write(material.colorCombiner);
       f->write(material.otherModeValue);
       f->write(material.otherModeMask);
+      f->write(material.blendMode);
       f->write(material.drawFlags);
 
-      f->write<uint8_t>((material.texFilter << 4) | material.alphaMode);
+      f->write<uint8_t>(0);
       f->write(material.fogMode);
-      f->write<uint8_t>((material.zMode << 4) | (
+      f->write<uint8_t>(
         material.setPrimColor |
         (material.setEnvColor << 1) |
         (material.setBlendColor << 2)
-      ));
+      );
       f->write(material.vertexFxFunc);
 
       f->writeArray(material.primColor, 4);
