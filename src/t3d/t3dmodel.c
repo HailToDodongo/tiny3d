@@ -309,10 +309,6 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
         if(setOtherMode) {
           __rdpq_mode_change_som(matMain->otherModeMask, matMain->otherModeValue);
           lastOtherMode = matMain->otherModeValue;
-
-          if(matMain->otherModeValue & SOM_ALPHACOMPARE_THRESHOLD) {
-            rdpq_set_blend_color(matMain->blendColor); // alpha used as threshold
-          }
         }
       }
 

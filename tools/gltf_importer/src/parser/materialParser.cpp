@@ -121,6 +121,25 @@ namespace {
     if(cc.aAlpha == CC::SHADE || cc.bAlpha == CC::SHADE || cc.cAlpha == CC::SHADE || cc.dAlpha == CC::SHADE)return true;
     return false;
   }
+
+  void readColor(const json &color, uint8_t out[4]) {
+    float colorFloat[4] = {
+      color[0].get<float>(),
+      color[1].get<float>(),
+      color[2].get<float>(),
+      color[3].get<float>()
+    };
+
+    // linear to gamma
+    for(int c=0; c<3; ++c) {
+      colorFloat[c] = powf(colorFloat[c], 0.4545f);
+    }
+
+    out[0] = (uint8_t)(colorFloat[0] * 255.0f);
+    out[1] = (uint8_t)(colorFloat[1] * 255.0f);
+    out[2] = (uint8_t)(colorFloat[2] * 255.0f);
+    out[3] = (uint8_t)(colorFloat[3] * 255.0f);
+  }
 }
 
 void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgltf_primitive *prim) {
@@ -157,28 +176,22 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
     bool is2Cycle = true;
 
     model.materialA.drawFlags = DrawFlags::DEPTH;
+    model.materialA.blendColor[3] = 128; // default in case cutout is used
 
     model.materialA.setPrimColor = false;
     if(f3dData.contains("set_prim")) {
       model.materialA.setPrimColor = f3dData["set_prim"].get<uint32_t>() != 0;
+      readColor(f3dData["prim_color"], model.materialA.primColor);
+    }
 
-      auto &primColorNode = f3dData["prim_color"];
-      float primColor[4] = {
-        primColorNode[0].get<float>(),
-        primColorNode[1].get<float>(),
-        primColorNode[2].get<float>(),
-        primColorNode[3].get<float>()
-      };
+    if(f3dData.contains("set_env")) {
+      model.materialA.setEnvColor = f3dData["set_env"].get<uint32_t>() != 0;
+      readColor(f3dData["env_color"], model.materialA.envColor);
+    }
 
-      // linear to gamma
-      for(int c=0; c<3; ++c) {
-        primColor[c] = powf(primColor[c], 0.4545f);
-      }
-
-      model.materialA.primColor[0] = (uint8_t)(primColor[0] * 255.0f);
-      model.materialA.primColor[1] = (uint8_t)(primColor[1] * 255.0f);
-      model.materialA.primColor[2] = (uint8_t)(primColor[2] * 255.0f);
-      model.materialA.primColor[3] = (uint8_t)(primColor[3] * 255.0f);
+    if(f3dData.contains("set_blend")) {
+      model.materialA.setBlendColor = f3dData["set_blend"].get<uint32_t>() != 0;
+      readColor(f3dData["blend_color"], model.materialA.blendColor);
     }
 
     if(f3dData.contains("rdp_settings"))
@@ -207,8 +220,6 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
       uint32_t texGen = rdpSettings["g_tex_gen"].get<uint32_t>();
       model.materialA.vertexFxFunc = (texGen != 0) ? UvGenFunc::SPHERE : UvGenFunc::NONE;
       model.materialB.vertexFxFunc = model.materialA.vertexFxFunc;
-
-      model.materialA.blendColor[3] = 128; // default in case cutout is used
 
       bool setRenderMode = rdpSettings["set_rendermode"].get<uint32_t>() != 0;
       if(setRenderMode) {
