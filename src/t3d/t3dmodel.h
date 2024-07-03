@@ -31,6 +31,18 @@ typedef struct {
 } T3DMaterialAxis;
 
 typedef struct {
+  uint32_t texReference; // dynamic/offscreen texture if non-zero, can be set in fast64
+  char* texPath;
+  uint32_t textureHash;
+  sprite_t* texture;
+  uint16_t texWidth;
+  uint16_t texHeight;
+
+  T3DMaterialAxis s;
+  T3DMaterialAxis t;
+} T3DMaterialTexture;
+
+typedef struct {
   uint64_t colorCombiner;
   uint64_t otherModeValue;
   uint64_t otherModeMask;
@@ -45,17 +57,10 @@ typedef struct {
   color_t primColor;
   color_t envColor;
   color_t blendColor;
-  uint32_t texReference; // dynamic/offscreen texture if non-zero, can be set in fast64
-  char* texPath;
-  uint32_t textureHash;
 
-  sprite_t* texture;
-
-  uint16_t texWidth;
-  uint16_t texHeight;
-
-  T3DMaterialAxis s;
-  T3DMaterialAxis t;
+  char* name;
+  T3DMaterialTexture textureA;
+  T3DMaterialTexture textureB;
 } T3DMaterial;
 
 typedef struct {
@@ -72,8 +77,7 @@ typedef struct {
 typedef struct {
   char* name;
   uint32_t numParts;
-  T3DMaterial* materialA;
-  T3DMaterial* materialB;
+  T3DMaterial* material;
 
   T3DObjectPart parts[]; // real array
 } T3DObject;

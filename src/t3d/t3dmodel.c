@@ -69,39 +69,40 @@ static void texture_cache_free(uint32_t hash)
 
 static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *conf)
 {
-  if(mat->texPath || mat->texReference)
+  T3DMaterialTexture *tex = tile == TILE0 ? &mat->textureA : &mat->textureB;
+  if(tex->texPath || tex->texReference)
   {
     //debugf("Load Texture: %s (%08lX)\n", mat->texPath, mat->textureHash);
-    if(mat->texPath && !mat->texture) {
-      mat->texture = texture_cache_get(mat->textureHash);
-      if(mat->texture == NULL) {
-        debugf("Not in cache, load %s (%08lX)\n", mat->texPath, mat->textureHash);
-        mat->texture = sprite_load(mat->texPath);
+    if(tex->texPath && !tex->texture) {
+      tex->texture = texture_cache_get(tex->textureHash);
+      if(tex->texture == NULL) {
+        debugf("Not in cache, load %s (%08lX)\n", tex->texPath, tex->textureHash);
+        tex->texture = sprite_load(tex->texPath);
         //const char* formatName = tex_format_name(sprite_get_format(mat->texture));
         //debugf(" -> %s\n", formatName);
-        texture_cache_add(mat->textureHash, mat->texture);
+        texture_cache_add(tex->textureHash, tex->texture);
       }
     }
 
-    rdpq_texparms_t tex = (rdpq_texparms_t){};
-    tex.s.mirror = mat->s.mirror;
-    tex.s.repeats = mat->s.clamp ? 1 : REPEAT_INFINITE;
-    tex.s.scale_log = (int)mat->s.shift;
+    rdpq_texparms_t texParam = (rdpq_texparms_t){};
+    texParam.s.mirror = tex->s.mirror;
+    texParam.s.repeats = tex->s.clamp ? 1 : REPEAT_INFINITE;
+    texParam.s.scale_log = (int)tex->s.shift;
 
-    tex.t.mirror = mat->t.mirror;
-    tex.t.repeats = mat->t.clamp ? 1 : REPEAT_INFINITE;
-    tex.t.scale_log = (int)mat->t.shift;
+    texParam.t.mirror = tex->t.mirror;
+    texParam.t.repeats = tex->t.clamp ? 1 : REPEAT_INFINITE;
+    texParam.t.scale_log = (int)tex->t.shift;
 
     if(conf->tileCb) {
-      conf->tileCb(conf->userData, &tex, tile);
+      conf->tileCb(conf->userData, &texParam, tile);
     }
 
     // @TODO: don't upload texture if only the tile settings differ
-    if(mat->texReference) {
-      if(conf->dynTextureCb)conf->dynTextureCb(conf->userData, mat, &tex, tile);
+    if(tex->texReference) {
+      if(conf->dynTextureCb)conf->dynTextureCb(conf->userData, mat, &texParam, tile);
     } else {
       rdpq_sync_tile();
-      rdpq_sprite_upload(tile, mat->texture, &tex);
+      rdpq_sprite_upload(tile, tex->texture, &texParam);
     }
   }
 }
@@ -127,16 +128,17 @@ T3DModel *t3d_model_load(const char *path) {
         obj->name = patch_pointer(obj->name, (uint32_t)model->stringTablePtr);
       }
 
-      uint32_t matIdxA = model->chunkIdxMaterials + (uint32_t)obj->materialA;
-      uint32_t matIdxB = model->chunkIdxMaterials + (uint32_t)obj->materialB;
-      obj->materialA = (T3DMaterial*)((char*)model + (model->chunkOffsets[matIdxA].offset & 0xFFFFFF));
-      obj->materialB = (T3DMaterial*)((char*)model + (model->chunkOffsets[matIdxB].offset & 0xFFFFFF));
+      uint32_t matIdx = model->chunkIdxMaterials + (uint32_t)obj->material;
+      obj->material = (T3DMaterial*)((char*)model + (model->chunkOffsets[matIdx].offset & 0xFFFFFF));
 
-      if(obj->materialA->texPath) {
-        obj->materialA->texPath += (uint32_t)model->stringTablePtr;
+      if(obj->material->name) {
+        obj->material->name += (uint32_t)model->stringTablePtr;
       }
-      if(obj->materialB->texPath) {
-        obj->materialB->texPath += (uint32_t)model->stringTablePtr;
+      if(obj->material->textureA.texPath) {
+        obj->material->textureA.texPath += (uint32_t)model->stringTablePtr;
+      }
+      if(obj->material->textureB.texPath) {
+        obj->material->textureB.texPath += (uint32_t)model->stringTablePtr;
       }
 
       for(uint32_t j = 0; j < obj->numParts; j++) {
@@ -196,21 +198,20 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
       continue;
     }
 
-    T3DMaterial *matMain = obj->materialA;
-    T3DMaterial *matSecond = obj->materialB;
+    T3DMaterial *mat = obj->material;
 
     // first change t3d settings, this avoids an overlay-switch.
     // settings here also influence how 't3d_vert_load' will load vertices
-    if(matMain)
+    if(mat)
     {
-      if(obj->materialA->renderFlags != lastRenderFlags) {
-        t3d_state_set_drawflags(obj->materialA->renderFlags);
-        lastRenderFlags = obj->materialA->renderFlags;
+      if(mat->renderFlags != lastRenderFlags) {
+        t3d_state_set_drawflags(mat->renderFlags);
+        lastRenderFlags = mat->renderFlags;
       }
 
-      if(matMain->fogMode != T3D_FOG_MODE_DEFAULT && matMain->fogMode != lastFogMode) {
-        lastFogMode = matMain->fogMode;
-        t3d_fog_set_enabled(matMain->fogMode == T3D_FOG_MODE_ACTIVE);
+      if(mat->fogMode != T3D_FOG_MODE_DEFAULT && mat->fogMode != lastFogMode) {
+        lastFogMode = mat->fogMode;
+        t3d_fog_set_enabled(mat->fogMode == T3D_FOG_MODE_ACTIVE);
       }
     }
 
@@ -235,14 +236,14 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
         }
       }
 
-      if(matMain) {
-        if(lastVertFXFunc != matMain->vertexFxFunc || (
-          matMain->vertexFxFunc && (lastUvGenParams[0] != matMain->texWidth || lastUvGenParams[1] != matMain->texHeight)
+      if(mat) {
+        if(lastVertFXFunc != mat->vertexFxFunc || (
+          mat->vertexFxFunc && (lastUvGenParams[0] != mat->textureA.texWidth || lastUvGenParams[1] != mat->textureA.texHeight)
         )) {
-          lastVertFXFunc = matMain->vertexFxFunc;
-          lastUvGenParams[0] = matMain->texWidth;
-          lastUvGenParams[1] = matMain->texHeight;
-          t3d_state_set_vertex_fx(lastVertFXFunc, (int16_t)matMain->texWidth, (int16_t)matMain->texHeight);
+          lastVertFXFunc = mat->vertexFxFunc;
+          lastUvGenParams[0] = mat->textureA.texWidth;
+          lastUvGenParams[1] = mat->textureA.texHeight;
+          t3d_state_set_vertex_fx(lastVertFXFunc, (int16_t)lastUvGenParams[0], (int16_t)lastUvGenParams[1]);
         }
       }
 
@@ -253,62 +254,63 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
 
       // now apply rdpq settings, these are independent of the t3d state
       // and only need to happen before a `t3d_tri_draw` call
-      if(!hadMaterial && matMain && matMain->colorCombiner)
+      if(!hadMaterial && mat && mat->colorCombiner)
       {
         hadMaterial = true;
 
-        bool setBlendMode  = lastBlendMode != matMain->blendMode;
-        bool setCC         = matMain->colorCombiner != lastCC;
-        bool setOtherMode  = lastOtherMode != matMain->otherModeValue;
-        bool setTexture    = lastTextureHashA != matMain->textureHash || lastTextureHashB != matSecond->textureHash;
-        bool setPrimColor  = (matMain->setColorFlags & 0b001) && color_to_packed32(lastPrimColor) != color_to_packed32(matMain->primColor);
-        bool setEnvColor   = (matMain->setColorFlags & 0b010) && color_to_packed32(lastEnvColor) != color_to_packed32(matMain->envColor);
-        bool setBlendColor = (matMain->setColorFlags & 0b100) || (matMain->otherModeValue & SOM_ALPHACOMPARE_THRESHOLD);
-        setBlendColor = setBlendColor && color_to_packed32(lastBlendColor) != color_to_packed32(matMain->blendColor);
+        bool setBlendMode  = lastBlendMode != mat->blendMode;
+        bool setCC         = mat->colorCombiner != lastCC;
+        bool setOtherMode  = lastOtherMode != mat->otherModeValue;
+        bool setTexture    = lastTextureHashA != mat->textureA.textureHash || lastTextureHashB != mat->textureB.textureHash;
+        bool setPrimColor  = (mat->setColorFlags & 0b001) && color_to_packed32(lastPrimColor) != color_to_packed32(mat->primColor);
+        bool setEnvColor   = (mat->setColorFlags & 0b010) && color_to_packed32(lastEnvColor) != color_to_packed32(mat->envColor);
+        bool setBlendColor = (mat->setColorFlags & 0b100) || (mat->otherModeValue & SOM_ALPHACOMPARE_THRESHOLD);
+        setBlendColor = setBlendColor && color_to_packed32(lastBlendColor) != color_to_packed32(mat->blendColor);
 
         if(setBlendMode || setCC || setOtherMode || setTexture) {
           rdpq_sync_pipe();
         }
 
-        if(lastTextureHashA != matMain->textureHash || lastTextureHashB != matSecond->textureHash) {
-          lastTextureHashA = matMain->textureHash;
-          lastTextureHashB = matSecond->textureHash;
+        if(lastTextureHashA != mat->textureA.textureHash || lastTextureHashB != mat->textureB.textureHash)
+        {
+          lastTextureHashA = mat->textureA.textureHash;
+          lastTextureHashB = mat->textureB.textureHash;
           rdpq_sync_load();
 
           rdpq_tex_multi_begin();
-            set_texture(matMain, TILE0, &conf);
-            set_texture(matSecond, TILE1, &conf);
+            set_texture(mat, TILE0, &conf);
+            set_texture(mat, TILE1, &conf);
           rdpq_tex_multi_end();
         }
 
         if(setCC) {
-          lastCC = matMain->colorCombiner;
-          rdpq_mode_combiner(obj->materialA->colorCombiner);
+          lastCC = mat->colorCombiner;
+          rdpq_mode_combiner(mat->colorCombiner);
         }
 
         if(setBlendMode) {
-          rdpq_mode_blender(matMain->blendMode);
-          lastBlendMode = matMain->blendMode;
+          rdpq_mode_blender(mat->blendMode);
+          lastBlendMode = mat->blendMode;
         }
 
         if(setPrimColor) {
-          lastPrimColor = matMain->primColor;
-          rdpq_set_prim_color(matMain->primColor); // @TODO: have t3d version of this
+          lastPrimColor = mat->primColor;
+          rdpq_set_prim_color(mat->primColor);
         }
 
         if(setBlendColor) {
-          lastBlendColor = matMain->blendColor;
-          rdpq_set_blend_color(matMain->blendColor);
+          lastBlendColor = mat->blendColor;
+          rdpq_set_blend_color(mat->blendColor);
         }
 
         if(setEnvColor) {
-          lastEnvColor = matMain->envColor;
-          rdpq_set_env_color(matMain->envColor);
+          lastEnvColor = mat->envColor;
+          rdpq_set_env_color(mat->envColor);
         }
 
         if(setOtherMode) {
-          __rdpq_mode_change_som(matMain->otherModeMask, matMain->otherModeValue);
-          lastOtherMode = matMain->otherModeValue;
+          __rdpq_mode_change_som(mat->otherModeMask, mat->otherModeValue);
+          lastOtherMode = mat->otherModeValue;
         }
       }
 
@@ -379,9 +381,8 @@ void t3d_model_free(T3DModel *model) {
     char chunkType = model->chunkOffsets[c].type;
     if(chunkType != 'M')break;
     T3DMaterial *mat = (T3DMaterial*)((char*)model + (model->chunkOffsets[c].offset & 0x00FFFFFF));
-    if(mat->texture) {
-      texture_cache_free(mat->textureHash);
-    }
+    if(mat->textureA.texture)texture_cache_free(mat->textureA.textureHash);
+    if(mat->textureB.texture)texture_cache_free(mat->textureB.textureHash);
   }
   free(model);
 }

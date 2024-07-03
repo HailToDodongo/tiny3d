@@ -109,6 +109,7 @@ struct ColorCombiner {
 };
 
 struct Material {
+  std::string name{};
   TileParam s{};
   TileParam t{};
   uint64_t colorCombiner{};

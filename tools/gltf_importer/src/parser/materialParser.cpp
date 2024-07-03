@@ -146,6 +146,7 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
   model.materialA.uuid = j * 1000 + i;
   if(prim->material->name) {
     model.materialA.uuid = stringHash(prim->material->name);
+    model.materialA.name = prim->material->name;
   }
   printf("     Material: %s\n", prim->material->name);
 
