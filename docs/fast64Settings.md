@@ -11,7 +11,7 @@ Here is a full list of all settings currently supported:
   - Draw Layer
 - Sources
   - Primitive Color (color & flag to use it or not)
-  - @TODO: Environment Color 
+  - Environment Color (color & flag to use it or not)
   - Use Texture-Reference
   - Texture Reference
   - Texture Size 
@@ -35,7 +35,7 @@ Here is a full list of all settings currently supported:
   - Render Mode
     - Blend: None, Multiply (aka Alpha)
     - Z-Mode: Opaque, Interpenetrating, Decal
-  - @TODO: Blend Color (if not set, the alpha value 128 by default in case of alpha-clipping) 
+  - Blend Color (if not set, the alpha value 128 by default in case of alpha-clipping) 
 
 ### Libragon Mapping
 Most Settings will behave as expected, there are some exceptions which will be mapped to the closest libdragon equivalent.<br>
