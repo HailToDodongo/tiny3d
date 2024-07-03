@@ -278,6 +278,14 @@ T3DChunkAnim* t3d_model_get_animation(const T3DModel *model, const char* name);
  */
 T3DObject* t3d_model_get_object(const T3DModel *model, const char *name);
 
+/**
+ * Returns a material by name.
+ * @param model model
+ * @param name material name
+ * @return material or NULL if not found
+ */
+T3DMaterial* t3d_model_get_material(const T3DModel *model, const char *name);
+
 #ifdef __cplusplus
 }
 #endif

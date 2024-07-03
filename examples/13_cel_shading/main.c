@@ -4,22 +4,11 @@
 #include <t3d/t3dmodel.h>
 
 /**
- * Showcase for various cel-shading techniques and material settings.
- * There are two main version of this:
- * - generated UVs with a gradient texture
- * - alpha-threshold and blending
- *
- * The first sacrifices usage of textures for very fast cel-shading.
+ * Showcase for a cel-shading technique based on generated UVs.
+ * This sacrifices usage of textures (by requiring a gradient texture) to get a very fast cel-shading effect.
  * It will write the lights intensity as a UV's x-coordinate to act as a color lookup.
- *
- * The latter allows for full use of the CC and textures, and instead uses a alpha threshold
- * to selectively draws the model.
- * This will write the lights intensity as the alpha value of the color, allowing for a alpha-threshold.
- * Since the models needs to be drawn twice, this is slower than the first method.
- * Note that for any additional cel-layer, this requires another draw-call.
- *
- * In the first uvgen method, the amount cel-layer can be adjusted by changing the texture
- * and has no effect on performance.
+ * The amount of cel-layers can be adjusted by changing the texture and has no effect on performance.
+ * If texture are needed, the models must be draw a second time with blending enabled.
  */
 
 typedef struct {
@@ -33,6 +22,7 @@ typedef struct {
   const char* text;
   const char* subText;
   float scale;
+  bool hasOutline;
 } Model;
 
 int main()
@@ -70,6 +60,7 @@ int main()
       .colorAmbient = {0x55, 0x55, 0x55, 0xFF},
       .colorDir = {0xFF, 0xFF, 0xFF, 0xFF},
       .vertexFx = T3D_VERTEX_FX_CELSHADE_COLOR,
+      .hasOutline = true,
       .text = "Outlined Pot (Soft)",
       .subText = "UVGen, 1D texture, soft lights (color)\n"
                  "Single draw, no blending"
@@ -78,6 +69,7 @@ int main()
       .colorAmbient = {0xFF, 0xFF, 0xFF, 0x55},
       .colorDir = {0, 0, 0, 0xFF},
       .vertexFx = T3D_VERTEX_FX_CELSHADE_ALPHA,
+      .hasOutline = true,
       .text = "Outlined Pot (Flat)",
       .subText = "UVGen, 1D texture, flat lights (alpha)\n"
                  "Single draw, no blending"
@@ -86,6 +78,7 @@ int main()
       .colorAmbient = {0x55, 0x55, 0x55, 0x00},
       .colorDir = {0xFF, 0xFF, 0xFF, 0xFF},
       .vertexFx = T3D_VERTEX_FX_CELSHADE_ALPHA,
+      .hasOutline = true,
       .text = "Planet",
       .subText = "UVGen, no texture/color, flat lights\n"
                  "Single draw, no blending"
@@ -94,6 +87,7 @@ int main()
       .colorAmbient = {0x33, 0x33, 0x33, 0xFF},
       .colorDir = {0xFF, 0xFF, 0xFF, 0xFF},
       .vertexFx = T3D_VERTEX_FX_CELSHADE_COLOR,
+      .hasOutline = true,
       .text = "Suzanne",
       .subText = "UVGen, vert. color, flat lights\n"
                  "Single draw, no blending"
@@ -133,41 +127,36 @@ int main()
   };
   uint32_t modelCount = sizeof(models)/sizeof(models[0]);
 
-  for(int i = 0; i < modelCount; i++) {
-
-    T3DModel *md = models[i].model;
-    for(uint32_t c = 0; c < md->chunkCount; c++) {
-      if(md->chunkOffsets[c].type == 'M') {
-        T3DMaterial *mat = (T3DMaterial*)((char*)md + (md->chunkOffsets[c].offset & 0x00FFFFFF));
-        if(i>=4 && (c < 6))continue;
-        mat->vertexFxFunc = models[i].vertexFx;
-      }
+  for(int i = 0; i < modelCount; i++)
+  {
+    // fast64 has currently no setting for t3d specific cel-shading, so set it manually here.
+    // alternatively, you can also set it from the outside via:
+    // t3d_state_set_vertex_fx(T3D_VERTEX_FX_xxx, 0, 0);
+    T3DMaterial *celShadeMat = t3d_model_get_material(models[i].model, "celshade");
+    if(celShadeMat) {
+      celShadeMat->vertexFxFunc = models[i].vertexFx;
     }
 
     models[i].modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
 
     rspq_block_begin();
-      t3d_state_set_vertex_fx(models[i].vertexFx, 0, 0);
       t3d_model_draw(models[i].model);
-      t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);
     models[i].dplModel = rspq_block_end();
 
-    if(i < 4)
+    if(models[i].hasOutline)
     {
       rspq_block_begin();
-        t3d_state_set_drawflags(T3D_FLAG_CULL_FRONT | T3D_FLAG_DEPTH);
-        t3d_state_set_vertex_fx(T3D_VERTEX_FX_OUTLINE, 16, 16);
-        rdpq_sync_pipe();
         rdpq_mode_combiner(RDPQ_COMBINER_FLAT);
         rdpq_set_prim_color((color_t){0, 0, 0, 0xFF});
+
+        // this effect is explained in `14_outline`, but in short:
+        // invert model and use a black material to draw the outline, T3D_VERTEX_FX_OUTLINE will grow it slightly
+        t3d_state_set_drawflags(T3D_FLAG_CULL_FRONT | T3D_FLAG_DEPTH);
+        t3d_state_set_vertex_fx(T3D_VERTEX_FX_OUTLINE, 16, 16);
         t3d_model_draw_manual(models[i].model, NULL, NULL, NULL);
         t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);
       models[i].dplOutline = rspq_block_end();
     }
-
-    /*bool draw_manual(void* userData, const T3DObject *obj, const T3DObjectPart *part, uint32_t objIdx, uint32_t partIdx) {
-        return true;
-    }*/
   }
 
   rspq_block_begin();

@@ -419,3 +419,14 @@ void t3d_model_get_animations(const T3DModel *model, T3DChunkAnim **anims) {
   }
 }
 
+T3DMaterial *t3d_model_get_material(const T3DModel *model, const char *name) {
+  for(uint32_t i = 0; i < model->chunkCount; i++) {
+    if(model->chunkOffsets[i].type == 'M') {
+      uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
+      T3DMaterial *mat = (T3DMaterial*)((char*)model + offset);
+      if(mat->name && strcmp(mat->name, name) == 0)return mat;
+    }
+  }
+  return NULL;
+}
+
