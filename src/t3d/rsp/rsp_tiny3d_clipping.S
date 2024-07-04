@@ -167,7 +167,7 @@
     .align 1
     VERTEX_FX_FUNC: .half 0
     FACE_CULLING: .byte 0
-    USE_FOG: .byte 0
+    FOG_STORE_OFFSET: .byte 0
     ACTIVE_LIGHT_SIZE: .byte 0
     STATE_MEM_END:
   RSPQ_EndSavedState
@@ -186,90 +186,90 @@ OVERLAY_CODE_START:
 
 .align 3
 clipTriangle:
-  ldv $v01, 0, 0, $a0
+  ldv $v04, 0, 24, $a0
   ldv $v03, 0, 16, $a0
   ldv $v02, 0, 8, $a0
-  ldv $v04, 0, 24, $a0
+  ldv $v01, 0, 0, $a0
   ori $t3, $zero, %lo(CLIP_BUFFER_TMP)
-  ori $t1, $zero, %lo(CLIP_BUFFER_RESULT)
-  sdv $v02, 0, 8, $t3
-  sdv $v01, 0, 0, $t3
-  sdv $v03, 0, 16, $t3
-  sdv $v04, 0, 24, $t3
-  ldv $v02, 0, 8, $a1
-  ldv $v03, 0, 16, $a1
-  addiu $t5, $zero, 1
-  ldv $v01, 0, 0, $a1
-  ldv $v04, 0, 24, $a1
   ori $at, $zero, %lo(NORM_SCALE_W)
-  addiu $t3, $t3, 36
-  sdv $v01, 0, 0, $t3
-  sdv $v02, 0, 8, $t3
+  sdv $v04, 0, 24, $t3
   sdv $v03, 0, 16, $t3
-  sdv $v04, 0, 24, $t3
-  ldv $v04, 0, 24, $a2
-  ldv $v01, 0, 0, $a2
-  ldv $v02, 0, 8, $a2
-  addiu $t3, $t3, 36
-  ldv $v03, 0, 16, $a2
+  ldv $v03, 0, 16, $a1
   sdv $v01, 0, 0, $t3
-  ori $t2, $zero, %lo(CLIP_BUFFER_TMP)
-  sdv $v04, 0, 24, $t3
+  ldv $v01, 0, 0, $a1
   sdv $v02, 0, 8, $t3
+  ldv $v02, 0, 8, $a1
+  ldv $v04, 0, 24, $a1
+  addiu $t3, $t3, 36
+  ori $t4, $zero, %lo(CLIPPING_PLANES)
+  sdv $v02, 0, 8, $t3
+  sdv $v01, 0, 0, $t3
+  sdv $v04, 0, 24, $t3
+  sdv $v03, 0, 16, $t3
+  ldv $v01, 0, 0, $a2
+  ldv $v04, 0, 24, $a2
+  addiu $t3, $t3, 36
+  ori $t1, $zero, %lo(CLIP_BUFFER_RESULT)
+  ldv $v02, 0, 8, $a2
+  sdv $v01, 0, 0, $t3
+  ldv $v03, 0, 16, $a2
+  ori $t2, $zero, %lo(CLIP_BUFFER_TMP)
   ldv $v01, 0, 8, $at
+  sdv $v02, 0, 8, $t3
   ldv $v01, 8, 8, $at
+  sdv $v04, 0, 24, $t3
   ori $at, $zero, %lo(CLIPPING_PLANES)
   llv $v02, 0, 0, $at
   sdv $v03, 0, 16, $t3
-  addiu $t0, $zero, 108
-  ori $t4, $zero, %lo(CLIPPING_PLANES)
+  addiu $t5, $zero, 1
   addiu $t3, $t3, 36
+  addiu $t0, $zero, 108
   vor $v02, $v00, $v02.e1
   LABEL_0001:
+  xor $t1, $t1, $t2
   addiu $t6, $t3, 65500
-  xor $t1, $t1, $t2
   xor $t2, $t1, $t2
-  luv $v03, 0, 8, $t6
-  xor $t1, $t1, $t2
   ldv $v04, 0, 16, $t6
-  llv $v04, 8, 12, $t6
   ldv $v05, 0, 24, $t6
-  addu $t8, $t1, $t0
-  lbu $t7, 6($t6)
   or $t3, $zero, $t2
+  lbu $t7, 6($t6)
+  xor $t1, $t1, $t2
+  luv $v03, 0, 8, $t6
+  addu $t8, $t1, $t0
+  llv $v04, 8, 12, $t6
   or $t6, $zero, $t1
   LABEL_0003:
-  ldv $v06, 0, 16, $t6
   lbu $t9, 6($t6)
+  ldv $v06, 0, 16, $t6
   luv $v08, 0, 8, $t6
-  llv $v06, 8, 12, $t6
   ldv $v07, 0, 24, $t6
-  nor $k1, $zero, $t9
   xor $k0, $t9, $t7
   and $k0, $k0, $t5
+  nor $k1, $zero, $t9
+  llv $v06, 8, 12, $t6
   beq $k0, $zero, LABEL_0005
   and $k1, $k1, $t5
   and $t7, $t7, $t5
   beq $t7, $zero, LABEL_0006
   lpv $v14, 0, 0, $t4
-  vsubc $v10, $v05, $v07.v
   ori $at, $zero, %lo(RSPQ_SCRATCH_MEM) ## Barrier: 0x1
-  sdv $v04, 0, 0, $at ## Barrier: 0x1
-  vor $v11, $v00, $v06
-  sdv $v05, 0, 8, $at ## Barrier: 0x1
+  vsubc $v10, $v05, $v07.v
   vor $v12, $v00, $v07
-  ldv $v11, 8, 0, $at ## Barrier: 0x1
+  sdv $v04, 0, 0, $at ## Barrier: 0x1
+  sdv $v05, 0, 8, $at ## Barrier: 0x1
+  vor $v11, $v00, $v06
   vsub $v09, $v04, $v06.v
+  ldv $v11, 8, 0, $at ## Barrier: 0x1
   vsubc $v13, $v03, $v08.v
   beq $zero, $zero, LABEL_0007
   ldv $v12, 8, 8, $at ## Barrier: 0x1
   LABEL_0006:
+  vsubc $v10, $v07, $v05.v
   ori $at, $zero, %lo(RSPQ_SCRATCH_MEM) ## Barrier: 0x1
   vor $v11, $v00, $v04
-  vsubc $v10, $v07, $v05.v
   sdv $v06, 0, 0, $at ## Barrier: 0x1
-  vsub $v09, $v06, $v04.v
   sdv $v07, 0, 8, $at ## Barrier: 0x1
+  vsub $v09, $v06, $v04.v
   ldv $v11, 8, 0, $at ## Barrier: 0x1
   vor $v12, $v00, $v05
   vsubc $v13, $v08, $v03.v
@@ -330,17 +330,17 @@ clipTriangle:
   LABEL_000A:
   vmudl $v10, $v05, $v01.v
   vmadm $v09, $v04, $v01.v
-  sdv $v04, 0, 16, $t3
   vmadn $v10, $v00, $v00
   vmudl $v29, $v00, $v05.h3
+  sdv $v05, 0, 24, $t3
   vmadm $v29, $v02, $v05.h3
   vmadn $v12, $v00, $v04.h3
-  suv $v03, 0, 8, $t3 ## Barrier: 0x2
   vmadh $v11, $v02, $v04.h3
-  vch $v29, $v09, $v11.e3
+  suv $v03, 0, 8, $t3 ## Barrier: 0x2
   slv $v04, 8, 12, $t3 ## Barrier: 0x2
-  sdv $v05, 0, 24, $t3
+  vch $v29, $v09, $v11.e3
   vcl $v29, $v10, $v12.e3
+  sdv $v04, 0, 16, $t3
   cfc2 $t7, $vcc
   andi $t7, $t7, 1799
   srl $sp, $t7, 5
@@ -349,14 +349,14 @@ clipTriangle:
   addiu $t3, $t3, 36
   LABEL_0005:
   vor $v04, $v00, $v06
-  vor $v03, $v00, $v08
   or $t7, $zero, $t9
+  vor $v03, $v00, $v08
   beq $k1, $zero, LABEL_000B
   vor $v05, $v00, $v07
-  sdv $v04, 0, 16, $t3
+  sb $t7, 6($t3)
   suv $v03, 0, 8, $t3 ## Barrier: 0x2
   slv $v04, 8, 12, $t3 ## Barrier: 0x2
-  sb $t7, 6($t3)
+  sdv $v04, 0, 16, $t3
   sdv $v05, 0, 24, $t3
   addiu $t3, $t3, 36
   LABEL_000B:
@@ -372,23 +372,23 @@ clipTriangle:
   addiu $t4, $t4, 4
   CLIP_END:
   ori $s6, $zero, %lo(CLIP_BUFFER_RESULT)
-  sh $s6, %lo(0 + RSPQ_SCRATCH_MEM)($zero)
   addu $s5, $s6, $t0
-  bgezal $zero, triToScreenSpace ## Args: $s6
   addiu $s5, $s5, 65464
+  bgezal $zero, triToScreenSpace ## Args: $s6
+  sh $s6, %lo(0 + RSPQ_SCRATCH_MEM)($zero)
   bgezal $zero, triToScreenSpace ## Args: $s6
   addiu $s6, $s6, 72
   LABEL_000D:
   bgezal $zero, triToScreenSpace ## Args: $s6
   addiu $s6, $s6, 72
-  addiu $a1, $s6, 36
   or $a2, $zero, $s6
-  ori $a0, $zero, %lo(CLIP_BUFFER_RESULT)
-  ori $sp, $zero, %lo(CLIP_AFTER_EMIT)
+  ori $v1, $zero, %lo(RSPQ_SCRATCH_MEM)
+  addiu $a1, $s6, 36
   sh $a1, %lo(4 + RSPQ_SCRATCH_MEM)($zero)
   sh $a2, %lo(2 + RSPQ_SCRATCH_MEM)($zero)
+  ori $sp, $zero, %lo(CLIP_AFTER_EMIT)
   jal RDPQ_Triangle_Send_Async ## Args: $a0, $a1, $a2, $sp
-  ori $v1, $zero, %lo(RSPQ_SCRATCH_MEM)
+  ori $a0, $zero, %lo(CLIP_BUFFER_RESULT)
   jal RDPQ_Triangle_Send_End
   nop
   CLIP_AFTER_EMIT:
@@ -400,26 +400,26 @@ clipTriangle:
   j $t6
   nop
 triToScreenSpace:
-  vmudl $v02, $v00, $v31.e3
   ori $at, $zero, %lo(SCREEN_SCALE_OFFSET)
   ldv $v01, 0, 0, $at
   ldv $v04, 0, 16, $s6
   ldv $v05, 0, 24, $s6
-  ldv $v02, 0, 8, $at
+  vmudl $v02, $v00, $v31.e3
   vmadm $v01, $v01, $v31.e3
+  ldv $v02, 0, 8, $at
   vmadn $v02, $v00, $v00
   vrcph $v04.e3, $v04.e3
+  ldv $v03, 0, 8, $at
   vrcpl $v05.e3, $v05.e3
   vrcph $v04.e3, $v00.e3
   vmudl $v29, $v05, $v05.e3
+  vmadm $v29, $v04, $v05.e3
   ssv $v05, 6, 34, $s6
   ssv $v04, 6, 32, $s6
-  vmadm $v29, $v04, $v05.e3
   vmadn $v05, $v05, $v04.e3
   vmadh $v04, $v04, $v04.e3
   vmudl $v29, $v05, $v02.v
   vmadm $v29, $v04, $v02.v
-  ldv $v03, 0, 8, $at
   vmadn $v05, $v05, $v01.v
   vmadh $v04, $v04, $v01.v
   vadd $v04, $v04, $v03.v
