@@ -343,7 +343,9 @@ void t3d_fog_set_range(float near, float far);
  * @param isEnabled
  */
 static inline void t3d_fog_set_enabled(bool isEnabled) {
-  rspq_write(T3D_RSP_ID, T3D_CMD_FOG_STATE, (uint8_t)isEnabled);
+  // 0x06/0x08 are the offsets of attributes (color/UV) in a vertex on the RSP side
+  // this allows the code to do a branch-less save
+  rspq_write(T3D_RSP_ID, T3D_CMD_FOG_STATE, isEnabled ? 0x08 : 0x0C);
 }
 
 /**

@@ -160,7 +160,7 @@ state
   u16 VERTEX_FX_FUNC = {0}; // points top the current 'VertexFX_' function in IMEM
 
   u8 FACE_CULLING = {0}; // 0=cull front, 1=cull back, 2=no-culling
-  u8 USE_FOG      = {0}; // 0=no-fog, 1=use-fog
+  u8 FOG_STORE_OFFSET  = {0}; // offset (relative to current vertex) where to store fog, set to UV for no fog
   u8 ACTIVE_LIGHT_SIZE = {0}; // light count * light size
 }
 
@@ -301,6 +301,9 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   uvGenArgs.XY = load(UV_GEN_PARAMS).xy;
   uvGenArgs.w = load(SCREEN_UVGEN_SCALE).x;
 
+  u8 fogStoreOffset = load(USE_FOG);
+  s16 fogA, fogB;
+
   // @TODO: racing the DMA is ~40us faster, doesn't work in ares, retest later again
   dma_await();
 
@@ -319,7 +322,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     vec16 color;
 
     u16 vertexFxFunc = load(VERTEX_FX_FUNC);
-    u8 useFog = load(USE_FOG);
 
     {
       // load & transform normals, this in not needed when no directional light is present
@@ -397,11 +399,10 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       vec16 fogMax = fogScaleOffset.w; // invert fog -> 0=no-fog, max=fog
       fog:sint = fogMax - fog:sint;
 
-      if(useFog) {
-        color.w = fog:sint.z; // store fog as alpha
-        color.W = fog:sint.Z;
-        //printf("%v: %v\n", fogScaleOffset.x, color.w);
-      }
+      fogA = fog:sint.z;
+      fogB = fog:sint.Z;
+      fogA >>= 7;
+      fogB >>= 7;
     }
 
     // backup clip-pos in case that clipping is required
@@ -414,13 +415,19 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     posClip:sint += screenOffset;
 
     vec16 uv = load(prt3d, 0x18).xyzw;
-    prt3d += 0x20;
 
     @Barrier("pos-cc") store(posClip:sint.xyzw, ptrBuffA, VTX_ATTR_XY);
     @Barrier("pos-cc") store(posClip:sint.XYZW, ptrBuffB, VTX_ATTR_XY);
 
-    store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
-    store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
+    @Barrier("color-fog") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
+    @Barrier("color-fog") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
+
+    // save fog here, to make this branch-less, fogStoreOffset contains the offset to save it to.
+    // if enabled this points to VTX_ATTR_RGBA, otherwise to UV which are then overwritten in vertexFxFunc()
+    u32 fogStoreAddr = ptrBuffA + fogStoreOffset;
+    @Barrier("color-fog") store(fogA:u8, fogStoreAddr, 3); // store fog in alpha
+    fogStoreAddr = ptrBuffB + fogStoreOffset;
+    @Barrier("color-fog") store(fogB:u8, fogStoreAddr, 3);
 
     @Barrier("pos-cc") store(clipCodeA:u8, ptrBuffA, VTX_ATTR_CLIPFLAGS);
     @Barrier("pos-cc") store(clipCodeB:u8, ptrBuffB, VTX_ATTR_CLIPFLAGS);
@@ -428,11 +435,12 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     @Barrier("pos-cc") store(rejCodesA:u8, ptrBuffA, VTX_ATTR_REJFLAGS);
     @Barrier("pos-cc") store(rejCodesB:u8, ptrBuffB, VTX_ATTR_REJFLAGS);
 
+    pos = load(prt3d, 0x20); // load next pos
     vec16 oldNorm = norm;
-
-    pos = load(prt3d, 0x00); // load next pos
     norm = normMask & pos.wwwwWWWW;
     norm *= normShift;
+
+    prt3d += 0x20;
 
     vec16 temp; // can be used by 'uvGenFunc'
     vertexFxFunc(); // handles the loop condition internally
