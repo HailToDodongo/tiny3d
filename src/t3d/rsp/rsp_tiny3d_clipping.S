@@ -1,7 +1,7 @@
 ## Auto-generated file, transpiled with RSPL
 #define OVERLAY_CLIPPING 1
 #define TRI_BUFFER_COUNT 70
-#define LIGHT_COUNT 4
+#define LIGHT_COUNT 8
 #define RDPQ_TRIANGLE_CUSTOM_VTX 1
 #define VTX_ATTR_XY 0x00
 #define VTX_ATTR_Z 0x04
