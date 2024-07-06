@@ -44,7 +44,6 @@ int main()
   surface_t depthBuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
 
   rdpq_init();
-  rdpq_debug_start();
 
   rdpq_font_t *fnt = rdpq_font_load("rom:/fibberish.font64");
   rdpq_font_style(fnt, 0, &(rdpq_fontstyle_t){.color = (color_t){0xFF, 0xFF, 0xFF, 0xFF}});
