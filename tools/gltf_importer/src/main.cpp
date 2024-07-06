@@ -14,6 +14,7 @@
 
 #include "binaryFile.h"
 #include "converter/converter.h"
+#include "parser/rdp.h"
 
 Config config;
 
@@ -77,10 +78,17 @@ int main(int argc, char* argv[])
   // sort models by transparency mode (opaque -> cutout -> transparent)
   // within the same transparency mode, sort by material
   std::sort(t3dm.models.begin(), t3dm.models.end(), [](const Model &a, const Model &b) {
-    if(a.materialA.alphaMode == b.materialA.alphaMode) {
+    bool isTranspA = a.materialA.blendMode == RDP::BLEND::MULTIPLY;
+    bool isTranspB = b.materialA.blendMode == RDP::BLEND::MULTIPLY;
+    if(isTranspA == isTranspB) {
       return a.materialA.uuid < b.materialA.uuid;
     }
-    return a.materialA.alphaMode < b.materialA.alphaMode;
+    if(!isTranspA && !isTranspB) {
+       int isDecalA = (a.materialA.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
+       int isDecalB = (b.materialA.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
+       return isDecalA < isDecalB;
+    }
+    return isTranspB;
   });
 
   uint32_t chunkIndex = 0;
@@ -164,77 +172,90 @@ int main(int argc, char* argv[])
     addToChunkTable('O');
 
     // write material chunk(s)
-    auto writeMaterial = [&chunkMaterials, &stringTable, &gltfBasePath](const Material &material) {
+    auto writeMaterial = [&chunkMaterials, &stringTable](const Material &material, const Material &materialB) {
       auto f = std::make_shared<BinaryFile>();
       f->write(material.colorCombiner);
+      f->write(material.otherModeValue);
+      f->write(material.otherModeMask);
+      f->write(material.blendMode);
       f->write(material.drawFlags);
 
-      f->write(material.alphaMode);
+      f->write<uint8_t>(0);
       f->write(material.fogMode);
-      f->write<uint8_t>((material.zMode << 4) | material.setPrimColor);
-      f->write(material.uvGenFunc);
+      f->write<uint8_t>(
+        material.setPrimColor |
+        (material.setEnvColor << 1) |
+        (material.setBlendColor << 2)
+      );
+      f->write(material.vertexFxFunc);
 
       f->writeArray(material.primColor, 4);
+      f->writeArray(material.envColor, 4);
+      f->writeArray(material.blendColor, 4);
+      f->write(insertString(stringTable, material.name));
 
-      f->write(material.texReference);
+      // @TODO: refactor materials to match file/runtime structure
+      std::vector<const Material*> materials{&material, &materialB};
+      for(const Material* mat_ : materials) {
+        const Material&mat = *mat_;
 
-      std::string texPath = "";
-      if(!material.texPath.empty()) {
-        texPath = fs::relative(material.texPath, std::filesystem::current_path()).string();
-        std::replace(texPath.begin(), texPath.end(), '\\', '/');
+        f->write(mat.texReference);
+        std::string texPath = "";
+        if(!mat.texPath.empty()) {
+          texPath = fs::relative(mat.texPath, std::filesystem::current_path()).string();
+          std::replace(texPath.begin(), texPath.end(), '\\', '/');
 
-        if(texPath.find("assets/") == 0) {
-          texPath.replace(0, 7, "rom:/");
+          if(texPath.find("assets/") == 0) {
+            texPath.replace(0, 7, "rom:/");
+          }
+          if(texPath.find(".png") != std::string::npos) {
+            texPath.replace(texPath.find(".png"), 4, ".sprite");
+          }
         }
-        if(texPath.find(".png") != std::string::npos) {
-          texPath.replace(texPath.find(".png"), 4, ".sprite");
+
+        if(!texPath.empty()) {
+          // check if string already exits
+          auto strPos = insertString(stringTable, texPath);
+
+          uint32_t hash = stringHash(texPath);
+          //printf("Texture: %s (%d)\n", texPath.c_str(), hash);
+          f->write((uint32_t)strPos);
+          f->write(hash);
+
+        } else {
+          f->write(0);
+          // if no texture is set, use the reference as hash
+          // this is needed to force a reevaluation of the texture state
+          f->write(mat.texReference);
         }
+
+        f->write((uint32_t)0); // runtime pointer
+        f->write((uint16_t)mat.texWidth);
+        f->write((uint16_t)mat.texHeight);
+
+        auto writeTile = [&](const TileParam &tile) {
+          f->write(tile.low);
+          f->write(tile.high);
+          f->write(tile.mask);
+          f->write(tile.shift);
+          f->write(tile.mirror);
+          f->write(tile.clamp);
+        };
+        writeTile(mat.s);
+        writeTile(mat.t);
       }
 
-      if(!texPath.empty()) {
-        // check if string already exits
-        auto strPos = insertString(stringTable, texPath);
-
-        uint32_t hash = stringHash(texPath);
-        printf("Texture: %s (%d)\n", texPath.c_str(), hash);
-        f->write((uint32_t)strPos);
-        f->write(hash);
-
-      } else {
-        f->write(0);
-        // if no texture is set, use the reference as hash
-        // this is needed to force a reevaluation of the texture state
-        f->write(material.texReference);
-      }
-
-      f->write((uint32_t)0); // runtime pointer
-      f->write((uint16_t)material.texWidth);
-      f->write((uint16_t)material.texHeight);
-
-      auto writeTile = [&](const TileParam &tile) {
-        f->write(tile.low);
-        f->write(tile.high);
-        f->write(tile.mask);
-        f->write(tile.shift);
-        f->write(tile.mirror);
-        f->write(tile.clamp);
-      };
-
-      writeTile(material.s);
-      writeTile(material.t);
       chunkMaterials.push_back(f);
     };
-    writeMaterial(model.materialA);
-    writeMaterial(model.materialB);
+    writeMaterial(model.materialA, model.materialB);
 
     // write object chunk
     const auto &chunks = modelChunks[m];
     file.write(insertString(stringTable, chunks.chunks.back().name));
     file.write((uint32_t)chunks.chunks.size());
     file.write(materialIndex++);
-    file.write(materialIndex++);
 
-    printf("Object %d: %d vert offset\n", m, chunkVerts.getPos());
+    //printf("Object %d: %d vert offset\n", m, chunkVerts.getPos());
 
     // Write parts, these are a collection of indices after a vertex-slice load
     for(const auto& chunk : chunks.chunks)

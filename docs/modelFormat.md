@@ -68,25 +68,39 @@ Directly mapped to the struct `T3DMaterial`.
 Objects can have two materials assigned (with two textures),
 only the first materials CC and draw flags are used.
 
-| Offset | Type                 | Description                     |
-|--------|----------------------|---------------------------------|
-| 0x00   | `u64`                | Color-Combiner                  |
-| 0x08   | `u32`                | T3D Draw flags                  |
-| 0x0C   | `u8 (AlphaMode)`     | Alpha mode                      |
-| 0x0D   | `u8 (FogMode)`       | Fog mode                        |
-| 0x0E:0 | `u4`                 | Z-Mode mask                     |
-| 0x0E:4 | `u4`                 | Source flags (1=use prim-color) |
-| 0x0F   | `u8 (UVFunc)`        | Generated UV function           |
-| 0x10   | `u8[4]`              | Prim-Color (zero if unused)     |
-| 0x14   | `u32`                | Texture reference (offscreen)   |
-| 0x18   | `u32`                | Texture path offset             |
-| 0x1C   | `u32`                | Texture hash / ID               |
-| 0x20   | `u32`                | Runtime texture pointer (`0`)   |
-| 0x24   | `u16`                | Texture width                   |
-| 0x26   | `u16`                | Texture height                  |
-| 0x28   | `T3DMaterialAxis[2]` | Setting per UV axis             |
+| Offset | Type                 | Description                         |
+|--------|----------------------|-------------------------------------|
+| 0x00   | `u64`                | Color-Combiner                      |
+| 0x08   | `u64`                | Other-mode values                   |
+| 0x10   | `u64`                | Other-mode mask                     |
+| 0x18   | `u32`                | Blend Mode, 0 for none              |
+| 0x1C   | `u32`                | T3D Draw flags                      |
+| 0x20   | `u8`                 | <now unused>                        |
+| 0x21   | `u8 (FogMode)`       | Fog mode                            |
+| 0x22   | `u8`                 | Color flags (prim, env, blend)      |
+| 0x23   | `u8 (VertexFX)`      | Vertex Effect                       |
+| 0x24   | `u8[4]`              | Prim-Color                          |
+| 0x28   | `u8[4]`              | Env-Color                           |
+| 0x2C   | `u8[4]`              | Blend-Color                         |
+| 0x30   | `u32`                | Material name (string table offset) |
+| 0x34   | `T3DMaterialTexture` | Texture A                           |
+| 0x60   | `T3DMaterialTexture` | Texture B                           |
+
+#### `T3DMaterialTexture`
+Each material has two texture slots, which may or may not be filled with a texture.
+
+| Offset | Type                 | Description                    |
+|--------|----------------------|--------------------------------|
+| 0x00   | `u32`                | Texture reference (offscreen)  |
+| 0x04   | `u32`                | Texture path offset            |
+| 0x08   | `u32`                | Texture hash / ID              |
+| 0x0C   | `u32`                | Runtime texture pointer (`0`)  |
+| 0x10   | `u16`                | Texture width                  |
+| 0x12   | `u16`                | Texture height                 |
+| 0x14   | `T3DMaterialAxis[2]` | Setting per UV axis            |
 
 #### `T3DMaterialAxis`
+Each texture can have settings for each UV axis (aka tile settings)
 
 | Offset | Type  | Description |
 |--------|-------|-------------|
@@ -97,14 +111,6 @@ only the first materials CC and draw flags are used.
 | 0x0A   | `u8`  | Mirror      |
 | 0x0B   | `u8`  | Clamp       |
 
-#### `AlphaMode`
-```
-0 - Default (no change applied)
-1 - Opaque
-2 - Cutout
-3 - Transparent
-```
-
 #### `FogMode`
 ```
 0 - Default (no change applied)
@@ -112,7 +118,7 @@ only the first materials CC and draw flags are used.
 2 - Fog Active
 ```
 
-#### `UVFunc`
+#### `VertexFX`
 ```
 0 - None
 1 - Spherical
@@ -121,13 +127,12 @@ only the first materials CC and draw flags are used.
 ### Object (`O`)
 Model data consisting of multiple parts, can exist multiple times in a file.
 
-| Offset | Type     | Description             |
-|--------|----------|-------------------------|
-| 0x00   | `u32`    | Name                    |
-| 0x04   | `u32`    | Part count              |
-| 0x08   | `u32`    | Material A, chunk index |
-| 0x0C   | `u32`    | Material B, chunk index |
-| 0x10   | `Part[]` | Parts                   |
+| Offset | Type     | Description           |
+|--------|----------|-----------------------|
+| 0x00   | `u32`    | Name                  |
+| 0x04   | `u32`    | Part count            |
+| 0x08   | `u32`    | Material, chunk index |
+| 0x0C   | `Part[]` | Parts                 |
 
 #### Part
 Model part data.

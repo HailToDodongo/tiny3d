@@ -96,13 +96,11 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
 
   for(int i=0; i<data->animations_count; ++i) {
     auto anim = parseAnimation(data->animations[i], boneMap, config.animSampleRate);
-    printf(" - Animation %d: %s\n", i, anim.name.c_str());
     convertAnimation(anim, boneMap);
     t3dm.animations.push_back(anim);
   }
 
   // Meshes
-  printf("Node count: %d\n", data->nodes_count);
   for(int i=0; i<data->nodes_count; ++i)
   {
     auto node = &data->nodes[i];
@@ -252,7 +250,6 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
 
       std::vector<VertexT3D> verticesT3D{};
       verticesT3D.resize(vertices.size());
-      printf("Vertices: %d\n", vertices.size());
 
       float texSizeX = model.materialA.texWidth;
       float texSizeY = model.materialA.texHeight;

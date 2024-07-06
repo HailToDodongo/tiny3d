@@ -10,7 +10,8 @@ Here is a full list of all settings currently supported:
   - Color-Combiner
   - Draw Layer
 - Sources
-  - Primitive Color (color & flag to use it or not) 
+  - Primitive Color (color & flag to use it or not)
+  - Environment Color (color & flag to use it or not)
   - Use Texture-Reference
   - Texture Reference
   - Texture Size 
@@ -28,9 +29,13 @@ Here is a full list of all settings currently supported:
   - Texture UV Generate 
 - Upper
   - Cycle Type (1 Cycle, 2 Cycle)
+  - Texture filter
 - Lower
   - Set Render Mode? 
-  - Render Mode (Opaque, Cutout, Transparent)
+  - Render Mode
+    - Blend: None, Multiply (aka Alpha)
+    - Z-Mode: Opaque, Interpenetrating, Decal
+  - Blend Color (if not set, the alpha value 128 by default in case of alpha-clipping) 
 
 ### Libragon Mapping
 Most Settings will behave as expected, there are some exceptions which will be mapped to the closest libdragon equivalent.<br>
@@ -39,6 +44,6 @@ Most Settings will behave as expected, there are some exceptions which will be m
 The address you can set has no meaning in t3d, it will be used as a arbitrary value you can later read from the material.<br>
 For a full example making use of this, see `06_offscreen`.
 
-The "Render Mode" will map to one of the abstract "alpha modes" in t3d (Opaque, Cutout, Transparent).<br>
+The "Render Mode" will map to one of the preset blender and z-modes.
 Other settings usually contained in the render mode can be set as usual with te RDPQ API on top.<br>
 If no value was set in the "Lower" tab, the "Draw Layer" is used instead.

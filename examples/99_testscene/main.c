@@ -71,10 +71,14 @@ int main()
   bool displayMetrics = false;
   float last3dFPS = 0.0f;
 
+  float vertFxTime = 0;
+  int vertFxFunc = T3D_VERTEX_FX_NONE;
+
   for(uint64_t frame = 0;; ++frame)
   {
     joypad_poll();
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
+    joypad_buttons_t btn = joypad_get_buttons_pressed(JOYPAD_PORT_1);
     if(joypad.stick_x < 10 && joypad.stick_x > -10)joypad.stick_x = 0;
     if(joypad.stick_y < 10 && joypad.stick_y > -10)joypad.stick_y = 0;
 
@@ -82,6 +86,8 @@ int main()
     float deltaTime = (float)(nowMs - lastTimeMs);
     lastTimeMs = nowMs;
     time += deltaTime;
+
+    vertFxTime = fmaxf(vertFxTime - deltaTime, 0.0f);
 
     {
       float camSpeed = deltaTime * 0.001f;
@@ -134,7 +140,12 @@ int main()
       t3d_vec3_norm(&lightDirVec);
     }
 
-    bool useReject = !joypad.btn.z;
+    if(btn.l) {
+      vertFxTime = 500.0f;
+      vertFxFunc++;
+      if(vertFxFunc > T3D_VERTEX_FX_OUTLINE)vertFxFunc = T3D_VERTEX_FX_NONE;
+      t3d_state_set_vertex_fx(vertFxFunc, 32, 32);
+    }
 
     rotAngle += 0.03f;
 
@@ -174,15 +185,14 @@ int main()
       dplDraw = rspq_block_end();
     }
 
-    if(joypad.btn.l) {
-      t3d_state_set_uvgen(T3D_UVGEN_SPHERE, 32, 32);
-    } else {
-      t3d_state_set_uvgen(T3D_UVGEN_NONE, 0, 0);
-    }
-
     t3d_matrix_push(modelMatFP);
     rspq_block_run(dplDraw);
     t3d_matrix_pop(1);
+
+    if(vertFxTime > 0.0f) {
+      t3d_debug_print_start();
+      t3d_debug_printf(16, 16, "VertexFX: %ld", vertFxFunc);
+    }
 
     if(displayMetrics)
     {

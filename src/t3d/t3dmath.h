@@ -331,6 +331,15 @@ void t3d_mat4_from_srt(T3DMat4 *mat, const float scale[3], const float quat[4], 
 void t3d_mat4_from_srt_euler(T3DMat4 *mat, const float scale[3], const float rot[3], const float translate[3]);
 
 /**
+ * Constructs a matrix from a direction and up vector.
+ * This will only create a rotation matrix, the translation part will be identity.
+ * @param mat result
+ * @param dir direction vector
+ * @param up up vector
+ */
+void t3d_mat4_rot_from_dir(T3DMat4 *mat, const T3DVec3 *dir, const T3DVec3 *up);
+
+/**
  * Directly constructs a matrix from scale, rotation (euler) and translation
  * Same as 't3d_mat4_from_srt_euler', but instead directly writes to a fixed-point matrix.
  * @param mat

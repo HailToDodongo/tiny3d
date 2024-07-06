@@ -36,22 +36,6 @@ namespace CC {
   constexpr uint32_t TEX1_ALPHA = 9;
 }
 
-namespace AlphaMode {
-  constexpr uint8_t DEFAULT = 0;
-  constexpr uint8_t OPAQUE  = 1;
-  constexpr uint8_t CUTOUT  = 2;
-  constexpr uint8_t TRANSP  = 3;
-
-  constexpr uint8_t INVALID = 0xFF;
-}
-
-namespace ZMode {
-  constexpr uint8_t OPAQUE    = 0;
-  constexpr uint8_t INTERSECT = 1;
-  constexpr uint8_t TRANSP    = 2;
-  constexpr uint8_t DECAL     = 3;
-}
-
 namespace FogMode {
   constexpr uint8_t DEFAULT  = 0;
   constexpr uint8_t DISABLED = 1;
@@ -125,21 +109,29 @@ struct ColorCombiner {
 };
 
 struct Material {
+  std::string name{};
   TileParam s{};
   TileParam t{};
   uint64_t colorCombiner{};
+  uint64_t otherModeValue{};
+  uint64_t otherModeMask{};
+  uint32_t blendMode{};
   uint32_t drawFlags{};
   std::string texPath{};
   uint32_t texWidth{};
   uint32_t texHeight{};
   uint32_t texReference{};
   uint32_t uuid{};
-  uint8_t alphaMode{};
-  uint8_t zMode{};
   uint8_t fogMode{};
-  uint8_t uvGenFunc{};
+  uint8_t vertexFxFunc{};
+
   uint8_t primColor[4]{};
+  uint8_t envColor[4]{};
+  uint8_t blendColor[4]{};
+
   bool setPrimColor{false};
+  bool setEnvColor{false};
+  bool setBlendColor{false};
 };
 
 struct MeshChunk {

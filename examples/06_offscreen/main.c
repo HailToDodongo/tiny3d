@@ -23,7 +23,7 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
   // upload a slice of the offscreen-buffer, the screen in the TV model is split into 4 materials for each section
   // if you are working with a small enough single texture, you can ofc use a normal sprite upload.
   // the quadrant is determined by the texture reference set in fast64, which can be used as an arbitrary value
-  switch(material->texReference) { // Note: TILE1 is used here due to CC shenanigans
+  switch(material->textureA.texReference) { // Note: TILE1 is used here due to CC shenanigans
     case 1: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  0,     0,     sHalf, sHalf); break;
     case 2: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  sHalf, 0,     sFull, sHalf); break;
     case 3: rdpq_tex_upload_sub(TILE1, offscreenSurf, NULL,  0,     sHalf, sHalf, sFull); break;

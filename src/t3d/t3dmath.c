@@ -174,6 +174,25 @@ void t3d_mat4_from_srt_euler(T3DMat4 *mat, const float scale[3], const float rot
   }};
 }
 
+void t3d_mat4_rot_from_dir(T3DMat4 *mat, const T3DVec3 *dir, const T3DVec3 *up) {
+  T3DVec3 tangent = (T3DVec3){{1.0f, 0.0f, 0.0f}};
+  T3DVec3 binormal = (T3DVec3){{0.0f, 0.0f, 1.0f}};
+
+  // (near)-up normals cause invalid results
+  if(dir->v[1] < 0.999f) {
+    t3d_vec3_cross(&tangent, up, dir);
+    t3d_vec3_norm(&tangent);
+    t3d_vec3_cross(&binormal, dir, &tangent);
+  }
+
+  *mat = (T3DMat4){{
+    {tangent.v[0],  tangent.v[1],  tangent.v[2],  0.0f},
+    {dir->v[0],     dir->v[1],     dir->v[2],     0.0f},
+    {binormal.v[0], binormal.v[1], binormal.v[2], 0.0f},
+    {0.0f,          0.0f,          0.0f,          1.0f},
+  }};
+}
+
 void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, const float scale[3], const float rot[3], const float translate[3]) {
   T3DMat4 matF;
   t3d_mat4_from_srt_euler(&matF, scale, rot, translate);

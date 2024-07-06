@@ -31,26 +31,36 @@ typedef struct {
 } T3DMaterialAxis;
 
 typedef struct {
-  uint64_t colorCombiner;
-  uint32_t renderFlags;
-
-  uint8_t alphaMode; // see: T3D_ALPHA_MODE_xxx
-  uint8_t fogMode; // see: T3D_FOG_MODE_xxx
-  uint8_t zModeSetPrim;
-  uint8_t uvGenFunc;
-
-  color_t primColor;
   uint32_t texReference; // dynamic/offscreen texture if non-zero, can be set in fast64
   char* texPath;
   uint32_t textureHash;
-
   sprite_t* texture;
-
   uint16_t texWidth;
   uint16_t texHeight;
 
   T3DMaterialAxis s;
   T3DMaterialAxis t;
+} T3DMaterialTexture;
+
+typedef struct {
+  uint64_t colorCombiner;
+  uint64_t otherModeValue;
+  uint64_t otherModeMask;
+  uint32_t blendMode;
+  uint32_t renderFlags;
+
+  uint8_t _unused00_; // see: T3D_ALPHA_MODE_xxx
+  uint8_t fogMode; // see: T3D_FOG_MODE_xxx
+  uint8_t setColorFlags;
+  uint8_t vertexFxFunc;
+
+  color_t primColor;
+  color_t envColor;
+  color_t blendColor;
+
+  char* name;
+  T3DMaterialTexture textureA;
+  T3DMaterialTexture textureB;
 } T3DMaterial;
 
 typedef struct {
@@ -67,8 +77,7 @@ typedef struct {
 typedef struct {
   char* name;
   uint32_t numParts;
-  T3DMaterial* materialA;
-  T3DMaterial* materialB;
+  T3DMaterial* material;
 
   T3DObjectPart parts[]; // real array
 } T3DObject;
@@ -142,6 +151,8 @@ typedef void (*T3DModelDynTextureCb)(
   void* userData, const T3DMaterial *material, rdpq_texparms_t *tileParams, rdpq_tile_t tile
 );
 
+typedef bool (*T3DModelManualCb)(void* userData, const T3DObject *obj, const T3DObjectPart *part, uint32_t objIdx, uint32_t partIdx);
+
 // Defines settings and callbacks for custom drawing
 typedef struct {
   void* userData;
@@ -177,6 +188,22 @@ static inline void t3d_model_draw(const T3DModel* model) {
     .filterCb = NULL
   });
 }
+
+/**
+ * Manual Draw, this will not do anything besides loading and drawing vertices/faces.
+ * Materials settings in both t3d and rdpq must be set manually.
+ * This can be used as a way to completely bypass any saved settings.
+ *
+ * The callback is called before the vertex load & triangle draw, allow to set rdpq settings.
+ * If true is returned, the part will be drawn, otherwise it will be skipped.
+ * If NULL is passed as a callback, all parts will be drawn and a material can be set externally.
+ *
+ * @param model model to draw
+ * @param cb callback set to NULL to ignore and draw all parts
+ * @param userData user data
+ * @param boneMatrices matrices in the case of skinned meshes, set to NULL for non-skinned
+ */
+void t3d_model_draw_manual(const T3DModel* model, T3DModelManualCb cb, void* userData, const T3DMat4FP *boneMatrices);
 
 /**
  * Returns the global vertex buffer of a model.
@@ -242,6 +269,22 @@ void t3d_model_get_animations(const T3DModel *model, T3DChunkAnim **anims);
  * @return pointer to the animation or NULL if not found
  */
 T3DChunkAnim* t3d_model_get_animation(const T3DModel *model, const char* name);
+
+/**
+ * Returns an object by name.
+ * @param model model
+ * @param name object name
+ * @return object or NULL if not found
+ */
+T3DObject* t3d_model_get_object(const T3DModel *model, const char *name);
+
+/**
+ * Returns a material by name.
+ * @param model model
+ * @param name material name
+ * @return material or NULL if not found
+ */
+T3DMaterial* t3d_model_get_material(const T3DModel *model, const char *name);
 
 #ifdef __cplusplus
 }

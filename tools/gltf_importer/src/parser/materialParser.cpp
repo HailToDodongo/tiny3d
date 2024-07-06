@@ -5,6 +5,7 @@
 
 #include "parser.h"
 #include "../hash.h"
+#include "./rdp.h"
 #include "../fast64Types.h"
 
 #include "../lib/lodepng.h"
@@ -120,12 +121,32 @@ namespace {
     if(cc.aAlpha == CC::SHADE || cc.bAlpha == CC::SHADE || cc.cAlpha == CC::SHADE || cc.dAlpha == CC::SHADE)return true;
     return false;
   }
+
+  void readColor(const json &color, uint8_t out[4]) {
+    float colorFloat[4] = {
+      color[0].get<float>(),
+      color[1].get<float>(),
+      color[2].get<float>(),
+      color[3].get<float>()
+    };
+
+    // linear to gamma
+    for(int c=0; c<3; ++c) {
+      colorFloat[c] = powf(colorFloat[c], 0.4545f);
+    }
+
+    out[0] = (uint8_t)(colorFloat[0] * 255.0f);
+    out[1] = (uint8_t)(colorFloat[1] * 255.0f);
+    out[2] = (uint8_t)(colorFloat[2] * 255.0f);
+    out[3] = (uint8_t)(colorFloat[3] * 255.0f);
+  }
 }
 
 void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgltf_primitive *prim) {
   model.materialA.uuid = j * 1000 + i;
   if(prim->material->name) {
     model.materialA.uuid = stringHash(prim->material->name);
+    model.materialA.name = prim->material->name;
   }
   printf("     Material: %s\n", prim->material->name);
 
@@ -144,6 +165,9 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
   }
   auto &f3dData = data["f3d_mat"];
 
+  uint64_t otherModeValue = 0;
+  uint64_t otherModeMask = RDP::SOM::ALPHA_COMPARE_MASK | RDP::SOM::SAMPLE_MASK;
+
   if(!f3dData.empty()) {
     //printf("  - %s\n", f3dData.dump(2).c_str());
     //printf("  - %s\n", f3dData["combiner2"].dump(2).c_str());
@@ -153,28 +177,22 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
     bool is2Cycle = true;
 
     model.materialA.drawFlags = DrawFlags::DEPTH;
+    model.materialA.blendColor[3] = 128; // default in case cutout is used
 
     model.materialA.setPrimColor = false;
     if(f3dData.contains("set_prim")) {
       model.materialA.setPrimColor = f3dData["set_prim"].get<uint32_t>() != 0;
+      readColor(f3dData["prim_color"], model.materialA.primColor);
+    }
 
-      auto &primColorNode = f3dData["prim_color"];
-      float primColor[4] = {
-        primColorNode[0].get<float>(),
-        primColorNode[1].get<float>(),
-        primColorNode[2].get<float>(),
-        primColorNode[3].get<float>()
-      };
+    if(f3dData.contains("set_env")) {
+      model.materialA.setEnvColor = f3dData["set_env"].get<uint32_t>() != 0;
+      readColor(f3dData["env_color"], model.materialA.envColor);
+    }
 
-      // linear to gamma
-      for(int c=0; c<3; ++c) {
-        primColor[c] = powf(primColor[c], 0.4545f);
-      }
-
-      model.materialA.primColor[0] = (uint8_t)(primColor[0] * 255.0f);
-      model.materialA.primColor[1] = (uint8_t)(primColor[1] * 255.0f);
-      model.materialA.primColor[2] = (uint8_t)(primColor[2] * 255.0f);
-      model.materialA.primColor[3] = (uint8_t)(primColor[3] * 255.0f);
+    if(f3dData.contains("set_blend")) {
+      model.materialA.setBlendColor = f3dData["set_blend"].get<uint32_t>() != 0;
+      readColor(f3dData["blend_color"], model.materialA.blendColor);
     }
 
     if(f3dData.contains("rdp_settings"))
@@ -192,27 +210,35 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
       model.materialA.fogMode = rdpSettings["g_fog"].get<uint32_t>() + 1;
       model.materialB.fogMode = model.materialA.fogMode;
 
+      uint32_t texFilter = rdpSettings["g_mdsft_text_filt"].get<uint32_t>() & 0b11;
+      uint64_t textFilterMap[3] = {
+          RDP::SOM::SAMPLE_POINT,
+          RDP::SOM::SAMPLE_MEDIAN,
+          RDP::SOM::SAMPLE_BILINEAR
+      };
+      otherModeValue |= textFilterMap[texFilter];
+
       uint32_t texGen = rdpSettings["g_tex_gen"].get<uint32_t>();
-      model.materialA.uvGenFunc = (texGen != 0) ? UvGenFunc::SPHERE : UvGenFunc::NONE;
-      model.materialB.uvGenFunc = model.materialA.uvGenFunc;
+      model.materialA.vertexFxFunc = (texGen != 0) ? UvGenFunc::SPHERE : UvGenFunc::NONE;
+      model.materialB.vertexFxFunc = model.materialA.vertexFxFunc;
 
       bool setRenderMode = rdpSettings["set_rendermode"].get<uint32_t>() != 0;
       if(setRenderMode) {
+        model.materialA.otherModeMask |= RDP::SOM::ZMODE_MASK;
+
         int renderMode1Raw = rdpSettings["rendermode_preset_cycle_1"].get<uint32_t>();
         int renderMode2Raw = rdpSettings["rendermode_preset_cycle_2"].get<uint32_t>();
-        uint8_t alphaMode1 = F64_RENDER_MODE_1_TO_ALPHA[renderMode1Raw];
-        uint8_t alphaMode2 = F64_RENDER_MODE_2_TO_ALPHA[renderMode2Raw];
+        uint32_t blenderMode1 = F64_RENDER_MODE_1_TO_BLENDER[renderMode1Raw];
+        uint32_t blenderMode2 = F64_RENDER_MODE_2_TO_BLENDER[renderMode2Raw];
 
-        model.materialA.zMode = F64_RENDER_MODE_1_TO_ZMODE[renderMode1Raw] | F64_RENDER_MODE_2_TO_ZMODE[renderMode2Raw];
-        model.materialB.zMode = model.materialA.zMode;
+        auto otherMode1 = F64_RENDER_MODE_1_TO_OTHERMODE[renderMode1Raw];
+        auto otherMode2 = F64_RENDER_MODE_2_TO_OTHERMODE[renderMode2Raw];
 
-        if(alphaMode1 == AlphaMode::INVALID || alphaMode2 == AlphaMode::INVALID) {
-          printf("\n\nInvalid render-modes: %d, please only use Opaque, Cutout, Transparent, Fog-Shade\n", renderMode1Raw);
-          throw std::runtime_error("Invalid render-modes!");
-        }
+        otherModeValue |= otherMode1 | otherMode2;
 
-        model.materialA.alphaMode = is2Cycle ? alphaMode2 : alphaMode1;
-        model.materialB.alphaMode = alphaMode2;
+        model.materialA.blendMode = is2Cycle ? blenderMode2 : blenderMode1;
+        model.materialB.blendMode = model.materialA.blendMode;
+
       } else {
         // if no render mode is set, we need to check the draw layer
         uint32_t layerOOT = f3dData["draw_layer"].contains("oot") ? f3dData["draw_layer"]["oot"].get<uint32_t>() : 0;
@@ -225,22 +251,24 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
         if(layerOOT > layerSM64) {
           switch(layerOOT) {
             default: // has only 3 distinct layers:
-            case 0: model.materialA.alphaMode = AlphaMode::OPAQUE; break;
-            case 1: model.materialA.alphaMode = AlphaMode::TRANSP; break;
-            case 2: model.materialA.alphaMode = AlphaMode::CUTOUT; break;
+            case 0: model.materialA.blendMode = RDP::BLEND::NONE; break; // Opaque
+            case 1: model.materialA.blendMode = RDP::BLEND::MULTIPLY; break; // Transparent
+            case 2:
+              model.materialA.blendMode = RDP::BLEND::NONE;
+              otherModeValue |= RDP::SOM::ALPHA_COMPARE;
+            break; // Overlay
           }
         } else {
           // has multiple layers with variants (e.g. intersecting) ignore the finer details here:
           if(layerSM64 <= 1) {
-            model.materialA.alphaMode = AlphaMode::OPAQUE;
+            model.materialA.blendMode = RDP::BLEND::NONE;
           } else if(layerSM64 <= 4) {
-            model.materialA.alphaMode = AlphaMode::CUTOUT;
+            model.materialA.blendMode = RDP::BLEND::NONE;
+            otherModeValue |= RDP::SOM::ALPHA_COMPARE;
           } else {
-            model.materialA.alphaMode = AlphaMode::TRANSP;
+            model.materialA.blendMode = RDP::BLEND::MULTIPLY;
           }
         }
-
-        model.materialB.alphaMode = model.materialA.alphaMode;
       }
     }
 
@@ -270,6 +298,10 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
   } else {
     printf("No Fast64 Material data found!\n");
   }
+
+  model.materialA.otherModeValue = otherModeValue;
+  model.materialA.otherModeMask = otherModeMask;
+
   model.materialB.colorCombiner = model.materialA.colorCombiner;
   model.materialB.drawFlags = model.materialA.drawFlags;
   model.materialB.uuid = model.materialA.uuid ^ 0x12345678;
