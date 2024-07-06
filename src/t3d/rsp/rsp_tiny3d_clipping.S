@@ -153,7 +153,7 @@
     .align 2
     COLOR_AMBIENT: .ds.b 8
     .align 2
-    LIGHT_DIR_COLOR: .ds.b 64
+    LIGHT_DIR_COLOR: .ds.b 128
     .align 2
     TRI_COMMAND: .word 0
     .align 2
