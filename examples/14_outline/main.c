@@ -8,7 +8,7 @@
  *
  * By drawing an inverted and scaled (by normals) version of a model in black, you can create an outline effect.
  * To avoid manually scaling a model, you can use the T3D_VERTEX_FX_OUTLINE vertex function.
- * This will scale the triangles with a constant offset in screen-pace based on the vertex normal.
+ * This will scale the triangles with a constant offset in screen-space based on the vertex normal.
  * In contrast to the manual approach, this will create a constant outline (in pixel) independent of distance and perspective.
  *
  * This effect only properly works with smooth-shaded triangles, if you have a flat-shaded one
@@ -66,15 +66,21 @@ int main()
   t3d_vec3_norm(&lightDirVec);
   t3d_vec3_norm(&lightDirVec2);
 
+  // Thew model we want to draw is already smooth-shaded, and only contains a single mesh
   T3DModel *itemModel = t3d_model_load("rom:/potion.t3dm");
   T3DMat4FP *itemMatFP = malloc_uncached(sizeof(T3DMat4FP));
 
+  // Create a block for the regular model here...
   rspq_block_begin();
     t3d_model_draw(itemModel);
   rspq_block_t *itemDpl = rspq_block_end();
 
+  // Then for the outline, in order to get a visual outline effect too we need to invert normals and make it a solid color.
+  // The first can be done by reversing the face-culling, the second by using a flat color-combiner.
   rspq_block_begin();
     rdpq_mode_combiner(RDPQ_COMBINER_FLAT);
+    // In this example we want to dynamically change the outline settings.
+    // the code for that is a bit further down. If you don't need this, you can record it here too.
     t3d_state_set_drawflags(T3D_FLAG_CULL_FRONT | T3D_FLAG_DEPTH);
     t3d_model_draw_manual(itemModel, NULL, NULL, NULL);
     t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);
@@ -144,9 +150,14 @@ int main()
       rspq_block_run(itemDpl);
 
       if(outlineSize > 0.0f) {
+        // Before drawing the outline, enable the vertex-effect with given size...
         t3d_state_set_vertex_fx(T3D_VERTEX_FX_OUTLINE, (int16_t)outlineSize, (int16_t)outlineSize);
+        // ...and set the color via prim. as set in the CC earlier
         rdpq_set_prim_color(get_rainbow_color(colorPos, fm_sinf(colorValue) * 0.5f + 0.5f));
         rspq_block_run(dplOutline);
+
+        // Note: be sure to draw the outline *after* the actual model, they have the exact same depth-values,
+        // and you can rely on the depth-test to filter out most of the model.
       }
 
     t3d_matrix_pop(1);
@@ -154,7 +165,6 @@ int main()
     syncPoint = rspq_syncpoint_new();
 
     // ======== 2D ======== //
-
     float posCenter = display_get_width() / 2;
     float posY = display_get_height() - 90;
     float bxWidth = 220.0f;
@@ -172,10 +182,9 @@ int main()
       rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY);
       rdpq_set_prim_color((color_t){33, 33, 33, 0x99});
 
-      surface_t surf = sprite_get_pixels(spriteBox);
-      rdpq_tex_upload(TILE0, &surf, NULL);
+      rdpq_sprite_upload(TILE0, spriteBox, NULL);
 
-      // texture os only the corner, draw 4 times for each corner and extend the clamped texture
+      // texture is only the corner, draw 4 times for each corner and extend the clamped texture
       rdpq_texture_rectangle(TILE0, posX,           posY,            posX + bxWidth/2,    posY + bxHeight/2,     0, 0);
       rdpq_texture_rectangle(TILE0, posX,           posY + bxHeight, posX + bxWidth/2,    posY + bxHeight/2 - 1, 0, 0);
       rdpq_texture_rectangle(TILE0, posX + bxWidth, posY,            posX + bxWidth/2 -1, posY + bxHeight/2,     0, 0);
@@ -197,7 +206,7 @@ int main()
       .line_spacing = -4
     }, FONT_MAIN, posX+22, posY + 16,
       "^02[Stick]^00 change color\n"
-      "^02[C]^00 border size & distance\n"
+      "^02[C]^00 outline size & distance\n"
       "^02[Z]^00 hold to change position\n"
     );
 

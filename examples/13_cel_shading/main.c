@@ -62,8 +62,8 @@ int main()
       .vertexFx = T3D_VERTEX_FX_CELSHADE_COLOR,
       .hasOutline = true,
       .text = "Outlined Pot (Soft)",
-      .subText = "UVGen, 1D texture, soft lights (color)\n"
-                 "Single draw, no blending"
+      .subText = "1D texture, soft lights (color)\n"
+                 "No blending, second draw for outline"
     },
     (Model){.model = t3d_model_load("rom:/pot.t3dm"), .scale = 0.12f,
       .colorAmbient = {0xFF, 0xFF, 0xFF, 0x55},
@@ -71,8 +71,8 @@ int main()
       .vertexFx = T3D_VERTEX_FX_CELSHADE_ALPHA,
       .hasOutline = true,
       .text = "Outlined Pot (Flat)",
-      .subText = "UVGen, 1D texture, flat lights (alpha)\n"
-                 "Single draw, no blending"
+      .subText = "1D texture, flat lights (alpha)\n"
+                 "No blending, second draw for outline"
     },
     (Model){.model = t3d_model_load("rom:/sphereColor.t3dm"), .scale = 0.12f,
       .colorAmbient = {0x55, 0x55, 0x55, 0x00},
@@ -80,8 +80,8 @@ int main()
       .vertexFx = T3D_VERTEX_FX_CELSHADE_ALPHA,
       .hasOutline = true,
       .text = "Planet",
-      .subText = "UVGen, no texture/color, flat lights\n"
-                 "Single draw, no blending"
+      .subText = "No color/texture, soft lights\n"
+                 "No blending, second draw for outline"
     },
     (Model){.model = t3d_model_load("rom:/monkey.t3dm"), .scale = 0.12f,
       .colorAmbient = {0x33, 0x33, 0x33, 0xFF},
@@ -89,40 +89,40 @@ int main()
       .vertexFx = T3D_VERTEX_FX_CELSHADE_COLOR,
       .hasOutline = true,
       .text = "Suzanne",
-      .subText = "UVGen, vert. color, flat lights\n"
-                 "Single draw, no blending"
+      .subText = "vertex color, soft lights\n"
+                 "No blending, second draw for outline"
     },
     (Model){.model = t3d_model_load("rom:/potTex.t3dm"), .scale = 0.15f,
       .colorAmbient = {0x33, 0x33, 0x33, 0x00},
       .colorDir = {0xFF, 0xFF, 0xFF, 0xFF},
       .vertexFx = T3D_VERTEX_FX_CELSHADE_ALPHA,
       .text = "Textured Pot",
-      .subText = "UVGen, regular mesh & cel-shading\n"
-                 "Two draws, fixed alpha blend"
+      .subText = "Regular mesh & cel-shading\n"
+                 "Two draws with fixed alpha blend"
     },
     (Model){.model = t3d_model_load("rom:/potTexLight.t3dm"), .scale = 0.15f,
       .colorAmbient = {0x33, 0x33, 0x33, 0x00},
       .colorDir = {0xFF, 0xFF, 0xFF, 0xFF},
       .vertexFx = T3D_VERTEX_FX_CELSHADE_ALPHA,
       .text = "Textured Pot",
-      .subText = "UVGen, regular mesh & cel-shading\n"
-                 "Two draws, intensity alpha blend (light)"
+      .subText = "Regular mesh & cel-shading\n"
+                 "Two draws with intensity alpha blend (light)"
     },
     (Model){.model = t3d_model_load("rom:/potTexDark.t3dm"), .scale = 0.15f,
       .colorAmbient = {0x33, 0x33, 0x33, 0x00},
       .colorDir = {0xFF, 0xFF, 0xFF, 0xFF},
       .vertexFx = T3D_VERTEX_FX_CELSHADE_ALPHA,
       .text = "Textured Pot",
-      .subText = "UVGen, regular mesh & cel-shading\n"
-                 "Two draws, intensity alpha blend (dark)"
+      .subText = "Regular mesh & cel-shading\n"
+                 "Two draws with intensity alpha blend (dark)"
     },
     (Model){.model = t3d_model_load("rom:/gold.t3dm"), .scale = 0.12f,
       .colorAmbient = {0x33, 0x33, 0x33, 0x00},
       .colorDir = {0xFF, 0xFF, 0xFF, 0xFF},
       .vertexFx = T3D_VERTEX_FX_CELSHADE_ALPHA,
       .text = "Reflective Sphere",
-      .subText = "UVGen, spherical-UVs & cel-shading\n"
-                 "Two draws, fixed alpha blend"
+      .subText = "Spherical-UVs & cel-shading\n"
+                 "Two draws with fixed alpha blend"
     },
   };
   uint32_t modelCount = sizeof(models)/sizeof(models[0]);
@@ -176,7 +176,6 @@ int main()
   rspq_syncpoint_t syncPoint = 0;
   T3DVec3 currentPos = {{0,0,0}};
   bool useTwoLights = false;
-  bool showOutline = true;
 
   for(;;)
   {
@@ -196,12 +195,12 @@ int main()
     if(joypad.btn.a)rotAngle += 0.04f;
     if(joypad.btn.b)rotAngle = 0;
 
-    T3DVec3 trargetPos = (T3DVec3){{
+    T3DVec3 targetPos = (T3DVec3){{
       joypad.stick_x * 0.4f,
       joypad.stick_y * 0.4f,
       0.0f
     }};
-    t3d_vec3_lerp(&currentPos, &currentPos, &trargetPos, 0.2f);
+    t3d_vec3_lerp(&currentPos, &currentPos, &targetPos, 0.2f);
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 5.0f, 120.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
@@ -263,7 +262,7 @@ int main()
 
     t3d_matrix_push(model->modelMatFP);
     rspq_block_run(model->dplModel);
-    if(showOutline && model->dplOutline) {
+    if(model->dplOutline) {
       rspq_block_run(model->dplOutline);
     }
     t3d_matrix_pop(1);
