@@ -37,7 +37,7 @@ int main()
 
   t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create();
-  t3d_debug_print_init();
+  rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
 
   T3DMat4 modelMat;
   t3d_mat4_identity(&modelMat);
@@ -167,10 +167,10 @@ int main()
     t3d_matrix_pop(1);
 
     // ======== Draw (2D) ======== //
-    t3d_debug_print_start();
-    t3d_debug_printf(16.0f, 12.0f, "[A] Scroll: %c\n", scrollEnabled ? 'Y' : '-');
-    t3d_debug_printf(16.0f, 24.0f, "[B] Transf: %c\n", transformEnabled ? 'Y' : '-');
-    t3d_debug_printf(210.0f, 12.0f, "FPS: %.4f\n", display_get_fps());
+    rdpq_sync_pipe();
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 16.0f, 20.0f, "[A] Scroll: %c\n", scrollEnabled ? 'Y' : '-');
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 16.0f, 32.0f, "[B] Transf: %c\n", transformEnabled ? 'Y' : '-');
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 220.0f, 20.0f, "FPS: %.4f\n", display_get_fps());
 
     rdpq_detach_show();
   }

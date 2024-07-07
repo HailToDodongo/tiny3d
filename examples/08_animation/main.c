@@ -30,7 +30,7 @@ int main()
   joypad_init();
 
   t3d_init((T3DInitParams){});
-  t3d_debug_print_init();
+  rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
   T3DViewport viewport = t3d_viewport_create();
 
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
@@ -206,18 +206,15 @@ int main()
     syncPoint = rspq_syncpoint_new();
 
     // ======== Draw (UI) ======== //
-    t3d_debug_print_start();
+    float posX = 16;
+    float posY = 24;
 
-    float posX = 12;
-    float posY = 12;
+    rdpq_sync_pipe();
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "[A] Attack: %d", isAttack);
 
-    rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-    t3d_debug_printf(posX, posY, "[A] Attack: %d", isAttack);
-
-    posY = 210;
-    rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xAA, 0xFF));
-    t3d_debug_printf(posX, posY, "Speed: %.4f", currSpeed); posY += 10;
-    t3d_debug_printf(posX, posY, "Blend: %.4f", animBlend); posY += 10;
+    posY = 216;
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "Speed: %.4f", currSpeed); posY += 10;
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "Blend: %.4f", animBlend); posY += 10;
 
     rdpq_detach_show();
   }

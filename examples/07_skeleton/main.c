@@ -11,13 +11,14 @@ color_t get_rainbow_color(float s) {
   float b = fm_sinf(s + 4.0f) * 75.0f + 128.0f;
   return RGBA32(r, g, b, 255);
 }
-const color_t COLOR_BTN_C = (color_t){0xFF, 0xDD, 0x36, 0xFF};
-const color_t COLOR_BTN_A = (color_t){0x30, 0x36, 0xE3, 0xFF};
-const color_t COLOR_BTN_B = (color_t){0x39, 0xBF, 0x1F, 0xFF};
 
-void set_selected_color(bool selected) {
-  rdpq_set_prim_color(selected ? RGBA32(0xFF, 0xFF, 0xFF, 0xFF) : RGBA32(0x66, 0x66, 0x66, 0xFF));
-}
+#define STRINGIFY(x) #x
+#define STYLE(id) "^0" STRINGIFY(id)
+#define STYLE_TITLE 1
+#define STYLE_BTN_A 2
+#define STYLE_BTN_B 3
+#define STYLE_BTN_C 4
+#define STYLE_GREY 5
 
 /**
  * Example showing how to load, instantiate and modify a skinned model.
@@ -38,7 +39,16 @@ int main()
   joypad_init();
 
   t3d_init((T3DInitParams){});
-  t3d_debug_print_init();
+
+  rdpq_font_t* fnt = rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO);
+  rdpq_font_style(fnt, STYLE_TITLE, &(rdpq_fontstyle_t){RGBA32(0xAA, 0xAA, 0xFF, 0xFF)});
+  rdpq_font_style(fnt, STYLE_BTN_A, &(rdpq_fontstyle_t){RGBA32(0x30, 0x36, 0xE3, 0xFF)});
+  rdpq_font_style(fnt, STYLE_BTN_B, &(rdpq_fontstyle_t){RGBA32(0x39, 0xBF, 0x1F, 0xFF)});
+  rdpq_font_style(fnt, STYLE_BTN_C, &(rdpq_fontstyle_t){RGBA32(0xFF, 0xDD, 0x36, 0xFF)});
+  rdpq_font_style(fnt, STYLE_GREY,  &(rdpq_fontstyle_t){RGBA32(0x66, 0x66, 0x66, 0xFF)});
+  rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, fnt);
+  rdpq_textparms_t tp  = (rdpq_textparms_t){.disable_aa_fix = true};
+
   T3DViewport viewport = t3d_viewport_create();
 
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
@@ -183,58 +193,54 @@ int main()
     t3d_matrix_pop(1);
 
     // ======== Draw (UI) ======== //
-    t3d_debug_print_start();
+    rdpq_sync_pipe();
 
     // Bone View
     float posX = 12;
-    float posY = 12;
-    rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
-    t3d_debug_print(posX, posY, "Bones: ");
-    rdpq_set_prim_color(COLOR_BTN_C);
-    t3d_debug_print(posX + 50, posY, T3D_DEBUG_CHAR_C_UP T3D_DEBUG_CHAR_C_DOWN); posY += 10;
+    float posY = 24;
+    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "Bones: " STYLE(STYLE_BTN_C) "[C U/D]");
+    posY += 10;
 
     for(int i = 0; i < skel.skeletonRef->boneCount; i++)
     {
-      const T3DBone *bone = &skel.bones[i];
-      set_selected_color(activeBone == i);
-
       const T3DChunkBone *boneRef = &skel.skeletonRef->bones[i];
-      t3d_debug_printf(posX, posY, "%.2d:", i);
-      t3d_debug_print(posX + 24 + (boneRef->depth * 8), posY, boneRef->name);
+      rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d%.2d:", activeBone == i ? 0 : STYLE_GREY, i);
+      rdpq_text_print(&tp, FONT_BUILTIN_DEBUG_MONO, posX + 24 + (boneRef->depth * 8), posY, boneRef->name);
       posY += 10;
     }
     posY += 8;
 
     // Attached bone
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
-    t3d_debug_print(posX, posY, "Box:");
-    rdpq_set_prim_color(COLOR_BTN_C);
-    t3d_debug_print(posX + 34, posY, T3D_DEBUG_CHAR_C_LEFT T3D_DEBUG_CHAR_C_RIGHT);
+    rdpq_text_print(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "Box: " STYLE(STYLE_BTN_C) "[C L/R]");
     posY += 10;
 
     rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-    t3d_debug_printf(posX, posY, "Attached: %s", attachedBone >= 0 ? skel.skeletonRef->bones[attachedBone].name : "-None-");
+    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "Attached: %s", attachedBone >= 0 ? skel.skeletonRef->bones[attachedBone].name : "-None-");
     posY += 18;
 
     // Transform mode
     posY = 240 - 50;
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
-    t3d_debug_print(posX, posY, "Mode:");
-    rdpq_set_prim_color(COLOR_BTN_A); t3d_debug_print(posX+42, posY, T3D_DEBUG_CHAR_A);
-    rdpq_set_prim_color(COLOR_BTN_B); t3d_debug_print(posX+52, posY, T3D_DEBUG_CHAR_B);
+    rdpq_text_print(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY,
+      STYLE(STYLE_TITLE) "Mode: [" STYLE(STYLE_BTN_A) "A" "^00/" STYLE(STYLE_BTN_B) "B" "^00]"
+    );
     posY += 10;
 
     // Bone Attributes (SRT)
-    set_selected_color(transformMode == 0);
-    t3d_debug_printf(posX, posY, "S: %.2f %.2f %.2f", skel.bones[activeBone].scale.v[0], skel.bones[activeBone].scale.v[1], skel.bones[activeBone].scale.v[2]);
+    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "S: %.2f %.2f %.2f",
+      transformMode == 0 ? 0 : STYLE_GREY,
+                     skel.bones[activeBone].scale.v[0], skel.bones[activeBone].scale.v[1], skel.bones[activeBone].scale.v[2]);
 
     posY += 10;
-    set_selected_color(transformMode == 1);
-    t3d_debug_printf(posX, posY, "R: %.2f %.2f %.2f %.2f", skel.bones[activeBone].rotation.v[0], skel.bones[activeBone].rotation.v[1], skel.bones[activeBone].rotation.v[2], skel.bones[activeBone].rotation.v[3]);
+    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "R: %.2f %.2f %.2f %.2f",
+      transformMode == 1 ? 0 : STYLE_GREY,
+                     skel.bones[activeBone].rotation.v[0], skel.bones[activeBone].rotation.v[1], skel.bones[activeBone].rotation.v[2], skel.bones[activeBone].rotation.v[3]);
 
     posY += 10;
-    set_selected_color(transformMode == 2);
-    t3d_debug_printf(posX, posY, "T: %.2f %.2f %.2f", skel.bones[activeBone].position.v[0], skel.bones[activeBone].position.v[1], skel.bones[activeBone].position.v[2]);
+    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "T: %.2f %.2f %.2f",
+      transformMode == 2 ? 0 : STYLE_GREY,
+                     skel.bones[activeBone].position.v[0], skel.bones[activeBone].position.v[1], skel.bones[activeBone].position.v[2]);
 
     rdpq_detach_show();
   }

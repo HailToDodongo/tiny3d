@@ -39,6 +39,12 @@ typedef struct {
   T3DChunkAnim **anims;
 } ModelAnim;
 
+#define STRINGIFY(x) #x
+#define STYLE(id) "^0" STRINGIFY(id)
+#define STYLE_TITLE 1
+#define STYLE_GREY 2
+#define STYLE_GREEN 3
+
 int main()
 {
   debug_init_isviewer();
@@ -54,7 +60,14 @@ int main()
   joypad_init();
 
   t3d_init((T3DInitParams){});
-  t3d_debug_print_init();
+
+  rdpq_font_t* fnt = rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO);
+  rdpq_font_style(fnt, STYLE_TITLE, &(rdpq_fontstyle_t){RGBA32(0xAA, 0xAA, 0xFF, 0xFF)});
+  rdpq_font_style(fnt, STYLE_GREY,  &(rdpq_fontstyle_t){RGBA32(0x66, 0x66, 0x66, 0xFF)});
+  rdpq_font_style(fnt, STYLE_GREEN, &(rdpq_fontstyle_t){RGBA32(0x39, 0xBF, 0x1F, 0xFF)});
+  rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, fnt);
+  rdpq_textparms_t tp  = (rdpq_textparms_t){.disable_aa_fix = true};
+
   T3DViewport viewport = t3d_viewport_create();
 
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
@@ -202,30 +215,27 @@ int main()
     syncPoint = rspq_syncpoint_new();
 
     // ======== Draw (UI) ======== //
-    t3d_debug_print_start();
+    float posX = 16;
+    float posY = 20;
 
-    float posX = 12;
-    float posY = 12;
-
-    rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
-    t3d_debug_printf(posX, posY, "[L/R] Model: %d/%d", modelIdx+1, MODEL_COUNT);
+    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "[L/R] Model: %d/%d", modelIdx+1, MODEL_COUNT);
     posY += 10;
-    t3d_debug_printf(posX, posY, "[C] Animations:", blendFactor);
+    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "[C] Animations:");
     posY += 10;
 
     for(int i = 0; i < md->animCount; i++)
     {
       const T3DChunkAnim *anim = md->anims[i];
-      rdpq_set_prim_color((activeAnim == i) ? RGBA32(0xFF, 0xFF, 0xFF, 0xFF) : RGBA32(0x66, 0x66, 0x66, 0xFF));
+      int style = (activeAnim == i) ? 0 : STYLE_GREY;
 
       if(activeBlendAnim == i) {
-        rdpq_set_prim_color(RGBA32(0x39, 0xBF, 0x1F, 0xFF));
-        t3d_debug_printf(posX, posY, "%s: %.2fs (%d%%)", anim->name, anim->duration, (int)((1.0f-blendFactor) * 100));
+        style = STYLE_GREEN;
+        rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "%s: %.2fs (%d%%)", style, anim->name, anim->duration, (int)((1.0f-blendFactor) * 100));
       } else {
         if(activeAnim == i && activeBlendAnim >= 0) {
-          t3d_debug_printf(posX, posY, "%s: %.2fs (%d%%)", anim->name, anim->duration, (int)(blendFactor * 100));
+          rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "%s: %.2fs (%d%%)", style, anim->name, anim->duration, (int)(blendFactor * 100));
         } else {
-          t3d_debug_printf(posX, posY, "%s: %.2fs", anim->name, anim->duration);
+          rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "%s: %.2fs", style, anim->name, anim->duration);
         }
       }
       posY += 10;
@@ -234,25 +244,25 @@ int main()
     posY += 10;
     T3DChunkAnim *anim = md->anims[activeAnim];
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
-    t3d_debug_printf(posX, posY, "Animation: %s", anim->name);
+    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "Animation: %s", anim->name);
     posY += 10;
     rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
 
-    t3d_debug_printf(posX, posY, "SData: %s", anim->filePath);
+    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "SData: %s", anim->filePath);
     posY += 10;
-    t3d_debug_printf(posX, posY, "KF-Count: %d", anim->keyframeCount);
+    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "KF-Count: %ld", anim->keyframeCount);
     posY += 10;
 
     rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-    t3d_debug_printf(posX, posY, "Channels: %d+%d", anim->channelsQuat, anim->channelsScalar);
-    posY += 30;
+    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "Channels: %d+%d", anim->channelsQuat, anim->channelsScalar);
+    posY += 24;
 
-    t3d_debug_printf(posX, posY, "Speed: %.2fx", md->animInst[activeAnim].speed);
+    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "Speed: %.2fx", md->animInst[activeAnim].speed);
     posY += 30;
-    t3d_debug_printf(posX, posY, "Time: %.2fs / %.2fs %c", md->animInst[activeAnim].time, anim->duration,
+    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "Time: %.2fs / %.2fs %c", md->animInst[activeAnim].time, anim->duration,
       md->animInst[activeAnim].isLooping ? 'L' : '-'
     );
-    posY -= 14;
+    posY -= 24;
 
     float barWidth = 150.0f;
     float barHeight = 10.0f;

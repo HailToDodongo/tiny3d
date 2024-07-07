@@ -88,7 +88,7 @@ int main()
 
   t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create();
-  t3d_debug_print_init();
+  rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
 
   // Load a some models
   rspq_block_t *dpls[2];
@@ -169,19 +169,19 @@ int main()
     t3d_matrix_pop(1);
 
     // ======== Draw (2D) ======== //
-    t3d_debug_print_start();
+    rdpq_sync_pipe();
 
     int totalTris = 0;
     for(int i=0; i<actorCount; ++i) {
       totalTris += triangleCount[(i*3) % 2];
     }
 
-    t3d_debug_printf(16, 210, "    [C] Actors: %d", actorCount);
-    t3d_debug_printf(16, 220, "[STICK] Speed : %.2f", baseSpeed);
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 16, 210, "    [C] Actors: %d", actorCount);
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 16, 220, "[STICK] Speed : %.2f", baseSpeed);
 
-    t3d_debug_printf(200, 200, "Tris  : %d", totalTris);
-    t3d_debug_printf(200, 210, "Update: %.2fms", timeUpdate);
-    t3d_debug_printf(200, 220, "FPS   : %.2f", display_get_fps());
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 200, 200, "Tris  : %d", totalTris);
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 200, 210, "Update: %.2fms", timeUpdate);
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 200, 220, "FPS   : %.2f", display_get_fps());
 
     rdpq_detach_show();
   }

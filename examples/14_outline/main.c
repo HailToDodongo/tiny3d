@@ -188,26 +188,27 @@ int main()
       rdpq_texture_rectangle(TILE0, posX,           posY + bxHeight, posX + bxWidth/2,    posY + bxHeight/2 - 1, 0, 0);
       rdpq_texture_rectangle(TILE0, posX + bxWidth, posY,            posX + bxWidth/2 -1, posY + bxHeight/2,     0, 0);
       rdpq_texture_rectangle(TILE0, posX + bxWidth, posY + bxHeight, posX + bxWidth/2 -1, posY + bxHeight/2 - 1, 0, 0);
+
+      // Draw text-box background
+      posY += 18;
+      // text in the textbox
+      rdpq_text_printf(&(rdpq_textparms_t){
+        .align = ALIGN_CENTER, .width = bxWidth, .wrap = WRAP_WORD,
+      }, FONT_MAIN, posX, posY, "^01~ Magic Potion ~\n");
+
+      rdpq_text_printf(&(rdpq_textparms_t){
+        .align = ALIGN_LEFT, .width = bxWidth, .wrap = WRAP_WORD,
+        .line_spacing = -4
+      }, FONT_MAIN, posX+22, posY + 16,
+        "^02[Stick]^00 change color\n"
+        "^02[C]^00 outline size & distance\n"
+        "^02[Z]^00 hold to change position\n"
+      );
+
       dplTextbox = rspq_block_end();
     }
 
     rspq_block_run(dplTextbox);
-
-    // Draw text-box background
-    posY += 18;
-    // text in the textbox
-    rdpq_text_printf(&(rdpq_textparms_t){
-      .align = ALIGN_CENTER, .width = bxWidth, .wrap = WRAP_WORD,
-    }, FONT_MAIN, posX, posY, "^01~ Magic Potion ~\n");
-
-    rdpq_text_printf(&(rdpq_textparms_t){
-      .align = ALIGN_LEFT, .width = bxWidth, .wrap = WRAP_WORD,
-      .line_spacing = -4
-    }, FONT_MAIN, posX+22, posY + 16,
-      "^02[Stick]^00 change color\n"
-      "^02[C]^00 outline size & distance\n"
-      "^02[Z]^00 hold to change position\n"
-    );
 
     rdpq_text_printf(NULL, FONT_MAIN, 24, 24, "FPS: %.2f", display_get_fps());
     rdpq_detach_show();

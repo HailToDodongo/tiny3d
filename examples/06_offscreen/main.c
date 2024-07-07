@@ -51,7 +51,7 @@ int main()
   joypad_init();
 
   t3d_init((T3DInitParams){});
-  t3d_debug_print_init();
+  rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
 
   // Like in the demo before we can create multiple viewports.
   // This time however we have to match the offscreen one to the size of the offscreen buffer
@@ -158,8 +158,8 @@ int main()
 
       rspq_block_run(dplBox);
 
-      t3d_debug_print_start();
-      t3d_debug_printf(8, 8, "%.1f FPS\n", display_get_fps());
+      rdpq_sync_pipe();
+      rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 16, 14, "%.1f FPS\n", display_get_fps());
     }
 
     rdpq_detach(); // to finish, simply detach (no explicit wait is needed)
