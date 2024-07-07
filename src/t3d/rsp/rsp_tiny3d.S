@@ -166,7 +166,7 @@
     .align 1
     VERTEX_FX_FUNC: .half 0
     FACE_CULLING: .byte 0
-    USE_FOG: .byte 0
+    FOG_STORE_OFFSET: .byte 12
     ACTIVE_LIGHT_SIZE: .byte 0
     STATE_MEM_END:
   RSPQ_EndSavedState
@@ -246,7 +246,7 @@ T3DCmd_VertLoad:
   addu $s2, $s2, $s3
   llv $v09, 0, 0, $at
   vmadn $v14, $v00, $v00
-  lbu $s1, %lo(USE_FOG + 0)
+  lbu $s1, %lo(FOG_STORE_OFFSET + 0)
   llv $v09, 8, 0, $at
   ori $at, $zero, %lo(SCREEN_UVGEN_SCALE)
   lsv $v09, 6, 0, $at
@@ -455,7 +455,7 @@ T3DCmd_SetFogRange:
   sw $a1, %lo(2 + FOG_SCALE_OFFSET)($zero)
 T3DCmd_SetFogState:
   j RSPQ_Loop
-  sb $a0, %lo(USE_FOG)($zero)
+  sb $a0, %lo(FOG_STORE_OFFSET)($zero)
 T3DCmd_LightSet:
   beq $a2, $zero, LABEL_000A
   sw $a1, 0($a0)

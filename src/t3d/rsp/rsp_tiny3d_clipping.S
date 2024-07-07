@@ -167,7 +167,7 @@
     .align 1
     VERTEX_FX_FUNC: .half 0
     FACE_CULLING: .byte 0
-    FOG_STORE_OFFSET: .byte 0
+    FOG_STORE_OFFSET: .byte 12
     ACTIVE_LIGHT_SIZE: .byte 0
     STATE_MEM_END:
   RSPQ_EndSavedState

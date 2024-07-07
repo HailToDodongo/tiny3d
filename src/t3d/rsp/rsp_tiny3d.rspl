@@ -160,7 +160,7 @@ state
   u16 VERTEX_FX_FUNC = {0}; // points top the current 'VertexFX_' function in IMEM
 
   u8 FACE_CULLING = {0}; // 0=cull front, 1=cull back, 2=no-culling
-  u8 FOG_STORE_OFFSET  = {0}; // offset (relative to current vertex) where to store fog, set to UV for no fog
+  u8 FOG_STORE_OFFSET  = {VTX_ATTR_ST}; // offset (relative to current vertex) where to store fog, set to UV for no fog
   u8 ACTIVE_LIGHT_SIZE = {0}; // light count * light size
 }
 
@@ -301,7 +301,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   uvGenArgs.XY = load(UV_GEN_PARAMS).xy;
   uvGenArgs.w = load(SCREEN_UVGEN_SCALE).x;
 
-  u8 fogStoreOffset = load(USE_FOG);
+  u8 fogStoreOffset = load(FOG_STORE_OFFSET);
   s16 fogA, fogB;
 
   // @TODO: racing the DMA is ~40us faster, doesn't work in ares, retest later again
@@ -508,7 +508,7 @@ command<10> T3DCmd_SetFogRange(s16 fogScale, s32 fogOffset)
  */
 command<11> T3DCmd_SetFogState(u8 enabled)
 {
-  store(enabled, USE_FOG);
+  store(enabled, FOG_STORE_OFFSET);
 }
 
 /**
