@@ -66,7 +66,6 @@ int main()
   rdpq_font_style(fnt, STYLE_GREY,  &(rdpq_fontstyle_t){RGBA32(0x66, 0x66, 0x66, 0xFF)});
   rdpq_font_style(fnt, STYLE_GREEN, &(rdpq_fontstyle_t){RGBA32(0x39, 0xBF, 0x1F, 0xFF)});
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, fnt);
-  rdpq_textparms_t tp  = (rdpq_textparms_t){.disable_aa_fix = true};
 
   T3DViewport viewport = t3d_viewport_create();
 
@@ -218,9 +217,10 @@ int main()
     float posX = 16;
     float posY = 20;
 
-    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "[L/R] Model: %d/%d", modelIdx+1, MODEL_COUNT);
+    rdpq_sync_pipe();
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "[L/R] Model: %d/%d", modelIdx+1, MODEL_COUNT);
     posY += 10;
-    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "[C] Animations:");
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "[C] Animations:");
     posY += 10;
 
     for(int i = 0; i < md->animCount; i++)
@@ -230,12 +230,12 @@ int main()
 
       if(activeBlendAnim == i) {
         style = STYLE_GREEN;
-        rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "%s: %.2fs (%d%%)", style, anim->name, anim->duration, (int)((1.0f-blendFactor) * 100));
+        rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "%s: %.2fs (%d%%)", style, anim->name, anim->duration, (int)((1.0f-blendFactor) * 100));
       } else {
         if(activeAnim == i && activeBlendAnim >= 0) {
-          rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "%s: %.2fs (%d%%)", style, anim->name, anim->duration, (int)(blendFactor * 100));
+          rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "%s: %.2fs (%d%%)", style, anim->name, anim->duration, (int)(blendFactor * 100));
         } else {
-          rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "%s: %.2fs", style, anim->name, anim->duration);
+          rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "%s: %.2fs", style, anim->name, anim->duration);
         }
       }
       posY += 10;
@@ -244,22 +244,22 @@ int main()
     posY += 10;
     T3DChunkAnim *anim = md->anims[activeAnim];
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
-    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "Animation: %s", anim->name);
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "Animation: %s", anim->name);
     posY += 10;
     rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
 
-    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "SData: %s", anim->filePath);
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "SData: %s", anim->filePath);
     posY += 10;
-    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "KF-Count: %ld", anim->keyframeCount);
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "KF-Count: %ld", anim->keyframeCount);
     posY += 10;
 
     rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "Channels: %d+%d", anim->channelsQuat, anim->channelsScalar);
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "Channels: %d+%d", anim->channelsQuat, anim->channelsScalar);
     posY += 24;
 
-    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "Speed: %.2fx", md->animInst[activeAnim].speed);
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "Speed: %.2fx", md->animInst[activeAnim].speed);
     posY += 30;
-    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "Time: %.2fs / %.2fs %c", md->animInst[activeAnim].time, anim->duration,
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "Time: %.2fs / %.2fs %c", md->animInst[activeAnim].time, anim->duration,
       md->animInst[activeAnim].isLooping ? 'L' : '-'
     );
     posY -= 24;

@@ -47,8 +47,7 @@ int main()
   rdpq_font_style(fnt, STYLE_BTN_C, &(rdpq_fontstyle_t){RGBA32(0xFF, 0xDD, 0x36, 0xFF)});
   rdpq_font_style(fnt, STYLE_GREY,  &(rdpq_fontstyle_t){RGBA32(0x66, 0x66, 0x66, 0xFF)});
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, fnt);
-  rdpq_textparms_t tp  = (rdpq_textparms_t){.disable_aa_fix = true};
-
+  
   T3DViewport viewport = t3d_viewport_create();
 
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
@@ -198,47 +197,47 @@ int main()
     // Bone View
     float posX = 12;
     float posY = 24;
-    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "Bones: " STYLE(STYLE_BTN_C) "[C U/D]");
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "Bones: " STYLE(STYLE_BTN_C) "[C U/D]");
     posY += 10;
 
     for(int i = 0; i < skel.skeletonRef->boneCount; i++)
     {
       const T3DChunkBone *boneRef = &skel.skeletonRef->bones[i];
-      rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d%.2d:", activeBone == i ? 0 : STYLE_GREY, i);
-      rdpq_text_print(&tp, FONT_BUILTIN_DEBUG_MONO, posX + 24 + (boneRef->depth * 8), posY, boneRef->name);
+      rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d%.2d:", activeBone == i ? 0 : STYLE_GREY, i);
+      rdpq_text_print(NULL, FONT_BUILTIN_DEBUG_MONO, posX + 24 + (boneRef->depth * 8), posY, boneRef->name);
       posY += 10;
     }
     posY += 8;
 
     // Attached bone
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
-    rdpq_text_print(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "Box: " STYLE(STYLE_BTN_C) "[C L/R]");
+    rdpq_text_print(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "Box: " STYLE(STYLE_BTN_C) "[C L/R]");
     posY += 10;
 
     rdpq_set_prim_color(RGBA32(0xFF, 0xFF, 0xFF, 0xFF));
-    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "Attached: %s", attachedBone >= 0 ? skel.skeletonRef->bones[attachedBone].name : "-None-");
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "Attached: %s", attachedBone >= 0 ? skel.skeletonRef->bones[attachedBone].name : "-None-");
     posY += 18;
 
     // Transform mode
     posY = 240 - 50;
     rdpq_set_prim_color(RGBA32(0xAA, 0xAA, 0xFF, 0xFF));
-    rdpq_text_print(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY,
+    rdpq_text_print(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY,
       STYLE(STYLE_TITLE) "Mode: [" STYLE(STYLE_BTN_A) "A" "^00/" STYLE(STYLE_BTN_B) "B" "^00]"
     );
     posY += 10;
 
     // Bone Attributes (SRT)
-    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "S: %.2f %.2f %.2f",
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "S: %.2f %.2f %.2f",
       transformMode == 0 ? 0 : STYLE_GREY,
                      skel.bones[activeBone].scale.v[0], skel.bones[activeBone].scale.v[1], skel.bones[activeBone].scale.v[2]);
 
     posY += 10;
-    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "R: %.2f %.2f %.2f %.2f",
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "R: %.2f %.2f %.2f %.2f",
       transformMode == 1 ? 0 : STYLE_GREY,
                      skel.bones[activeBone].rotation.v[0], skel.bones[activeBone].rotation.v[1], skel.bones[activeBone].rotation.v[2], skel.bones[activeBone].rotation.v[3]);
 
     posY += 10;
-    rdpq_text_printf(&tp, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "T: %.2f %.2f %.2f",
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "^0%d" "T: %.2f %.2f %.2f",
       transformMode == 2 ? 0 : STYLE_GREY,
                      skel.bones[activeBone].position.v[0], skel.bones[activeBone].position.v[1], skel.bones[activeBone].position.v[2]);
 
