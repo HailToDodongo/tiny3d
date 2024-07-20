@@ -11,6 +11,7 @@
 #include "structs.h"
 #include "parser.h"
 #include "hash.h"
+#include "args.h"
 
 #include "binaryFile.h"
 #include "converter/converter.h"
@@ -66,10 +67,17 @@ namespace {
 
 int main(int argc, char* argv[])
 {
+  EnvArgs args{argc, argv};
+  if(args.checkArg("--help")) {
+    printf("Usage: %s <gltf-file> <t3dm-file> [--base-scale=64] [--allow-no-fast64]\n", argv[0]);
+    return 1;
+  }
+
   const char* gltfPath = argv[1];
   const char* t3dmPath = argv[2];
 
-  config.globalScale = 64.0f;
+  config.globalScale = (float)args.getU32Arg("--base-scale", 64);
+  config.ignoreMissingMat = args.checkArg("--allow-no-fast64");
   config.animSampleRate = 60;
 
   auto t3dm = parseGLTF(gltfPath, config.globalScale);

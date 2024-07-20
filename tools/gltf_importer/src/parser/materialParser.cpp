@@ -151,6 +151,11 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
   printf("     Material: %s\n", prim->material->name);
 
   if(prim->material->extras.data == nullptr) {
+    if(config.ignoreMissingMat) {
+      printf("Material has no fast64 data, ignoring\n");
+      return;
+    }
+
     throw std::runtime_error(
       "\n\n"
       "Material has no fast64 data! (@TODO: implement fallback)\n"
