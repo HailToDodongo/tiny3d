@@ -51,21 +51,21 @@ void convertVertex(
   float modelScale, float texSizeX, float texSizeY, const VertexNorm &v, VertexT3D &vT3D,
   const Mat4 &mat, const std::vector<Mat4> &matrices
 ) {
-  Mat4 modelMat = mat;
   //auto posInt = mat * v.pos * modelScale;
   auto posInt = v.pos;
 
+  Mat4 normMat = mat;
   Vec3 norm = v.norm;
   if(v.boneIndex >= 0) {
     // pre-transform position into bone space
     auto boneMat = matrices[v.boneIndex];
     posInt = boneMat * (posInt);
 
-    // also transform normals
-    auto normMat = boneMat;
-    normMat[3] = Vec4{0.0f, 0.0f, 0.0f, 1.0f};
-    norm = (normMat * norm).normalize();
+    normMat = boneMat * normMat;
   }
+
+  normMat[3] = Vec4{0.0f, 0.0f, 0.0f, 1.0f};
+  norm = (normMat * norm).normalize();
 
   posInt = mat * posInt * modelScale;
   posInt = (posInt).round();
