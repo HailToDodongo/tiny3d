@@ -111,6 +111,12 @@
     #   the real result is from the saturated number). In any case, much better than an overflow.
     #   test_rdpq_triangle checks if there's a saturation and skip checks for known-wrong values.
 
+T3DCmd_TriDraw:
+    srl a2, a1, 16
+    addiu v1, gp, %lo(RSPQ_DMEM_BUFFER) - 6
+    ori sp, zero, %lo(RSPQ_Loop)
+    ori ra, zero, %lo(T3DCmd_TriDraw_End)
+
     .func RDPQ_Triangle_Send_Async
 RDPQ_Triangle_Send_Async:
     #define tricmd a3

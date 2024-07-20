@@ -428,6 +428,7 @@ triToScreenSpace:
   jr $ra
   addiu $s6, $s6, 65500
 
+T3DCmd_TriDraw_End:
 OVERLAY_CODE_END:
 
 #define zero $0

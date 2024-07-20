@@ -629,11 +629,7 @@ T3DCmd_SetUVGen:
   sh $a0, %lo(VERTEX_FX_FUNC)($zero)
   j RSPQ_Loop
   sw $a1, %lo(UV_GEN_PARAMS)($zero)
-T3DCmd_TriDraw:
-  srl $a2, $a1, 16
-  addiu $v1, $gp, %lo(RSPQ_DMEM_BUFFER)  -6
-  jal RDPQ_Triangle_Send_Async ## Args: $a0, $a1, $a2, $sp
-  ori $sp, $zero, %lo(RSPQ_Loop)
+T3DCmd_TriDraw_End:
   j RSPQ_Loop
   sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
   RDPQ_Triangle_Clip:
