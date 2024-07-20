@@ -254,6 +254,9 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
       float texSizeX = model.materialA.texWidth;
       float texSizeY = model.materialA.texHeight;
 
+      if(texSizeX == 0)texSizeX = 32;
+      if(texSizeY == 0)texSizeY = 32;
+
       // convert vertices
       for(int k = 0; k < vertices.size(); k++) {
         Mat4 mat = parseNodeMatrix(node);
