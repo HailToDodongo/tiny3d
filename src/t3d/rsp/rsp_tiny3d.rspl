@@ -745,26 +745,29 @@ command<7> T3DCmd_SetUVGen(u16 uvFunc, u32 params) {
  * @param vert0 16-LSB contain DMEM address for the first vertex
  * @param vert1 LSB/MSB contain DMEM address for the second + third vertex
  */
-command<0> T3DCmd_TriDraw(u32 vert0, u32 vert1)
+command<0> T3DCmd_TriDraw_Cmd(u32 vert0, u32 vert1)
 {
-  //asm("emux_trace_start"); //asm("emux_trace_stop");
+  goto T3DCmd_TriDraw;
 
-  // Note: vert1 & vert2 are switched, this avoids an additional instruction here.
-  // We can't switch them on the CPU, as RDPQ_Triangle loads them from DMEM, so the order is different
-  u32<$a2> vert2 = vert1 >> 16;
+  // (NOTE: moved to 'T3DCmd_TriDraw')
+    // Note: vert1 & vert2 are switched, this avoids an additional instruction here.
+    // We can't switch them on the CPU, as RDPQ_Triangle loads them from DMEM, so the order is different
+    //u32<$a2> vert2 = vert1 >> 16;
+    u32<$a2> vert2;
 
   {
-    u32<$v1> vertAddr = get_cmd_address(2); // where to load the vertex pointers from
-    u32<$sp> rejectDest = RSPQ_Loop; // jump-target for rejected/culled tris
+    // (NOTE: moved to 'T3DCmd_TriDraw')
+      //u32<$v1> vertAddr = get_cmd_address(2); // where to load the vertex pointers from
+      //u32<$sp> rejectDest = RSPQ_Loop; // jump-target for rejected/culled tris
 
-    RDPQ_Triangle_Send_Async(vert0, vert1, vert2, rejectDest);
+    // (NOTE: moved to 'RDPQ_Triangle_Send_Async')
+      // if a triangle was generated, change the offset to swap output-buffers
+      // the DMA is still active at this point, so we can only re-use it after a next send or sync
+      //     u16 currOffset = load(RDPQ_TRI_BUFF_OFFSET);
+      //     currOffset ^= RDP_CMD_MAX_SIZE; // note: overflows into the next buffer
 
-    // if a triangle was generated, change the offset to swap output-buffers
-    // the DMA is still active at this point, so we can only re-use it after a next send or sync
-    // NOTE: this has been moved into 'RDPQ_Triangle_Send_Async'
-    //     u16 currOffset = load(RDPQ_TRI_BUFF_OFFSET);
-    //     currOffset ^= RDP_CMD_MAX_SIZE; // note: overflows into the next buffer
-
+    T3DCmd_TriDraw_End: // returned to from:  'RDPQ_Triangle_Send_Async'
+    u16<$s7> currOffset;
     store(currOffset, RDPQ_TRI_BUFF_OFFSET);
     exit;
 
