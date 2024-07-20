@@ -36,6 +36,9 @@ $(BUILD_DIR)/t3d.a: $(OBJ)
 	@echo "    [LD_LIB] $<"
 	$(N64_LD) -r -o $(BUILD_DIR)/t3d.a $^
 
+$(BUILD_DIR)/rsp/rsp_tiny3d.o: $(SOURCE_DIR)/rsp/rspq_triangle.inc
+$(BUILD_DIR)/rsp/rsp_tiny3d_clipping.o: $(SOURCE_DIR)/rsp/rspq_triangle.inc
+
 # RSP metadata
 $(SOURCE_DIR)/rsp/rsp_tiny3d.h: $(BUILD_DIR)/rsp/rsp_tiny3d.o $(BUILD_DIR)/rsp/rsp_tiny3d_clipping.o
 	@echo "    [RSP_METADATA] $<"

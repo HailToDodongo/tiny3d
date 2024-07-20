@@ -386,12 +386,12 @@ clipTriangle:
   addiu $a1, $s6, 36
   sh $a1, %lo(4 + RSPQ_SCRATCH_MEM)($zero)
   sh $a2, %lo(2 + RSPQ_SCRATCH_MEM)($zero)
-  ori $sp, $zero, %lo(CLIP_AFTER_EMIT)
+  ori $sp, $zero, %lo(RDPQ_Triangle_Clip)
   jal RDPQ_Triangle_Send_Async ## Args: $a0, $a1, $a2, $sp
   ori $a0, $zero, %lo(CLIP_BUFFER_RESULT)
   jal RDPQ_Triangle_Send_End
   nop
-  CLIP_AFTER_EMIT:
+  RDPQ_Triangle_Clip:
   bne $s6, $s5, LABEL_000D
   nop
   CLIP_RETURN:

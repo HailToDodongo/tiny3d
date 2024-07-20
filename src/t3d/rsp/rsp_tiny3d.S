@@ -634,12 +634,9 @@ T3DCmd_TriDraw:
   addiu $v1, $gp, %lo(RSPQ_DMEM_BUFFER)  -6
   jal RDPQ_Triangle_Send_Async ## Args: $a0, $a1, $a2, $sp
   ori $sp, $zero, %lo(RSPQ_Loop)
-  bne $v1, $zero, LABEL_000E
-  lhu $s7, %lo(RDPQ_TRI_BUFF_OFFSET + 0)
-  xori $s7, $s7, 176
   j RSPQ_Loop
   sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
-  LABEL_000E:
+  RDPQ_Triangle_Clip:
   lhu $a2, %lo(RSPQ_DMEM_BUFFER  -2)($gp)
   jal RDPQ_Triangle_Send_End
   lhu $a1, %lo(RSPQ_DMEM_BUFFER  -4)($gp)
