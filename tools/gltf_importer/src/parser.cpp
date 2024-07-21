@@ -96,6 +96,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
 
   for(int i=0; i<data->animations_count; ++i) {
     auto anim = parseAnimation(data->animations[i], boneMap, config.animSampleRate);
+    if(anim.duration < 0.0001f)continue; // ignore empty animations
     convertAnimation(anim, boneMap);
     t3dm.animations.push_back(anim);
   }
