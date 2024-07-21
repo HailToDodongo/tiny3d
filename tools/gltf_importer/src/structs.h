@@ -235,6 +235,6 @@ struct T3DMData {
 struct Config {
   float globalScale{64.0f};
   uint32_t animSampleRate{30};
-  bool ignoreMissingMat{false};
+  bool ignoreMaterials{false};
 };
 extern Config config;

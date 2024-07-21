@@ -69,7 +69,7 @@ int main(int argc, char* argv[])
 {
   EnvArgs args{argc, argv};
   if(args.checkArg("--help")) {
-    printf("Usage: %s <gltf-file> <t3dm-file> [--base-scale=64] [--allow-no-fast64]\n", argv[0]);
+    printf("Usage: %s <gltf-file> <t3dm-file> [--base-scale=64] [--ignore-materials]\n", argv[0]);
     return 1;
   }
 
@@ -77,7 +77,7 @@ int main(int argc, char* argv[])
   const char* t3dmPath = argv[2];
 
   config.globalScale = (float)args.getU32Arg("--base-scale", 64);
-  config.ignoreMissingMat = args.checkArg("--allow-no-fast64");
+  config.ignoreMaterials = args.checkArg("--ignore-materials");
   config.animSampleRate = 60;
 
   auto t3dm = parseGLTF(gltfPath, config.globalScale);
