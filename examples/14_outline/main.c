@@ -81,7 +81,12 @@ int main()
     // In this example we want to dynamically change the outline settings.
     // the code for that is a bit further down. If you don't need this, you can record it here too.
     t3d_state_set_drawflags(T3D_FLAG_CULL_FRONT | T3D_FLAG_DEPTH);
-    t3d_model_draw_manual(itemModel, NULL, NULL, NULL);
+
+    T3DModelIter it = t3d_model_iter_create(itemModel, T3D_CHUNK_TYPE_OBJECT);
+    while(t3d_model_iter_next(&it)) {
+      t3d_model_draw_object(it.object, NULL);
+    }
+
     t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);
   rspq_block_t *dplOutline = rspq_block_end();
 

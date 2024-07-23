@@ -78,6 +78,8 @@ typedef struct {
   char* name;
   uint32_t numParts;
   T3DMaterial* material;
+  int16_t aabbMin[3];
+  int16_t aabbMax[3];
 
   T3DObjectPart parts[]; // real array
 } T3DObject;
@@ -135,6 +137,30 @@ typedef struct {
   T3DChunkOffset chunkOffsets[];
 } T3DModel;
 
+typedef struct {
+  union {
+    void* chunk;
+    T3DObject *object;
+    T3DMaterial *material;
+    T3DChunkSkeleton *skeleton;
+    T3DChunkAnim *anim;
+  };
+
+  const T3DModel *_model;
+  uint16_t _idx;
+  char _chunkType;
+} T3DModelIter;
+
+// Types of chunks contained in T3DModel.
+enum T3DModelChunkType {
+  T3D_CHUNK_TYPE_VERTICES = 'V',
+  T3D_CHUNK_TYPE_INDICES  = 'I',
+  T3D_CHUNK_TYPE_MATERIAL = 'M',
+  T3D_CHUNK_TYPE_OBJECT   = 'O',
+  T3D_CHUNK_TYPE_SKELETON = 'S',
+  T3D_CHUNK_TYPE_ANIM     = 'A'
+};
+
 /**
  * Loads a model from a file.
  * If you no longer need the model, call 't3d_model_free'
@@ -190,20 +216,17 @@ static inline void t3d_model_draw(const T3DModel* model) {
 }
 
 /**
- * Manual Draw, this will not do anything besides loading and drawing vertices/faces.
- * Materials settings in both t3d and rdpq must be set manually.
- * This can be used as a way to completely bypass any saved settings.
+ * Draws an object in a model directly.\n
+ * This will only handle the mesh part, and not any material or texture settings.\n
+ * As in, it will load vertices (optionally a bone matrix) and then draw the triangles.\n
+ * If you want to change material settings, you have to do it manually before calling this function.\n
+ * \n
+ * Take a look at 't3d_model_iter_create' for an example of how to use it.
  *
- * The callback is called before the vertex load & triangle draw, allow to set rdpq settings.
- * If true is returned, the part will be drawn, otherwise it will be skipped.
- * If NULL is passed as a callback, all parts will be drawn and a material can be set externally.
- *
- * @param model model to draw
- * @param cb callback set to NULL to ignore and draw all parts
- * @param userData user data
+ * @param object object to draw
  * @param boneMatrices matrices in the case of skinned meshes, set to NULL for non-skinned
  */
-void t3d_model_draw_manual(const T3DModel* model, T3DModelManualCb cb, void* userData, const T3DMat4FP *boneMatrices);
+void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrices);
 
 /**
  * Returns the global vertex buffer of a model.
@@ -231,7 +254,7 @@ static inline T3DVertPacked* t3d_model_get_vertices(const T3DModel *model) {
  */
 static inline const T3DChunkSkeleton* t3d_model_get_skeleton(const T3DModel *model) {
   for(uint32_t i = 0; i < model->chunkCount; i++) {
-    if(model->chunkOffsets[i].type == 'S') {
+    if(model->chunkOffsets[i].type == T3D_CHUNK_TYPE_SKELETON) {
       uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
       return (T3DChunkSkeleton*)((char*)model + offset);
     }
@@ -247,7 +270,7 @@ static inline const T3DChunkSkeleton* t3d_model_get_skeleton(const T3DModel *mod
 static inline uint32_t t3d_model_get_animation_count(const T3DModel *model) {
   uint32_t count = 0;
   for(uint32_t i = 0; i < model->chunkCount; i++) {
-    if(model->chunkOffsets[i].type == 'A')count++;
+    if(model->chunkOffsets[i].type == T3D_CHUNK_TYPE_ANIM)count++;
   }
   return count;
 }
@@ -285,6 +308,50 @@ T3DObject* t3d_model_get_object(const T3DModel *model, const char *name);
  * @return material or NULL if not found
  */
 T3DMaterial* t3d_model_get_material(const T3DModel *model, const char *name);
+
+/**
+ * Creates an iterator to manually traverse the chunks contained in a file.\n
+ * This can be used to manually iterate and draw objects.\n
+ * \n
+ * Note that the iterator does not need to be freed,\n
+ * you can simply discard it, or call this function again to rewind it.\n
+ * the model it points to must however outlive the iterator.\n
+ * \n
+ * As an example, here is how to do a custom draw of all objects in a file:
+ *
+ * @code{.c}
+ *  T3DModelIter it = t3d_model_iter_create(itemModel, T3D_CHUNK_TYPE_OBJECT);
+ *  while(t3d_model_iter_next(&it)) {
+ *    // (Apply materials here before the draw)
+ *    t3d_model_draw_object(it.object, NULL);
+ *  }
+ * @endcode
+ *
+ * @param model model to iterate
+ * @param chunkType type of chunk to iterate (e.g. T3D_CHUNK_TYPE_OBJECT)
+ * @return iterator
+ */
+static inline T3DModelIter t3d_model_iter_create(const T3DModel *model, enum T3DModelChunkType chunkType) {
+  return (T3DModelIter){
+    .chunk = NULL,
+    ._model = model,
+    ._idx = 0,
+    ._chunkType = chunkType,
+  };
+}
+
+/**
+ * Advances the iterator to the next chunk.\n
+ * A pointer to the chunk is stored in 'iter->chunk'.\n
+ * If it reached the end, this function will return false and set 'iter->chunk' to NULL.\n
+ * \n
+ * Depending on the type you passed in via 't3d_model_iter_create', you either have to cast it,\n
+ * or directly use one of the typed accessors like 'iter.object' for T3D_CHUNK_TYPE_OBJECT.\n
+ *
+ * @param iter iterator to advance
+ * @return true if it found a chunk, false if it reached the end
+ */
+bool t3d_model_iter_next(T3DModelIter *iter);
 
 #ifdef __cplusplus
 }

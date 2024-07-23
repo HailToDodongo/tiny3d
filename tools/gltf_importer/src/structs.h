@@ -160,6 +160,9 @@ struct ModelChunked {
 
   Material materialA{};
   Material materialB{};
+
+  s16 aabbMin[3]{};
+  s16 aabbMax[3]{};
 };
 
 struct Bone {

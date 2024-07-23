@@ -262,6 +262,8 @@ int main(int argc, char* argv[])
     file.write(insertString(stringTable, chunks.chunks.back().name));
     file.write((uint32_t)chunks.chunks.size());
     file.write(materialIndex++);
+    file.writeArray(chunks.aabbMin, 3);
+    file.writeArray(chunks.aabbMax, 3);
 
     //printf("Object %d: %d vert offset\n", m, chunkVerts.getPos());
 

@@ -120,7 +120,10 @@ void convertVertex(
 
 ModelChunked chunkUpModel(const Model &model)
 {
-  ModelChunked res{};
+  ModelChunked res{
+    .aabbMin = { 32767, 32767, 32767 },
+    .aabbMax = { -32768, -32768, -32768 }
+  };
   res.chunks.reserve(model.triangles.size() * 3 / MAX_VERTEX_COUNT);
   res.chunks.push_back(MeshChunk{});
   res.chunks.back().materialA = model.materialA;
@@ -360,6 +363,17 @@ ModelChunked chunkUpModel(const Model &model)
     // we can go a little bit OOB (there is a tmp buffer after it, and the DMA doesn't overlap)
     // this may be needed to split vertices with bones properly
     assert((chunk.vertexDestOffset + chunk.vertexCount) <= (MAX_VERTEX_COUNT+1));
+  }
+
+  // calculate AABB
+  for(const auto &v : res.vertices) {
+    res.aabbMin[0] = std::min(res.aabbMin[0], v.pos[0]);
+    res.aabbMin[1] = std::min(res.aabbMin[1], v.pos[1]);
+    res.aabbMin[2] = std::min(res.aabbMin[2], v.pos[2]);
+
+    res.aabbMax[0] = std::max(res.aabbMax[0], v.pos[0]);
+    res.aabbMax[1] = std::max(res.aabbMax[1], v.pos[1]);
+    res.aabbMax[2] = std::max(res.aabbMax[2], v.pos[2]);
   }
 
   return res;

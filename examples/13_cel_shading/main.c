@@ -153,7 +153,12 @@ int main()
         // invert model and use a black material to draw the outline, T3D_VERTEX_FX_OUTLINE will grow it slightly
         t3d_state_set_drawflags(T3D_FLAG_CULL_FRONT | T3D_FLAG_DEPTH);
         t3d_state_set_vertex_fx(T3D_VERTEX_FX_OUTLINE, 16, 16);
-        t3d_model_draw_manual(models[i].model, NULL, NULL, NULL);
+
+        T3DModelIter it = t3d_model_iter_create(models[i].model, T3D_CHUNK_TYPE_OBJECT);
+        while(t3d_model_iter_next(&it)) {
+          t3d_model_draw_object(it.object, NULL);
+        }
+
         t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);
       models[i].dplOutline = rspq_block_end();
     }

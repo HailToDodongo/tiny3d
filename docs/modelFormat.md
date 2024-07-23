@@ -47,9 +47,9 @@ Interleaved data for two vertices.
 | Offset | Type       | Description                   |
 |--------|------------|-------------------------------|
 | 0x00   | `int16[3]` | Position A (16.0 fixed point) |
-| 0x06   | `u16`      | Normal A (5,5,5 packed)       |
+| 0x06   | `u16`      | Normal A (5.6.5 packed)       |
 | 0x08   | `int16[3]` | Position B (16.0 fixed point) |
-| 0x0E   | `u16`      | Normal B (5,5,5 packed)       |
+| 0x0E   | `u16`      | Normal B (5.6.5 packed)       |
 | 0x10   | `u32`      | RGBA A (RGBA8 color)          |
 | 0x14   | `u32`      | RGBA B (RGBA8 color)          |
 | 0x18   | `int16[2]` | UV A (pixel coords)           |
@@ -132,7 +132,9 @@ Model data consisting of multiple parts, can exist multiple times in a file.
 | 0x00   | `u32`    | Name                  |
 | 0x04   | `u32`    | Part count            |
 | 0x08   | `u32`    | Material, chunk index |
-| 0x0C   | `Part[]` | Parts                 |
+| 0x0C   | `s16[3]` | AABB min (XYZ)        |
+| 0x12   | `s16[3]` | AABB max (XYZ)        |
+| 0x18   | `Part[]` | Parts                 |
 
 #### Part
 Model part data.
