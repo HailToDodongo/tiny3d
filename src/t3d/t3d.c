@@ -69,6 +69,12 @@ void t3d_destroy(void)
 {
   rspq_overlay_unregister(T3D_RSP_ID);
   T3D_RSP_ID = 0;
+
+  if(matrixStack)
+  {
+    free_uncached(matrixStack);
+    matrixStack = NULL;
+  }
 }
 
 void t3d_screen_clear_color(color_t color) {
