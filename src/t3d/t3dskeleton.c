@@ -112,7 +112,7 @@ void t3d_skeleton_destroy(T3DSkeleton *skeleton) {
     skeleton->bones = NULL;
   }
   if(skeleton->boneMatricesFP != NULL) {
-    free(skeleton->boneMatricesFP);
+    free_uncached(skeleton->boneMatricesFP);
     skeleton->boneMatricesFP = NULL;
   }
   skeleton->skeletonRef = NULL;
