@@ -57,7 +57,7 @@ static void texture_cache_free(uint32_t hash)
   for(uint32_t i = 0; i < textureCacheSize; i++) {
     if(textureCache[i].hash == hash) {
       textureCache[i].count--;
-      //debugf("Free Texture: %08lX, count=%ld\n", hash, textureCache[i].count);
+      //debugf("Free Texture: %08lX, count=%lu\n", hash, textureCache[i].count);
       if(textureCache[i].count == 0) {
         sprite_free(textureCache[i].texture);
         textureCache[i].hash = 0;
@@ -67,16 +67,34 @@ static void texture_cache_free(uint32_t hash)
   }
 }
 
+static void texture_cache_free_mem()
+{
+  uint32_t emptyEntries = 0;
+
+  for(uint32_t i = 0; i < textureCacheSize; i++) {
+    if(textureCache[i].hash == 0) {
+      emptyEntries++;
+    }
+  }
+
+  if(textureCache && emptyEntries == textureCacheSize)
+  {
+    free(textureCache);
+    textureCache = NULL;
+    textureCacheSize = 0;
+  }
+}
+
 static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *conf)
 {
   T3DMaterialTexture *tex = tile == TILE0 ? &mat->textureA : &mat->textureB;
   if(tex->texPath || tex->texReference)
   {
-    //debugf("Load Texture: %s (%08lX)\n", mat->texPath, mat->textureHash);
+    //debugf("Load Texture: %s (%08lX)\n", tex->texPath, tex->textureHash);
     if(tex->texPath && !tex->texture) {
       tex->texture = texture_cache_get(tex->textureHash);
       if(tex->texture == NULL) {
-        debugf("Not in cache, load %s (%08lX)\n", tex->texPath, tex->textureHash);
+        //debugf("Not in cache, load %s (%08lX)\n", tex->texPath, tex->textureHash);
         tex->texture = sprite_load(tex->texPath);
         //const char* formatName = tex_format_name(sprite_get_format(mat->texture));
         //debugf(" -> %s\n", formatName);
@@ -355,14 +373,22 @@ void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrice
 }
 
 void t3d_model_free(T3DModel *model) {
+  bool txtErased = false;
   for(uint32_t c = 0; c < model->chunkCount; c++) {
     char chunkType = model->chunkOffsets[c].type;
-    if(chunkType != T3D_CHUNK_TYPE_MATERIAL)break;
+    if(chunkType != T3D_CHUNK_TYPE_MATERIAL) continue;
     T3DMaterial *mat = (T3DMaterial*)((char*)model + (model->chunkOffsets[c].offset & 0x00FFFFFF));
-    if(mat->textureA.texture)texture_cache_free(mat->textureA.textureHash);
-    if(mat->textureB.texture)texture_cache_free(mat->textureB.textureHash);
+    if(mat->textureA.texture) {
+      texture_cache_free(mat->textureA.textureHash);
+      txtErased = true;
+    }
+    if(mat->textureB.texture) {
+      texture_cache_free(mat->textureB.textureHash);
+      txtErased = true;
+    }
   }
   free(model);
+  if(txtErased) texture_cache_free_mem();
 }
 
 T3DChunkAnim *t3d_model_get_animation(const T3DModel *model, const char *name) {
