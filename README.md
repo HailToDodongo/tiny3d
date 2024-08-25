@@ -46,7 +46,12 @@ To start out, take a look at `examples/01_quad` which is the most basic setup dr
 ### GLTF Model import
 Tiny3D comes with a build-in model format and an importer for GLTF files.<br>
 In order to best use the N64 hardware, it is recommended to use [Fast64](https://github.com/Fast-64/fast64).<br>
-Note that at the moment only fast64 materials are supported (@TODO: add support for normal materials).<br>
+
+> **Note**: Due to internal changes in the GLTF exporter, only blender up to version 4.0 is supported at the moment.<br>
+Exporting embedded texture may also cause issues, so it's recommended to use files.
+
+
+At the moment only fast64 materials are supported.<br>
 For this to work, custom properties export must be enabled.<br>
 This can be set during export:
 
