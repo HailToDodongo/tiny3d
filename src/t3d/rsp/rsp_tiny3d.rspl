@@ -197,8 +197,8 @@ macro packClipCodeInverted(u32 res, u32 clipCode)
 macro dotXYZ(vec16 res, vec16 a, vec16 b)
 {
   res:sfract = a * b;
-  vec16 tmp:sfract = res + res.yyyyYYYY;
-  res:sfract += tmp.zzzzZZZZ;
+  vec16 tmp:sint = res + res.yyyyYYYY;
+  res:sint += tmp.zzzzZZZZ;
 }
 
 // 4D dot-product with two vectors at once, result is in 'res.x' and 'res.X'
@@ -351,7 +351,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
         vec16 lightDirColor = load_vec_u8(ptrLight);
         lightDirScale = lightDirColor:ufract * lightDirScale:ufract.xxxxXXXX;
 
-        lightColor:sfract += lightDirScale;
+        lightColor:sint += lightDirScale;
         ptrLight += LIGHT_SIZE;
         lightDirVec = load_vec_s8(ptrLight, 8);
       }
@@ -392,7 +392,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       vec32 fog;
 
       // add offset, to avoid loads, int/fract are stored in the same vector
-      fog:ufract = posClip + fogScaleOffset.z;
+      fog:ufract = posClip + fogScaleOffset:ufract.z;
       fog:sint   = posClip + fogScaleOffset.y;
       fog *= fogScaleOffset:sint.x;
 
