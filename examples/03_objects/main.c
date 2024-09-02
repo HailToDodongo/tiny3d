@@ -11,8 +11,8 @@
 
 #define RAD_360 6.28318530718f
 
-static float timeLast = 0.0f;
-static float time = 0.0f;
+static float objTimeLast = 0.0f;
+static float objTime = 0.0f;
 static float baseSpeed = 1.0f;
 
 // Holds our actor data, relevant for t3d is 'modelMat'.
@@ -48,13 +48,13 @@ void actor_update(Actor *actor) {
   float randRot = (float)fm_fmodf(actor->id * 123.1f, 5.0f);
   float randDist = (float)fm_fmodf(actor->id * 4645.987f, 30.5f) + 10.0f;
 
-  actor->rot[0] = fm_fmodf(randRot + time * 1.05f, RAD_360);
-  actor->rot[1] = fm_fmodf(randRot + time * 1.03f, RAD_360);
-  actor->rot[2] = fm_fmodf(randRot + time * 1.1f, RAD_360);
+  actor->rot[0] = fm_fmodf(randRot + objTime * 1.05f, RAD_360);
+  actor->rot[1] = fm_fmodf(randRot + objTime * 1.03f, RAD_360);
+  actor->rot[2] = fm_fmodf(randRot + objTime * 1.1f, RAD_360);
 
-  actor->pos[0] = randDist * fm_cosf(time * 1.6f + randDist);
-  actor->pos[1] = randDist * fm_sinf(time * 1.5f + randRot);
-  actor->pos[2] = randDist * fm_cosf(time * 1.4f + randDist*randRot);
+  actor->pos[0] = randDist * fm_cosf(objTime * 1.6f + randDist);
+  actor->pos[1] = randDist * fm_sinf(objTime * 1.5f + randRot);
+  actor->pos[2] = randDist * fm_cosf(objTime * 1.4f + randDist*randRot);
 
   // t3d lets you directly construct a fixed-point matrix from SRT
   t3d_mat4fp_from_srt_euler(actor->modelMat, actor->scale, actor->rot, actor->pos);
@@ -135,9 +135,9 @@ int main()
     if(actorCount > ACTOR_COUNT)actorCount = ACTOR_COUNT;
 
     float newTime = get_time_s();
-    float deltaTime = (newTime - timeLast) * baseSpeed;
-    timeLast = newTime;
-    time += deltaTime;
+    float deltaTime = (newTime - objTimeLast) * baseSpeed;
+    objTimeLast = newTime;
+    objTime += deltaTime;
 
     float timeUpdate = get_time_ms();
     for(int i=0; i<actorCount; ++i) {
