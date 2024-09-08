@@ -278,7 +278,7 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
       }
     }
 
-    if(isUsingShade(cc1) || (is2Cycle && isUsingShade(cc2))) {
+    if(model.materialA.fogMode == FogMode::ACTIVE || isUsingShade(cc1) || (is2Cycle && isUsingShade(cc2))) {
       model.materialA.drawFlags |= DrawFlags::SHADED;
     }
 
