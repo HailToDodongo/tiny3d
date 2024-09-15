@@ -12,7 +12,7 @@
  ***************************************/
 
 #define TRI_BUFFER_COUNT 70
-#define LIGHT_COUNT 4
+#define LIGHT_COUNT 8
 
 // settings for RDPQ_Triangle
 #define RDPQ_TRIANGLE_CUSTOM_VTX 1
@@ -321,7 +321,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   loop
   {
     LOOP_START:
-    asm("emux_trace_start");
+    //asm("emux_trace_start");
     // Position & Normals
     vec32 posClip;
     vec16 color;

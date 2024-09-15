@@ -152,7 +152,7 @@
     .align 2
     COLOR_AMBIENT: .ds.b 8
     .align 2
-    LIGHT_DIR_COLOR: .ds.b 64
+    LIGHT_DIR_COLOR: .ds.b 128
     .align 2
     TRI_COMMAND: .word 0
     .align 2
@@ -260,7 +260,6 @@ T3DCmd_VertLoad:
   lsv $v08, 14, 4, $at
   vmudn $v07, $v07, $v16.v
   LOOP_START:
-  #emux_trace_start # inline-ASM
   luv $v04, 0, 16, $s4
   vmulf $v06, $v20, $v07.h0
   vmacf $v06, $v19, $v07.h1
@@ -377,7 +376,6 @@ VertexFX_None:
   slv $v03, 4, 12, $s5
   slv $v03, 0, 12, $s6
   addiu $s6, $s6, 72
-  #emux_trace_stop
   bne $s4, $s7, LOOP_START
   addiu $s5, $s5, 72
   j RSPQ_Loop
