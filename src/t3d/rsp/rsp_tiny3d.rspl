@@ -12,7 +12,7 @@
  ***************************************/
 
 #define TRI_BUFFER_COUNT 70
-#define LIGHT_COUNT 8
+#define LIGHT_COUNT 4
 
 // settings for RDPQ_Triangle
 #define RDPQ_TRIANGLE_CUSTOM_VTX 1
@@ -302,6 +302,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   uvGenArgs.w = load(SCREEN_UVGEN_SCALE).x;
 
   u8 fogStoreOffset = load(FOG_STORE_OFFSET);
+  fogStoreOffset += ptrBuffA;
   s16 fogA, fogB;
 
   // @TODO: racing the DMA is ~40us faster, doesn't work in ares, retest later again
@@ -312,11 +313,15 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   vec16 norm = normMask & pos.wwwwWWWW;
   norm *= normShift;
 
+  pos.w = load(CLIPPING_PLANES, 4).x; // loads "1"
+  pos.W = load(CLIPPING_PLANES, 4).x;
+
   // Process all vertices and apply transformation & lighting.
   // This always handles 2 vertices at once, most sitting in one register.
   loop
   {
     LOOP_START:
+    asm("emux_trace_start");
     // Position & Normals
     vec32 posClip;
     vec16 color;
@@ -329,9 +334,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       posClip:sfract = matN0:sfract  * norm.xxxxXXXX; // (assign to dummy value)
       posClip:sfract = matN1:sfract +* norm.yyyyYYYY;
       norm           = matN2:sfract +* norm.zzzzZZZZ;
-
-      pos.w = load(CLIPPING_PLANES, 4).x; // loads "1"
-      pos.W = load(CLIPPING_PLANES, 4).x;
 
       // object-space to clip-space
       mulMat4Vec8(mat0, mat1, mat2, mat3, pos, posClip);
@@ -358,6 +360,9 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
       ptrLight = LIGHT_DIR_COLOR;
       color:sfract *= lightColor:ufract;
+
+      @Barrier("color-fog") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
+      @Barrier("color-fog") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
     }
 
     // calc. clipping codes (rejection & clip-prevention)
@@ -418,16 +423,13 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
     @Barrier("pos-cc") store(posClip:sint.xyzw, ptrBuffA, VTX_ATTR_XY);
     @Barrier("pos-cc") store(posClip:sint.XYZW, ptrBuffB, VTX_ATTR_XY);
-
-    @Barrier("color-fog") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
-    @Barrier("color-fog") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
+    u32 tmp;
 
     // save fog here, to make this branch-less, fogStoreOffset contains the offset to save it to.
     // if enabled this points to VTX_ATTR_RGBA, otherwise to UV which are then overwritten in vertexFxFunc()
-    u32 fogStoreAddr = ptrBuffA + fogStoreOffset;
-    @Barrier("color-fog") store(fogA:u8, fogStoreAddr, 3); // store fog in alpha
-    fogStoreAddr = ptrBuffB + fogStoreOffset;
-    @Barrier("color-fog") store(fogB:u8, fogStoreAddr, 3);
+    fogStoreOffset += TRI_SIZE_2;
+    @Barrier("color-fog") store(fogA:u8, fogStoreOffset, -69); // store fog in alpha (3 - TRI_SIZE_2)
+    @Barrier("color-fog") store(fogB:u8, fogStoreOffset, -33); // (39 - TRI_SIZE_2)
 
     @Barrier("pos-cc") store(clipCodeA:u8, ptrBuffA, VTX_ATTR_CLIPFLAGS);
     @Barrier("pos-cc") store(clipCodeB:u8, ptrBuffB, VTX_ATTR_CLIPFLAGS);
@@ -440,6 +442,8 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     norm = normMask & pos.wwwwWWWW;
     norm *= normShift;
 
+    pos.w = 1;
+    pos.W = 1;
     prt3d += 0x20;
 
     vec16 temp; // can be used by 'uvGenFunc'
