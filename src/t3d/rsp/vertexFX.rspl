@@ -1,4 +1,5 @@
 macro VertexFX_End() {
+  //asm("emux_trace_stop");
   if(prt3d == ptr3dEnd)goto RSPQ_Loop;
   goto LOOP_START;
 }
