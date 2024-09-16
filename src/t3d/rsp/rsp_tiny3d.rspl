@@ -193,14 +193,6 @@ macro packClipCodeInverted(u32 res, u32 clipCode)
   res = res ~| tmp;
 }
 
-// Fractional 3D dot-product with two vectors at once, result is in 'res.x' and 'res.X'
-macro dotXYZ(vec16 res, vec16 a, vec16 b)
-{
-  res:sfract = a * b;
-  vec16 tmp:sint = res + res.yyyyYYYY;
-  res:sint += tmp.zzzzZZZZ;
-}
-
 // 4D dot-product with two vectors at once, result is in 'res.x' and 'res.X'
 macro dotXYZW(vec32 res, vec32 a, vec32 b)
 {
@@ -240,6 +232,13 @@ macro resolveSegmentAddr(u32 addrOut, u32 addrIn) {
 #ifdef OVERLAY_CLIPPING
   #include "clipping.rspl"
 #else
+
+/*function VertexFX_Outline(
+  u32<$s4> prt3d, u32<$s7> ptr3dEnd,
+  vec16<$v04> uvOffsetFactor, vec16<$v05> posClipInt, vec16<$v12> screenOffset,
+  vec16<$v09> uvGenArgs, vec16<$v02> normal, vec16<$v03> uv,
+  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
+);*/
 
 /**
  * Loads & transforms 3D vertices into the internal buffer, later to be used by triangles.
@@ -291,10 +290,9 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   u32 ptrBuffA = addressInOut & 0xFFFF; // ptr to first output vertex
   u32 ptrBuffB = ptrBuffA + TRI_SIZE; // ptr to second output vertex
 
-  u16 ptrLight = LIGHT_DIR_COLOR;
-
+  u16 ptrLight;
   u8 ptrLightEnd = load(ACTIVE_LIGHT_SIZE);
-  ptrLightEnd += ptrLight;
+  ptrLightEnd += LIGHT_DIR_COLOR;
 
   vec16 uvGenArgs;
   uvGenArgs.xy = load(UV_GEN_PARAMS).xy;
@@ -318,16 +316,16 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
   // Process all vertices and apply transformation & lighting.
   // This always handles 2 vertices at once, most sitting in one register.
+  u16 vertexFxFunc = load(VERTEX_FX_FUNC);
+
   loop
   {
     LOOP_START:
-    //asm("emux_trace_start");
+    asm("emux_trace_start");
     // Position & Normals
     vec32 posClip;
     vec16 color;
-
-    u16 vertexFxFunc = load(VERTEX_FX_FUNC);
-
+    vec16 lightColor;
     {
       // load & transform normals, this in not needed when no directional light is present
       // however, an if-statement + the lost ability for reordering is not worth it. (@TODO: do more tests)
@@ -341,47 +339,55 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
       // input vertex color
       color = load_vec_u8(prt3d, 0x10);
-      vec16 lightColor = load_vec_u8(COLOR_AMBIENT); // light color, accumulates directional lights
+      lightColor = load_vec_u8(COLOR_AMBIENT); // light color, accumulates directional lights
+
+      ptrLight = LIGHT_DIR_COLOR;
 
       // directional
       vec16 lightDirVec  = load_vec_s8(ptrLight, 8);
-      while(ptrLight != ptrLightEnd)
+      if(ptrLight != ptrLightEnd)
       {
-        vec16 lightDirScale;
-        dotXYZ(lightDirScale, norm, lightDirVec);
+        loop
+        {
+          vec16 lightDirScale = norm:sfract * lightDirVec:sfract;
+          vec16 dirColor = load_vec_u8(ptrLight);
 
-        vec16 lightDirColor = load_vec_u8(ptrLight);
-        lightDirScale = lightDirColor:ufract * lightDirScale:ufract.xxxxXXXX;
+          // usually we want "dot(normal, lightDir) * lighColor"
+          // to avoid stalls in the dot product, we do the multiplication only
+          // and then accumulate each scaled XYZ value directly instead of first summing them up
+          VTEMP = dirColor:ufract  * lightDirScale:ufract.xxxxXXXX;
+          VTEMP = dirColor:ufract +* lightDirScale:ufract.yyyyYYYY;
+          VTEMP = dirColor:ufract +* lightDirScale:ufract.zzzzZZZZ;
 
-        lightColor:sint += lightDirScale;
-        ptrLight += LIGHT_SIZE;
-        lightDirVec = load_vec_s8(ptrLight, 8);
+          lightColor:sint += VTEMP; // @TODO: pre-fill ACC with lightColor (didn't work as it got *0.99 each iter.)
+          ptrLight += LIGHT_SIZE;
+          lightDirVec = load_vec_s8(ptrLight, 8);
+        } while(ptrLight != ptrLightEnd)
       }
-
-      ptrLight = LIGHT_DIR_COLOR;
-      color:sfract *= lightColor:ufract;
-
-      @Barrier("color-fog") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
-      @Barrier("color-fog") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
     }
 
     // calc. clipping codes (rejection & clip-prevention)
     u32 clipCodeA, clipCodeB, rejCodesA, rejCodesB;
     {
-      vec32<$v02> clipPlaneW = guardBandScale * posClip.wwwwWWWW;
+      vec32 clipPlaneW = guardBandScale * posClip.wwwwWWWW;
 
-      // Clip code for clipping (incl. band-guard)
-      u32 clipCodes = clip(posClip, clipPlaneW);
+      u32 rejCodes = clip(posClip, posClip.wwwwWWWW); // Clip-Code for rejection (no band-guard)
+      u32 clipCodes = clip(posClip, clipPlaneW); // Clip code for clipping (incl. band-guard)
+
       clipCodeB = clipCodes >> 4;
       packClipCode(clipCodeA, clipCodes);
       packClipCode(clipCodeB, clipCodeB);
 
-      // Clip-Code for rejection (no band-guard)
-      u32 rejCodes = clip(posClip, posClip.wwwwWWWW);
       rejCodesB = rejCodes >> 4;
       packClipCodeInverted(rejCodesA, rejCodes);
       packClipCodeInverted(rejCodesB, rejCodesB);
     }
+
+    color:sfract *= lightColor:ufract;
+    @Barrier("color-fog") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
+    @Barrier("color-fog") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
+
+    undef lightColor;
 
     posClip *= normScaleW:ufract;
 
@@ -417,13 +423,12 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
     posClip *= posClip.wwwwWWWW;
     posClip *= screenSize;
-    posClip:sint += screenOffset;
+    posClip:sint = screenOffset:sint +* 1;
 
     vec16 uv = load(prt3d, 0x18).xyzw;
 
     @Barrier("pos-cc") store(posClip:sint.xyzw, ptrBuffA, VTX_ATTR_XY);
     @Barrier("pos-cc") store(posClip:sint.XYZW, ptrBuffB, VTX_ATTR_XY);
-    u32 tmp;
 
     // save fog here, to make this branch-less, fogStoreOffset contains the offset to save it to.
     // if enabled this points to VTX_ATTR_RGBA, otherwise to UV which are then overwritten in vertexFxFunc()
@@ -431,10 +436,13 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     @Barrier("color-fog") store(fogA:u8, fogStoreOffset, -69); // store fog in alpha (3 - TRI_SIZE_2)
     @Barrier("color-fog") store(fogB:u8, fogStoreOffset, -33); // (39 - TRI_SIZE_2)
 
-    @Barrier("pos-cc") store(clipCodeA:u8, ptrBuffA, VTX_ATTR_CLIPFLAGS);
-    @Barrier("pos-cc") store(clipCodeB:u8, ptrBuffB, VTX_ATTR_CLIPFLAGS);
+    // pack the first clip-code to get rid of one save + have more SUs
+    clipCodeA <<= 8;
+    rejCodesA &= 0xFF;
+    clipCodeA |= rejCodesA;
+    @Barrier("pos-cc") store(clipCodeA:u16, ptrBuffA, VTX_ATTR_CLIPFLAGS);
 
-    @Barrier("pos-cc") store(rejCodesA:u8, ptrBuffA, VTX_ATTR_REJFLAGS);
+    @Barrier("pos-cc") store(clipCodeB:u8, ptrBuffB, VTX_ATTR_CLIPFLAGS);
     @Barrier("pos-cc") store(rejCodesB:u8, ptrBuffB, VTX_ATTR_REJFLAGS);
 
     pos = load(prt3d, 0x20); // load next pos
@@ -448,6 +456,9 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
     vec16 temp; // can be used by 'uvGenFunc'
     vertexFxFunc(); // handles the loop condition internally
+
+    //VertexFX_Outline(prt3d, ptr3dEnd, color, posClip:sint, screenOffset,
+    //  uvGenArgs, oldNorm, uv, ptrBuffA, ptrBuffB);
   }
 }
 
