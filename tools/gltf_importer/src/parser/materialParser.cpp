@@ -230,7 +230,7 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
 
       bool setRenderMode = rdpSettings["set_rendermode"].get<uint32_t>() != 0;
       if(setRenderMode) {
-        model.materialA.otherModeMask |= RDP::SOM::ZMODE_MASK;
+        otherModeMask |= RDP::SOM::ZMODE_MASK;
 
         int renderMode1Raw = rdpSettings["rendermode_preset_cycle_1"].get<uint32_t>();
         int renderMode2Raw = rdpSettings["rendermode_preset_cycle_2"].get<uint32_t>();
