@@ -325,6 +325,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     // Position & Normals
     vec32 posClip;
     vec16 color;
+    vec16 lightColor;
     {
       // load & transform normals, this in not needed when no directional light is present
       // however, an if-statement + the lost ability for reordering is not worth it. (@TODO: do more tests)
@@ -338,52 +339,55 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
       // input vertex color
       color = load_vec_u8(prt3d, 0x10);
-      vec16 lightColor = load_vec_u8(COLOR_AMBIENT); // light color, accumulates directional lights
+      lightColor = load_vec_u8(COLOR_AMBIENT); // light color, accumulates directional lights
 
       ptrLight = LIGHT_DIR_COLOR;
 
       // directional
       vec16 lightDirVec  = load_vec_s8(ptrLight, 8);
-      while(ptrLight != ptrLightEnd)
+      if(ptrLight != ptrLightEnd)
       {
-        vec16 lightDirScale = norm:sfract * lightDirVec:sfract;
-        vec16 dirColor = load_vec_u8(ptrLight);
+        loop
+        {
+          vec16 lightDirScale = norm:sfract * lightDirVec:sfract;
+          vec16 dirColor = load_vec_u8(ptrLight);
 
-        // usually we want "dot(normal, lightDir) * lighColor"
-        // to avoid stalls in the dot product, we do the multiplication only
-        // and then accumulate each scaled XYZ value directly instead of first summing them up
-        VTEMP = dirColor:ufract  * lightDirScale:ufract.xxxxXXXX;
-        VTEMP = dirColor:ufract +* lightDirScale:ufract.yyyyYYYY;
-        VTEMP = dirColor:ufract +* lightDirScale:ufract.zzzzZZZZ;
+          // usually we want "dot(normal, lightDir) * lighColor"
+          // to avoid stalls in the dot product, we do the multiplication only
+          // and then accumulate each scaled XYZ value directly instead of first summing them up
+          VTEMP = dirColor:ufract  * lightDirScale:ufract.xxxxXXXX;
+          VTEMP = dirColor:ufract +* lightDirScale:ufract.yyyyYYYY;
+          VTEMP = dirColor:ufract +* lightDirScale:ufract.zzzzZZZZ;
 
-        lightColor:sint += VTEMP; // @TODO: pre-fill ACC with lightColor (didn't work as it got *0.99 each iter.)
-        ptrLight += LIGHT_SIZE;
-        lightDirVec = load_vec_s8(ptrLight, 8);
+          lightColor:sint += VTEMP; // @TODO: pre-fill ACC with lightColor (didn't work as it got *0.99 each iter.)
+          ptrLight += LIGHT_SIZE;
+          lightDirVec = load_vec_s8(ptrLight, 8);
+        } while(ptrLight != ptrLightEnd)
       }
-
-      color:sfract *= lightColor:ufract;
-
-      @Barrier("color-fog") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
-      @Barrier("color-fog") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
     }
 
     // calc. clipping codes (rejection & clip-prevention)
     u32 clipCodeA, clipCodeB, rejCodesA, rejCodesB;
     {
-      vec32<$v02> clipPlaneW = guardBandScale * posClip.wwwwWWWW;
+      vec32 clipPlaneW = guardBandScale * posClip.wwwwWWWW;
 
-      // Clip code for clipping (incl. band-guard)
-      u32 clipCodes = clip(posClip, clipPlaneW);
+      u32 rejCodes = clip(posClip, posClip.wwwwWWWW); // Clip-Code for rejection (no band-guard)
+      u32 clipCodes = clip(posClip, clipPlaneW); // Clip code for clipping (incl. band-guard)
+
       clipCodeB = clipCodes >> 4;
       packClipCode(clipCodeA, clipCodes);
       packClipCode(clipCodeB, clipCodeB);
 
-      // Clip-Code for rejection (no band-guard)
-      u32 rejCodes = clip(posClip, posClip.wwwwWWWW);
       rejCodesB = rejCodes >> 4;
       packClipCodeInverted(rejCodesA, rejCodes);
       packClipCodeInverted(rejCodesB, rejCodesB);
     }
+
+    color:sfract *= lightColor:ufract;
+    @Barrier("color-fog") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
+    @Barrier("color-fog") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
+
+    undef lightColor;
 
     posClip *= normScaleW:ufract;
 

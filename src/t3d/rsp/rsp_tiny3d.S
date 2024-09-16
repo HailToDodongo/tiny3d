@@ -187,192 +187,191 @@ OVERLAY_CODE_START:
 T3DCmd_VertLoad:
   CLIPPING_CODE_TARGET:
   srl $s6, $a1, 24
-  lw $s6, %lo(SEGMENT_TABLE)($s6)
-  srl $s4, $a2, 16
-  or $t2, $zero, $zero
   andi $t0, $a0, 65535
-  addu $s0, $a1, $s6
+  srl $s4, $a2, 16
   addu $s7, $s4, $t0
-  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   addiu $t0, $t0, -1
-  ori $at, $zero, %lo(NORMAL_MASK_SHIFT)
+  lw $s6, %lo(SEGMENT_TABLE)($s6)
+  or $t2, $zero, $zero
+  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  addu $s0, $a1, $s6
   ori $s6, $zero, %lo(MATRIX_MVP)
-  ldv $v21, 0, 48, $s6
-  ldv $v17, 0, 0, $at
-  ldv $v28, 0, 8, $s6
-  ldv $v16, 0, 8, $at
-  ldv $v26, 0, 24, $s6
-  ldv $v27, 0, 0, $s6
-  ldv $v16, 8, 8, $at
-  ldv $v25, 0, 16, $s6
-  ldv $v17, 8, 0, $at
-  ori $at, $zero, %lo(CLIPPING_PLANES)
-  ldv $v25, 8, 16, $s6
-  llv $v15, 0, 0, $at
-  ori $at, $zero, %lo(SCREEN_SCALE_OFFSET)
-  ldv $v22, 0, 56, $s6
   ldv $v23, 0, 32, $s6
-  ldv $v26, 8, 24, $s6
+  ori $at, $zero, %lo(NORMAL_MASK_SHIFT)
+  ldv $v16, 0, 8, $at
+  ldv $v25, 0, 16, $s6
+  ldv $v16, 8, 8, $at
+  ldv $v17, 0, 0, $at
+  ldv $v17, 8, 0, $at
   ldv $v23, 8, 32, $s6
-  vor $v15, $v00, $v15.e1
-  ldv $v24, 0, 40, $s6
-  ldv $v27, 8, 0, $s6
-  ldv $v24, 8, 40, $s6
-  ldv $v28, 8, 8, $s6
-  ldv $v22, 8, 56, $s6
+  ori $at, $zero, %lo(CLIPPING_PLANES)
+  llv $v15, 0, 0, $at
+  ldv $v26, 0, 24, $s6
+  ori $at, $zero, %lo(SCREEN_SCALE_OFFSET)
+  ldv $v21, 0, 48, $s6
   ldv $v21, 8, 48, $s6
-  ldv $v12, 0, 8, $at
-  ori $s6, $zero, %lo(MATRIX_NORMAL)
-  ldv $v19, 0, 8, $s6
+  ldv $v28, 0, 8, $s6
+  vor $v15, $v00, $v15.e1
+  ldv $v27, 0, 0, $s6
+  ldv $v24, 0, 40, $s6
   lbu $s2, %lo(ACTIVE_LIGHT_SIZE + 0)
-  ldv $v20, 0, 0, $s6
-  ldv $v13, 0, 0, $at
-  ldv $v19, 8, 8, $s6
-  ldv $v13, 8, 0, $at
-  ldv $v12, 8, 8, $at
   vmudl $v14, $v00, $v31.e3
-  ldv $v18, 0, 16, $s6
-  addiu $s2, $s2, %lo(LIGHT_DIR_COLOR)
+  ldv $v27, 8, 0, $s6
+  ldv $v22, 0, 56, $s6
+  lbu $s1, %lo(FOG_STORE_OFFSET + 0)
+  ldv $v24, 8, 40, $s6
+  ldv $v22, 8, 56, $s6
+  ldv $v12, 0, 8, $at
+  ldv $v12, 8, 8, $at
+  ldv $v26, 8, 24, $s6
+  ldv $v13, 0, 0, $at
+  ldv $v13, 8, 0, $at
+  ldv $v28, 8, 8, $s6
+  ldv $v25, 8, 16, $s6
+  ori $s6, $zero, %lo(MATRIX_NORMAL)
   ori $at, $zero, %lo(FOG_SCALE_OFFSET)
   ldv $v11, 0, 0, $at
-  vmadm $v13, $v13, $v31.e3
-  ldv $v18, 8, 16, $s6
-  lbu $s1, %lo(FOG_STORE_OFFSET + 0)
-  ldv $v20, 8, 0, $s6
   ori $at, $zero, %lo(NORM_SCALE_W)
+  ldv $v18, 0, 16, $s6
+  vmadm $v13, $v13, $v31.e3
   ldv $v10, 0, 0, $at
-  ldv $v10, 8, 0, $at
+  ldv $v19, 0, 8, $s6
+  ldv $v20, 0, 0, $s6
+  ldv $v18, 8, 16, $s6
   vmadn $v14, $v00, $v00
+  ldv $v10, 8, 0, $at
   ori $at, $zero, %lo(UV_GEN_PARAMS)
+  ldv $v20, 8, 0, $s6
   llv $v09, 0, 0, $at
-  andi $s6, $a2, 65535
-  addu $s1, $s1, $s6
   llv $v09, 8, 0, $at
-  addiu $s5, $s6, 36
+  addiu $s2, $s2, %lo(LIGHT_DIR_COLOR)
   ori $at, $zero, %lo(SCREEN_UVGEN_SCALE)
+  ldv $v19, 8, 8, $s6
+  andi $s6, $a2, 65535
+  addiu $s5, $s6, 36
+  addu $s1, $s1, $s6
   jal DMAWaitIdle
   lsv $v09, 6, 0, $at
   lqv $v08, 0, 0, $s4
   ori $at, $zero, %lo(CLIPPING_PLANES)
-  vand $v07, $v17, $v08.h3
-  vmudn $v07, $v07, $v16.v
-  lsv $v08, 6, 4, $at
   lhu $k1, %lo(VERTEX_FX_FUNC + 0)
+  vand $v07, $v17, $v08.h3
+  lsv $v08, 6, 4, $at
+  vmudn $v07, $v07, $v16.v
   lsv $v08, 14, 4, $at
   LOOP_START:
   # emux_trace_start # inline-ASM
+  ori $at, $zero, %lo(COLOR_AMBIENT)
   vmulf $v06, $v20, $v07.h0
   vmacf $v06, $v19, $v07.h1
-  ori $s3, $zero, %lo(LIGHT_DIR_COLOR)
+  luv $v03, 0, 0, $at
   vmacf $v07, $v18, $v07.h2
   vmudn $v06, $v28, $v08.h0
-  ori $at, $zero, %lo(COLOR_AMBIENT)
-  luv $v04, 0, 16, $s4
   vmadh $v05, $v27, $v08.h0
+  luv $v04, 0, 16, $s4
   vmadn $v06, $v26, $v08.h1
   vmadh $v05, $v25, $v08.h1
   vmadn $v06, $v24, $v08.h2
   vmadh $v05, $v23, $v08.h2
-  lpv $v03, 0, 8, $s3
   vmadn $v06, $v22, $v08.h3
+  ori $s3, $zero, %lo(LIGHT_DIR_COLOR)
   vmadh $v05, $v21, $v08.h3
-  luv $v08, 0, 0, $at
-  LABEL_0003:
-  beq $s3, $s2, LABEL_0004
+  lpv $v08, 0, 8, $s3
+  beq $s3, $s2, LABEL_0003
   nop
-  LABEL_0003_2:
-  luv $v01, 0, 0, $s3
-  vmulf $v02, $v07, $v03.v
-  vmulu $v29, $v01, $v02.h0
-  addiu $s3, $s3, 16
-  vmacu $v29, $v01, $v02.h1
-  lpv $v03, 0, 8, $s3
-  vmacu $v29, $v01, $v02.h2
-  bne $s3, $s2, LABEL_0003_2
-  vadd $v08, $v08, $v29.v
   LABEL_0004:
-  vmulf $v04, $v04, $v08.v
+  vmulf $v02, $v07, $v08.v
+  luv $v01, 0, 0, $s3
+  vmulu $v29, $v01, $v02.h0
+  vmacu $v29, $v01, $v02.h1
+  addiu $s3, $s3, 16
+  lpv $v08, 0, 8, $s3
+  vmacu $v29, $v01, $v02.h2
+  bne $s3, $s2, LABEL_0004
+  vadd $v03, $v03, $v29.v
+  LABEL_0003:
+  lqv $v08, 0, 32, $s4
   vmudl $v29, $v00, $v06.h3
   vmadm $v29, $v15, $v06.h3
-  lqv $v08, 0, 32, $s4
-  vmadn $v03, $v00, $v05.h3
-  vmadh $v02, $v15, $v05.h3
-  suv $v04, 0, 8, $s6 ## Barrier: 0x1
-  addiu $s1, $s1, 72
-  vch $v29, $v05, $v02
-  vcl $v29, $v06, $v03
-  cfc2 $t6, $vcc
+  vmadn $v02, $v00, $v05.h3
+  vmadh $v01, $v15, $v05.h3
   vch $v29, $v05, $v05.h3
   vcl $v29, $v06, $v06.h3
+  cfc2 $t6, $vcc
+  vch $v29, $v05, $v01
+  vcl $v29, $v06, $v02
+  vmulf $v04, $v04, $v03.v
+  cfc2 $t5, $vcc
   vmudl $v06, $v06, $v10.v
-  andi $k0, $t6, 1799
   vmadm $v05, $v05, $v10.v
-  srl $t9, $t6, 4
-  suv $v04, 4, 8, $s5 ## Barrier: 0x1
+  andi $t8, $t6, 1799
   vmadn $v06, $v00, $v00
-  andi $t9, $t9, 1799
-  srl $t5, $k0, 5
+  srl $t9, $t5, 4
+  andi $k0, $t5, 1799
+  srl $t4, $k0, 5
   sdv $v05, 0, 16, $s6
   sdv $v05, 8, 16, $s5
   vrcph $v05.e3, $v05.e3
   sdv $v06, 8, 24, $s5
   sdv $v06, 0, 24, $s6
   vrcpl $v06.e3, $v06.e3
-  or $k0, $k0, $t5
-  srl $t5, $t9, 5
+  or $k0, $k0, $t4
+  suv $v04, 0, 8, $s6 ## Barrier: 0x1
   vrcph $v05.e3, $v05.e7
-  or $t9, $t9, $t5
-  cfc2 $t5, $vcc
   vrcpl $v06.e7, $v06.e7
+  andi $t9, $t9, 1799
+  srl $t4, $t9, 5
   vrcph $v05.e7, $v00.e7
-  sll $k0, $k0, 8
-  vaddc $v03, $v06, $v11.e2
-  andi $t8, $t5, 1799
-  ssv $v06, 14, 34, $s5
-  vadd $v02, $v05, $v11.e1
-  srl $t7, $t5, 4
+  or $t9, $t9, $t4
+  suv $v04, 4, 8, $s5 ## Barrier: 0x1
   srl $t4, $t8, 5
+  vaddc $v03, $v06, $v11.e2
+  ssv $v05, 14, 32, $s5
+  vadd $v02, $v05, $v11.e1
   ssv $v05, 6, 32, $s6
+  srl $t7, $t6, 4
+  andi $t7, $t7, 1799
   vmudn $v03, $v03, $v11.e0
-  ldv $v03, 0, 24, $s4
+  nor $t8, $t8, $t4
   vmadh $v02, $v02, $v11.e0
   vor $v01, $v00, $v11.e3
-  andi $t7, $t7, 1799
-  nor $t8, $t8, $t4
-  andi $t8, $t8, 255
+  ssv $v06, 14, 34, $s5
   srl $t4, $t7, 5
-  nor $t7, $t7, $t4
   vsub $v02, $v01, $v02.v
-  vmudl $v29, $v06, $v06.h3
   ssv $v06, 6, 34, $s6
+  vmudl $v29, $v06, $v06.h3
+  addiu $s1, $s1, 72
   vmadm $v29, $v05, $v06.h3
-  ssv $v05, 14, 32, $s5
+  ldv $v03, 0, 24, $s4
   vmadn $v06, $v06, $v05.h3
   vmadh $v05, $v05, $v05.h3
-  mfc2 $sp, $v02.e6
+  sll $k0, $k0, 8
+  andi $t8, $t8, 255
   mfc2 $fp, $v02.e2
-  sra $sp, $sp, 7
-  vmudl $v29, $v06, $v14.v
-  vmadm $v29, $v05, $v14.v
-  vmadn $v06, $v06, $v13.v
-  sra $fp, $fp, 7
   addiu $s4, $s4, 32
-  vmadh $v05, $v05, $v13.v
-  vmadh $v05, $v12, $v30.e7
-  sb $fp, -69($s1) ## Barrier: 0x1
+  vmudl $v29, $v06, $v14.v
   or $k0, $k0, $t8
+  vmadm $v29, $v05, $v14.v
+  mfc2 $sp, $v02.e6
+  vmadn $v06, $v06, $v13.v
+  vmadh $v05, $v05, $v13.v
+  sra $fp, $fp, 7
+  nor $t7, $t7, $t4
+  vmadh $v05, $v12, $v30.e7
   vor $v02, $v00, $v07
+  sb $fp, -69($s1) ## Barrier: 0x1
+  sra $sp, $sp, 7
   vand $v07, $v17, $v08.h3
   sb $sp, -33($s1) ## Barrier: 0x1
   sdv $v05, 0, 0, $s6 ## Barrier: 0x2
   sdv $v05, 8, 0, $s5 ## Barrier: 0x2
   sh $k0, 6($s6) ## Barrier: 0x2
-  vmudn $v07, $v07, $v16.v
   sb $t9, 6($s5) ## Barrier: 0x2
-  vmov $v08.e3, $v30.e7
+  vmudn $v07, $v07, $v16.v
   vmov $v08.e7, $v30.e7
-  jal $k1
   sb $t7, 7($s5) ## Barrier: 0x2
+  jal $k1
+  vmov $v08.e3, $v30.e7
   j LOOP_START
   nop
 VertexFX_None:
