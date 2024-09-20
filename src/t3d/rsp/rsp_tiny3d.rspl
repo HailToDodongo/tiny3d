@@ -152,9 +152,9 @@ state
   u32 TRI_COMMAND = {0}; // for RDPQ_Triangle
   s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
 
-  // Fog settings: index 0/1 is the scale as a s16.16, index 2 the scale as a s16 int.
-  // The last value is used as a limiter to prevent overflows.
-  s16 FOG_SCALE_OFFSET[4] = {0, 0, 0, 32767};
+  // Fog settings: index 0/1 is the scale as a s16.16, index 3 the scale as a s16 int.
+  // The third value is used as a limiter to prevent overflows.
+  s16 FOG_SCALE_OFFSET[4] = {0, 0, 32767, 0};
   u16 RDPQ_TRI_BUFF_OFFSET = {0};
   u16 SCREEN_UVGEN_SCALE = {0};
   u16 VERTEX_FX_FUNC = {0}; // points top the current 'VertexFX_' function in IMEM
@@ -284,11 +284,12 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
   vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
   vec16 fogScaleOffset = load(FOG_SCALE_OFFSET).xyzw;
+  fogScaleOffset.Z = fogScaleOffset.z;
 
   vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
 
   u32 ptrBuffA = addressInOut & 0xFFFF; // ptr to first output vertex
-  u32 ptrBuffB = ptrBuffA + TRI_SIZE; // ptr to second output vertex
+  u32 ptrBuffB = ptrBuffA - TRI_SIZE; // ptr to second output vertex
 
   u16 ptrLight;
   u8 ptrLightEnd = load(ACTIVE_LIGHT_SIZE);
@@ -301,6 +302,8 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
   u8 fogStoreOffset = load(FOG_STORE_OFFSET);
   fogStoreOffset += ptrBuffA;
+  ptrBuffA -= TRI_SIZE_2; // move one back since it increments at the start of the loop
+
   s16 fogA, fogB;
 
   // @TODO: racing the DMA is ~40us faster, doesn't work in ares, retest later again
@@ -314,9 +317,9 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   pos.w = load(CLIPPING_PLANES, 4).x; // loads "1"
   pos.W = load(CLIPPING_PLANES, 4).x;
 
+  u16 vertexFxFunc;
   // Process all vertices and apply transformation & lighting.
   // This always handles 2 vertices at once, most sitting in one register.
-  u16 vertexFxFunc = load(VERTEX_FX_FUNC);
 
   loop
   {
@@ -327,6 +330,10 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     vec16 color;
     vec16 lightColor;
     {
+      ptrBuffA += TRI_SIZE_2;
+      ptrBuffB += TRI_SIZE_2;
+      vertexFxFunc = load(VERTEX_FX_FUNC);
+
       // load & transform normals, this in not needed when no directional light is present
       // however, an if-statement + the lost ability for reordering is not worth it. (@TODO: do more tests)
       posClip:sfract = matN0:sfract  * norm.xxxxXXXX; // (assign to dummy value)
@@ -383,13 +390,13 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       packClipCodeInverted(rejCodesB, rejCodesB);
     }
 
+    posClip *= normScaleW:ufract;
+
     color:sfract *= lightColor:ufract;
     @Barrier("color-fog") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
     @Barrier("color-fog") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
 
     undef lightColor;
-
-    posClip *= normScaleW:ufract;
 
     store(posClip.xyzw, ptrBuffA, VTX_ATTR_CLIPPOSi);
     store(posClip.XYZW, ptrBuffB, VTX_ATTR_CLIPPOSi);
@@ -403,12 +410,11 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       vec32 fog;
 
       // add offset, to avoid loads, int/fract are stored in the same vector
-      fog:ufract = posClip + fogScaleOffset:ufract.z;
-      fog:sint   = posClip + fogScaleOffset.y;
-      fog *= fogScaleOffset:sint.x;
+      fog:ufract = posClip + fogScaleOffset:ufract.y;
+      fog:sint   = posClip + fogScaleOffset.x;
+      fog *= fogScaleOffset:sint.w;
 
-      vec16 fogMax = fogScaleOffset.w; // invert fog -> 0=no-fog, max=fog
-      fog:sint = fogMax - fog:sint;
+      fog:sint = fogScaleOffset - fog:sint;
 
       fogA = fog:sint.z;
       fogB = fog:sint.Z;
@@ -513,8 +519,8 @@ command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 scre
  */
 command<10> T3DCmd_SetFogRange(s16 fogScale, s32 fogOffset)
 {
-  store(fogScale,  FOG_SCALE_OFFSET, 0x00);
-  store(fogOffset, FOG_SCALE_OFFSET, 0x02);
+  store(fogScale,  FOG_SCALE_OFFSET, 0x06);
+  store(fogOffset, FOG_SCALE_OFFSET, 0x00);
 }
 
 /**

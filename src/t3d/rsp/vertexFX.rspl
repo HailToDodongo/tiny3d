@@ -1,5 +1,5 @@
 macro VertexFX_End() {
-  //asm("emux_trace_stop");
+  // asm("emux_trace_stop");
   if(prt3d == ptr3dEnd)goto RSPQ_Loop;
   goto LOOP_START;
 }
@@ -12,8 +12,6 @@ function VertexFX_None(
   store(uv.zw, ptrBuffB, VTX_ATTR_ST);
 
   // to avoid a double-jump, check the loop-end here directly
-  ptrBuffA += TRI_SIZE_2;
-  ptrBuffB += TRI_SIZE_2;
   VertexFX_End();
 }
 
@@ -32,10 +30,8 @@ function VertexFX_Spherical(
   uv += uvGenArgs.x;
   uv += uvOffsetFactor;
 
-  ptrBuffA += TRI_SIZE_2; // delay stall for uv by subtracting in the store
-  ptrBuffB += TRI_SIZE_2;
-  store(uv.xy, ptrBuffA, VTX_ATTR_ST, -TRI_SIZE_2);
-  store(uv.XY, ptrBuffB, VTX_ATTR_ST, -TRI_SIZE_2);
+  store(uv.xy, ptrBuffA, VTX_ATTR_ST);
+  store(uv.XY, ptrBuffB, VTX_ATTR_ST);
 
   VertexFX_End();
 }
@@ -51,10 +47,8 @@ function VertexFX_CelShadeColor(
   uv.x = color.x;
   uv.z = color.X;
 
-  ptrBuffA += TRI_SIZE_2; // delay stall for uv by subtracting in the store
-  ptrBuffB += TRI_SIZE_2;
-  store(uv.xy, ptrBuffA, VTX_ATTR_ST, -TRI_SIZE_2);
-  store(uv.zw, ptrBuffB, VTX_ATTR_ST, -TRI_SIZE_2);
+  store(uv.xy, ptrBuffA, VTX_ATTR_ST);
+  store(uv.zw, ptrBuffB, VTX_ATTR_ST);
 
   VertexFX_End();
 }
@@ -68,10 +62,8 @@ function VertexFX_CelShadeAlpha(
   uv.x = color.w;
   uv.z = color.W;
 
-  ptrBuffA += TRI_SIZE_2; // delay stall for uv by subtracting in the store
-  ptrBuffB += TRI_SIZE_2;
-  store(uv.xy, ptrBuffA, VTX_ATTR_ST, -TRI_SIZE_2);
-  store(uv.zw, ptrBuffB, VTX_ATTR_ST, -TRI_SIZE_2);
+  store(uv.xy, ptrBuffA, VTX_ATTR_ST);
+  store(uv.zw, ptrBuffB, VTX_ATTR_ST);
 
   VertexFX_End();
 }
@@ -83,17 +75,14 @@ function VertexFX_Outline(
   u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
 )
 {
-
   VTEMP = normal:sfract * uvGenArgs;
   posClipInt:sint = posClipInt:sint +* 1; // (@TODO: add accumulate opt. to RSPL)
 
   // @TODO: check for rejection (normals don't work reliably)
   // reject: store(ZERO:u8, ptrBuffA, VTX_ATTR_REJFLAGS);
 
-  ptrBuffA += TRI_SIZE_2; // delay stall for uv by subtracting in the store
-  ptrBuffB += TRI_SIZE_2;
-  store(posClipInt.xy, ptrBuffA, VTX_ATTR_XY, -TRI_SIZE_2);
-  store(posClipInt.XY, ptrBuffB, VTX_ATTR_XY, -TRI_SIZE_2);
+  store(posClipInt.xy, ptrBuffA, VTX_ATTR_XY);
+  store(posClipInt.XY, ptrBuffB, VTX_ATTR_XY);
 
   VertexFX_End();
 }
