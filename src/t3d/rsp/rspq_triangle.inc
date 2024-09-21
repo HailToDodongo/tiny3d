@@ -188,6 +188,7 @@ RDPQ_Triangle_Send_Async:
     mfc0 fp, COP0_DP_CLOCK
     emux_trace_start
 #endif
+    # emux_trace_start
 
     #define vall1    $v01
     #define vall2    $v02
@@ -244,38 +245,35 @@ RDPQ_Triangle_Send_Async:
     llv vall1, VTX_ATTR_XY,vtx1
     llv vall2, VTX_ATTR_XY,vtx2
     llv vall3, VTX_ATTR_XY,vtx3;                # Create a vector for negative pow2 constants
-    lhu clip1, VTX_ATTR_CLIPFLAGS(vtx1);        vsubc vmconst, vzero, vshift;
+    ori t2, zero, 0xFF;                         vsubc vmconst, vzero, vshift;
 
-    vcopy vy1, vall1.e1;                        lsv vall1.e3, RDPQ_TRIANGLE_VTX1_DMEM
+    vcopy vy1, vall1.e1;                        llv vall1.e3, RDPQ_TRIANGLE_VTX1_DMEM
     vcopy vy2, vall2.e1;                        lsv vall2.e3, RDPQ_TRIANGLE_VTX2_DMEM
-    vcopy vy3, vall3.e1;                        lsv vall3.e3, RDPQ_TRIANGLE_VTX3_DMEM
+    vcopy vy3, vall3.e1;                        lhu clip1, VTX_ATTR_CLIPFLAGS(vtx1)
 
-    # Create vector with constants
-    # 1 and -1 (to be used for
-    # cross product)                            # Finish loading clipping codes
-    vcopy vk1, K1;                              lhu clip3, VTX_ATTR_CLIPFLAGS(vtx3)
-    # Clear VCO to make sure the first
-    # VGE does the right thing if
-    # vy1==vy2
-    vsubc vzero, vzero, vzero;                  lhu clip2, VTX_ATTR_CLIPFLAGS(vtx2)
+    # Clear VCO to make sure the first VGE does the right thing if vy1==vy2
+    # AND: Create vector with constants  1 and -1 (to be used for cross product)
+    vaddc vk1, vzero, K1;                       lhu clip2, VTX_ATTR_CLIPFLAGS(vtx2)
+    vmov vall3.e3, vall1.e4;                    lhu clip3, VTX_ATTR_CLIPFLAGS(vtx3)
 
     # Do a sort-of-three (min, mid, max), using vyN as key of the sort,
     # and vallN as values to sort. We compare the keys with vlt/vge,
     # and then use vmrg to apply the swap.
-    ori t2, zero, 0xFF;                         vge vytmp1, vy1, vy2;
-    or clip1, clip3;                            vmrg valltmp1, vall1, vall2;
-    or clip1, clip2;                            vlt vy1, vy1, vy2;
+    lbu cull, %lo(FACE_CULLING + 0);            vge vytmp1, vy1, vy2;
+    or clip1, clip2;                            vmrg valltmp1, vall1, vall2;
+    or clip1, clip3;                            vlt vy1, vy1, vy2;
     cfc2 did_swap_0, COP2_CTRL_VCC;             vmrg vall1, vall1, vall2;
 
     andi t4, clip1, 0xFF;                       vxor vhmlupp, vhmlupp
 
     bne t4, t2, CullTri;                        vge vytmp2, vy1, vy3;
-    andi clip1, 0xFF00;                         vmrg valltmp2, vall1, vall3;
-    lbu cull, %lo(FACE_CULLING + 0);            vlt vy1, vy1, vy3;
+    # TODO: put save for indices here (multi draw call)
+    nop;                                        vmrg valltmp2, vall1, vall3;
+    nop;                                        vlt vy1, vy1, vy3;
     cfc2 did_swap_1, COP2_CTRL_VCC;             vmrg vall1, vall1, vall3;
 
     lhu s3, %lo(RDPQ_TRI_BUFF_OFFSET);          vge vy3, vytmp1, vytmp2;
-    nop;                                        vmrg vall3, valltmp1, valltmp2;
+    andi clip1, 0xFF00;                         vmrg vall3, valltmp1, valltmp2;
     lhu s7, %lo(RDPQ_TRI_BUFF_OFFSET + 0);      vlt vy2, vytmp1, vytmp2;
     cfc2 did_swap_2, COP2_CTRL_VCC;             vmrg vall2, valltmp1, valltmp2;
 
@@ -635,10 +633,12 @@ rdpq_triangle_change_buffer_done:
     emux_dump_gpr t0
 #endif
 
+    # emux_trace_stop
     jr ra
     mtc0 prim_size, COP0_DMA_WRITE
 
     CullTri:
+    # emux_trace_stop
     j sp
     nop
 

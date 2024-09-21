@@ -249,7 +249,8 @@ macro resolveSegmentAddr(u32 addrOut, u32 addrIn) {
  * @param rdramVerts RDRAM address to load vertices from
  * @param bufferSize 2 u16 DMEM addresses, MSBs set where to DMA the input to, LSBs set where to store the result
  */
-@Align(8)
+@Align(8) // this function is swapped out during clipping, needs align for DMA
+@NoReturn // vertex FX function do return to RSPQ_Loop manually
 command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 {
   CLIPPING_CODE_TARGET: // marks the place where the clipping code can be loaded in to
@@ -320,8 +321,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   u16 vertexFxFunc;
   // Process all vertices and apply transformation & lighting.
   // This always handles 2 vertices at once, most sitting in one register.
-
-  loop
   {
     LOOP_START:
     asm("emux_trace_start");
@@ -460,7 +459,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     pos.W = 1;
     prt3d += 0x20;
 
-    vec16 temp; // can be used by 'uvGenFunc'
     vertexFxFunc(); // handles the loop condition internally
 
     //VertexFX_Outline(prt3d, ptr3dEnd, color, posClip:sint, screenOffset,
