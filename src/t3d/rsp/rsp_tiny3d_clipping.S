@@ -21,6 +21,7 @@
 #define RDPQ_TRIANGLE_VTX1_DMEM 0,v1
 #define RDPQ_TRIANGLE_VTX2_DMEM 4,v1
 #define RDPQ_TRIANGLE_VTX3_DMEM 2,v1
+#define ADDR_SCRATCH_MEM 0x80
 #define TRI_SIZE 36
 #define TRI_SIZE_2 72
 #define TRI_SIZE_3 108
@@ -121,6 +122,7 @@
     RSPQ_DefineCommand RSPQ_Loop, 4
     RSPQ_DefineCommand RSPQ_Loop, 4
     RSPQ_DefineCommand RSPQ_Loop, 4
+    RSPQ_DefineCommand RSPQ_Loop, 12
   RSPQ_EndOverlayHeader
 
   RSPQ_BeginSavedState
@@ -134,8 +136,6 @@
     TRI_BUFFER: .ds.b 2520
     .align 4
     CLIP_BUFFER_TMP: .ds.b 252
-    .align 1
-    CLIP_RA: .ds.b 2
     .align 4
     CLIP_BUFFER_RESULT: .ds.b 288
     .align 4
@@ -153,7 +153,7 @@
     .align 2
     COLOR_AMBIENT: .ds.b 8
     .align 2
-    LIGHT_DIR_COLOR: .ds.b 128
+    LIGHT_DIR_COLOR: .ds.b 64
     .align 2
     TRI_COMMAND: .word 0
     .align 2
@@ -179,6 +179,8 @@
     CLIP_CODE_ORG_ADDR: .word 0
     .align 1
     CLIP_CODE_SIZE: .half 0
+    .align 1
+    CLIP_RA: .ds.b 2
   TEMP_STATE_MEM_END:
 
 .text

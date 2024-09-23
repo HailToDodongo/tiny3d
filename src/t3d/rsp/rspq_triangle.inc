@@ -233,15 +233,6 @@ RDPQ_Triangle_Send_Async:
     # Should we do backface culling before clipping check?
     # If so, should we do that BEFORE or AFTER the sort-of-three?
 
-    #ifdef STORE_VTX1
-    sh vtx1, 0(s3)
-    #endif
-    #ifdef STORE_VTX2
-    sh vtx2, 2(s3)
-    #endif
-    #ifdef STORE_VTX3
-    sh vtx3, 4(s3)
-    #endif
     llv vall1, VTX_ATTR_XY,vtx1
     llv vall2, VTX_ATTR_XY,vtx2
     llv vall3, VTX_ATTR_XY,vtx3;                # Create a vector for negative pow2 constants
@@ -259,7 +250,7 @@ RDPQ_Triangle_Send_Async:
     # Do a sort-of-three (min, mid, max), using vyN as key of the sort,
     # and vallN as values to sort. We compare the keys with vlt/vge,
     # and then use vmrg to apply the swap.
-    lbu cull, %lo(FACE_CULLING + 0);            vge vytmp1, vy1, vy2;
+    ldv v__, RDPQ_TRIANGLE_VTX1_DMEM;           vge vytmp1, vy1, vy2;
     or clip1, clip2;                            vmrg valltmp1, vall1, vall2;
     or clip1, clip3;                            vlt vy1, vy1, vy2;
     cfc2 did_swap_0, COP2_CTRL_VCC;             vmrg vall1, vall1, vall2;
@@ -267,9 +258,8 @@ RDPQ_Triangle_Send_Async:
     andi t4, clip1, 0xFF;                       vxor vhmlupp, vhmlupp
 
     bne t4, t2, CullTri;                        vge vytmp2, vy1, vy3;
-    # TODO: put save for indices here (multi draw call)
-    nop;                                        vmrg valltmp2, vall1, vall3;
-    nop;                                        vlt vy1, vy1, vy3;
+    sdv v__, 0, ADDR_SCRATCH_MEM, zero;         vmrg valltmp2, vall1, vall3;
+    lbu cull, %lo(FACE_CULLING + 0);            vlt vy1, vy1, vy3;
     cfc2 did_swap_1, COP2_CTRL_VCC;             vmrg vall1, vall1, vall3;
 
     lhu s3, %lo(RDPQ_TRI_BUFF_OFFSET);          vge vy3, vytmp1, vytmp2;
