@@ -31,7 +31,7 @@ enum T3DCmd {
   T3D_CMD_FOG_STATE    = 0xB,
   T3D_CMD_TRI_SYNC     = 0xC,
   T3D_CMD_TRI_DRAW_IDX = 0xD,
-  //                   = 0xE,
+  T3D_CMD_TRI_DRAW_REP = 0xE,
   //                   = 0xF,
 };
 
@@ -243,6 +243,8 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2);
 
 // @TODO: docs
 void t3d_tri_draw_shared(uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4);
+
+void t3d_tri_draw_repeat(uint32_t v0, uint32_t v1, uint32_t v2, uint8_t count);
 
 /**
  * Syncs pending triangles.

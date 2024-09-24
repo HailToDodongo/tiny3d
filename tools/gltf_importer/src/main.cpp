@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <algorithm>
 #include <cassert>
-#include <array>
 
 #include "structs.h"
 #include "parser.h"
@@ -17,6 +16,7 @@
 #include "binaryFile.h"
 #include "converter/converter.h"
 #include "parser/rdp.h"
+#include "optimizer/optimizer.h"
 
 Config config;
 
@@ -63,75 +63,6 @@ namespace {
     auto sdataPath = std::string(filePath).substr(0, std::string(filePath).size()-5);
     std::replace(sdataPath.begin(), sdataPath.end(), '\\', '/');
     return sdataPath + "." + std::to_string(idx) + ".sdata";
-  }
-
-  std::array<int, 2> getSharedIndex(std::array<uint8_t, 3> &triA, std::array<uint8_t, 3> &triB) {
-    for(int i=0; i<3; ++i) {
-      for(int j=0; j<3; ++j) {
-        if(triA[i] == triB[j])return {i, j};
-      }
-    }
-    return {-1, -1};
-  }
-
-  void arrayShiftRight(std::array<uint8_t, 3> &arr, int shift) {
-    for(int i=0; i<shift; ++i) {
-      std::swap(arr[0], arr[1]);
-      std::swap(arr[0], arr[2]);
-    }
-  }
-
-  void optimizeModelChunk(ModelChunked &model)
-  {
-    for(auto &chunk : model.chunks)
-    {
-      printf("Indices: %d\n", chunk.indices.size());
-
-      std::vector<std::array<uint8_t, 3>> tris{}; // input tris
-      for(int i=0; i<chunk.indices.size(); i+=3) {
-        tris.push_back({chunk.indices[i], chunk.indices[i+1], chunk.indices[i+2]});
-      }
-
-      std::vector<uint8_t> indicesFans{};
-      chunk.indices.clear();
-
-      // try to detect triangles that are connected by at least one vertex
-      // e.g. [0,1,2] [2,3,4] -> [0,1,2,3,4]
-      // the input indices can be rotated to fit (shared index must be in the middle) as long as winding order is preserved
-      for(int t=0; t<tris.size(); ++t)
-      {
-        bool foundQuad = false;
-        auto &tri = tris[t];
-        for(int r=t+1; r<tris.size(); ++r)
-        {
-          auto sharedIdx = getSharedIndex(tri, tris[r]);
-          if(sharedIdx[0] >= 0) {
-            arrayShiftRight(tri, 2-sharedIdx[0]);
-            arrayShiftRight(tris[r], (3-sharedIdx[1]) % 3);
-            assert(tri[2] == tris[r][0]);
-            printf("      : idx=%d/%d | %d %d %d with %d %d %d\n", t, r, tri[0], tri[1], tri[2], tris[r][0], tris[r][1], tris[r][2]);
-            indicesFans.insert(indicesFans.end(), {tri[0], tri[1], tri[2], tris[r][1], tris[r][2]});
-            tris.erase(tris.begin() + r);
-            tris.erase(tris.begin() + t);
-            --t;
-            foundQuad = true;
-            break;
-          }
-        }
-        if(!foundQuad) {
-          printf("Tri: idx=%d | %d %d %d\n", t, tri[0], tri[1], tri[2]);
-          chunk.indices.push_back(tri[0]);
-          chunk.indices.push_back(tri[1]);
-          chunk.indices.push_back(tri[2]);
-        }
-      }
-
-      if(!indicesFans.empty()) {
-        chunk.indices.push_back(0xFF);
-        chunk.indices.insert(chunk.indices.end(), indicesFans.begin(), indicesFans.end());
-      }
-
-    }
   }
 }
 

@@ -172,6 +172,7 @@ temp_state {
   u32 CLIP_CODE_ORG_ADDR = {0}; // address of the original code (this overlay here)
   u16 CLIP_CODE_SIZE = {0}; // size to copy
   u16 CLIP_RA = {0}; // return address for the clipping code
+  u16 ADDR_OFFSET[4] = {-1, 108, 108, 108};
 }
 
 // Libdragon functions
@@ -832,7 +833,7 @@ command<0> T3DCmd_TriDraw_Cmd(u32 vert0, u32 vert1)
 command<13> T3DCmd_TriDraw_Multi(u32 vert0, u32 vert1, u32 vert2)
 {
   u32<$v1> vertAddr;
-  u32<$sp> rejectDest;
+  u16<$sp> rejectDest;
 
   // first triangle
   RA:u16 = T3DCmd_TriDraw_Multi_SecondTri;
@@ -863,6 +864,51 @@ command<13> T3DCmd_TriDraw_Multi(u32 vert0, u32 vert1, u32 vert2)
   RA = T3DCmd_TriDraw_End;
 
   goto RDPQ_Triangle_Send_Async;
+}
+
+command<14> T3DCmd_TriDraw_Repeat(u32 vert0, u32 vert1)
+{
+  u16<$s7> currOffset;
+  u32<$v1> vertAddr;
+  u32<$sp> rejectDest;
+
+  RA:u16 = T3DCmd_TriDraw_Repeat_Loop;
+  store(RA:u16, CLIP_RA);
+
+  T3DCmd_TriDraw_Repeat_Loop:
+  u32 argAddr = get_cmd_address(0);
+
+  vec16 off = load(ADDR_OFFSET, 0x00).xyzw;
+  vec16 addr = load(argAddr, 0x00).xyzw;
+  addr += off;
+  @Barrier("count") store(addr.xyzw, argAddr, 0x00);
+
+  RA:u16 = T3DCmd_TriDraw_Repeat_Loop;
+  store(RA:u16, CLIP_RA);
+
+  rejectDest = T3DCmd_TriDraw_Repeat_Loop; // jump-target for rejected/culled tris
+  vertAddr = get_cmd_address(2); // where to load the vertex pointers from
+
+  u8 count;
+  @Barrier("count") count = load(argAddr, 0x01);
+  if(count != 0) {
+    // reload indices
+    vert1:u16 = load(argAddr, 0x06);
+    vert0:u16 = load(argAddr, 0x02);
+    u16<$a2> vert2 = load(argAddr, 0x04);
+
+    RA = T3DCmd_TriDraw_Repeat_Loop_End; // returned to from:  'RDPQ_Triangle_Send_Async'
+    goto RDPQ_Triangle_Send_Async;
+  }
+
+  RA:u16 = RSPQ_Loop;
+  store(RA:u16, CLIP_RA);
+  goto RSPQ_Loop;
+
+  T3DCmd_TriDraw_Repeat_Loop_End: {
+    store(currOffset, RDPQ_TRI_BUFF_OFFSET);
+    goto T3DCmd_TriDraw_Repeat;
+  }
 }
 
 /**
