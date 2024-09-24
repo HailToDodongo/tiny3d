@@ -648,32 +648,24 @@ T3DCmd_TriDraw_End:
   j DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   addiu $t2, $zero, 12
 T3DCmd_TriDraw_Multi:
-  or $ra, $zero, $zero
-  MULTI_LOOP_START:
-  beq $ra, $zero, LABEL_000E
-  nop
-  ori $ra, $zero, %lo(RSPQ_Loop)
+  ori $ra, $zero, %lo(T3DCmd_TriDraw_Multi_SecondTri)
   sh $ra, %lo(CLIP_RA)($zero)
+  addiu $v1, $gp, %lo(RSPQ_DMEM_BUFFER)  -10
+  ori $sp, $zero, %lo(T3DCmd_TriDraw_Multi_SecondTri)
+  ori $ra, $zero, %lo(MULTI_LOOP_JUMP_END)
+  j RDPQ_Triangle_Send_Async
+  srl $a2, $a1, 16
+  MULTI_LOOP_JUMP_END:
+  sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
+  T3DCmd_TriDraw_Multi_SecondTri:
+  ori $sp, $zero, %lo(RSPQ_Loop)
+  addiu $v1, $gp, %lo(RSPQ_DMEM_BUFFER)  -6
   lhu $a0, %lo(RSPQ_DMEM_BUFFER  -6)($gp)
   lhu $a2, %lo(RSPQ_DMEM_BUFFER  -4)($gp)
   lhu $a1, %lo(RSPQ_DMEM_BUFFER  -2)($gp)
-  ori $sp, $zero, %lo(RSPQ_Loop)
   ori $ra, $zero, %lo(T3DCmd_TriDraw_End)
-  beq $zero, $zero, RDPQ_Triangle_Send_Async
-  addiu $v1, $gp, %lo(RSPQ_DMEM_BUFFER)  -6
-  LABEL_000E:
-  ori $ra, $zero, %lo(MULTI_LOOP_START)
-  sh $ra, %lo(CLIP_RA)($zero)
-  srl $a2, $a1, 16
-  addiu $v1, $gp, %lo(RSPQ_DMEM_BUFFER)  -10
-  ori $sp, $zero, %lo(MULTI_LOOP_START)
-  ori $ra, $zero, %lo(MULTI_LOOP_JUMP_END)
-  LABEL_000F:
   j RDPQ_Triangle_Send_Async
-  nop
-  MULTI_LOOP_JUMP_END:
-  j MULTI_LOOP_START
-  sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
+  sw $sp, %lo(CLIP_RA)($zero)
 T3DCmd_TriSync:
   lbu $s7, %lo(CLIP_CODE_ADDR + 0)
   beq $s7, $zero, RDPQ_Triangle_Send_End
