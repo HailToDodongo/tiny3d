@@ -242,7 +242,7 @@ void t3d_viewport_calc_viewspace_pos(T3DViewport *viewport, T3DVec3 *out, const 
 void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2);
 
 // @TODO: docs
-void t3d_tri_draw_multi(uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3);
+void t3d_tri_draw_shared(uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4);
 
 /**
  * Syncs pending triangles.

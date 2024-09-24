@@ -338,8 +338,17 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
       }
 
       // now draw all triangles of the part
-      for(int i = 0; i < part->numIndices; i+=3) {
+      int i = 0;
+      for(; i < part->numIndices && part->indices[i] != 0xFF; i+=3) {
         t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
+        //debugf("Draw Tri: %d, %d, %d\n", part->indices[i], part->indices[i+1], part->indices[i+2]);
+      }
+      for(i+=1; i < part->numIndices; i+=5) {
+        t3d_tri_draw_shared(
+          part->indices[i], part->indices[i+1], part->indices[i+2],
+          part->indices[i+3], part->indices[i+4]
+        );
+        //debugf("Draw Shared: %d, %d, %d, %d, %d\n", part->indices[i], part->indices[i+1], part->indices[i+2], part->indices[i+3], part->indices[i+4]);
       }
 
       // Sync, waits for any triangles in flight. This is necessary since the rdpq-api is not

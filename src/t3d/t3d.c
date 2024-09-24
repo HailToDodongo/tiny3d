@@ -280,21 +280,23 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
   );
 }
 
-void t3d_tri_draw_multi(uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3) {
+void t3d_tri_draw_shared(uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4) {
   v0 *= VERT_OUTPUT_SIZE;
   v1 *= VERT_OUTPUT_SIZE;
   v2 *= VERT_OUTPUT_SIZE;
   v3 *= VERT_OUTPUT_SIZE;
+  v4 *= VERT_OUTPUT_SIZE;
 
   v0 += RSP_T3D_TRI_BUFFER & 0xFFFF;
   v1 += RSP_T3D_TRI_BUFFER & 0xFFFF;
   v2 += RSP_T3D_TRI_BUFFER & 0xFFFF;
   v3 += RSP_T3D_TRI_BUFFER & 0xFFFF;
+  v4 += RSP_T3D_TRI_BUFFER & 0xFFFF;
 
   uint32_t v12 = (v1 << 16) | v2;
-  uint32_t v30 = (v3 << 16) | v0;
+  uint32_t v34 = (v3 << 16) | v4;
   rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_DRAW_IDX,
-    v0, v12, v30
+    v0, v12, v34
   );
 }
 
