@@ -12,6 +12,7 @@ OBJ = build/parser.o build/main.o build/lib/lodepng.o \
 	build/lib/meshopt/indexcodec.o \
 	build/lib/meshopt/indexgenerator.o \
 	build/lib/meshopt/simplifier.o \
+	build/lib/meshopt/stripifier.o \
 	build/lib/meshopt/spatialorder.o \
 	build/lib/meshopt/vcacheanalyzer.o \
 	build/lib/meshopt/vcacheoptimizer.o \

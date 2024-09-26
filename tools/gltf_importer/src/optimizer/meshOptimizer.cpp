@@ -3,6 +3,7 @@
 * @license MIT
 */
 #include "optimizer.h"
+#include "../lib/meshopt/meshoptimizer.h"
 #include <cassert>
 #include <array>
 
@@ -69,11 +70,41 @@ void optimizeModelChunk(ModelChunked &model)
 
       baseIndex = tri[0] + 3;
     }*/
+    {
+      //assert(chunk.isStrip == false);
+      std::vector<uint8_t> optimizedIndices{};
+      optimizedIndices.resize((chunk.indices.size() / 3) * 5); // worst case
+      size_t optimizedIndexCount = meshopt_stripify(
+        optimizedIndices.data(), chunk.indices.data(), chunk.indices.size(), chunk.vertexCount, (uint8_t)0xFF
+      );
+      //chunk.isStrip = true;
+
+      printf("Old: ");
+      for(size_t i=0; i<chunk.indices.size(); ++i) {
+        printf("%d ", chunk.indices[i]);
+      }
+
+      printf("\nstrip indices: %d -> %d: ", chunk.indices.size(), optimizedIndexCount);
+      //chunk.indices.clear();
+      for(size_t i=0; i<optimizedIndexCount; ++i) {
+        printf("%d ", optimizedIndices[i]);
+        //chunk.indices.push_back(optimizedIndices[i]);
+      }
+      printf("\n");
+    }
+
+    for(int t=0; t<tris.size(); ++t)
+    {
+      auto &tri = tris[t];
+      chunk.indices.push_back(tri[0]);
+      chunk.indices.push_back(tri[1]);
+      chunk.indices.push_back(tri[2]);
+    }
 
     // try to detect triangles that are connected by at least one vertex
     // e.g. [0,1,2] [2,3,4] -> [0,1,2,3,4]
     // the input indices can be rotated to fit (shared index must be in the middle) as long as winding order is preserved
-    for(int t=0; t<tris.size(); ++t)
+    /*for(int t=0; t<tris.size(); ++t)
     {
       bool foundQuad = false;
       auto &tri = tris[t];
@@ -99,7 +130,7 @@ void optimizeModelChunk(ModelChunked &model)
         chunk.indices.push_back(tri[1]);
         chunk.indices.push_back(tri[2]);
       }
-    }
+    }*/
 
     if(!indicesFans.empty() || !indicesRepeat.empty()) {
       chunk.indices.push_back(0xFF);
