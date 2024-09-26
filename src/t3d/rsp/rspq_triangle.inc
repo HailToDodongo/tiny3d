@@ -75,9 +75,7 @@
     # the last triangle to the RDP.
     #
     # INPUT:
-    # * a0: high 16-bit word of the triangle command. This will be
-    #       completed with the left/right flag and the mipmap level.
-    # * a1,a2,a3: pointer to the triangle structures in DMEM
+    # * a0,a1,a2: pointer to the triangle structures in DMEM
     # * v0: 0=cull front, 1=cull back, any other value = culling disabled
     # * s3: output buffer pointer
     # * sp: return address if culled
@@ -85,6 +83,7 @@
     # OUTPUT:
     # * v1: 1=clipping required, 0=nothing to do
     # * s3: pointer to the end of the primitive in the output buffer
+    # * s7: next output buffer offset (not pointer), either 0 or 176
     #
     # CLOBBER:
     # t0-t6, a0-a3
@@ -112,6 +111,7 @@
     #   test_rdpq_triangle checks if there's a saturation and skip checks for known-wrong values.
 
 T3DCmd_TriDraw:
+    lbu v0, %lo(FACE_CULLING + 0);
     srl a2, a1, 16
     addiu v1, gp, %lo(RSPQ_DMEM_BUFFER) - 6
     ori sp, zero, %lo(RSPQ_Loop)
@@ -188,7 +188,6 @@ RDPQ_Triangle_Send_Async:
     mfc0 fp, COP0_DP_CLOCK
     emux_trace_start
 #endif
-    # emux_trace_start
 
     #define vall1    $v01
     #define vall2    $v02
@@ -233,38 +232,52 @@ RDPQ_Triangle_Send_Async:
     # Should we do backface culling before clipping check?
     # If so, should we do that BEFORE or AFTER the sort-of-three?
 
+    #ifdef STORE_VTX1
+    sh vtx1, 0(s3)
+    #endif
+    #ifdef STORE_VTX2
+    sh vtx2, 2(s3)
+    #endif
+    #ifdef STORE_VTX3
+    sh vtx3, 4(s3)
+    #endif
+
+    # emux_trace_start
+    lhu s7, %lo(RDPQ_TRI_BUFF_OFFSET);
     llv vall1, VTX_ATTR_XY,vtx1
     llv vall2, VTX_ATTR_XY,vtx2
     llv vall3, VTX_ATTR_XY,vtx3;                # Create a vector for negative pow2 constants
-    ori t2, zero, 0xFF;                         vsubc vmconst, vzero, vshift;
+    lhu clip1, VTX_ATTR_CLIPFLAGS(vtx1);        vsubc vmconst, vzero, vshift;
 
-    vcopy vy1, vall1.e1;                        llv vall1.e3, RDPQ_TRIANGLE_VTX1_DMEM
+    vcopy vy1, vall1.e1;                        lsv vall1.e3, RDPQ_TRIANGLE_VTX1_DMEM
     vcopy vy2, vall2.e1;                        lsv vall2.e3, RDPQ_TRIANGLE_VTX2_DMEM
-    vcopy vy3, vall3.e1;                        lhu clip1, VTX_ATTR_CLIPFLAGS(vtx1)
+    vcopy vy3, vall3.e1;                        lsv vall3.e3, RDPQ_TRIANGLE_VTX3_DMEM
 
-    # Clear VCO to make sure the first VGE does the right thing if vy1==vy2
-    # AND: Create vector with constants  1 and -1 (to be used for cross product)
-    vaddc vk1, vzero, K1;                       lhu clip2, VTX_ATTR_CLIPFLAGS(vtx2)
-    vmov vall3.e3, vall1.e4;                    lhu clip3, VTX_ATTR_CLIPFLAGS(vtx3)
+    # Create vector of ones.
+    # Do it with vaddc so that we also clear
+    # VCO to make sure the first VGE does
+    # the right thing if vy1==vy2               # Finish loading clipping codes
+    vaddc vk1, vzero, K1;                       lhu clip3, VTX_ATTR_CLIPFLAGS(vtx3)
+                                                lhu clip2, VTX_ATTR_CLIPFLAGS(vtx2)
 
     # Do a sort-of-three (min, mid, max), using vyN as key of the sort,
     # and vallN as values to sort. We compare the keys with vlt/vge,
     # and then use vmrg to apply the swap.
-    ldv v__, RDPQ_TRIANGLE_VTX1_DMEM;           vge vytmp1, vy1, vy2;
-    or clip1, clip2;                            vmrg valltmp1, vall1, vall2;
-    or clip1, clip3;                            vlt vy1, vy1, vy2;
+    ori $at, zero, 0xFF;                        vge vytmp1, vy1, vy2;
+    or clip1, clip3;                            vmrg valltmp1, vall1, vall2;
+    or clip1, clip2;                            vlt vy1, vy1, vy2;
     cfc2 did_swap_0, COP2_CTRL_VCC;             vmrg vall1, vall1, vall2;
 
-    andi t4, clip1, 0xFF;                       vxor vhmlupp, vhmlupp
+    andi t1, clip1, 0xFF;                       vxor vhmlupp, vhmlupp
 
-    bne t4, t2, CullTri;                        vge vytmp2, vy1, vy3;
-    sdv v__, 0, ADDR_SCRATCH_MEM, zero;         vmrg valltmp2, vall1, vall3;
-    lbu cull, %lo(FACE_CULLING + 0);            vlt vy1, vy1, vy3;
+    bne t1, $at, CullTri;                       vge vytmp2, vy1, vy3;
+    nop;                                        vmrg valltmp2, vall1, vall3;
+    lw tricmd, %lo(TRI_COMMAND);                vlt vy1, vy1, vy3;
     cfc2 did_swap_1, COP2_CTRL_VCC;             vmrg vall1, vall1, vall3;
 
-    lhu s3, %lo(RDPQ_TRI_BUFF_OFFSET);          vge vy3, vytmp1, vytmp2;
-    andi clip1, 0xFF00;                         vmrg vall3, valltmp1, valltmp2;
-    lhu s7, %lo(RDPQ_TRI_BUFF_OFFSET + 0);      vlt vy2, vytmp1, vytmp2;
+    andi clip1, clip1, 0xFF00;                  vge vy3, vytmp1, vytmp2;
+    addiu s3, s7, %lo(CLIP_BUFFER_TMP);         vmrg vall3, valltmp1, valltmp2;
+    ssv vy1.e0, 6,s3;                           vlt vy2, vytmp1, vytmp2;
     cfc2 did_swap_2, COP2_CTRL_VCC;             vmrg vall2, valltmp1, valltmp2;
 
     # Copy Y1, Y2 into vy3, so that we get the three sorted Y in the same
@@ -273,28 +286,27 @@ RDPQ_Triangle_Send_Async:
 
     # Build vhml:
     #    vhml      =   HX HY MX MY    LX LY  0  NZf
-    vmov vy3.e3, vy1.e0;                        xor did_swap_0, did_swap_1
-    vsubc vhml, vall3, vall1;                   addiu s3, s3, %lo(CLIP_BUFFER_TMP);
-    vmov vy3.e2, vy2.e0;                        xor did_swap_0, did_swap_2
+    bnez clip1, RDPQ_Triangle_Clip;             xor did_swap_0, did_swap_1
+    vsubc vhml, vall3, vall1;                   xor did_swap_0, did_swap_2
     vsubc vm, vall2, vall1;                     mfc2 vtx1, vall1.e3
     vsubc vl, vall3, vall2;                     mfc2 vtx2, vall2.e3
 
     # vx12 = X1 -- X2 --  -- -- -- --
     vmov vx12_f.e0, vall1.e0;                   andi did_swap_0, 1
-    vmov vx12_f.e2, vall2.e0;                   xor cull, did_swap_0
+    vmov vx12_f.e2, vall2.e0;                   xor t1, cull, did_swap_0
 
     # Prepare -MY for crossprod
     vsubc v__, vzero, my;                       mfc2 vtx3, vall3.e3
 
     # FY.e4 = Y1 (s15.16)
-    vsll8 vfy_f, vy1, 14;                       sdv vy3.e0, 0,s3
-    vsra  vfy_i, vy1, 2;                        bnez clip1, RDPQ_Triangle_Clip
+    vsll8 vfy_f, vy1, 14;                       ssv vy2.e0, 4,s3
+    vsra  vfy_i, vy1, 2;                        xori s7, s7, 176
 
-    vmudh vnz_f, vm, hy;                        xori s7, s7, 176
+    vmudh vnz_f, vm, hy;                        ssv vy3.e0, 2,s3
     vmadh vnz_f, vhml, v__;                     slv vm.e0,   8,s3
     vsar vnz_i, COP2_ACC_HI;                    slv vl.e0,  12,s3
     vsar vnz_f, COP2_ACC_MD;                    ldv vhml.e2, 8,s3
-
+# emux_trace_stop
     #undef clip1
     #undef clip2
     #undef clip3
@@ -322,9 +334,9 @@ RDPQ_Triangle_Send_Async:
 
     # Compute ISH (H slope). 1/HY  (s14.1)
     vrcp  vslope_f.e0, hy;                      slt t0, t0, zero
-    vrcph vslope_i.e0, hy;                      beq t0, cull, CullTri
+    vrcph vslope_i.e0, hy;                      beq t0, t1, CullTri
     # Compute ISM (M slope). 1/MY  (s14.1)
-    vrcp  vslope_f.e2, my;                      lw tricmd, %lo(TRI_COMMAND);
+    vrcp  vslope_f.e2, my;                      # <delay slot>
     vrcph vslope_i.e2, my;                      lsv vw_i.e0, VTX_ATTR_Wi,vtx1
     # Compute ISL (L slope). 1/LY  (s14.1)
     vrcp  vslope_f.e4, ly;                      lsv vw_i.e2, VTX_ATTR_Wi,vtx2
@@ -781,6 +793,15 @@ RDPQ_Triangle_Send_End:
     mfc0 t0, COP0_DMA_BUSY
     bnez t0, RDPQ_Triangle_Send_End
     sh zero, %lo(RDPQ_TRI_BUFF_OFFSET)(zero) # clear offset after each explicit wait
-    j RSPQCmd_RdpAppendBuffer
-    lw a0, %lo(RDPQ_CURRENT)
+
+    # j RSPQCmd_RdpAppendBuffer
+    # lw a0, %lo(RDPQ_CURRENT) # we don't want to destroy a0 for clipping
+
+    lw t1, %lo(RDPQ_CURRENT)
+    lbu t0, %lo(RDPQ_SYNCFULL_ONGOING)
+    bnez t0, JrRa
+    sw t1, %lo(RDPQ_CURRENT)
+    jr ra
+    mtc0 t1, COP0_DP_END
+
     .endfunc

@@ -110,6 +110,8 @@ macro intersection(
 @Align(8)
 function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, u32<$a2> ptrVertC)
 {
+  u8<$v0> faceCull; // stays across triangles, no need to load here
+
   arraySize = TRI_SIZE_3; // 3-verts by default
 
   // The loop streams vertices in and out at the same time.
@@ -220,8 +222,8 @@ function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, 
     @Relative triToScreenSpace(ptrVertIn); // Note: this moves 'ptrVertIn' back by TRI_SIZE
 
     ptrVertA = CLIP_BUFFER_RESULT;
-    ptrVertC = ptrVertIn;
-    ptrVertB = ptrVertIn + TRI_SIZE;
+    ptrVertB = ptrVertIn;
+    ptrVertC = ptrVertIn + TRI_SIZE;
 
     u32<$v1> vertAddr = RSPQ_SCRATCH_MEM;
     store(ptrVertC:u16, RSPQ_SCRATCH_MEM, 2);
@@ -229,7 +231,6 @@ function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, 
 
     #ifdef DRAW_TRIS
       u32<$sp> cullDest = RDPQ_Triangle_Clip;
-
       RDPQ_Triangle_Send_Async(ptrVertA, ptrVertB, ptrVertC, cullDest);
       RDPQ_Triangle_Send_End();
       RDPQ_Triangle_Clip:

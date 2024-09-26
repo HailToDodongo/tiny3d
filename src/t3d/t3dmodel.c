@@ -348,13 +348,18 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
           part->indices[i], part->indices[i+1], part->indices[i+2],
           part->indices[i+3], part->indices[i+4]
         );
+        //t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
+        //t3d_tri_draw(part->indices[i+3], part->indices[i+4], part->indices[i+2]);
         //debugf("Draw Shared: %d, %d, %d, %d, %d\n", part->indices[i], part->indices[i+1], part->indices[i+2], part->indices[i+3], part->indices[i+4]);
       }
       for(i+=1; i < part->numIndices && part->indices[i] != 0xFF; i+=4) {
-        t3d_tri_draw_repeat(
+        /*t3d_tri_draw_repeat(
           part->indices[i+1], part->indices[i+2], part->indices[i+3],
           part->indices[i]
-        );
+        );*/
+        for(int j = 0; j < part->indices[i]; ++j) {
+          t3d_tri_draw(part->indices[i+1]+j*3, part->indices[i+2]+j*3, part->indices[i+3]+j*3);
+        }
         //debugf("Draw repeat: %d x [%d, %d, %d]\n", part->indices[i], part->indices[i+1], part->indices[i+2], part->indices[i+3]);
       }
 

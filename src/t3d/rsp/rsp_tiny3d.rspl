@@ -158,6 +158,7 @@ state
   u16 RDPQ_TRI_BUFF_OFFSET = {0};
   u16 SCREEN_UVGEN_SCALE = {0};
   u16 VERTEX_FX_FUNC = {0}; // points top the current 'VertexFX_' function in IMEM
+  u16 CLIP_RA = {0}; // return address for the clipping code
 
   u8 FACE_CULLING = {0}; // 0=cull front, 1=cull back, 2=no-culling
   u8 FOG_STORE_OFFSET  = {VTX_ATTR_ST}; // offset (relative to current vertex) where to store fog, set to UV for no fog
@@ -171,7 +172,6 @@ temp_state {
   u32 CLIP_CODE_ADDR = {0};
   u32 CLIP_CODE_ORG_ADDR = {0}; // address of the original code (this overlay here)
   u16 CLIP_CODE_SIZE = {0}; // size to copy
-  u16 CLIP_RA = {0}; // return address for the clipping code
   u16 ADDR_OFFSET[4] = {-1, 108, 108, 108};
 }
 
@@ -781,42 +781,35 @@ command<0> T3DCmd_TriDraw_Cmd(u32 vert0, u32 vert1)
     //u32<$a2> vert2 = vert1 >> 16;
     u32<$a2> vert2;
 
-  {
-    // (NOTE: moved to 'T3DCmd_TriDraw')
-      //u32<$v1> vertAddr = get_cmd_address(2); // where to load the vertex pointers from
-      //u32<$sp> rejectDest = RSPQ_Loop; // jump-target for rejected/culled tris
 
-    // (NOTE: moved to 'RDPQ_Triangle_Send_Async')
-      // if a triangle was generated, change the offset to swap output-buffers
-      // the DMA is still active at this point, so we can only re-use it after a next send or sync
-      //     u16 currOffset = load(RDPQ_TRI_BUFF_OFFSET);
-      //     currOffset ^= RDP_CMD_MAX_SIZE; // note: overflows into the next buffer
+  // (NOTE: moved to 'T3DCmd_TriDraw')
+    //u32<$v1> vertAddr = get_cmd_address(2); // where to load the vertex pointers from
+    //u32<$sp> rejectDest = RSPQ_Loop; // jump-target for rejected/culled tris
+    //u8<$v0> = load(FACE_CULLING); // face culling flag
+  // (NOTE: moved to 'RDPQ_Triangle_Send_Async')
+    // if a triangle was generated, change the offset to swap output-buffers
+    // the DMA is still active at this point, so we can only re-use it after a next send or sync
+    //     u16 currOffset = load(RDPQ_TRI_BUFF_OFFSET);
+    //     currOffset ^= RDP_CMD_MAX_SIZE; // note: overflows into the next buffer
 
-    T3DCmd_TriDraw_End: // returned to from:  'RDPQ_Triangle_Send_Async'
+  T3DCmd_TriDraw_End: // returned to from:  'RDPQ_Triangle_Send_Async'
     u16<$s7> currOffset;
     store(currOffset, RDPQ_TRI_BUFF_OFFSET);
     exit;
 
-    RDPQ_Triangle_Clip:
-
-    // reload vertex indices, 'RDPQ_Triangle_Send_Async' may have modified them
-    vert2:u16 = load(RSPQ_SCRATCH_MEM, 0x04);
-    vert1:u16 = load(RSPQ_SCRATCH_MEM, 0x02);
-
-    // we need to clip now, first wait for any triangle still in flight
-    // this is necessary as clipping uses both buffers used as outputs
-    RDPQ_Triangle_Send_End(); // <- resets 'RDPQ_TRI_BUFF_OFFSET' to zero
-
-    vert0:u16 = load(RSPQ_SCRATCH_MEM, 0x00);  // a0 gets overwritten by 'RDPQ_Triangle_Send_End'
-  }
+  RDPQ_Triangle_Clip:
+  u8 clipLoaded = load(CLIP_CODE_ADDR);
+  // we need to clip now, first wait for any triangle still in flight
+  // this is necessary as clipping uses both buffers used as outputs
+  // Used: t0, t1
+  RDPQ_Triangle_Send_End(); // <- resets 'RDPQ_TRI_BUFF_OFFSET' to zero
 
   // Now we need to perform clipping, the code for this is in a separate overlay.
   // Check if already loaded, or load it in here otherwise.
   // It will stay until the next tri-sync command (or if a different overlay is executed)
-  u8 clipLoaded = load(CLIP_CODE_ADDR);
+  u32<$s4> targetImem = CLIPPING_CODE_TARGET;
   if(clipLoaded)goto CLIPPING_CODE_TARGET;
 
-  u32<$s4> targetImem = CLIPPING_CODE_TARGET;
   u32<$s0> codeAddr = load(CLIP_CODE_ADDR);
   u16<$t0> codeSize = load(CLIP_CODE_SIZE);
 

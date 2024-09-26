@@ -43,7 +43,7 @@ void optimizeModelChunk(ModelChunked &model)
 
     // try to detect triangles that have ascending indices (e.g. [0,1,2], [3,4,5], [6,7,8], ...)
     // this can be compacted into a single triangle + a repeat count ([0,1,2] x 3)
-    int baseIndex = 0;
+    /*int baseIndex = 0;
     int repeatCount = 0;
     std::array<uint8_t, 3> repeatTri{0,0,0};
     for(int t=0; t<tris.size(); ++t)
@@ -68,7 +68,7 @@ void optimizeModelChunk(ModelChunked &model)
       }
 
       baseIndex = tri[0] + 3;
-    }
+    }*/
 
     // try to detect triangles that are connected by at least one vertex
     // e.g. [0,1,2] [2,3,4] -> [0,1,2,3,4]

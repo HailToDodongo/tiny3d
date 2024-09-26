@@ -166,6 +166,8 @@
     SCREEN_UVGEN_SCALE: .half 0
     .align 1
     VERTEX_FX_FUNC: .half 0
+    .align 1
+    CLIP_RA: .ds.b 2
     FACE_CULLING: .byte 0
     FOG_STORE_OFFSET: .byte 12
     ACTIVE_LIGHT_SIZE: .byte 0
@@ -179,8 +181,6 @@
     CLIP_CODE_ORG_ADDR: .word 0
     .align 1
     CLIP_CODE_SIZE: .half 0
-    .align 1
-    CLIP_RA: .ds.b 2
     .align 1
     ADDR_OFFSET: .half -1, 108, 108, 108
   TEMP_STATE_MEM_END:
@@ -636,20 +636,17 @@ T3DCmd_TriDraw_End:
   j RSPQ_Loop
   sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
   RDPQ_Triangle_Clip:
-  lhu $a2, %lo(RSPQ_SCRATCH_MEM + 4)
   jal RDPQ_Triangle_Send_End
-  lhu $a1, %lo(RSPQ_SCRATCH_MEM + 2)
-  lbu $s7, %lo(CLIP_CODE_ADDR + 0)
-  bne $s7, $zero, CLIPPING_CODE_TARGET
-  lhu $a0, %lo(RSPQ_SCRATCH_MEM + 0)
+  lbu $s6, %lo(CLIP_CODE_ADDR + 0)
+  bne $s6, $zero, CLIPPING_CODE_TARGET
+  ori $s4, $zero, %lo(CLIPPING_CODE_TARGET)
+  addiu $t2, $zero, 12
   lhu $t0, %lo(CLIP_CODE_SIZE + 0)
   ori $ra, $zero, %lo(CLIPPING_CODE_TARGET)
   lw $s0, %lo(CLIP_CODE_ADDR + 0)
   sb $t0, %lo(CLIP_CODE_ADDR)($zero)
-  ori $s4, $zero, %lo(CLIPPING_CODE_TARGET)
-  addiu $t0, $t0, -1
   j DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
-  addiu $t2, $zero, 12
+  addiu $t0, $t0, -1
 T3DCmd_TriDraw_Multi:
   ori $ra, $zero, %lo(T3DCmd_TriDraw_Multi_SecondTri)
   sh $ra, %lo(CLIP_RA)($zero)
