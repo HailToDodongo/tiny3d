@@ -38,8 +38,8 @@ void optimizeModelChunk(ModelChunked &model)
       tris.push_back({chunk.indices[i], chunk.indices[i+1], chunk.indices[i+2]});
     }
 
-    std::vector<uint8_t> indicesFans{};
     std::vector<uint8_t> indicesRepeat{};
+    std::vector<uint8_t> indicesStrip{};
     chunk.indices.clear();
 
     // try to detect triangles that have ascending indices (e.g. [0,1,2], [3,4,5], [6,7,8], ...)
@@ -71,26 +71,25 @@ void optimizeModelChunk(ModelChunked &model)
       baseIndex = tri[0] + 3;
     }*/
     {
-      //assert(chunk.isStrip == false);
       std::vector<uint8_t> optimizedIndices{};
-      optimizedIndices.resize((chunk.indices.size() / 3) * 5); // worst case
+      optimizedIndices.resize(tris.size() * 5); // worst case
       size_t optimizedIndexCount = meshopt_stripify(
-        optimizedIndices.data(), chunk.indices.data(), chunk.indices.size(), chunk.vertexCount, (uint8_t)0xFF
+        optimizedIndices.data(), (uint8_t*)tris[0].data(), tris.size() * 3, chunk.vertexCount, (uint8_t)0xFF
       );
-      //chunk.isStrip = true;
 
-      printf("Old: ");
-      for(size_t i=0; i<chunk.indices.size(); ++i) {
-        printf("%d ", chunk.indices[i]);
+      printf("Old:\n");
+      for(auto &tri: tris) {
+        printf("    [%d %d %d]\n", tri[0], tri[1], tri[2]);
       }
 
-      printf("\nstrip indices: %d -> %d: ", chunk.indices.size(), optimizedIndexCount);
+      printf("\nstrip indices: %d -> %d: ", tris.size() * 3, optimizedIndexCount);
       //chunk.indices.clear();
       for(size_t i=0; i<optimizedIndexCount; ++i) {
         printf("%d ", optimizedIndices[i]);
-        //chunk.indices.push_back(optimizedIndices[i]);
+        indicesStrip.push_back(optimizedIndices[i]);
       }
       printf("\n");
+      tris.clear();
     }
 
     for(int t=0; t<tris.size(); ++t)
@@ -101,42 +100,12 @@ void optimizeModelChunk(ModelChunked &model)
       chunk.indices.push_back(tri[2]);
     }
 
-    // try to detect triangles that are connected by at least one vertex
-    // e.g. [0,1,2] [2,3,4] -> [0,1,2,3,4]
-    // the input indices can be rotated to fit (shared index must be in the middle) as long as winding order is preserved
-    /*for(int t=0; t<tris.size(); ++t)
-    {
-      bool foundQuad = false;
-      auto &tri = tris[t];
-      for(int r=t+1; r<tris.size(); ++r)
-      {
-        auto sharedIdx = getSharedIndex(tri, tris[r]);
-        if(sharedIdx[0] >= 0) {
-          arrayShiftRight(tri, 2-sharedIdx[0]);
-          arrayShiftRight(tris[r], (3-sharedIdx[1]) % 3);
-          assert(tri[2] == tris[r][0]);
-          printf("   Share: idx=%d/%d | %d %d %d with %d %d %d\n", t, r, tri[0], tri[1], tri[2], tris[r][0], tris[r][1], tris[r][2]);
-          indicesFans.insert(indicesFans.end(), {tri[0], tri[1], tri[2], tris[r][1], tris[r][2]});
-          tris.erase(tris.begin() + r);
-          tris.erase(tris.begin() + t);
-          --t;
-          foundQuad = true;
-          break;
-        }
-      }
-      if(!foundQuad) {
-        printf("   Tri: idx=%d | %d %d %d\n", t, tri[0], tri[1], tri[2]);
-        chunk.indices.push_back(tri[0]);
-        chunk.indices.push_back(tri[1]);
-        chunk.indices.push_back(tri[2]);
-      }
-    }*/
-
-    if(!indicesFans.empty() || !indicesRepeat.empty()) {
-      chunk.indices.push_back(0xFF);
-      chunk.indices.insert(chunk.indices.end(), indicesFans.begin(), indicesFans.end());
+    if(!indicesRepeat.empty()) {
       chunk.indices.push_back(0xFF);
       chunk.indices.insert(chunk.indices.end(), indicesRepeat.begin(), indicesRepeat.end());
     }
+
+    chunk.indices.insert(chunk.indices.end(), indicesStrip.begin(), indicesStrip.end());
+
   }
 }

@@ -338,92 +338,36 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
       }
 
       // now draw all triangles of the part
-      int i = 0;
-      for(; i < part->numIndices && part->indices[i] != 0xFF; i+=3) {
-        t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
-        //debugf("Draw Tri: %d, %d, %d\n", part->indices[i], part->indices[i+1], part->indices[i+2]);
-      }
-      for(i+=1; i < part->numIndices && part->indices[i] != 0xFF; i+=5) {
-        t3d_tri_draw_shared(
-          part->indices[i], part->indices[i+1], part->indices[i+2],
-          part->indices[i+3], part->indices[i+4]
-        );
-        //t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
-        //t3d_tri_draw(part->indices[i+3], part->indices[i+4], part->indices[i+2]);
-        //debugf("Draw Shared: %d, %d, %d, %d, %d\n", part->indices[i], part->indices[i+1], part->indices[i+2], part->indices[i+3], part->indices[i+4]);
-      }
-      for(i+=1; i < part->numIndices && part->indices[i] != 0xFF; i+=4) {
-        /*t3d_tri_draw_repeat(
-          part->indices[i+1], part->indices[i+2], part->indices[i+3],
-          part->indices[i]
-        );*/
-        for(int j = 0; j < part->indices[i]; ++j) {
-          t3d_tri_draw(part->indices[i+1]+j*3, part->indices[i+2]+j*3, part->indices[i+3]+j*3);
-        }
-        //debugf("Draw repeat: %d x [%d, %d, %d]\n", part->indices[i], part->indices[i+1], part->indices[i+2], part->indices[i+3]);
-      }
+      uint16_t idxCount = part->numIndices & 0x7FFF;
 
-      // Strip
-      /*uint16_t idxCount = part->numIndices & 0x7FFF;
-      bool isStrip = part->numIndices & (1 << 15);
+      bool isStrip = true;//part->numIndices & (1 << 15);
       if(isStrip) {
-         uint8_t idx[3] = {0,0,0};
-         uint8_t stripIdx = 0;
+        uint8_t *idxPtr = part->indices;
+        uint8_t *idxPtrEnd = idxPtr + idxCount - 2;
+        uint32_t flags = lastRenderFlags & ~(T3D_FLAG_CULL_FRONT | T3D_FLAG_CULL_BACK);
+        uint8_t faceFlag = 0;
 
-        debugf("Idx: ");
-         for(uint16_t i = 0; i < idxCount; i++) {
-          debugf("%d ", part->indices[i]);
-         }
-         debugf("\n");
-
-          uint32_t flags = lastRenderFlags & ~(T3D_FLAG_CULL_FRONT | T3D_FLAG_CULL_BACK);
-
-          bool forceNewTri = true;
          // now convert back into 't3d_tri_draw' calls, 0xFF marks start of a new triangle
-          for(uint16_t i = 0; i < idxCount; i++) {
-
-
-            uint8_t idxVal = part->indices[i];
-            if(forceNewTri || idxVal == 0xFF) {
-              if(idxVal == 0xFF)++i;
-              idx[0] = part->indices[i+0];
-              idx[1] = part->indices[i+1];
-              idx[2] = part->indices[i+2];
-              if(!forceNewTri)stripIdx = 0;
-
-              //t3d_state_set_drawflags(flags | (((stripIdx) & 1) ? T3D_FLAG_CULL_FRONT : T3D_FLAG_CULL_BACK));
-              t3d_tri_draw(idx[0], idx[1], idx[2]);
-              debugf("Start: %d %d %d\n", idx[0], idx[1], idx[2]);
-
-              i += 2;
-            } else {
-              ++stripIdx;
-              idx[0] = idx[1];
-              idx[1] = idx[2];
-              idx[2] = idxVal;
-
-              if(idx[0] == idx[2] || idx[0] == idx[1] || idx[1] == idx[2]) {
-                debugf("Degenerate triangle: %d %d %d\n", idx[0], idx[1], idx[2]);
-                forceNewTri = true;
-                i-=2;
-                stripIdx++;
-                continue;
-              }
-
-              debugf("Strip: %d %d %d\n", idx[0], idx[2], idx[1]);
-              //t3d_tri_draw_strip(idxVal, stripIdx & 1);
-
-              t3d_state_set_drawflags(flags | (((stripIdx) & 1) ? T3D_FLAG_CULL_FRONT : T3D_FLAG_CULL_BACK));
-              t3d_tri_draw(idx[0], idx[1], idx[2]);
-            }
-            forceNewTri = false;
+        for(; idxPtr < idxPtrEnd; ++idxPtr)
+        {
+          if(idxPtr[2] == 0xFF) {
+            faceFlag = 0;
+            idxPtr += 3;
           }
+
+          if(idxPtr[0] != idxPtr[2]) {
+            t3d_state_set_drawflags(flags | (faceFlag ? T3D_FLAG_CULL_FRONT : T3D_FLAG_CULL_BACK));
+            t3d_tri_draw(idxPtr[0], idxPtr[1], idxPtr[2]);
+          }
+
+          faceFlag = faceFlag ^ 1;
+        }
 
       } else {
         for(int i = 0; i < idxCount; i+=3) {
           t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
         }
-    }*/
+    }
 
       // Sync, waits for any triangles in flight. This is necessary since the rdpq-api is not
       // aware of this and could corrupt the RDP buffer. 't3d_vert_load' may also overwrite the source buffer too.
