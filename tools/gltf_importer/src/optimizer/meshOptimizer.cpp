@@ -39,7 +39,6 @@ void optimizeModelChunk(ModelChunked &model)
     }
 
     std::vector<uint8_t> indicesRepeat{};
-    std::vector<uint8_t> indicesStrip{};
     chunk.indices.clear();
 
     // try to detect triangles that have ascending indices (e.g. [0,1,2], [3,4,5], [6,7,8], ...)
@@ -86,7 +85,7 @@ void optimizeModelChunk(ModelChunked &model)
       //chunk.indices.clear();
       for(size_t i=0; i<optimizedIndexCount; ++i) {
         printf("%d ", optimizedIndices[i]);
-        indicesStrip.push_back(optimizedIndices[i]);
+        chunk.stripIndices.push_back(optimizedIndices[i]);
       }
       printf("\n");
       tris.clear();
@@ -104,8 +103,5 @@ void optimizeModelChunk(ModelChunked &model)
       chunk.indices.push_back(0xFF);
       chunk.indices.insert(chunk.indices.end(), indicesRepeat.begin(), indicesRepeat.end());
     }
-
-    chunk.indices.insert(chunk.indices.end(), indicesStrip.begin(), indicesStrip.end());
-
   }
 }

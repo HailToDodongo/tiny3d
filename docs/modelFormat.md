@@ -56,11 +56,13 @@ Interleaved data for two vertices.
 | 0x1C   | `int16[2]` | UV B (pixel coords)           |
 
 ### Indices (`I`)
-Index buffer, this is a shared buffer across all model/parts.
+Index buffer, this is a shared buffer across all model/parts.<br/>
+This will contain both 8 and 16 bit indices, depending on if used as triangles or triangle strips.<br/>
+Since 16bit indices are DMA'd by the RSP, they are aligned to 8 bytes.
 
-| Offset | Type   | Description                      |
-|--------|--------|----------------------------------|
-| 0x00   | `u8[]` | Local Indices, no size is stored |
+| Offset | Type           | Description                      |
+|--------|----------------|----------------------------------|
+| 0x00   | `u8[] / u16[]` | Local Indices, no size is stored |
 
 ### Material (`M`)
 Material data referenced by Objects.<br>
@@ -145,8 +147,10 @@ Model part data.
 | 0x04   | `u16` | Vertex count                    |
 | 0x06   | `u16` | Vertex dest. offset             |
 | 0x08   | `u32` | Index offset                    |
-| 0x0C   | `u16` | Index count                     |
-| 0x0E   | `u16` | Matrix index, `0xFFFF` for none |
+| 0x0C   | `u16` | Triangle Index count            |
+| 0x0E   | `u16` | Strip Index count               |
+| 0x10   | `u16` | Matrix index, `0xFFFF` for none |
+| 0x12   | `u16` | _padding_                       |
 
 ## Skeleton (`S`)
 Contains a tree of bones, used for skeletal animation.<br>

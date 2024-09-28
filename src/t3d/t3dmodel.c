@@ -9,6 +9,10 @@ static inline void* patch_pointer(void *ptr, uint32_t offset) {
   return (void*)(offset + (int32_t)ptr);
 }
 
+static inline void* align_pointer(void *ptr, uint32_t alignment) {
+  return (void*)(((uint32_t)ptr + alignment - 1) & ~(alignment - 1));
+}
+
 typedef struct {
   uint32_t hash;
   sprite_t *texture;
@@ -183,6 +187,11 @@ T3DModel *t3d_model_load(const char *path) {
         T3DObjectPart *part = &obj->parts[j];
         part->indices = patch_pointer(part->indices, (uint32_t)basePtrIndices);
         part->vert = patch_pointer(part->vert, (uint32_t)basePtrVertices);
+
+        if(part->numStripIndices != 0) {
+          uint16_t *idxPtr = (uint16_t*)align_pointer(part->indices + part->numIndices, 8);
+          t3d_indexbuffer_convert(idxPtr, part->numStripIndices);
+        }
       }
     }
 
@@ -222,7 +231,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
   uint16_t lastUvGenParams[2] = {0,0};
 
   uint64_t lastOtherMode = 0xFF;
-  uint32_t lastBlendMode = 0xFFFF'FFFF;
+  uint32_t lastBlendMode = 0xFFFFFFFF;
 
   for(uint32_t c = 0; c < model->chunkCount; c++) {
     char chunkType = model->chunkOffsets[c].type;
@@ -273,7 +282,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
       // load vertices, this will already do T&L (so matrices/fog/lighting must be set before)
       t3d_vert_load(part->vert, part->vertDestOffset, part->vertLoadCount);
       //debugf("Load Vertices[%d]: %d, %d | bone: %d\n", p, part->vertDestOffset, part->vertLoadCount, part->matrixIdx);
-      if(part->numIndices == 0)continue; // partial-load, last chunk of a sequence will both indices & material data
+      if(part->numIndices == 0 && part->numStripIndices == 0)continue; // partial-load, last chunk of a sequence will both indices & material data
 
       // now apply rdpq settings, these are independent of the t3d state
       // and only need to happen before a `t3d_tri_draw` call
@@ -337,37 +346,37 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
         }
       }
 
-      // now draw all triangles of the part
-      uint16_t idxCount = part->numIndices & 0x7FFF;
+      debugf("Draw Part: idx:%d strips:%d\n", part->numIndices, part->numStripIndices);
 
-      bool isStrip = true;//part->numIndices & (1 << 15);
-      if(isStrip) {
-        uint8_t *idxPtr = part->indices;
-        uint8_t *idxPtrEnd = idxPtr + idxCount - 2;
+      // Draw single triangles first...
+      for(int i = 0; i < part->numIndices; i+=3) {
+        t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
+      }
+
+      // ...then strips, which are an encoded index buffer DMA'd by the RSP.
+      // Internally, this will re-use the space of the vertex cache of verts. that are not used anymore
+      if(part->numStripIndices > 0) {
+        uint16_t *idxPtr = (uint16_t*)align_pointer(part->indices + part->numIndices, 8);
+        uint16_t *idxPtrEnd = idxPtr + part->numStripIndices - 2;
         uint32_t flags = lastRenderFlags & ~(T3D_FLAG_CULL_FRONT | T3D_FLAG_CULL_BACK);
         uint8_t faceFlag = 0;
 
          // now convert back into 't3d_tri_draw' calls, 0xFF marks start of a new triangle
         for(; idxPtr < idxPtrEnd; ++idxPtr)
         {
-          if(idxPtr[2] == 0xFF) {
+          if(idxPtr[2] == 0) {
             faceFlag = 0;
             idxPtr += 3;
           }
 
           if(idxPtr[0] != idxPtr[2]) {
             t3d_state_set_drawflags(flags | (faceFlag ? T3D_FLAG_CULL_FRONT : T3D_FLAG_CULL_BACK));
-            t3d_tri_draw(idxPtr[0], idxPtr[1], idxPtr[2]);
+            t3d_tri_draw_indexed(idxPtr[0], idxPtr[1], idxPtr[2]);
           }
 
           faceFlag = faceFlag ^ 1;
         }
-
-      } else {
-        for(int i = 0; i < idxCount; i+=3) {
-          t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
-        }
-    }
+      }
 
       // Sync, waits for any triangles in flight. This is necessary since the rdpq-api is not
       // aware of this and could corrupt the RDP buffer. 't3d_vert_load' may also overwrite the source buffer too.

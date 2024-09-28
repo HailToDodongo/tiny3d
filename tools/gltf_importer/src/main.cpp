@@ -282,11 +282,17 @@ int main(int argc, char* argv[])
       file.write<uint16_t>(chunk.vertexDestOffset);
       file.write(chunkIndices.getPos());
       file.write((uint16_t)chunk.indices.size());
+      file.write((uint16_t)chunk.stripIndices.size());
       file.write<uint16_t>(chunk.boneIndex); // Matrix/Bone index
+      file.write<uint16_t>(0); // Padding
 
-      for(uint8_t index : chunk.indices) {
-        chunkIndices.write(index);
+      // write indices data
+      chunkIndices.writeArray(chunk.indices.data(), chunk.indices.size());
+      if(!chunk.stripIndices.empty()) {
+        chunkIndices.align(8);
+        chunkIndices.writeArray(chunk.stripIndices.data(), chunk.stripIndices.size());
       }
+
       totalIndexCount += chunk.indices.size();
     }
 

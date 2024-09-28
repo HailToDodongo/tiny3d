@@ -280,6 +280,13 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
   );
 }
 
+void t3d_tri_draw_indexed(uint32_t v0, uint32_t v1, uint32_t v2) {
+  uint32_t v12 = (v1 << 16) | v2;
+  rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_DRAW,
+    v0, v12
+  );
+}
+
 void t3d_tri_draw_shared(uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4) {
   v0 *= VERT_OUTPUT_SIZE;
   v1 *= VERT_OUTPUT_SIZE;
@@ -442,3 +449,13 @@ void t3d_viewport_calc_viewspace_pos(T3DViewport *viewport, T3DVec3 *out, const 
   out->v[1] += viewport->offset[1];
 }
 
+void t3d_indexbuffer_convert(uint16_t indices[], int count) {
+  for(int i = 0; i < count; ++i) {
+    uint16_t idx = indices[i];
+    if(idx == 0xFF) {
+      indices[i] = 0;
+    } else {
+      indices[i] = (idx * VERT_OUTPUT_SIZE) + (RSP_T3D_TRI_BUFFER & 0xFFFF);
+    }
+  }
+}

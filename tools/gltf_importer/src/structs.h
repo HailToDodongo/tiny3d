@@ -136,6 +136,7 @@ struct Material {
 
 struct MeshChunk {
   std::vector<uint8_t> indices{};
+  std::vector<uint16_t> stripIndices{};
   Material materialA{};
   Material materialB{};
   uint32_t vertexOffset{0};
