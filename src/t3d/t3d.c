@@ -280,47 +280,16 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
   );
 }
 
-void t3d_tri_draw_indexed(uint32_t v0, uint32_t v1, uint32_t v2) {
+void t3d_tri_draw_indexed_(uint16_t v0, uint16_t v1, uint16_t v2) {
   uint32_t v12 = (v1 << 16) | v2;
   rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_DRAW,
     v0, v12
   );
 }
 
-void t3d_tri_draw_shared(uint32_t v0, uint32_t v1, uint32_t v2, uint32_t v3, uint32_t v4) {
-  v0 *= VERT_OUTPUT_SIZE;
-  v1 *= VERT_OUTPUT_SIZE;
-  v2 *= VERT_OUTPUT_SIZE;
-  v3 *= VERT_OUTPUT_SIZE;
-  v4 *= VERT_OUTPUT_SIZE;
-
-  v0 += RSP_T3D_TRI_BUFFER & 0xFFFF;
-  v1 += RSP_T3D_TRI_BUFFER & 0xFFFF;
-  v2 += RSP_T3D_TRI_BUFFER & 0xFFFF;
-  v3 += RSP_T3D_TRI_BUFFER & 0xFFFF;
-  v4 += RSP_T3D_TRI_BUFFER & 0xFFFF;
-
-  uint32_t v12 = (v1 << 16) | v2;
-  uint32_t v34 = (v3 << 16) | v4;
-  rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_DRAW_IDX,
-    v0, v12, v34
-  );
-}
-
-void t3d_tri_draw_repeat(uint32_t v0, uint32_t v1, uint32_t v2, uint8_t count)
+void t3d_tri_draw_strip(int16_t* indexBuff, int count)
 {
-  v0 *= VERT_OUTPUT_SIZE;
-  v1 *= VERT_OUTPUT_SIZE;
-  v2 *= VERT_OUTPUT_SIZE;
-
-  v0 += RSP_T3D_TRI_BUFFER & 0xFFFF;
-  v1 += RSP_T3D_TRI_BUFFER & 0xFFFF;
-  v2 += RSP_T3D_TRI_BUFFER & 0xFFFF;
-
-  uint32_t v12 = (v1 << 16) | v2;
-  rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_DRAW_REP,
-     ((count+1) << 16) | v0, v12
-  );
+  debugf("t3d_tri_draw_indexed: x%d %p\n", count, indexBuff);
 }
 
 void t3d_fog_set_range(float near, float far) {
@@ -449,13 +418,16 @@ void t3d_viewport_calc_viewspace_pos(T3DViewport *viewport, T3DVec3 *out, const 
   out->v[1] += viewport->offset[1];
 }
 
-void t3d_indexbuffer_convert(uint16_t indices[], int count) {
+void t3d_indexbuffer_convert(int16_t indices[], int count) {
   for(int i = 0; i < count; ++i) {
-    uint16_t idx = indices[i];
-    if(idx == 0xFF) {
-      indices[i] = 0;
-    } else {
-      indices[i] = (idx * VERT_OUTPUT_SIZE) + (RSP_T3D_TRI_BUFFER & 0xFFFF);
+    int16_t idx = indices[i];
+    uint16_t restartFlag = 0;
+    if(idx < 0) {
+      idx = (int16_t)(-idx - 1);
+      restartFlag = 1 << 15;
     }
+    indices[i] = (int16_t)(
+      ((idx * VERT_OUTPUT_SIZE) + (RSP_T3D_TRI_BUFFER & 0xFFFF)) | restartFlag
+    );
   }
 }

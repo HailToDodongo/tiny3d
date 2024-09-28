@@ -188,9 +188,11 @@ T3DModel *t3d_model_load(const char *path) {
         part->indices = patch_pointer(part->indices, (uint32_t)basePtrIndices);
         part->vert = patch_pointer(part->vert, (uint32_t)basePtrVertices);
 
-        if(part->numStripIndices != 0) {
-          uint16_t *idxPtr = (uint16_t*)align_pointer(part->indices + part->numIndices, 8);
-          t3d_indexbuffer_convert(idxPtr, part->numStripIndices);
+        uint8_t *stripPtr = align_pointer(part->indices + part->numIndices, 8);
+        for(int s=0; s<4; ++s) {
+          if(part->numStripIndices[s] == 0)break;
+          t3d_indexbuffer_convert((int16_t*)stripPtr, part->numStripIndices[s]);
+          stripPtr = (uint8_t*)align_pointer(stripPtr + part->numStripIndices[s]*2, 8);
         }
       }
     }
@@ -262,6 +264,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
       }
     }
 
+    int triCount = 0;
     bool hadMaterial = false;
     for(uint32_t p = 0; p < obj->numParts; p++)
     {
@@ -282,7 +285,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
       // load vertices, this will already do T&L (so matrices/fog/lighting must be set before)
       t3d_vert_load(part->vert, part->vertDestOffset, part->vertLoadCount);
       //debugf("Load Vertices[%d]: %d, %d | bone: %d\n", p, part->vertDestOffset, part->vertLoadCount, part->matrixIdx);
-      if(part->numIndices == 0 && part->numStripIndices == 0)continue; // partial-load, last chunk of a sequence will both indices & material data
+      if(part->numIndices == 0 && part->numStripIndices[0] == 0)continue; // partial-load, last chunk of a sequence will both indices & material data
 
       // now apply rdpq settings, these are independent of the t3d state
       // and only need to happen before a `t3d_tri_draw` call
@@ -346,36 +349,50 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
         }
       }
 
-      debugf("Draw Part: idx:%d strips:%d\n", part->numIndices, part->numStripIndices);
+      debugf("Draw Part: idx:%d strips:%d %d %d %d\n", part->numIndices,
+        part->numStripIndices[0], part->numStripIndices[1],
+        part->numStripIndices[2], part->numStripIndices[3]
+      );
 
+      t3d_state_set_drawflags(lastRenderFlags);
       // Draw single triangles first...
       for(int i = 0; i < part->numIndices; i+=3) {
         t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
+        ++triCount;
       }
 
       // ...then strips, which are an encoded index buffer DMA'd by the RSP.
       // Internally, this will re-use the space of the vertex cache of verts. that are not used anymore
-      if(part->numStripIndices > 0) {
-        uint16_t *idxPtr = (uint16_t*)align_pointer(part->indices + part->numIndices, 8);
-        uint16_t *idxPtrEnd = idxPtr + part->numStripIndices - 2;
+      uint8_t *idxPtrBase = (uint8_t*)align_pointer(part->indices + part->numIndices, 8);
+
+      for(int s=0; s<4; ++s)
+      {
+        debugf("Draw Strip: %d\n", part->numStripIndices[s]);
+        if(part->numStripIndices[s] == 0)break;
+        int16_t *idxPtr = (int16_t*)idxPtrBase;
+        int16_t *idxPtrEnd = idxPtr + part->numStripIndices[s] - 2;
         uint32_t flags = lastRenderFlags & ~(T3D_FLAG_CULL_FRONT | T3D_FLAG_CULL_BACK);
         uint8_t faceFlag = 0;
 
-         // now convert back into 't3d_tri_draw' calls, 0xFF marks start of a new triangle
+        int stripeIdx = 0;
         for(; idxPtr < idxPtrEnd; ++idxPtr)
         {
-          if(idxPtr[2] == 0) {
+          if(idxPtr[2] & (1 << 15)) {
             faceFlag = 0;
-            idxPtr += 3;
+            idxPtr += 2;
+            ++stripeIdx;
           }
 
           if(idxPtr[0] != idxPtr[2]) {
             t3d_state_set_drawflags(flags | (faceFlag ? T3D_FLAG_CULL_FRONT : T3D_FLAG_CULL_BACK));
-            t3d_tri_draw_indexed(idxPtr[0], idxPtr[1], idxPtr[2]);
+            t3d_tri_draw_indexed_(idxPtr[0] & 0xFFFF, idxPtr[1] & 0xFFFF, idxPtr[2] & 0xFFFF);
+            ++triCount;
           }
 
           faceFlag = faceFlag ^ 1;
         }
+        //t3d_tri_draw_strip((int16_t*)idxPtrBase, part->numStripIndices[s]);
+        idxPtrBase = (uint8_t*)align_pointer(idxPtrBase + part->numStripIndices[s] * 2, 8);
       }
 
       // Sync, waits for any triangles in flight. This is necessary since the rdpq-api is not
@@ -385,6 +402,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
       // At this point the RDP may already process triangles.
       // In the next iteration we may therefore need to sync when changing any RDP states
     }
+    debugf("Tris: %d\n", triCount);
   }
 
   if(hadMatrixPush)t3d_matrix_pop(1);

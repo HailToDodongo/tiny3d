@@ -121,8 +121,7 @@
     RSPQ_DefineCommand T3DCmd_SetFogRange, 8
     RSPQ_DefineCommand T3DCmd_SetFogState, 4
     RSPQ_DefineCommand T3DCmd_TriSync, 4
-    RSPQ_DefineCommand T3DCmd_TriDraw_Multi, 12
-    RSPQ_DefineCommand T3DCmd_TriDraw_Repeat, 8
+    RSPQ_DefineCommand T3DCmd_TriDraw_Strip, 8
   RSPQ_EndOverlayHeader
 
   RSPQ_BeginSavedState
@@ -181,8 +180,6 @@
     CLIP_CODE_ORG_ADDR: .word 0
     .align 1
     CLIP_CODE_SIZE: .half 0
-    .align 1
-    ADDR_OFFSET: .half -1, 108, 108, 108
   TEMP_STATE_MEM_END:
 
 .text
@@ -647,7 +644,7 @@ T3DCmd_TriDraw_End:
   sb $t0, %lo(CLIP_CODE_ADDR)($zero)
   j DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   addiu $t0, $t0, -1
-T3DCmd_TriDraw_Multi:
+T3DCmd_TriDraw_Strip:
   ori $ra, $zero, %lo(T3DCmd_TriDraw_Multi_SecondTri)
   sh $ra, %lo(CLIP_RA)($zero)
   addiu $v1, $gp, %lo(RSPQ_DMEM_BUFFER)  -10
@@ -666,35 +663,6 @@ T3DCmd_TriDraw_Multi:
   ori $ra, $zero, %lo(T3DCmd_TriDraw_End)
   j RDPQ_Triangle_Send_Async
   sh $sp, %lo(CLIP_RA)($zero)
-T3DCmd_TriDraw_Repeat:
-  ori $ra, $zero, %lo(T3DCmd_TriDraw_Repeat_Loop)
-  sh $ra, %lo(CLIP_RA)($zero)
-  T3DCmd_TriDraw_Repeat_Loop:
-  addiu $s6, $gp, %lo(RSPQ_DMEM_BUFFER)  -8
-  ori $at, $zero, %lo(ADDR_OFFSET)
-  ldv $v27, 0, 0, $s6
-  ldv $v28, 0, 0, $at
-  vaddc $v27, $v27, $v28.v
-  ori $sp, $zero, %lo(T3DCmd_TriDraw_Repeat_Loop)
-  ori $ra, $zero, %lo(T3DCmd_TriDraw_Repeat_Loop)
-  sh $ra, %lo(CLIP_RA)($zero)
-  addiu $v1, $gp, %lo(RSPQ_DMEM_BUFFER)  -6
-  sdv $v27, 0, 0, $s6 ## Barrier: 0x1
-  lbu $s5, 1($s6) ## Barrier: 0x1
-  beq $s5, $zero, LABEL_000E
-  nop
-  lhu $a1, 6($s6)
-  ori $ra, $zero, %lo(T3DCmd_TriDraw_Repeat_Loop_End)
-  lhu $a0, 2($s6)
-  j RDPQ_Triangle_Send_Async
-  lhu $a2, 4($s6)
-  LABEL_000E:
-  ori $ra, $zero, %lo(RSPQ_Loop)
-  j RSPQ_Loop
-  sh $ra, %lo(CLIP_RA)($zero)
-  T3DCmd_TriDraw_Repeat_Loop_End:
-  j T3DCmd_TriDraw_Repeat
-  sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
 T3DCmd_TriSync:
   lbu $s7, %lo(CLIP_CODE_ADDR + 0)
   beq $s7, $zero, RDPQ_Triangle_Send_End

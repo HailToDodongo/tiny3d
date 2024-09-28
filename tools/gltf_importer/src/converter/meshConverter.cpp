@@ -13,7 +13,6 @@
 
 namespace
 {
-  constexpr int MAX_VERTEX_COUNT = 70;
   constexpr uint16_t INVALID_INDEX = 0xFFFF;
 
   uint16_t getVertexIndex(const ModelChunked &model, const VertexT3D &v, uint16_t startIndex)

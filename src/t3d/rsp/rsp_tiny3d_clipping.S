@@ -122,8 +122,7 @@
     RSPQ_DefineCommand RSPQ_Loop, 4
     RSPQ_DefineCommand RSPQ_Loop, 4
     RSPQ_DefineCommand RSPQ_Loop, 4
-    RSPQ_DefineCommand RSPQ_Loop, 12
-    RSPQ_DefineCommand RSPQ_Loop, 4
+    RSPQ_DefineCommand RSPQ_Loop, 8
   RSPQ_EndOverlayHeader
 
   RSPQ_BeginSavedState
@@ -182,8 +181,6 @@
     CLIP_CODE_ORG_ADDR: .word 0
     .align 1
     CLIP_CODE_SIZE: .half 0
-    .align 1
-    ADDR_OFFSET: .half -1, 108, 108, 108
   TEMP_STATE_MEM_END:
 
 .text

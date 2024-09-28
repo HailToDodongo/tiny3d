@@ -241,9 +241,9 @@ void t3d_viewport_calc_viewspace_pos(T3DViewport *viewport, T3DVec3 *out, const 
  */
 void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2);
 
-void t3d_tri_draw_indexed(uint32_t v0, uint32_t v1, uint32_t v2);
+void t3d_tri_draw_indexed_(uint16_t v0, uint16_t v1, uint16_t v2);
 
-void t3d_tri_draw_repeat(uint32_t v0, uint32_t v1, uint32_t v2, uint8_t count);
+void t3d_tri_draw_strip(int16_t* indexBuff, int count);
 
 /**
  * Syncs pending triangles.
@@ -427,7 +427,7 @@ static inline void* t3d_segment_address(uint8_t segmentId, void* ptr) {
  * @param indices index buffer of local indices (values 0-70, and 0xFF)
  * @param count index count
  */
-void t3d_indexbuffer_convert(uint16_t indices[], int count);
+void t3d_indexbuffer_convert(int16_t indices[], int count);
 
 // Vertex-buffer helpers:
 

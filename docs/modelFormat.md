@@ -141,16 +141,15 @@ Model data consisting of multiple parts, can exist multiple times in a file.
 #### Part
 Model part data.
 
-| Offset | Type  | Description                     |
-|--------|-------|---------------------------------|
-| 0x00   | `u32` | Vertex src. offset              |
-| 0x04   | `u16` | Vertex count                    |
-| 0x06   | `u16` | Vertex dest. offset             |
-| 0x08   | `u32` | Index offset                    |
-| 0x0C   | `u16` | Triangle Index count            |
-| 0x0E   | `u16` | Strip Index count               |
-| 0x10   | `u16` | Matrix index, `0xFFFF` for none |
-| 0x12   | `u16` | _padding_                       |
+| Offset | Type    | Description                     |
+|--------|---------|---------------------------------|
+| 0x00   | `u32`   | Vertex src. offset              |
+| 0x04   | `u16`   | Vertex count                    |
+| 0x06   | `u16`   | Vertex dest. offset             |
+| 0x08   | `u32`   | Index offset                    |
+| 0x0A   | `u16`   | Triangle Index count            |
+| 0x0C   | `u16`   | Matrix index, `0xFFFF` for none |
+| 0x10   | `u8[4]` | Strip Index count               |
 
 ## Skeleton (`S`)
 Contains a tree of bones, used for skeletal animation.<br>

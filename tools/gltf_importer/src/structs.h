@@ -135,8 +135,8 @@ struct Material {
 };
 
 struct MeshChunk {
-  std::vector<uint8_t> indices{};
-  std::vector<uint16_t> stripIndices{};
+  std::vector<int8_t> indices{};
+  std::vector<int16_t> stripIndices[4]{};
   Material materialA{};
   Material materialB{};
   uint32_t vertexOffset{0};
@@ -242,3 +242,6 @@ struct Config {
   bool ignoreMaterials{false};
 };
 extern Config config;
+
+constexpr int MAX_VERTEX_COUNT = 70;
+constexpr int CACHE_VERTEX_SIZE = 36;

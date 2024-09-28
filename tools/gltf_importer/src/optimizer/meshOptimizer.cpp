@@ -5,103 +5,205 @@
 #include "optimizer.h"
 #include "../lib/meshopt/meshoptimizer.h"
 #include <cassert>
+#include <algorithm>
 #include <array>
 
 // NOTE: mesh optimizations prior to chunking the model up are done in parser.cpp via 'meshopt_optimizeVertexCache'
 
 namespace {
-  std::array<int, 2> getSharedIndex(std::array<uint8_t, 3> &triA, std::array<uint8_t, 3> &triB) {
-    for(int i=0; i<3; ++i) {
-      for(int j=0; j<3; ++j) {
-        if(triA[i] == triB[j])return {i, j};
-      }
-    }
-    return {-1, -1};
+  typedef std::array<int8_t, 3> Tri;
+  typedef std::vector<Tri> TriList;
+
+  bool triHasIndex(const Tri &tri, int idx) {
+    return tri[0] == idx || tri[1] == idx || tri[2] == idx;
   }
 
-  void arrayShiftRight(std::array<uint8_t, 3> &arr, int shift) {
-    for(int i=0; i<shift; ++i) {
-      std::swap(arr[0], arr[1]);
-      std::swap(arr[0], arr[2]);
+  // get amount of times each vertex is used in the input triangle list
+  auto getVertexUsage(const TriList &tris) {
+    std::array<int, MAX_VERTEX_COUNT> usedVerts{};
+    for(auto &tri : tris) {
+      for(int i=0; i<3; ++i) {
+        ++usedVerts[tri[i]];
+      }
     }
+    return usedVerts;
+  }
+
+  auto getVertexUsage(const std::vector<std::vector<int8_t>> strips) {
+    std::array<int, MAX_VERTEX_COUNT> usedVerts{};
+    for(auto &strip : strips) {
+      for(auto idx : strip) {
+        ++usedVerts[idx];
+      }
+    }
+    return usedVerts;
+  }
+
+  int countFreeVertsAtEnd(const std::array<int, MAX_VERTEX_COUNT> &usedVerts) {
+    int freeVertsEnd = 0;
+    for(int i=MAX_VERTEX_COUNT-1; i>=0; --i) {
+      if(usedVerts[i] > 0)break;
+      ++freeVertsEnd;
+    }
+    return freeVertsEnd;
+  }
+
+  int getLeastUsedVert(const std::array<int, MAX_VERTEX_COUNT> &usedVerts) {
+    int minIdx = 0;
+    int minCount = usedVerts[0];
+    for(int i=1; i<MAX_VERTEX_COUNT; ++i) {
+      if(usedVerts[i] < minCount) {
+        minCount = usedVerts[i];
+        minIdx = i;
+      }
+    }
+    return minIdx;
+  }
+
+  int calcUsableIndices(int freeVertices) {
+    int res = freeVertices * CACHE_VERTEX_SIZE / 2;
+    // a single vertex is not aligned (2 are), sub. 8 bytes to not overwrite stuff
+    if(freeVertices % 2 != 0)res -= 8 / 2;
+    return res;
+  }
+
+  // stripify the input triangle list into multiple strips
+  std::vector<std::vector<int8_t>> stripify(const TriList& tris, int vertexCount)
+  {
+    std::vector<int8_t> singleStrip{};
+    singleStrip.resize(tris.size() * 5); // worst case
+    size_t count = meshopt_stripify(
+      singleStrip.data(), (int8_t*)tris[0].data(), tris.size() * 3, vertexCount, (int8_t)-1
+    );
+
+    std::vector<std::vector<int8_t>> res{};
+    std::vector<int8_t> strip{};
+    for(size_t i=0; i<count; ++i) {
+      if(singleStrip[i] < 0) {
+        res.push_back(strip);
+        strip.clear();
+      } else {
+        strip.push_back(singleStrip[i]);
+      }
+    }
+    if(!strip.empty())res.push_back(strip);
+    return res;
   }
 }
 
 void optimizeModelChunk(ModelChunked &model)
 {
+  int totalStripCount = 0;
   for(auto &chunk : model.chunks)
   {
-    printf("Indices: %d\n", chunk.indices.size());
-
-    std::vector<std::array<uint8_t, 3>> tris{}; // input tris
+    // convert indices into split up triangles, then clear old indices
+    TriList tris{}; // input tris
     for(int i=0; i<chunk.indices.size(); i+=3) {
       tris.push_back({chunk.indices[i], chunk.indices[i+1], chunk.indices[i+2]});
     }
-
-    std::vector<uint8_t> indicesRepeat{};
     chunk.indices.clear();
 
-    // try to detect triangles that have ascending indices (e.g. [0,1,2], [3,4,5], [6,7,8], ...)
-    // this can be compacted into a single triangle + a repeat count ([0,1,2] x 3)
-    /*int baseIndex = 0;
-    int repeatCount = 0;
-    std::array<uint8_t, 3> repeatTri{0,0,0};
-    for(int t=0; t<tris.size(); ++t)
-    {
-      bool isLastTri = t == tris.size() - 1;
-      auto &tri = tris[t];
-      if(!isLastTri && tri[0] == baseIndex && repeatCount < 255) {
-        if(repeatCount == 0)repeatTri = tri;
-        ++repeatCount;
-      } else {
-        if(repeatCount > 1) {
-          printf("   Tri repeat: count=%d | %d %d %d\n", repeatCount, repeatTri[0], repeatTri[1], repeatTri[2]);
-          indicesRepeat.push_back(repeatCount);
-          indicesRepeat.push_back(repeatTri[0]);
-          indicesRepeat.push_back(repeatTri[1]);
-          indicesRepeat.push_back(repeatTri[2]);
-          // now erase the repeated tris inb the source list
-          tris.erase(tris.begin() + t - repeatCount, tris.begin() + t);
-          t -= repeatCount;
-        }
-        repeatCount = 0;
-      }
-
-      baseIndex = tri[0] + 3;
-    }*/
-    {
-      std::vector<uint8_t> optimizedIndices{};
-      optimizedIndices.resize(tris.size() * 5); // worst case
-      size_t optimizedIndexCount = meshopt_stripify(
-        optimizedIndices.data(), (uint8_t*)tris[0].data(), tris.size() * 3, chunk.vertexCount, (uint8_t)0xFF
-      );
-
-      printf("Old:\n");
-      for(auto &tri: tris) {
-        printf("    [%d %d %d]\n", tri[0], tri[1], tri[2]);
-      }
-
-      printf("\nstrip indices: %d -> %d: ", tris.size() * 3, optimizedIndexCount);
-      //chunk.indices.clear();
-      for(size_t i=0; i<optimizedIndexCount; ++i) {
-        printf("%d ", optimizedIndices[i]);
-        chunk.stripIndices.push_back(optimizedIndices[i]);
-      }
-      printf("\n");
-      tris.clear();
-    }
-
-    for(int t=0; t<tris.size(); ++t)
-    {
-      auto &tri = tris[t];
+    // writes out a single triangle (3 indices ina command, no DMAs)
+    auto emitTri = [&chunk](const Tri &tri) {
       chunk.indices.push_back(tri[0]);
       chunk.indices.push_back(tri[1]);
       chunk.indices.push_back(tri[2]);
+    };
+
+    // emits and appends a triangle strip (1 command, DMAs data)
+    auto emitStrip = [&chunk](const std::vector<int8_t> &strip, int stripIdx) {
+      auto &res = chunk.stripIndices[stripIdx];
+      int oldSize = res.size();
+      if(!res.empty()) {
+        res.push_back((int16_t )-(strip[0]+1));
+        res.insert(res.end(), strip.begin()+1, strip.end());
+      } else {
+        res.insert(res.end(), strip.begin(), strip.end());
+      }
+      return (int)(res.size() - oldSize);
+    };
+
+    // emits regular triangles until a given index is no longer used (aka free up a vertex slot)
+    auto freeVertexUsage = [&tris, &emitTri](int idx) {
+      for(int i=0; i<tris.size(); ++i) {
+        if(triHasIndex(tris[i], idx)) {
+          printf("  Removing tri %d %d %d\n", tris[i][0], tris[i][1], tris[i][2]);
+          emitTri(tris[i]);
+          tris.erase(tris.begin() + i);
+          --i;
+        }
+      }
+    };
+
+    // Strip encoding:
+    // First we stripify the entire triangle array, resulting in an array of strips.
+    // Since we have to fight with the vertex cache for DMEM, we need to make sure that the strips we write don't get too big.
+    // To do so we check how many vertices at the end of the buffer are unused and try to fit as many strips in there.
+    // After that is done we re-check how much space is free now, and repeat the process.
+    // To have a bit of space initially, we emit individual triangles until we have at least X vertices free.
+
+    // check how many vertex slots we are free to use (end of the buffer)
+    auto vertUsage = getVertexUsage(tris);
+    int freeVertsEnd = countFreeVertsAtEnd(vertUsage);
+    int targetFreeVerts = 2;
+
+    // now free until the last slots are free
+    if(freeVertsEnd < targetFreeVerts) {
+      for(int i=MAX_VERTEX_COUNT-targetFreeVerts; i<MAX_VERTEX_COUNT; ++i) {
+        freeVertexUsage(i);
+      }
+      vertUsage = getVertexUsage(tris);
+      freeVertsEnd = countFreeVertsAtEnd(vertUsage);
     }
 
-    if(!indicesRepeat.empty()) {
-      chunk.indices.push_back(0xFF);
-      chunk.indices.insert(chunk.indices.end(), indicesRepeat.begin(), indicesRepeat.end());
+    int freeIndices = calcUsableIndices(freeVertsEnd);
+
+    auto stipChunks = stripify(tris, chunk.vertexCount);
+    std::reverse(stipChunks.begin(), stipChunks.end()); // puts larger indices first
+
+    // don't do any fancy algorithms here, we want to prefer the first entries (larger indices) in order
+    // to free up as much vertex space. meaning the next batch has way more space to work with
+    for(int s=0; s<4 && !stipChunks.empty(); ++s)
+    {
+      for(size_t i=0; i<stipChunks.size(); ++i) {
+        int size = (int)stipChunks[i].size()+1;
+        if(freeIndices - size >= 0) {
+          printf("Emitting strip %d, space: %d: ", i, freeIndices);
+          for(auto idx : stipChunks[i]) {
+            printf(" %d", idx);
+          }
+          printf("\n");
+          freeIndices -= emitStrip(stipChunks[i], s);
+          stipChunks.erase(stipChunks.begin() + i);
+          --i;
+        }
+      }
+
+      vertUsage = getVertexUsage(stipChunks);
+      freeVertsEnd = countFreeVertsAtEnd(vertUsage);
+      freeIndices = calcUsableIndices(freeVertsEnd);
+      printf("Free verts after stripify: %d\n", freeVertsEnd);
+
+      totalStripCount += chunk.stripIndices[s].size();
+      printf("strip indices: %d -> %d | verts free: %d, idx: %d\n", tris.size() * 3, chunk.stripIndices[s].size(), freeVertsEnd, freeIndices);
     }
+
+    if(!stipChunks.empty()) {
+      //throw std::runtime_error("Failed to emit all strips");
+    }
+
+    /*for(int i=0; i<chunk.stripIndices[0].size(); ++i) {
+      if(chunk.stripIndices[0][i] < 0)printf("\n");
+      printf(" %d", chunk.stripIndices[0][i]);
+    }*/
+
+    tris.clear();
+
+
+    // emit rest of unstripped tris
+    for(auto tri : tris)emitTri(tri);
+
+    printf("\n\n");
   }
+  printf("Total strip indices: %d\n", totalStripCount); // 5866
 }
