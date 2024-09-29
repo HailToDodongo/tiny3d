@@ -635,11 +635,12 @@ T3DCmd_TriDraw_End:
   RDPQ_Triangle_Clip:
   jal RDPQ_Triangle_Send_End
   lbu $s6, %lo(CLIP_CODE_ADDR + 0)
+  sh $s4, %lo(18 + RSPQ_SCRATCH_MEM)($zero)
   bne $s6, $zero, CLIPPING_CODE_TARGET
   ori $s4, $zero, %lo(CLIPPING_CODE_TARGET)
-  addiu $t2, $zero, 12
-  lhu $t0, %lo(CLIP_CODE_SIZE + 0)
   ori $ra, $zero, %lo(CLIPPING_CODE_TARGET)
+  lhu $t0, %lo(CLIP_CODE_SIZE + 0)
+  addiu $t2, $zero, 12
   lw $s0, %lo(CLIP_CODE_ADDR + 0)
   sb $t0, %lo(CLIP_CODE_ADDR)($zero)
   j DMAExec ## Args: $t0, $t1, $s0, $s4, $t2

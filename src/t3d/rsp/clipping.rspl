@@ -4,7 +4,8 @@ function triToScreenSpace(u32<$s6> ptr);
 
 macro returnBack() {
   u16 tmp = load(CLIP_RA);
-  tmp += 0;
+  // restore old DMEM address for indices, this is expected to persist for tri-strips
+  u16<$s4> oldDMEM = load(RSPQ_SCRATCH_MEM, 18);
   goto tmp;
 }
 
@@ -108,7 +109,7 @@ macro intersection(
  * @param ptrVertC vertex 2
  */
 @Align(8)
-function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, u32<$a2> ptrVertC)
+function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, u16<$a2> ptrVertC)
 {
   u8<$v0> faceCull; // stays across triangles, no need to load here
 
@@ -230,8 +231,8 @@ function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, 
     store(ptrVertB:u16, RSPQ_SCRATCH_MEM, 4);
 
     #ifdef DRAW_TRIS
-      u32<$sp> cullDest = RDPQ_Triangle_Clip;
-      RDPQ_Triangle_Send_Async(ptrVertA, ptrVertB, ptrVertC, cullDest);
+      u16<$sp> cullDest = RDPQ_Triangle_Clip;
+      RDPQ_Triangle_Send_Async(ptrVertA, ptrVertB, ptrVertC, cullDest, faceCull);
       RDPQ_Triangle_Send_End();
       RDPQ_Triangle_Clip:
     #endif
