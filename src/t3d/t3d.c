@@ -280,6 +280,19 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
   );
 }
 
+void t3d_tri_draw_strip(int16_t* indexBuff, int count)
+{
+  uint32_t loadAddr = (uint32_t)PhysicalAddr(indexBuff);
+
+  uint32_t dmemAddr = (RSP_T3D_CLIP_BUFFER_TMP & 0xFFFF);
+  dmemAddr -= count * 2; // 16bit indices
+  dmemAddr &= ~7; // align start to 8 bytes
+
+  rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_STRIP,
+    loadAddr, ((count*2) << 16) | dmemAddr
+  );
+}
+
 void t3d_fog_set_range(float near, float far) {
   if(near == 0.0f && far == 0.0f) {
     rspq_write(T3D_RSP_ID, T3D_CMD_FOG_RANGE, 0, 0);
@@ -406,3 +419,19 @@ void t3d_viewport_calc_viewspace_pos(T3DViewport *viewport, T3DVec3 *out, const 
   out->v[1] += viewport->offset[1];
 }
 
+void t3d_indexbuffer_convert(int16_t indices[], int count) {
+  for(int i = 0; i < count; ++i) {
+    int16_t idx = indices[i];
+    uint16_t restartFlag = 0;
+    if(idx < 0) { // restarts a new strip
+      idx = (int16_t)(-idx - 1);
+      restartFlag = 1 << 15;
+    }
+    if(i == count - 1) { // end of buffer marker
+      restartFlag |= 1 << 14;
+    }
+    indices[i] = (int16_t)(
+      ((idx * VERT_OUTPUT_SIZE) + (RSP_T3D_TRI_BUFFER & 0xFFFF)) | restartFlag
+    );
+  }
+}

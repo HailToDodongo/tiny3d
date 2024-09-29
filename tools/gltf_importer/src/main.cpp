@@ -16,6 +16,7 @@
 #include "binaryFile.h"
 #include "converter/converter.h"
 #include "parser/rdp.h"
+#include "optimizer/optimizer.h"
 
 Config config;
 
@@ -104,7 +105,9 @@ int main(int argc, char* argv[])
   std::vector<ModelChunked> modelChunks{};
   modelChunks.reserve(t3dm.models.size());
   for(const auto & model : t3dm.models) {
-    modelChunks.push_back(chunkUpModel(model));
+    auto chunks = chunkUpModel(model);
+    optimizeModelChunk(chunks);
+    modelChunks.push_back(chunks);
     chunkCount += 1 + 2; // object + material A/B (@TODO: optimize material count)
   }
   chunkCount += t3dm.skeletons.empty() ? 0 : 1;
@@ -280,10 +283,19 @@ int main(int argc, char* argv[])
       file.write(chunkIndices.getPos());
       file.write((uint16_t)chunk.indices.size());
       file.write<uint16_t>(chunk.boneIndex); // Matrix/Bone index
+      file.write((uint8_t)chunk.stripIndices[0].size());
+      file.write((uint8_t)chunk.stripIndices[1].size());
+      file.write((uint8_t)chunk.stripIndices[2].size());
+      file.write((uint8_t)chunk.stripIndices[3].size());
 
-      for(uint8_t index : chunk.indices) {
-        chunkIndices.write(index);
+      // write indices data
+      chunkIndices.writeArray(chunk.indices.data(), chunk.indices.size());
+      for(const auto & stripIndex : chunk.stripIndices) {
+        if(stripIndex.empty())break;
+        chunkIndices.align(8);
+        chunkIndices.writeArray(stripIndex.data(), stripIndex.size());
       }
+
       totalIndexCount += chunk.indices.size();
     }
 

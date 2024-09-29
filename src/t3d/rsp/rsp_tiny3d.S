@@ -120,6 +120,7 @@
     RSPQ_DefineCommand T3DCmd_SetFogRange, 8
     RSPQ_DefineCommand T3DCmd_SetFogState, 4
     RSPQ_DefineCommand T3DCmd_TriSync, 4
+    RSPQ_DefineCommand T3DCmd_TriDraw_Strip, 8
   RSPQ_EndOverlayHeader
 
   RSPQ_BeginSavedState
@@ -133,8 +134,6 @@
     TRI_BUFFER: .ds.b 2520
     .align 4
     CLIP_BUFFER_TMP: .ds.b 252
-    .align 1
-    CLIP_RA: .ds.b 2
     .align 4
     CLIP_BUFFER_RESULT: .ds.b 288
     .align 4
@@ -165,6 +164,8 @@
     SCREEN_UVGEN_SCALE: .half 0
     .align 1
     VERTEX_FX_FUNC: .half 0
+    .align 1
+    CLIP_RA: .ds.b 2
     FACE_CULLING: .byte 0
     FOG_STORE_OFFSET: .byte 12
     ACTIVE_LIGHT_SIZE: .byte 0
@@ -422,27 +423,29 @@ VertexFX_Outline:
   nop
 T3DCmd_SetScreenSize:
   sra $s6, $a2, 16
-  vxor $v28, $v00, $v00.e0
   mtc2 $s6, $v27.e0
-  sh $a3, %lo(10 + NORM_SCALE_W)($zero)
   andi $a0, $a0, 15
+  vxor $v28, $v00, $v00.e0
   subu $s7, $zero, $a0
+  ori $s6, $zero, %lo(RSPQ_Loop)
+  sb $s7, %lo(19 + CLIPPING_PLANES)($zero)
   vrcph $v27.e0, $v27.e0
   sh $a3, %lo(8 + NORM_SCALE_W)($zero)
-  vrcpl $v28.e0, $v28.e0
-  sb $a0, %lo(3 + CLIPPING_PLANES)($zero)
-  vrcph $v27.e0, $v00.e0
-  sb $s7, %lo(19 + CLIPPING_PLANES)($zero)
-  sh $a3, %lo(6 + NORM_SCALE_W)($zero)
-  sw $a1, %lo(8 + SCREEN_SCALE_OFFSET)($zero)
-  vmudm $v26, $v28, $v31.e1
-  sw $a2, %lo(0 + SCREEN_SCALE_OFFSET)($zero)
-  sb $a0, %lo(7 + CLIPPING_PLANES)($zero)
-  sh $a3, %lo(12 + NORM_SCALE_W)($zero)
-  ori $at, $zero, %lo(SCREEN_UVGEN_SCALE)
-  vaddc $v26, $v26, $v30.e7
-  sw $a3, %lo(4 + SCREEN_SCALE_OFFSET)($zero)
   sb $s7, %lo(15 + CLIPPING_PLANES)($zero)
+  vrcpl $v28.e0, $v28.e0
+  vrcph $v27.e0, $v00.e0
+  sb $a0, %lo(3 + CLIPPING_PLANES)($zero)
+  sw $a3, %lo(4 + SCREEN_SCALE_OFFSET)($zero)
+  sh $a3, %lo(6 + NORM_SCALE_W)($zero)
+  sw $a2, %lo(0 + SCREEN_SCALE_OFFSET)($zero)
+  vmudm $v26, $v28, $v31.e1
+  ori $at, $zero, %lo(SCREEN_UVGEN_SCALE)
+  sw $a1, %lo(8 + SCREEN_SCALE_OFFSET)($zero)
+  sh $s6, %lo(CLIP_RA)($zero)
+  sb $a0, %lo(7 + CLIPPING_PLANES)($zero)
+  vaddc $v26, $v26, $v30.e7
+  sh $a3, %lo(12 + NORM_SCALE_W)($zero)
+  sh $a3, %lo(10 + NORM_SCALE_W)($zero)
   j RSPQ_Loop
   ssv $v26, 0, 0, $at
 T3DCmd_SetFogRange:
@@ -629,23 +632,53 @@ T3DCmd_TriDraw_End:
   j RSPQ_Loop
   sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
   RDPQ_Triangle_Clip:
-  lhu $a2, %lo(RSPQ_DMEM_BUFFER  -2)($gp)
   jal RDPQ_Triangle_Send_End
-  lhu $a1, %lo(RSPQ_DMEM_BUFFER  -4)($gp)
-  lbu $s7, %lo(CLIP_CODE_ADDR + 0)
-  bne $s7, $zero, DO_CLIPPING
-  lhu $a0, %lo(RSPQ_DMEM_BUFFER  -6)($gp)
-  addiu $t2, $zero, 12
-  lhu $t0, %lo(CLIP_CODE_SIZE + 0)
+  lbu $s6, %lo(CLIP_CODE_ADDR + 0)
+  sh $s4, %lo(18 + RSPQ_SCRATCH_MEM)($zero)
+  bne $s6, $zero, CLIPPING_CODE_TARGET
   ori $s4, $zero, %lo(CLIPPING_CODE_TARGET)
+  ori $ra, $zero, %lo(CLIPPING_CODE_TARGET)
+  lhu $t0, %lo(CLIP_CODE_SIZE + 0)
+  addiu $t2, $zero, 12
   lw $s0, %lo(CLIP_CODE_ADDR + 0)
   sb $t0, %lo(CLIP_CODE_ADDR)($zero)
-  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  j DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   addiu $t0, $t0, -1
-  DO_CLIPPING:
-  ori $ra, $zero, %lo(RSPQ_Loop)
-  j CLIPPING_CODE_TARGET
+T3DCmd_TriDraw_Strip:
+  addiu $t2, $zero, 12
+  andi $s4, $a1, 65535
+  srl $t0, $a1, 16
+  addiu $t0, $t0, -1
+  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  or $s0, $zero, $a0
+  lbu $v0, %lo(FACE_CULLING + 0)
+  ori $ra, $zero, %lo(STRIP_LOOP_NEXT)
+  addiu $s4, $s4, 65534
+  xori $v0, $v0, 1
   sh $ra, %lo(CLIP_RA)($zero)
+  sb $v0, %lo(16 + RSPQ_SCRATCH_MEM)($zero)
+  STRIP_LOOP_NEW:
+  lbu $v0, %lo(RSPQ_SCRATCH_MEM + 16)
+  addiu $s4, $s4, 2
+  STRIP_LOOP_NEXT:
+  lhu $a2, 2($s4)
+  xori $v0, $v0, 1
+  lh $a1, 4($s4)
+  andi $s6, $a2, 16384
+  bne $s6, $zero, STRIP_LOOP_END
+  lhu $a0, 0($s4)
+  bltz $a1, STRIP_LOOP_NEW
+  addiu $s4, $s4, 2
+  beq $a0, $a1, STRIP_LOOP_NEXT
+  ori $sp, $zero, %lo(STRIP_LOOP_NEXT)
+  jal RDPQ_Triangle_Send_Async ## Args: $a0, $a1, $a2, $sp, $v0
+  addiu $v1, $s4, 65534
+  j STRIP_LOOP_NEXT
+  sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
+  STRIP_LOOP_END:
+  ori $sp, $zero, %lo(RSPQ_Loop)
+  j RSPQ_Loop
+  sh $sp, %lo(CLIP_RA)($zero)
 T3DCmd_TriSync:
   lbu $s7, %lo(CLIP_CODE_ADDR + 0)
   beq $s7, $zero, RDPQ_Triangle_Send_End

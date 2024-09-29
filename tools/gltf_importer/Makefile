@@ -4,6 +4,7 @@ SRCDIR = src
 
 OBJ = build/parser.o build/main.o build/lib/lodepng.o \
 	build/parser/materialParser.o build/parser/boneParser.o build/parser/nodeParser.o \
+	build/optimizer/meshOptimizer.o \
 	build/parser/animParser.o \
 	build/converter/meshConverter.o \
 	build/converter/animConverter.o \
@@ -11,6 +12,7 @@ OBJ = build/parser.o build/main.o build/lib/lodepng.o \
 	build/lib/meshopt/indexcodec.o \
 	build/lib/meshopt/indexgenerator.o \
 	build/lib/meshopt/simplifier.o \
+	build/lib/meshopt/stripifier.o \
 	build/lib/meshopt/spatialorder.o \
 	build/lib/meshopt/vcacheanalyzer.o \
 	build/lib/meshopt/vcacheoptimizer.o \

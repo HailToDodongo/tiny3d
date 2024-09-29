@@ -9,6 +9,10 @@ static inline void* patch_pointer(void *ptr, uint32_t offset) {
   return (void*)(offset + (int32_t)ptr);
 }
 
+static inline void* align_pointer(void *ptr, uint32_t alignment) {
+  return (void*)(((uint32_t)ptr + alignment - 1) & ~(alignment - 1));
+}
+
 typedef struct {
   uint32_t hash;
   sprite_t *texture;
@@ -183,6 +187,13 @@ T3DModel *t3d_model_load(const char *path) {
         T3DObjectPart *part = &obj->parts[j];
         part->indices = patch_pointer(part->indices, (uint32_t)basePtrIndices);
         part->vert = patch_pointer(part->vert, (uint32_t)basePtrVertices);
+
+        uint8_t *stripPtr = align_pointer(part->indices + part->numIndices, 8);
+        for(int s=0; s<4; ++s) {
+          if(part->numStripIndices[s] == 0)break;
+          t3d_indexbuffer_convert((int16_t*)stripPtr, part->numStripIndices[s]);
+          stripPtr = (uint8_t*)align_pointer(stripPtr + part->numStripIndices[s]*2, 8);
+        }
       }
     }
 
@@ -222,7 +233,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
   uint16_t lastUvGenParams[2] = {0,0};
 
   uint64_t lastOtherMode = 0xFF;
-  uint32_t lastBlendMode = 0xFFFF'FFFF;
+  uint32_t lastBlendMode = 0xFFFFFFFF;
 
   for(uint32_t c = 0; c < model->chunkCount; c++) {
     char chunkType = model->chunkOffsets[c].type;
@@ -273,7 +284,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
       // load vertices, this will already do T&L (so matrices/fog/lighting must be set before)
       t3d_vert_load(part->vert, part->vertDestOffset, part->vertLoadCount);
       //debugf("Load Vertices[%d]: %d, %d | bone: %d\n", p, part->vertDestOffset, part->vertLoadCount, part->matrixIdx);
-      if(part->numIndices == 0)continue; // partial-load, last chunk of a sequence will both indices & material data
+      if(part->numIndices == 0 && part->numStripIndices[0] == 0)continue; // partial-load, last chunk of a sequence will both indices & material data
 
       // now apply rdpq settings, these are independent of the t3d state
       // and only need to happen before a `t3d_tri_draw` call
@@ -337,9 +348,18 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
         }
       }
 
-      // now draw all triangles of the part
+      // Draw single triangles first...
       for(int i = 0; i < part->numIndices; i+=3) {
         t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
+      }
+
+      // ...then strips, which are an encoded index buffer DMA'd by the RSP.
+      // Internally, this will re-use the space of the vertex cache of verts. that are not used anymore
+      uint8_t *idxPtrBase = (uint8_t*)align_pointer(part->indices + part->numIndices, 8);
+      for(int s=0; s<4; ++s) {
+        if(part->numStripIndices[s] == 0)break;
+        t3d_tri_draw_strip((int16_t*)idxPtrBase, part->numStripIndices[s]);
+        idxPtrBase = (uint8_t*)align_pointer(idxPtrBase + part->numStripIndices[s] * 2, 8);
       }
 
       // Sync, waits for any triangles in flight. This is necessary since the rdpq-api is not
@@ -367,6 +387,14 @@ void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrice
     for(int i = 0; i < part->numIndices; i+=3) {
       t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
     }
+
+    uint8_t *idxPtrBase = (uint8_t*)align_pointer(part->indices + part->numIndices, 8);
+    for(int s=0; s<4; ++s) {
+      if(part->numStripIndices[s] == 0)break;
+      t3d_tri_draw_strip((int16_t*)idxPtrBase, part->numStripIndices[s]);
+      idxPtrBase = (uint8_t*)align_pointer(idxPtrBase + part->numStripIndices[s] * 2, 8);
+    }
+
     t3d_tri_sync();
   }
   if(hadMatrixPush)t3d_matrix_pop(1);

@@ -13,7 +13,6 @@
 
 namespace
 {
-  constexpr int MAX_VERTEX_COUNT = 70;
   constexpr uint16_t INVALID_INDEX = 0xFFFF;
 
   uint16_t getVertexIndex(const ModelChunked &model, const VertexT3D &v, uint16_t startIndex)
@@ -183,6 +182,7 @@ ModelChunked chunkUpModel(const Model &model)
 
           for(auto & [boneIndex, verts] : vertsByBone) {
             // per unique bone index, create a new chunk...
+            ++orgChunk.boneCount;
             auto subChunk = orgChunk;
             subChunk.vertexCount = verts.size(); // ...only for its vertices...
             subChunk.vertexOffset = chunkSubOffset; // ...starting from the last chunks offset
