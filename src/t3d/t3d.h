@@ -241,6 +241,24 @@ void t3d_viewport_calc_viewspace_pos(T3DViewport *viewport, T3DVec3 *out, const 
  */
 void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2);
 
+/**
+ * Draws a strip of triangles by loading an index buffer.
+ * Note that this data must be in an internal format, so use 't3d_indexbuffer_convert' to convert it first.
+ * The docs of 't3d_indexbuffer_convert' also describe the format of the input data.
+ *
+ * The data behind 'indexBuff' will be DMA'd by the ucode, so it must be aligned to 8 bytes,
+ * and persist in memory until the triangles are drawn.
+ * The target location of the DMA in DMEM is shared with the vertex cache, aligned to the end.
+ * Make sure that there is enough space left to load the indices to not corrupt the vertices.
+ * E.g. if you loaded 68 vertices, you have 2 slots free or 36*2 bytes, meaning you can load 36 indices.
+ * Note that due to alignment reasons, a safety margin of 4 indices should be added if the free vertex count is odd.
+ *
+ * The built-in model format will use this function internally, if you plan on manually using it for model data,
+ * check out 'tools/gltf_importer/src/optimizer/meshOptimizer.cpp' for an algorithm to do so.
+ *
+ * @param indexBuff index buffer to load
+ * @param count amount of indices to load
+ */
 void t3d_tri_draw_strip(int16_t* indexBuff, int count);
 
 /**
@@ -419,10 +437,25 @@ static inline void* t3d_segment_address(uint8_t segmentId, void* ptr) {
 // Index-buffer helpers:
 
 /**
- * Converts an index buffer for triangle strips from indices to DMEM pointers.
+ * Converts an index buffer for triangle strips from indices to encoded DMEM pointers.
  * This is necessary in order for t3d_tri_draw_indexed to work.
  * Internally this data will be DMA'd by the ucode later on.
- * @param indices index buffer of local indices (values 0-70, and 0xFF)
+ *
+ * Format:
+ * The input data is expected to be an array of local indices (0-69) as s16 values.
+ * The first 3 values define the initial triangle.
+ * Every index afterwards will extend the strip by one triangle (winding order flipped).
+ * Degenerate triangles are supported (in the form of index[x] == index[x+2]).
+ * To start a new strip, negate the next index and subtract one (e.g. 5 becomes -6),
+ * meaning the negative value and the 2 following values will form a new triangle, re-starting the strip.
+ * Since restarting does not need a special index value, non-stripped indices (triangle lists)
+ * can be encoded too without overhead.
+ *
+ * Examples:   (original triangles -> expected input of this function)
+ * [4,5,6] [0,1,2] [7,8,9]         -> [4,5,6,-1,1,2,-8,8,9]
+ * [0,1,2] [3,0,2] [0,3,4] [5,0,4] -> [1,2,0,3,0,4,5]
+ *
+ * @param indices index buffer of local indices, will be modified in-place
  * @param count index count
  */
 void t3d_indexbuffer_convert(int16_t indices[], int count);

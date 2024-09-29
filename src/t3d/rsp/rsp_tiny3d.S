@@ -151,7 +151,7 @@
     .align 2
     COLOR_AMBIENT: .ds.b 8
     .align 2
-    LIGHT_DIR_COLOR: .ds.b 64
+    LIGHT_DIR_COLOR: .ds.b 128
     .align 2
     TRI_COMMAND: .word 0
     .align 2
@@ -648,12 +648,12 @@ T3DCmd_TriDraw_Strip:
   addiu $t2, $zero, 12
   andi $s4, $a1, 65535
   srl $t0, $a1, 16
-  or $s0, $zero, $a0
-  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   addiu $t0, $t0, -1
+  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  or $s0, $zero, $a0
   lbu $v0, %lo(FACE_CULLING + 0)
-  addiu $s4, $s4, 65534
   ori $ra, $zero, %lo(STRIP_LOOP_NEXT)
+  addiu $s4, $s4, 65534
   xori $v0, $v0, 1
   sh $ra, %lo(CLIP_RA)($zero)
   sb $v0, %lo(16 + RSPQ_SCRATCH_MEM)($zero)
@@ -662,11 +662,11 @@ T3DCmd_TriDraw_Strip:
   addiu $s4, $s4, 2
   STRIP_LOOP_NEXT:
   lhu $a2, 2($s4)
-  lhu $a0, 0($s4)
+  xori $v0, $v0, 1
   lh $a1, 4($s4)
   andi $s6, $a2, 16384
   bne $s6, $zero, STRIP_LOOP_END
-  xori $v0, $v0, 1
+  lhu $a0, 0($s4)
   bltz $a1, STRIP_LOOP_NEW
   addiu $s4, $s4, 2
   beq $a0, $a1, STRIP_LOOP_NEXT
