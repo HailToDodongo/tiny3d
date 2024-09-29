@@ -645,23 +645,39 @@ T3DCmd_TriDraw_End:
   j DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   addiu $t0, $t0, -1
 T3DCmd_TriDraw_Strip:
-  ori $ra, $zero, %lo(T3DCmd_TriDraw_Multi_SecondTri)
+  addiu $t2, $zero, 12
+  andi $s4, $a1, 65535
+  srl $t0, $a1, 16
+  or $s0, $zero, $a0
+  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  addiu $t0, $t0, -1
+  lbu $v0, %lo(FACE_CULLING + 0)
+  addiu $s4, $s4, 65534
+  ori $ra, $zero, %lo(STRIP_LOOP_NEXT)
+  xori $v0, $v0, 1
   sh $ra, %lo(CLIP_RA)($zero)
-  addiu $v1, $gp, %lo(RSPQ_DMEM_BUFFER)  -10
-  ori $sp, $zero, %lo(T3DCmd_TriDraw_Multi_SecondTri)
-  ori $ra, $zero, %lo(MULTI_LOOP_JUMP_END)
-  j RDPQ_Triangle_Send_Async
-  srl $a2, $a1, 16
-  MULTI_LOOP_JUMP_END:
+  sb $v0, %lo(16 + RSPQ_SCRATCH_MEM)($zero)
+  STRIP_LOOP_NEW:
+  lbu $v0, %lo(RSPQ_SCRATCH_MEM + 16)
+  addiu $s4, $s4, 2
+  STRIP_LOOP_NEXT:
+  lhu $a2, 2($s4)
+  lhu $a0, 0($s4)
+  lh $a1, 4($s4)
+  andi $s6, $a2, 16384
+  bne $s6, $zero, STRIP_LOOP_END
+  xori $v0, $v0, 1
+  bltz $a1, STRIP_LOOP_NEW
+  addiu $s4, $s4, 2
+  beq $a0, $a1, STRIP_LOOP_NEXT
+  ori $sp, $zero, %lo(STRIP_LOOP_NEXT)
+  jal RDPQ_Triangle_Send_Async ## Args: $a0, $a1, $a2, $sp, $v0
+  addiu $v1, $s4, 65534
+  j STRIP_LOOP_NEXT
   sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
-  T3DCmd_TriDraw_Multi_SecondTri:
+  STRIP_LOOP_END:
   ori $sp, $zero, %lo(RSPQ_Loop)
-  addiu $v1, $gp, %lo(RSPQ_DMEM_BUFFER)  -6
-  lhu $a0, %lo(RSPQ_DMEM_BUFFER  -6)($gp)
-  lhu $a2, %lo(RSPQ_DMEM_BUFFER  -4)($gp)
-  lhu $a1, %lo(RSPQ_DMEM_BUFFER  -2)($gp)
-  ori $ra, $zero, %lo(T3DCmd_TriDraw_End)
-  j RDPQ_Triangle_Send_Async
+  j RSPQ_Loop
   sh $sp, %lo(CLIP_RA)($zero)
 T3DCmd_TriSync:
   lbu $s7, %lo(CLIP_CODE_ADDR + 0)

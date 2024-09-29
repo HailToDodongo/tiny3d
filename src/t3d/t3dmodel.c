@@ -349,10 +349,10 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
         }
       }
 
-      debugf("Draw Part: idx:%d strips:%d %d %d %d\n", part->numIndices,
+      /*debugf("Draw Part: idx:%d strips:%d %d %d %d\n", part->numIndices,
         part->numStripIndices[0], part->numStripIndices[1],
         part->numStripIndices[2], part->numStripIndices[3]
-      );
+      );*/
 
       t3d_state_set_drawflags(lastRenderFlags);
       // Draw single triangles first...
@@ -367,31 +367,33 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
 
       for(int s=0; s<4; ++s)
       {
-        debugf("Draw Strip: %d\n", part->numStripIndices[s]);
         if(part->numStripIndices[s] == 0)break;
+        /*debugf("Draw Strip: %d\n", part->numStripIndices[s]);
         int16_t *idxPtr = (int16_t*)idxPtrBase;
         int16_t *idxPtrEnd = idxPtr + part->numStripIndices[s] - 2;
         uint32_t flags = lastRenderFlags & ~(T3D_FLAG_CULL_FRONT | T3D_FLAG_CULL_BACK);
         uint8_t faceFlag = 0;
 
-        int stripeIdx = 0;
         for(; idxPtr < idxPtrEnd; ++idxPtr)
         {
           if(idxPtr[2] & (1 << 15)) {
             faceFlag = 0;
             idxPtr += 2;
-            ++stripeIdx;
+            debugf("s5: 0000 0001   \n");
           }
 
           if(idxPtr[0] != idxPtr[2]) {
-            t3d_state_set_drawflags(flags | (faceFlag ? T3D_FLAG_CULL_FRONT : T3D_FLAG_CULL_BACK));
-            t3d_tri_draw_indexed_(idxPtr[0] & 0xFFFF, idxPtr[1] & 0xFFFF, idxPtr[2] & 0xFFFF);
+            //t3d_state_set_drawflags(flags | (faceFlag ? T3D_FLAG_CULL_FRONT : T3D_FLAG_CULL_BACK));
+            //t3d_tri_draw_indexed_(idxPtr[0] & 0xFFFF, idxPtr[1] & 0xFFFF, idxPtr[2] & 0xFFFF);
+            debugf("a0: 0000 %04x   a1: 0000 %04x   a2: 0000 %04x   \n", idxPtr[0] & 0xFFFFu, idxPtr[2] & 0xFFFFu, idxPtr[1] & 0xFFFFu);
             ++triCount;
           }
 
           faceFlag = faceFlag ^ 1;
-        }
-        //t3d_tri_draw_strip((int16_t*)idxPtrBase, part->numStripIndices[s]);
+        }*/
+        //if(s == 0 && p == 0)
+          t3d_tri_draw_strip((int16_t*)idxPtrBase, part->numStripIndices[s]);
+
         idxPtrBase = (uint8_t*)align_pointer(idxPtrBase + part->numStripIndices[s] * 2, 8);
       }
 

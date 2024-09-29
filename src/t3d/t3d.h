@@ -20,7 +20,7 @@ enum T3DCmd {
   T3D_CMD_TRI_DRAW     = 0x0,
   T3D_CMD_SCREEN_SIZE  = 0x1,
   T3D_CMD_MATRIX_STACK = 0x2,
-  T3D_CMD_SET_WORD      = 0x3,
+  T3D_CMD_SET_WORD     = 0x3,
   T3D_CMD_VERT_LOAD    = 0x4,
   T3D_CMD_LIGHT_SET    = 0x5,
   T3D_CMD_DRAWFLAGS    = 0x6,
@@ -30,8 +30,8 @@ enum T3DCmd {
   T3D_CMD_FOG_RANGE    = 0xA,
   T3D_CMD_FOG_STATE    = 0xB,
   T3D_CMD_TRI_SYNC     = 0xC,
-  T3D_CMD_TRI_DRAW_IDX = 0xD,
-  T3D_CMD_TRI_DRAW_REP = 0xE,
+  T3D_CMD_TRI_STRIP    = 0xD,
+  //                   = 0xE,
   //                   = 0xF,
 };
 

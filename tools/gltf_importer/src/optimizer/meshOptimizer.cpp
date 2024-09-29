@@ -189,7 +189,7 @@ void optimizeModelChunk(ModelChunked &model)
     }
 
     if(!stipChunks.empty()) {
-      //throw std::runtime_error("Failed to emit all strips");
+      throw std::runtime_error("Failed to emit all strips");
     }
 
     /*for(int i=0; i<chunk.stripIndices[0].size(); ++i) {
