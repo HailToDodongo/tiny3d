@@ -37,9 +37,6 @@
 #define RDPQ_TRIANGLE_VTX2_DMEM 4,v1
 #define RDPQ_TRIANGLE_VTX3_DMEM 2,v1
 
-// fixed address of scratch-mem, avoids register loads for VU saves/loads
-#define ADDR_SCRATCH_MEM 0x80
-
 // Size of the internal triangle format
 // @TODO: add const expr. eval to RSPL
 #define TRI_SIZE   36

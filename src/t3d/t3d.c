@@ -280,13 +280,6 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
   );
 }
 
-void t3d_tri_draw_indexed_(uint16_t v0, uint16_t v1, uint16_t v2) {
-  uint32_t v12 = (v1 << 16) | v2;
-  rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_DRAW,
-    v0, v12
-  );
-}
-
 void t3d_tri_draw_strip(int16_t* indexBuff, int count)
 {
   uint32_t loadAddr = (uint32_t)PhysicalAddr(indexBuff);

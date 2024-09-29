@@ -100,7 +100,6 @@ namespace {
 
 void optimizeModelChunk(ModelChunked &model)
 {
-  int totalStripCount = 0;
   for(auto &chunk : model.chunks)
   {
     // avoid skinned mesh parts with bones, these use partial loads and indices
@@ -138,7 +137,6 @@ void optimizeModelChunk(ModelChunked &model)
     auto freeVertexUsage = [&tris, &emitTri](int idx) {
       for(int i=0; i<tris.size(); ++i) {
         if(triHasIndex(tris[i], idx)) {
-          printf("  Removing tri %d %d %d\n", tris[i][0], tris[i][1], tris[i][2]);
           emitTri(tris[i]);
           tris.erase(tris.begin() + i);
           --i;
@@ -179,11 +177,9 @@ void optimizeModelChunk(ModelChunked &model)
       for(size_t i=0; i<stipChunks.size(); ++i) {
         int size = (int)stipChunks[i].size()+1;
         if(freeIndices - size >= 0) {
-          printf("Emitting strip %d, space: %d: ", i, freeIndices);
-          for(auto idx : stipChunks[i]) {
-            printf(" %d", idx);
-          }
-          printf("\n");
+          /*printf("Emitting strip %d, space: %d: ", i, freeIndices);
+          for(auto idx : stipChunks[i])printf(" %d", idx);
+          printf("\n");*/
           freeIndices -= emitStrip(stipChunks[i], s);
           stipChunks.erase(stipChunks.begin() + i);
           --i;
@@ -193,22 +189,15 @@ void optimizeModelChunk(ModelChunked &model)
       vertUsage = getVertexUsage(stipChunks);
       freeVertsEnd = countFreeVertsAtEnd(vertUsage);
       freeIndices = calcUsableIndices(freeVertsEnd);
-      printf("Free verts after stripify: %d\n", freeVertsEnd);
-
-      totalStripCount += chunk.stripIndices[s].size();
-      printf("strip indices: %d -> %d | verts free: %d, idx: %d\n", tris.size() * 3, chunk.stripIndices[s].size(), freeVertsEnd, freeIndices);
+      //printf("strip indices: %d\n", chunk.stripIndices[s].size());
     }
 
     // if we have some triangles left, de-stripify them and emit regular triangles
     if(!stipChunks.empty()) {
-      printf("Unstripped tris: %d\n", tris.size());
       for(auto &strip : stipChunks) {
         auto indices = destripify(strip);
         chunk.indices.insert(chunk.indices.end(), indices.begin(), indices.end());
       }
     }
-
-    printf("\n\n");
   }
-  printf("Total strip indices: %d\n", totalStripCount); // 5866
 }
