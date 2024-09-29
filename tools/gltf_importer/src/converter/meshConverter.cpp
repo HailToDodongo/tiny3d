@@ -182,6 +182,7 @@ ModelChunked chunkUpModel(const Model &model)
 
           for(auto & [boneIndex, verts] : vertsByBone) {
             // per unique bone index, create a new chunk...
+            ++orgChunk.boneCount;
             auto subChunk = orgChunk;
             subChunk.vertexCount = verts.size(); // ...only for its vertices...
             subChunk.vertexOffset = chunkSubOffset; // ...starting from the last chunks offset

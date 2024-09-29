@@ -143,6 +143,7 @@ struct MeshChunk {
   uint32_t vertexCount{0};
   uint32_t vertexDestOffset{0};
   uint32_t boneIndex{0};
+  uint32_t boneCount{0};
   std::string name{};
 };
 

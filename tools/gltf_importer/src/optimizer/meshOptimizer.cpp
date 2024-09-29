@@ -48,18 +48,6 @@ namespace {
     return freeVertsEnd;
   }
 
-  int getLeastUsedVert(const std::array<int, MAX_VERTEX_COUNT> &usedVerts) {
-    int minIdx = 0;
-    int minCount = usedVerts[0];
-    for(int i=1; i<MAX_VERTEX_COUNT; ++i) {
-      if(usedVerts[i] < minCount) {
-        minCount = usedVerts[i];
-        minIdx = i;
-      }
-    }
-    return minIdx;
-  }
-
   int calcUsableIndices(int freeVertices) {
     int res = freeVertices * CACHE_VERTEX_SIZE / 2;
     // a single vertex is not aligned (2 are), sub. 8 bytes to not overwrite stuff
@@ -89,6 +77,25 @@ namespace {
     if(!strip.empty())res.push_back(strip);
     return res;
   }
+
+  std::vector<int8_t> destripify(const std::vector<int8_t> &strip)
+  {
+    std::vector<int8_t> res{};
+    for(int i=0; i<strip.size()-2; ++i) {
+      if(strip[i] == strip[i+2])continue;
+      if(i % 2 == 0) {
+        res.push_back(strip[i]);
+        res.push_back(strip[i+1]);
+        res.push_back(strip[i+2]);
+      } else {
+        res.push_back(strip[i+2]);
+        res.push_back(strip[i+1]);
+        res.push_back(strip[i]);
+      }
+    }
+
+    return res;
+  }
 }
 
 void optimizeModelChunk(ModelChunked &model)
@@ -96,6 +103,10 @@ void optimizeModelChunk(ModelChunked &model)
   int totalStripCount = 0;
   for(auto &chunk : model.chunks)
   {
+    // avoid skinned mesh parts with bones, these use partial loads and indices
+    // which mess up the used index detection (@TODO: handle this)
+    if(chunk.boneCount > 0)continue;
+
     // convert indices into split up triangles, then clear old indices
     TriList tris{}; // input tris
     for(int i=0; i<chunk.indices.size(); i+=3) {
@@ -188,20 +199,14 @@ void optimizeModelChunk(ModelChunked &model)
       printf("strip indices: %d -> %d | verts free: %d, idx: %d\n", tris.size() * 3, chunk.stripIndices[s].size(), freeVertsEnd, freeIndices);
     }
 
+    // if we have some triangles left, de-stripify them and emit regular triangles
     if(!stipChunks.empty()) {
-      throw std::runtime_error("Failed to emit all strips");
+      printf("Unstripped tris: %d\n", tris.size());
+      for(auto &strip : stipChunks) {
+        auto indices = destripify(strip);
+        chunk.indices.insert(chunk.indices.end(), indices.begin(), indices.end());
+      }
     }
-
-    /*for(int i=0; i<chunk.stripIndices[0].size(); ++i) {
-      if(chunk.stripIndices[0][i] < 0)printf("\n");
-      printf(" %d", chunk.stripIndices[0][i]);
-    }*/
-
-    tris.clear();
-
-
-    // emit rest of unstripped tris
-    for(auto tri : tris)emitTri(tri);
 
     printf("\n\n");
   }
