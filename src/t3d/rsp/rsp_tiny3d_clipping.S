@@ -131,6 +131,8 @@
     .align 3
     MATRIX_MVP: .ds.b 64
     .align 3
+    MATRIX_MV: .ds.b 64
+    .align 3
     MATRIX_NORMAL: .ds.b 24
     TRI_BUFFER: .ds.b 2520
     .align 4
@@ -152,7 +154,7 @@
     .align 2
     COLOR_AMBIENT: .ds.b 8
     .align 2
-    LIGHT_DIR_COLOR: .ds.b 128
+    LIGHT_DIR_COLOR: .ds.b 64
     .align 2
     TRI_COMMAND: .word 0
     .align 2

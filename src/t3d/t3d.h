@@ -333,12 +333,24 @@ void t3d_light_set_ambient(const uint8_t *color);
 /**
  * Sets a directional light.
  * You can set up to 8 directional lights, the amount can be set with 't3d_light_set_count'.
+ * Note that directional and point lights share the same space.
  *
  * @param index index (0-7)
  * @param color color in RGBA8 format
  * @param dir direction vector
  */
 void t3d_light_set_directional(int index, const uint8_t *color, const T3DVec3 *dir);
+
+/**
+ * Sets a point light.
+ * You can set up to 8 point lights, the amount can be set with 't3d_light_set_count'.
+ * Note that point and directional lights share the same space.
+ *
+ * @param index
+ * @param color
+ * @param pos
+ */
+void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, float size);
 
 /**
  * Sets the amount of active lights (excl. ambient light).

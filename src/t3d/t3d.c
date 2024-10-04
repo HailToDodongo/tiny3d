@@ -187,6 +187,40 @@ void t3d_light_set_directional(int index, const uint8_t *color, const T3DVec3 *d
   );
 }
 
+void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, float size)
+{
+  assertf(currentViewport, "t3d_light_set_point needs a viewport to be attached!");
+  T3DVec4 posView;
+  t3d_mat4_mul_vec3(&posView, &currentViewport->matCamera, pos);
+
+  int32_t posFP[4] = {
+    (int32_t)(posView.v[0] * 16.0f),
+    (int32_t)(posView.v[1] * 16.0f),
+    (int32_t)(posView.v[2] * 16.0f),
+    (int32_t)(1.0f/(size) * 64.0f)
+  };
+  for(int i=0; i<4; ++i) {
+    posFP[i] &= 0xFFFF;
+  }
+  //debugf("S: %04lX\n", (uint32_t)posFP[3]);
+
+  rspq_write(T3D_RSP_ID, T3D_CMD_SET_WORD, (RSP_T3D_LIGHT_DIR_COLOR & 0xFFF),
+     (posFP[0] << 16) | posFP[1]
+  );
+  rspq_write(T3D_RSP_ID, T3D_CMD_SET_WORD, (RSP_T3D_LIGHT_DIR_COLOR & 0xFFF) + 4,
+     (posFP[2] << 16) | posFP[3]
+  );
+  rspq_write(T3D_RSP_ID, T3D_CMD_SET_WORD, (RSP_T3D_LIGHT_DIR_COLOR & 0xFFF) + 8,
+      (color[0] << 24) | (color[1] << 16) | (color[2] << 8) | color[3]
+  );
+  rspq_write(T3D_RSP_ID, T3D_CMD_SET_WORD, (RSP_T3D_LIGHT_DIR_COLOR & 0xFFF) + 12,
+      (color[0] << 24) | (color[1] << 16) | (color[2] << 8) | color[3]
+  );
+
+  //debugf("Pos: %.4f %.4f %.4f\n", (double)pos->v[0], (double)pos->v[1], (double)pos->v[2]);
+  //debugf("PosView: %.4f %.4f %.4f | %.4f\n", (double)posView.v[0], (double)posView.v[1], (double)posView.v[2], (double)posView.v[3]);
+}
+
 uint16_t t3d_vert_pack_normal(const T3DVec3 *normal)
 {
   T3DVec3 norm = *normal;
