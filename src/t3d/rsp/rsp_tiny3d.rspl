@@ -204,9 +204,8 @@ macro dotXYZW(vec32 res, vec32 a, vec32 b)
 
 // Loads currently active model matrix (premultiplied with proj. matrix) into registers
 // This already duplicates it for 2-vector operations.
-function loadCurrentMVPMat(vec32<$v27> mat0, vec32<$v25> mat1, vec32<$v23> mat2, vec32<$v21> mat3)
+function loadCurrentMVPMat(u16<$t0> address, vec32<$v27> mat0, vec32<$v25> mat1, vec32<$v23> mat2, vec32<$v21> mat3)
 {
-  u16 address = MATRIX_MVP;
   mat0 = load(address, 0x00).xyzwxyzw;
   mat1 = load(address, 0x10).xyzwxyzw;
   mat2 = load(address, 0x20).xyzwxyzw;
@@ -276,9 +275,11 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   u32<$s0> dmaAddrRDRAM;
   resolveSegmentAddr(dmaAddrRDRAM, rdramVerts);
   dma_in_async(prt3d, dmaAddrRDRAM, copySize);
+  undef copySize;
 
+  u16<$t0> matAddr = MATRIX_MVP;
   vec32 mat0, mat1, mat2, mat3;
-  loadCurrentMVPMat(mat0, mat1, mat2, mat3);
+  loadCurrentMVPMat(matAddr, mat0, mat1, mat2, mat3);
 
   vec16 matN0, matN1, matN2;
   loadCurrentNormalMat(matN0, matN1, matN2);
@@ -402,86 +403,66 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
     {
   AAA:
+
       // point lights need to be done in eye-space
       // since the usual matrix is MVP, we need to load the MV one
-      loadCurrentMVMat(mat0, mat1, mat2, mat3);
+      matAddr = MATRIX_MV;
+      loadCurrentMVPMat(matAddr, mat0, mat1, mat2, mat3);
       mulMat4Vec8(mat0, mat1, mat2, mat3, pos, mat0);
-      s16 sideA = mat0:sint.x;
-      s16 sideB = mat0:sint.X;
+
+      {
+        undef mat2;
+        vec16 lightRes;
+
 
       // get light position
-      vec32 ptPos:sfract = 0;
+      vec32 ptPos;
       ptPos:sint.xyzw = load(ptrLight).xyzw;
       ptPos:sint.XYZW = load(ptrLight).xyzw;
-      ptPos >>= 4; // shift into 16.16
-      mat1 = ptPos >> 4;
-
-      //printf("%v\n", mat0.w);
+      mat1 = ptPos:sint >> 13; // light strength into s16.16
+      ptPos = ptPos:sint >> 4; // light position into 16.16
 
       ptPos = ptPos - mat0; // get distance from light to vertex
       ptPos >>= 4; // adjust to keep numbers in bound during multiplication
-      store(ptPos, RSPQ_SCRATCH_MEM);
 
       // calc. dot product and normalize distance vector
-      ptPos = ptPos * ptPos;
-      mat0 = ptPos + ptPos.yyyyYYYY;
-      ptPos = ptPos + mat0.zzzzZZZZ;
+      mat3 = ptPos * ptPos;
+      mat0 = mat3 + mat3.yyyyYYYY;
+      mat3 = mat3 + mat0.zzzzZZZZ;
 
       // length / falloff
-      mat0 = ptPos >> 6;
-      mat0 *= mat1.w;
+      mat0 = mat3 * mat1.w;
+      ptPos.w = 0x7FFF;
+      lightRes:sint = mat0:sint < 1 ? mat0:sfract : ptPos.w;
 
-      //printf("%v\n", mat0.x);
-      VTEMP = 1;
-      VTEMP.y = 0xFFFF;
-      lightColor:sint = mat0:sint < VTEMP ? mat0:sfract : VTEMP.y;
-      //lightColor >>= 1;
-      //lightColor = lightColor.xxxxXXXX;
-
-      VTEMP.x = 0x7FFF;
-      VTEMP = VTEMP.x;
-      lightColor = VTEMP - lightColor.xxxxXXXX;
-      lightColor:ufract *= VTEMP.x;
+      VTEMP = ptPos.w;
+      lightRes = VTEMP - lightRes.xxxxXXXX;
+      lightRes:ufract *= VTEMP.x;
       //printf("%v\n", color.x);
 
-      ptPos.x = invert_half_sqrt(ptPos).x;
-      ptPos.X = invert_half_sqrt(ptPos).X;
-      mat0 = ptPos >> 8;
+      mat3.x = invert_half_sqrt(mat3).x;
+      mat3.X = invert_half_sqrt(mat3).X;
+      // adjust shift of sqrt() and make large enough to move the fractional part
+      // into the integer later in the mul. this avoids clamping issues
+      mat3 *= 256;
+      pos:sint = ptPos * mat3.xxxxXXXX;
 
-      BBB:
-
-      ptPos = load(RSPQ_SCRATCH_MEM);
-      ptPos *= mat0.xxxxXXXX;
-      pos:sint = ptPos:sfract;
-
+      //printf("%v\t%v\n", ptPos.Z, pos.Z);
       undef ptPos;
       // get dot prod. of the vertex and light normal, the scale color by it
       pos = pos:sfract * norm:sfract;
       VTEMP = pos + pos.yyyyYYYY;
       vec16 ptLightDir = pos + VTEMP.zzzzZZZZ;
 
-      ptLightDir = VZERO >= ptLightDir.xxxxXXXX;
-
-
-      lightColor = lightColor:sfract * ptLightDir:sfract;
+      lightRes = lightRes:sfract * ptLightDir:sfract.xxxxXXXX;
       VTEMP = load_vec_u8(ptrLight, 8);
-      lightColor = lightColor:ufract * VTEMP:ufract;
+      lightRes = lightRes:ufract * VTEMP:ufract;
+      lightColor:sint += lightRes;
 
-      //printf("%d %f %f\n", color.x, ptLightDir.x, VTEMP.x);
-
-      /*if(sideA >= 0)color.x = VTEMP.x;
-      if(sideB >= 0)color.X = VTEMP.X;
-      color = color.xxxxXXXX;*/
-
-      //color:sfract.x = 0.99999;
-
-
-      // debug normals
-      //color = norm >> 1;
-      //color += 0x8000;
-
-  BBBB:
-      loadCurrentMVPMat(mat0, mat1, mat2, mat3);
+      }
+      // reload MVP matrix for next loop
+      matAddr = MATRIX_MVP;
+      loadCurrentMVPMat(matAddr, mat0, mat1, mat2, mat3);
     }
 
     posClip *= normScaleW:ufract;
@@ -506,7 +487,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       vec32 fog;
 
       // add offset, to avoid loads, int/fract are stored in the same vector
-      /*fog:ufract = posClip + fogScaleOffset:ufract.y;
+      fog:ufract = posClip + fogScaleOffset:ufract.y;
       fog:sint   = posClip + fogScaleOffset.x;
       fog *= fogScaleOffset:sint.w;
 
@@ -515,7 +496,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       fogA = fog:sint.z;
       fogB = fog:sint.Z;
       fogA >>= 7;
-      fogB >>= 7;*/
+      fogB >>= 7;
     }
 
     // backup clip-pos in case that clipping is required

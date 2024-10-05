@@ -198,8 +198,8 @@ T3DCmd_VertLoad:
   or $t2, $zero, $zero
   jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   addu $s0, $a1, $s6
-  jal loadCurrentMVPMat ## Args: $v27, $v25, $v23, $v21
-  nop
+  jal loadCurrentMVPMat ## Args: $t0, $v27, $v25, $v23, $v21
+  ori $t0, $zero, %lo(MATRIX_MVP)
   ori $s6, $zero, %lo(MATRIX_NORMAL)
   ldv $v20, 0, 0, $s6
   ldv $v20, 8, 0, $s6
@@ -305,23 +305,8 @@ T3DCmd_VertLoad:
   srl $t3, $t6, 5
   nor $t6, $t6, $t3
   AAA:
-  ori $t5, $zero, %lo(MATRIX_MV)
-  ldv $v27, 0, 0, $t5
-  ldv $v27, 8, 0, $t5
-  ldv $v28, 0, 8, $t5
-  ldv $v28, 8, 8, $t5
-  ldv $v25, 0, 16, $t5
-  ldv $v25, 8, 16, $t5
-  ldv $v26, 0, 24, $t5
-  ldv $v26, 8, 24, $t5
-  ldv $v23, 0, 32, $t5
-  ldv $v23, 8, 32, $t5
-  ldv $v24, 0, 40, $t5
-  ldv $v24, 8, 40, $t5
-  ldv $v21, 0, 48, $t5
-  ldv $v21, 8, 48, $t5
-  ldv $v22, 0, 56, $t5
-  ldv $v22, 8, 56, $t5
+  jal loadCurrentMVPMat ## Args: $t0, $v27, $v25, $v23, $v21
+  ori $t0, $zero, %lo(MATRIX_MV)
   vmudn $v28, $v28, $v08.h0
   vmadh $v27, $v27, $v08.h0
   vmadn $v28, $v26, $v08.h1
@@ -330,77 +315,57 @@ T3DCmd_VertLoad:
   vmadh $v27, $v23, $v08.h2
   vmadn $v28, $v22, $v08.h3
   vmadh $v27, $v21, $v08.h3
-  mfc2 $t5, $v27.e0
-  mfc2 $t4, $v27.e4
-  vxor $v02, $v00, $v00.e0
   ldv $v01, 0, 0, $s3
   ldv $v01, 8, 0, $s3
-  vmudl $v02, $v02, $v31.e3
-  vmadm $v01, $v01, $v31.e3
-  vmadn $v02, $v00, $v00
-  vmudl $v26, $v02, $v31.e3
-  vmadm $v25, $v01, $v31.e3
+  vmudm $v25, $v01, $v30.e4
   vmadn $v26, $v00, $v00
+  vmudm $v01, $v01, $v31.e3
+  vmadn $v02, $v00, $v00
   vsubc $v02, $v02, $v28.v
   vsub $v01, $v01, $v27.v
   vmudl $v02, $v02, $v31.e3
   vmadm $v01, $v01, $v31.e3
   vmadn $v02, $v00, $v00
-  ori $at, $zero, %lo(RSPQ_SCRATCH_MEM)
-  sqv $v01, 0, 0, $at
-  sqv $v02, 0, 16, $at
   vmudl $v29, $v02, $v02.v
   vmadm $v29, $v01, $v02.v
-  vmadn $v02, $v02, $v01.v
-  vmadh $v01, $v01, $v01.v
-  vaddc $v28, $v02, $v02.h1
-  vadd $v27, $v01, $v01.h1
-  vaddc $v02, $v02, $v28.h2
-  vadd $v01, $v01, $v27.h2
-  vmudl $v28, $v02, $v31.e5
-  vmadm $v27, $v01, $v31.e5
-  vmadn $v28, $v00, $v00
-  vmudl $v29, $v28, $v26.e3
-  vmadm $v29, $v27, $v26.e3
-  vmadn $v28, $v28, $v25.e3
-  vmadh $v27, $v27, $v25.e3
-  vxor $v29, $v00, $v30.e7
-  ori $at, $zero, 0xFFFF
-  mtc2 $at, $v29.e1
-  vlt $v29, $v27, $v29
-  vmrg $v03, $v28, $v29.e1
+  vmadn $v22, $v02, $v01.v
+  vmadh $v21, $v01, $v01.v
+  vaddc $v28, $v22, $v22.h1
+  vadd $v27, $v21, $v21.h1
+  vaddc $v22, $v22, $v28.h2
+  vadd $v21, $v21, $v27.h2
+  vmudl $v29, $v22, $v26.e3
+  vmadm $v29, $v21, $v26.e3
+  vmadn $v28, $v22, $v25.e3
+  vmadh $v27, $v21, $v25.e3
   addiu $at, $zero, 32767
-  mtc2 $at, $v29.e0
-  vor $v29, $v00, $v29.e0
-  vsubc $v03, $v29, $v03.h0
-  vmulu $v03, $v03, $v29.e0
-  vrsqh $v01.e0, $v01.e0
-  vrsql $v02.e0, $v02.e0
-  vrsqh $v01.e0, $v01.e4
-  vrsql $v02.e4, $v02.e4
-  vrsqh $v01.e4, $v00.e0
-  vmudl $v28, $v02, $v31.e7
-  vmadm $v27, $v01, $v31.e7
-  vmadn $v28, $v00, $v00
-  BBB:
-  ori $at, $zero, %lo(RSPQ_SCRATCH_MEM)
-  lqv $v01, 0, 0, $at
-  lqv $v02, 0, 16, $at
-  vmudl $v29, $v02, $v28.h0
-  vmadm $v29, $v01, $v28.h0
-  vmadn $v02, $v02, $v27.h0
-  vmadh $v01, $v01, $v27.h0
-  vor $v08, $v00, $v02
+  mtc2 $at, $v01.e3
+  mtc2 $zero, $v02.e3
+  vlt $v29, $v27, $v30.e7
+  vmrg $v24, $v28, $v01.e3
+  vor $v29, $v00, $v01.e3
+  vsubc $v24, $v29, $v24.h0
+  vmulu $v24, $v24, $v29.e0
+  vrsqh $v21.e0, $v21.e0
+  vrsql $v22.e0, $v22.e0
+  vrsqh $v21.e0, $v21.e4
+  vrsql $v22.e4, $v22.e4
+  vrsqh $v21.e4, $v00.e0
+  vmudn $v22, $v22, $v31.e7
+  vmadh $v21, $v21, $v31.e7
+  vmudl $v29, $v02, $v22.h0
+  vmadm $v29, $v01, $v22.h0
+  vmadn $v09, $v02, $v21.h0
+  vmadh $v08, $v01, $v21.h0
   vmulf $v08, $v08, $v07.v
   vaddc $v29, $v08, $v08.h1
-  vaddc $v02, $v08, $v29.h2
-  vge $v02, $v00, $v02.h0
-  vmulf $v03, $v03, $v02.v
+  vaddc $v23, $v08, $v29.h2
+  vmulf $v24, $v24, $v23.h0
   luv $v29, 0, 8, $s3
-  vmulu $v03, $v03, $v29.v
-  BBBB:
-  jal loadCurrentMVPMat ## Args: $v27, $v25, $v23, $v21
-  nop
+  vmulu $v24, $v24, $v29.v
+  ori $t0, $zero, %lo(MATRIX_MVP)
+  jal loadCurrentMVPMat ## Args: $t0, $v27, $v25, $v23, $v21
+  vadd $v03, $v03, $v24.v
   vmudl $v06, $v06, $v10.v
   vmadm $v05, $v05, $v10.v
   vmadn $v06, $v00, $v00
@@ -416,6 +381,15 @@ T3DCmd_VertLoad:
   vrcph $v05.e3, $v05.e7
   vrcpl $v06.e7, $v06.e7
   vrcph $v05.e7, $v00.e7
+  vaddc $v03, $v06, $v11.e1
+  vadd $v02, $v05, $v11.e0
+  vmudn $v03, $v03, $v11.e3
+  vmadh $v02, $v02, $v11.e3
+  vsub $v02, $v11, $v02.v
+  mfc2 $fp, $v02.e2
+  mfc2 $sp, $v02.e6
+  sra $fp, $fp, 7
+  sra $sp, $sp, 7
   ssv $v05, 6, 32, $s6
   ssv $v06, 6, 34, $s6
   ssv $v05, 14, 32, $s5
@@ -496,24 +470,24 @@ VertexFX_Outline:
   j RSPQ_Loop
   nop
 loadCurrentMVPMat:
-  ori $t0, $zero, %lo(MATRIX_MVP)
-  ldv $v22, 8, 56, $t0
-  ldv $v25, 0, 16, $t0
-  ldv $v23, 0, 32, $t0
-  ldv $v22, 0, 56, $t0
-  ldv $v28, 0, 8, $t0
-  ldv $v28, 8, 8, $t0
-  ldv $v27, 0, 0, $t0
-  ldv $v26, 8, 24, $t0
-  ldv $v23, 8, 32, $t0
   ldv $v24, 8, 40, $t0
+  ldv $v22, 0, 56, $t0
+  ldv $v25, 0, 16, $t0
+  ldv $v26, 0, 24, $t0
+  ldv $v23, 8, 32, $t0
+  ldv $v28, 8, 8, $t0
+  ldv $v23, 0, 32, $t0
   ldv $v21, 0, 48, $t0
   ldv $v24, 0, 40, $t0
-  ldv $v26, 0, 24, $t0
-  ldv $v21, 8, 48, $t0
-  ldv $v27, 8, 0, $t0
-  jr $ra
   ldv $v25, 8, 16, $t0
+  ldv $v26, 8, 24, $t0
+  ldv $v27, 0, 0, $t0
+  ldv $v27, 8, 0, $t0
+  ldv $v28, 0, 8, $t0
+  ldv $v22, 8, 56, $t0
+  jr $ra
+  ldv $v21, 8, 48, $t0
+.align 3
 T3DCmd_SetScreenSize:
   sra $s6, $a2, 16
   mtc2 $s6, $v27.e0
