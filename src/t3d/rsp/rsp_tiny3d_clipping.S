@@ -154,7 +154,11 @@
     .align 2
     COLOR_AMBIENT: .ds.b 8
     .align 2
+    #ifdef RSPQ_PROFILE
+    LIGHT_DIR_COLOR: .ds.b 32
+    #elif
     LIGHT_DIR_COLOR: .ds.b 112
+    #endif
     .align 1
     FOG_SCALE_OFFSET: .half 0, 0, 32767, 0
     .align 2

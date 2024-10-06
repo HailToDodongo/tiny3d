@@ -183,57 +183,54 @@ function RDPQ_Triangle_Send_End();
 @NoRegAlloc
 function pointLight(
   u16<$s3> ptrLight,
-  vec32<$v27> vertPos, vec32<$v25> mat1, vec32<$v23> ptPos, vec32<$v21> mat3,
-  vec16<$v08> pos, vec16<$v07> norm, vec16<$v03> lightColor,
+  vec32<$v27> vertPos, vec32<$v25> mat1, vec32<$v23> ptPos, vec32<$v21> lightVertDot,
+  vec16<$v08> pos, vec16<$v07> norm,
   vec16<$v01> lightRes, vec16<$v04> color,
-  u8<$t8> mvMatrixLoaded
+  u8<$t8> mvMatrixLoaded, s32<$t7> lightSize
 )
 {
+  lightSize:u16 = load(ptrLight, 14); // always positive
   if(!mvMatrixLoaded) {
     // point lights need to be done in eye-space
     // since the usual matrix is MVP, we need to load the MV one
-    loadCurrentMVMat(vertPos, mat1, ptPos, mat3);
-    mulMat4Vec8(vertPos, mat1, ptPos, mat3, pos, vertPos);
-    store(vertPos, RSPQ_SCRATCH_MEM, 16);
+    loadCurrentMVMat(vertPos, mat1, ptPos, lightVertDot);
+    mulMat4Vec8(vertPos, mat1, ptPos, lightVertDot, pos, vertPos);
+    vertPos >>= 4;
     mvMatrixLoaded = 1;
   }
 
-  vertPos = load(RSPQ_SCRATCH_MEM, 16);
+  lightSize <<= 13; // shift s16 into s16 range
 
   // get light position
   ptPos:sint.xyzw = load(ptrLight, 8).xyzw;
   ptPos:sint.XYZW = load(ptrLight, 8).xyzw;
-  mat1 = ptPos:sint >> 13; // light strength into s16.16
-  ptPos = ptPos:sint >> 4; // light position into 16.16
 
+  ptPos = ptPos:sint >> 8; // light position into 16.16
   ptPos = ptPos - vertPos; // get distance from light to vertex
-  ptPos >>= 4; // adjust to keep numbers in bound during multiplication
 
   // calc. dot product and normalize distance vector
-  mat3 = ptPos * ptPos;
-  vertPos = mat3 + mat3.yyyyYYYY;
-  mat3 = mat3 + vertPos.zzzzZZZZ;
+  lightVertDot = ptPos * ptPos;
+  mat1         = lightVertDot + lightVertDot.yyyyYYYY;
+  lightVertDot = lightVertDot + mat1.zzzzZZZZ;
 
-  // length / falloff
-  vertPos = mat3 * mat1.w;
-  ptPos.w = 0x7FFF;
-  lightRes:sint = vertPos:sint < 1 ? vertPos:sfract : ptPos.w;
+  mat1.w = lightSize;
 
-  VTEMP = ptPos.w;
-  lightRes = VTEMP - lightRes.xxxxXXXX;
-  lightRes:ufract *= VTEMP.x;
-  //printf("%v\n", color.x);
+  // rest of normalization
+  lightVertDot.x = invert_half_sqrt(lightVertDot).x;
+  lightVertDot.X = invert_half_sqrt(lightVertDot).X;
 
-  mat3.x = invert_half_sqrt(mat3).x;
-  mat3.X = invert_half_sqrt(mat3).X;
+  lightRes = lightVertDot * mat1.w;
+
   // adjust shift of sqrt() and make large enough to move the fractional part
   // into the integer later in the mul. this avoids clamping issues
-  mat3 *= 256;
-  pos:sint = ptPos * mat3.xxxxXXXX;
+  lightVertDot *= 256;
 
-  pos:sfract *= lightRes:sfract.xxxxXXXX;
+  lightRes:sfract *= lightRes:sfract; // squared light fall-off
 
-  // get dot prod. of the vertex and light normal, the scale color by it
+  pos:sint = ptPos * lightVertDot.xxxxXXXX; // normalize vector...
+  pos:sfract *= lightRes:sfract.xxxxXXXX; // ...and scale by fall-off
+
+  // final dot with the vertex-normal, color + accumulate is handled in the light loop
   lightRes = pos:sfract * norm:sfract;
 }
 
@@ -337,10 +334,10 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   undef copySize;
 
   vec32 mat0, mat1, mat2, mat3;
-  loadCurrentMVPMat(mat0, mat1, mat2, mat3);
-
   vec16 matN0, matN1, matN2;
+
   loadCurrentNormalMat(matN0, matN1, matN2);
+  loadCurrentMVPMat(mat0, mat1, mat2, mat3);
 
   vec16 normMask = load(NORMAL_MASK_SHIFT, 0x00).xyzwxyzw;
   vec16 normShift = load(NORMAL_MASK_SHIFT, 0x08).xyzwxyzw;
@@ -388,7 +385,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   pos.W = load(CLIPPING_PLANES, 4).x;
 
   u16 vertexFxFunc;
-  u8 logFlag = 1;
+
   // Process all vertices and apply transformation & lighting.
   // This always handles 2 vertices at once, most sitting in one register.
   {
@@ -422,6 +419,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       vec16 lightDirVec  = load_vec_s8(ptrLight, 8);
       u8 isPointLight = load(ptrLight, 15); // W=0 for directional, W=scale for point lights
       u8 mvMatrixLoaded = 0;
+      s32 lightSize;
 
       if(ptrLight != ptrLightEnd)
       {
@@ -431,7 +429,8 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
           color = load_vec_u8(ptrLight);
 
           if(isPointLight) {
-            pointLight(ptrLight, mat0, mat1, mat2, mat3, pos, norm, lightColor, lightDirScale, color, mvMatrixLoaded);
+            pointLight(ptrLight, mat0, mat1, mat2, mat3, pos, norm,
+              lightDirScale, color, mvMatrixLoaded, lightSize);
           }
 
           // usually we want "dot(normal, lightDir) * lighColor"

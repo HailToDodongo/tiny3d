@@ -194,17 +194,20 @@ void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, fl
   T3DVec4 posView;
   t3d_mat4_mul_vec3(&posView, &currentViewport->matCamera, pos);
 
+  size = fmaxf(size, 0.0f);
+  size = fminf(size, 1.0f);
+  size *= 0.5f;
+
   int32_t posFP[4] = {
     (int32_t)(posView.v[0] * 16.0f),
     (int32_t)(posView.v[1] * 16.0f),
     (int32_t)(posView.v[2] * 16.0f),
-    size <= 0.0001f ? 0xFFFF : (int32_t)(1.0f/(size) * 64.0f)
+    (int32_t)(size * 0xFFFF)
   };
   for(int i=0; i<4; ++i) {
     posFP[i] &= 0xFFFF;
   }
   if((posFP[3] & 0xFF) == 0)posFP[3] |= 1; // non-zero size is used as point-light detection
-  //debugf("S: %04lX\n", (uint32_t)posFP[3]);
 
   index = (index*16) + RSP_T3D_LIGHT_DIR_COLOR;
   index &= 0xFFFF;
@@ -215,8 +218,6 @@ void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, fl
     (posFP[0] << 16) | posFP[1],
     (posFP[2] << 16) | posFP[3]
   );
-  //debugf("Pos: %.4f %.4f %.4f\n", (double)pos->v[0], (double)pos->v[1], (double)pos->v[2]);
-  //debugf("PosView: %.4f %.4f %.4f | %.4f\n", (double)posView.v[0], (double)posView.v[1], (double)posView.v[2], (double)posView.v[3]);
 }
 
 uint16_t t3d_vert_pack_normal(const T3DVec3 *normal)
