@@ -179,7 +179,6 @@ temp_state {
 function RDPQ_Triangle_Send_Async(u16<$a0> ptrVert0, u16<$a1> ptrVert1, u16<$a2> ptrVert2, u16<$sp> cullDest, u8<$v0> cullFlag);
 function RDPQ_Triangle_Send_End();
 
-
 @NoRegAlloc
 function pointLight(
   u16<$s3> ptrLight,
@@ -385,6 +384,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   pos.W = load(CLIPPING_PLANES, 4).x;
 
   u16 vertexFxFunc;
+  u8 tmp;
 
   // Process all vertices and apply transformation & lighting.
   // This always handles 2 vertices at once, most sitting in one register.
