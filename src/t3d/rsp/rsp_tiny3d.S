@@ -155,7 +155,7 @@
     .align 2
     #if RSPQ_PROFILE
     LIGHT_DIR_COLOR: .ds.b 32
-    #elif
+    #else
     LIGHT_DIR_COLOR: .ds.b 112
     #endif
     .align 1

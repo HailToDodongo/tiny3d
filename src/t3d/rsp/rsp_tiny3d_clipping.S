@@ -154,9 +154,9 @@
     .align 2
     COLOR_AMBIENT: .ds.b 8
     .align 2
-    #ifdef RSPQ_PROFILE
+    #if RSPQ_PROFILE
     LIGHT_DIR_COLOR: .ds.b 32
-    #elif
+    #else
     LIGHT_DIR_COLOR: .ds.b 112
     #endif
     .align 1

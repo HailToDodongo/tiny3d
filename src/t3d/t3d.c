@@ -194,19 +194,16 @@ void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, fl
   T3DVec4 posView;
   t3d_mat4_mul_vec3(&posView, &currentViewport->matCamera, pos);
 
-  size = fmaxf(size, 0.0f);
-  size = fminf(size, 1.0f);
   size *= 0.5f;
+  size = fmaxf(size, 0.0f);
+  size = fminf(size, 0.5f);
 
   int32_t posFP[4] = {
-    (int32_t)(posView.v[0] * 16.0f),
-    (int32_t)(posView.v[1] * 16.0f),
-    (int32_t)(posView.v[2] * 16.0f),
-    (int32_t)(size * 0xFFFF)
+    (int32_t)(posView.v[0] * 16.0f) & 0xFFFF,
+    (int32_t)(posView.v[1] * 16.0f) & 0xFFFF,
+    (int32_t)(posView.v[2] * 16.0f) & 0xFFFF,
+    (int32_t)(size * 0xFFFF)        & 0xFFFF
   };
-  for(int i=0; i<4; ++i) {
-    posFP[i] &= 0xFFFF;
-  }
   if((posFP[3] & 0xFF) == 0)posFP[3] |= 1; // non-zero size is used as point-light detection
 
   index = (index*16) + RSP_T3D_LIGHT_DIR_COLOR;
