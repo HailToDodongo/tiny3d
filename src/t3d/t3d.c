@@ -157,7 +157,7 @@ void t3d_light_set_ambient(const uint8_t *color)
   rspq_write(T3D_RSP_ID, T3D_CMD_LIGHT_SET,
     (RSP_T3D_COLOR_AMBIENT & 0xFFFF), // address
     (color[0] << 24) | (color[1] << 16) | (color[2] << 8) | color[3],
-    0 // dir
+    0, 0 // dir
   );
 }
 
@@ -179,11 +179,12 @@ void t3d_light_set_directional(int index, const uint8_t *color, const T3DVec3 *d
 
   index = (index*16) + RSP_T3D_LIGHT_DIR_COLOR;
   index &= 0xFFFF;
+  uint32_t dirInt = (dirFP[0] << 24) | (dirFP[1] << 16) | (dirFP[2] << 8);
 
   rspq_write(T3D_RSP_ID, T3D_CMD_LIGHT_SET,
     index, // address
     (color[0] << 24) | (color[1] << 16) | (color[2] << 8) | color[3],
-    (dirFP[0] << 24) | (dirFP[1] << 16) | (dirFP[2] << 8)
+    dirInt, dirInt
   );
 }
 
@@ -197,26 +198,23 @@ void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, fl
     (int32_t)(posView.v[0] * 16.0f),
     (int32_t)(posView.v[1] * 16.0f),
     (int32_t)(posView.v[2] * 16.0f),
-    (int32_t)(1.0f/(size) * 64.0f)
+    size <= 0.0001f ? 0xFFFF : (int32_t)(1.0f/(size) * 64.0f)
   };
   for(int i=0; i<4; ++i) {
     posFP[i] &= 0xFFFF;
   }
+  if((posFP[3] & 0xFF) == 0)posFP[3] |= 1; // non-zero size is used as point-light detection
   //debugf("S: %04lX\n", (uint32_t)posFP[3]);
 
-  rspq_write(T3D_RSP_ID, T3D_CMD_SET_WORD, (RSP_T3D_LIGHT_DIR_COLOR & 0xFFF),
-     (posFP[0] << 16) | posFP[1]
-  );
-  rspq_write(T3D_RSP_ID, T3D_CMD_SET_WORD, (RSP_T3D_LIGHT_DIR_COLOR & 0xFFF) + 4,
-     (posFP[2] << 16) | posFP[3]
-  );
-  rspq_write(T3D_RSP_ID, T3D_CMD_SET_WORD, (RSP_T3D_LIGHT_DIR_COLOR & 0xFFF) + 8,
-      (color[0] << 24) | (color[1] << 16) | (color[2] << 8) | color[3]
-  );
-  rspq_write(T3D_RSP_ID, T3D_CMD_SET_WORD, (RSP_T3D_LIGHT_DIR_COLOR & 0xFFF) + 12,
-      (color[0] << 24) | (color[1] << 16) | (color[2] << 8) | color[3]
-  );
+  index = (index*16) + RSP_T3D_LIGHT_DIR_COLOR;
+  index &= 0xFFFF;
 
+  rspq_write(T3D_RSP_ID, T3D_CMD_LIGHT_SET,
+    index, // address
+    (color[0] << 24) | (color[1] << 16) | (color[2] << 8) | color[3],
+    (posFP[0] << 16) | posFP[1],
+    (posFP[2] << 16) | posFP[3]
+  );
   //debugf("Pos: %.4f %.4f %.4f\n", (double)pos->v[0], (double)pos->v[1], (double)pos->v[2]);
   //debugf("PosView: %.4f %.4f %.4f | %.4f\n", (double)posView.v[0], (double)posView.v[1], (double)posView.v[2], (double)posView.v[3]);
 }

@@ -138,9 +138,8 @@ state
 
   // scales clip-space W to be 1 in the middle of near to far
   // the `0` are set at runtime to a fractional value
-  alignas(8) vec16 NORM_SCALE_W = {
-    0xFFFF, 0xFFFF, 0xFFFF, 0x0000,
-    0x0000, 0x0000, 0x0000, 0xFFFF
+  alignas(8) s16 NORM_SCALE_W[4] = {
+    0xFFFF, 0xFFFF, 0xFFFF, 0x0000
   };
 
   u32 SEGMENT_TABLE[8] = {0};
@@ -149,12 +148,13 @@ state
   u32 COLOR_AMBIENT[2];   // RGBA8 (duplicated) | <unused> (saved IMEM)
   alignas(4) u8 LIGHT_DIR_COLOR[LIGHT_SIZE][LIGHT_COUNT]; // RGBA8 (duplicated) | Direction packed as s8 (duplicated)
 
-  u32 TRI_COMMAND = {0}; // for RDPQ_Triangle
-  s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
-
   // Fog settings: index 0/1 is the scale as a s16.16, index 3 the scale as a s16 int.
   // The third value is used as a limiter to prevent overflows.
   s16 FOG_SCALE_OFFSET[4] = {0, 0, 32767, 0};
+
+  u32 TRI_COMMAND = {0}; // for RDPQ_Triangle
+  s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
+
   u16 RDPQ_TRI_BUFF_OFFSET = {0};
   u16 SCREEN_UVGEN_SCALE = {0};
   u16 VERTEX_FX_FUNC = {0}; // points top the current 'VertexFX_' function in IMEM
@@ -163,6 +163,8 @@ state
   u8 FACE_CULLING = {0}; // 0=cull front, 1=cull back, 2=no-culling
   u8 FOG_STORE_OFFSET  = {VTX_ATTR_ST}; // offset (relative to current vertex) where to store fog, set to UV for no fog
   u8 ACTIVE_LIGHT_SIZE = {0}; // light count * light size
+  u8 LIGHT_TYPE_MASK = {0};
+  u16 CLIP_CODE_SIZE = {0}; // size to copy
 }
 
 temp_state {
@@ -171,12 +173,70 @@ temp_state {
   // first byte (MSB) stores if th code is already loaded or not
   u32 CLIP_CODE_ADDR = {0};
   u32 CLIP_CODE_ORG_ADDR = {0}; // address of the original code (this overlay here)
-  u16 CLIP_CODE_SIZE = {0}; // size to copy
 }
 
 // Libdragon functions
 function RDPQ_Triangle_Send_Async(u16<$a0> ptrVert0, u16<$a1> ptrVert1, u16<$a2> ptrVert2, u16<$sp> cullDest, u8<$v0> cullFlag);
 function RDPQ_Triangle_Send_End();
+
+
+@NoRegAlloc
+function pointLight(
+  u16<$s3> ptrLight,
+  vec32<$v27> vertPos, vec32<$v25> mat1, vec32<$v23> ptPos, vec32<$v21> mat3,
+  vec16<$v08> pos, vec16<$v07> norm, vec16<$v03> lightColor,
+  vec16<$v01> lightRes, vec16<$v04> color,
+  u8<$t8> mvMatrixLoaded
+)
+{
+  if(!mvMatrixLoaded) {
+    // point lights need to be done in eye-space
+    // since the usual matrix is MVP, we need to load the MV one
+    loadCurrentMVMat(vertPos, mat1, ptPos, mat3);
+    mulMat4Vec8(vertPos, mat1, ptPos, mat3, pos, vertPos);
+    store(vertPos, RSPQ_SCRATCH_MEM, 16);
+    mvMatrixLoaded = 1;
+  }
+
+  vertPos = load(RSPQ_SCRATCH_MEM, 16);
+
+  // get light position
+  ptPos:sint.xyzw = load(ptrLight, 8).xyzw;
+  ptPos:sint.XYZW = load(ptrLight, 8).xyzw;
+  mat1 = ptPos:sint >> 13; // light strength into s16.16
+  ptPos = ptPos:sint >> 4; // light position into 16.16
+
+  ptPos = ptPos - vertPos; // get distance from light to vertex
+  ptPos >>= 4; // adjust to keep numbers in bound during multiplication
+
+  // calc. dot product and normalize distance vector
+  mat3 = ptPos * ptPos;
+  vertPos = mat3 + mat3.yyyyYYYY;
+  mat3 = mat3 + vertPos.zzzzZZZZ;
+
+  // length / falloff
+  vertPos = mat3 * mat1.w;
+  ptPos.w = 0x7FFF;
+  lightRes:sint = vertPos:sint < 1 ? vertPos:sfract : ptPos.w;
+
+  VTEMP = ptPos.w;
+  lightRes = VTEMP - lightRes.xxxxXXXX;
+  lightRes:ufract *= VTEMP.x;
+  //printf("%v\n", color.x);
+
+  mat3.x = invert_half_sqrt(mat3).x;
+  mat3.X = invert_half_sqrt(mat3).X;
+  // adjust shift of sqrt() and make large enough to move the fractional part
+  // into the integer later in the mul. this avoids clamping issues
+  mat3 *= 256;
+  pos:sint = ptPos * mat3.xxxxXXXX;
+
+  pos:sfract *= lightRes:sfract.xxxxXXXX;
+
+  // get dot prod. of the vertex and light normal, the scale color by it
+  lightRes = pos:sfract * norm:sfract;
+}
+
 
 // Packs +xyz & -xyz into a single byte
 macro packClipCode(u32 res, u32 clipCode)
@@ -204,21 +264,20 @@ macro dotXYZW(vec32 res, vec32 a, vec32 b)
 
 // Loads currently active model matrix (premultiplied with proj. matrix) into registers
 // This already duplicates it for 2-vector operations.
-function loadCurrentMVPMat(u16<$t0> address, vec32<$v27> mat0, vec32<$v25> mat1, vec32<$v23> mat2, vec32<$v21> mat3)
+function loadCurrentMVPMat(vec32<$v27> mat0, vec32<$v25> mat1, vec32<$v23> mat2, vec32<$v21> mat3)
 {
-  mat0 = load(address, 0x00).xyzwxyzw;
-  mat1 = load(address, 0x10).xyzwxyzw;
-  mat2 = load(address, 0x20).xyzwxyzw;
-  mat3 = load(address, 0x30).xyzwxyzw;
+  mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
+  mat1 = load(MATRIX_MVP, 0x10).xyzwxyzw;
+  mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
+  mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
 }
 
 macro loadCurrentMVMat(vec32 mat0, vec32 mat1, vec32 mat2, vec32 mat3)
 {
-  u16 address = MATRIX_MV;
-  mat0 = load(address, 0x00).xyzwxyzw;
-  mat1 = load(address, 0x10).xyzwxyzw;
-  mat2 = load(address, 0x20).xyzwxyzw;
-  mat3 = load(address, 0x30).xyzwxyzw;
+  mat0 = load(MATRIX_MV, 0x00).xyzwxyzw;
+  mat1 = load(MATRIX_MV, 0x10).xyzwxyzw;
+  mat2 = load(MATRIX_MV, 0x20).xyzwxyzw;
+  mat3 = load(MATRIX_MV, 0x30).xyzwxyzw;
 }
 
 // Loads currently active model matrix into registers
@@ -277,9 +336,8 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   dma_in_async(prt3d, dmaAddrRDRAM, copySize);
   undef copySize;
 
-  u16<$t0> matAddr = MATRIX_MVP;
   vec32 mat0, mat1, mat2, mat3;
-  loadCurrentMVPMat(matAddr, mat0, mat1, mat2, mat3);
+  loadCurrentMVPMat(mat0, mat1, mat2, mat3);
 
   vec16 matN0, matN1, matN2;
   loadCurrentNormalMat(matN0, matN1, matN2);
@@ -362,12 +420,20 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
       // directional
       vec16 lightDirVec  = load_vec_s8(ptrLight, 8);
+      u8 isPointLight = load(ptrLight, 15); // W=0 for directional, W=scale for point lights
+      u8 mvMatrixLoaded = 0;
+
       if(ptrLight != ptrLightEnd)
       {
         loop
         {
           vec16 lightDirScale = norm:sfract * lightDirVec:sfract;
           color = load_vec_u8(ptrLight);
+
+          if(isPointLight) {
+            pointLight(ptrLight, mat0, mat1, mat2, mat3, pos, norm, lightColor, lightDirScale, color, mvMatrixLoaded);
+          }
+
           // usually we want "dot(normal, lightDir) * lighColor"
           // to avoid stalls in the dot product, we do the multiplication only
           // and then accumulate each scaled XYZ value directly instead of first summing them up
@@ -376,12 +442,17 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
           VTEMP = color:ufract +* lightDirScale:ufract.zzzzZZZZ;
 
           lightColor:sint += VTEMP; // @TODO: pre-fill ACC with lightColor (didn't work as it got *0.99 each iter.)
+
           ptrLight += LIGHT_SIZE;
           lightDirVec = load_vec_s8(ptrLight, 8);
+          isPointLight =  load(ptrLight, 15);
         } while(ptrLight != ptrLightEnd)
       }
 
       color = load_vec_u8(prt3d, 0x10);
+      if(mvMatrixLoaded) {
+        loadCurrentMVPMat(mat0, mat1, mat2, mat3);
+      }
     }
 
     // calc. clipping codes (rejection & clip-prevention)
@@ -399,70 +470,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       rejCodesB = rejCodes >> 4;
       packClipCodeInverted(rejCodesA, rejCodes);
       packClipCodeInverted(rejCodesB, rejCodesB);
-    }
-
-    {
-  AAA:
-
-      // point lights need to be done in eye-space
-      // since the usual matrix is MVP, we need to load the MV one
-      matAddr = MATRIX_MV;
-      loadCurrentMVPMat(matAddr, mat0, mat1, mat2, mat3);
-      mulMat4Vec8(mat0, mat1, mat2, mat3, pos, mat0);
-
-      {
-        undef mat2;
-        vec16 lightRes;
-
-
-      // get light position
-      vec32 ptPos;
-      ptPos:sint.xyzw = load(ptrLight).xyzw;
-      ptPos:sint.XYZW = load(ptrLight).xyzw;
-      mat1 = ptPos:sint >> 13; // light strength into s16.16
-      ptPos = ptPos:sint >> 4; // light position into 16.16
-
-      ptPos = ptPos - mat0; // get distance from light to vertex
-      ptPos >>= 4; // adjust to keep numbers in bound during multiplication
-
-      // calc. dot product and normalize distance vector
-      mat3 = ptPos * ptPos;
-      mat0 = mat3 + mat3.yyyyYYYY;
-      mat3 = mat3 + mat0.zzzzZZZZ;
-
-      // length / falloff
-      mat0 = mat3 * mat1.w;
-      ptPos.w = 0x7FFF;
-      lightRes:sint = mat0:sint < 1 ? mat0:sfract : ptPos.w;
-
-      VTEMP = ptPos.w;
-      lightRes = VTEMP - lightRes.xxxxXXXX;
-      lightRes:ufract *= VTEMP.x;
-      //printf("%v\n", color.x);
-
-      mat3.x = invert_half_sqrt(mat3).x;
-      mat3.X = invert_half_sqrt(mat3).X;
-      // adjust shift of sqrt() and make large enough to move the fractional part
-      // into the integer later in the mul. this avoids clamping issues
-      mat3 *= 256;
-      pos:sint = ptPos * mat3.xxxxXXXX;
-
-      //printf("%v\t%v\n", ptPos.Z, pos.Z);
-      undef ptPos;
-      // get dot prod. of the vertex and light normal, the scale color by it
-      pos = pos:sfract * norm:sfract;
-      VTEMP = pos + pos.yyyyYYYY;
-      vec16 ptLightDir = pos + VTEMP.zzzzZZZZ;
-
-      lightRes = lightRes:sfract * ptLightDir:sfract.xxxxXXXX;
-      VTEMP = load_vec_u8(ptrLight, 8);
-      lightRes = lightRes:ufract * VTEMP:ufract;
-      lightColor:sint += lightRes;
-
-      }
-      // reload MVP matrix for next loop
-      matAddr = MATRIX_MVP;
-      loadCurrentMVPMat(matAddr, mat0, mat1, mat2, mat3);
     }
 
     posClip *= normScaleW:ufract;
@@ -559,9 +566,6 @@ command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 scre
   store(screenOffsetXY, SCREEN_SCALE_OFFSET, 0x08);
 
   store(depthAndWScale:s16, NORM_SCALE_W, 6);
-  store(depthAndWScale:s16, NORM_SCALE_W, 8);
-  store(depthAndWScale:s16, NORM_SCALE_W, 10);
-  store(depthAndWScale:s16, NORM_SCALE_W, 12);
 
   // guard-band multiplier (W value of the clipping plane, integer)
   guardBandFactor &= 0xF;
@@ -619,13 +623,13 @@ command<11> T3DCmd_SetFogState(u8 enabled)
  * @param rgba8 color RGBA8
  * @param dirXYZ normalized packed direction, ignored if zero
  */
-command<5> T3DCmd_LightSet(u32 addr, u32 rgba8, u32 dirXYZ)
+command<5> T3DCmd_LightSet(u32 addr, u32 rgba8, u32 dirXYZ0, u32 dirXYZ1)
 {
   store(rgba8, addr, 0);
 
-  if(dirXYZ) {
-    store(dirXYZ, addr, 8);
-    store(dirXYZ, addr, 12);
+  if(dirXYZ0) {
+    store(dirXYZ0, addr, 8);
+    store(dirXYZ1, addr, 12);
   }
 
   store(rgba8, addr, 4);
