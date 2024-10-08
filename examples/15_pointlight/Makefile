@@ -6,7 +6,7 @@ include $(T3D_INST)/t3d.mk
 
 N64_CFLAGS += -std=gnu2x -O2
 
-PROJECT_NAME=t3d_99_testscene
+PROJECT_NAME=t3d_15_pointlight
 
 src = main.c
 assets_png = $(wildcard assets/*.png)
@@ -37,7 +37,7 @@ filesystem/%.t3dm: assets/%.glb
 $(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
 $(BUILD_DIR)/$(PROJECT_NAME).elf: $(src:%.c=$(BUILD_DIR)/%.o)
 
-$(PROJECT_NAME).z64: N64_ROM_TITLE="Tiny3D - Testscene"
+$(PROJECT_NAME).z64: N64_ROM_TITLE="Tiny3D - Pointlight"
 $(PROJECT_NAME).z64: $(BUILD_DIR)/$(PROJECT_NAME).dfs
 
 clean:
