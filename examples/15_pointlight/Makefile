@@ -27,7 +27,7 @@ filesystem/%.sprite: assets/%.png
 filesystem/%.font64: assets/%.ttf
 	@mkdir -p $(dir $@)
 	@echo "    [FONT] $@"
-	$(N64_MKFONT) $(MKFONT_FLAGS) -s 9 -o filesystem "$<"
+	$(N64_MKFONT) $(MKFONT_FLAGS) -o filesystem "$<"
 
 filesystem/%.t3dm: assets/%.glb
 	@mkdir -p $(dir $@)
