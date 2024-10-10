@@ -188,7 +188,7 @@ function pointLight(
   u8<$t8> mvMatrixLoaded, s32<$t7> lightSize
 )
 {
-  lightSize:u16 = load(ptrLight, 14); // always positive
+  lightSize:u16 = load(ptrLight, 14);
   if(!mvMatrixLoaded) {
     // point lights need to be done in eye-space
     // since the usual matrix is MVP, we need to load the MV one
@@ -198,6 +198,7 @@ function pointLight(
     mvMatrixLoaded = 1;
   }
 
+  lightSize &= 0x7FFF; // MSB is "use-normal" flag
   lightSize <<= 13; // shift s16 into s16 range
 
   // get light position
@@ -214,23 +215,32 @@ function pointLight(
 
   mat1.w = lightSize;
 
+  lightSize:u8 = load(ptrLight, 14); // extract "use-normal" flag
+  lightSize >>= 7;
+
   // rest of normalization
   lightVertDot.x = invert_half_sqrt(lightVertDot).x;
   lightVertDot.X = invert_half_sqrt(lightVertDot).X;
-
   lightRes = lightVertDot * mat1.w;
 
-  // adjust shift of sqrt() and make large enough to move the fractional part
-  // into the integer later in the mul. this avoids clamping issues
-  lightVertDot *= 256;
+  if(!lightSize) {
+    // adjust shift of sqrt() and make large enough to move the fractional part
+    // into the integer later in the mul. this avoids clamping issues
+    lightVertDot *= 256;
 
-  lightRes:sfract *= lightRes:sfract; // squared light fall-off
+    lightRes:sfract *= lightRes:sfract; // squared light fall-off
 
-  pos:sint = ptPos * lightVertDot.xxxxXXXX; // normalize vector...
-  pos:sfract *= lightRes:sfract.xxxxXXXX; // ...and scale by fall-off
+    pos:sint = ptPos * lightVertDot.xxxxXXXX; // normalize vector...
+    pos:sfract *= lightRes:sfract.xxxxXXXX; // ...and scale by fall-off
 
-  // final dot with the vertex-normal, color + accumulate is handled in the light loop
-  lightRes = pos:sfract * norm:sfract;
+    // final dot with the vertex-normal, color + accumulate is handled in the light loop
+    lightRes = pos:sfract * norm:sfract;
+  } else {
+    // simplified point light, this just used a radius irrespective of vertex normals
+    lightRes:sfract *= lightRes:sfract; // squared light fall-off
+    lightRes.y = 0; lightRes.z = 0;
+    lightRes.Y = 0; lightRes.Z = 0;
+  }
 }
 
 

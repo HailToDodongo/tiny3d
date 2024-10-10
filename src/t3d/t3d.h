@@ -357,8 +357,9 @@ void t3d_light_set_directional(int index, const uint8_t *color, const T3DVec3 *d
  * @param color color in RGBA8 format
  * @param pos position in world-space
  * @param size distance, in range 0.0 - 1.0
+ * @param ignoreNormals if true, the light will only check the distance, not the angle (useful for cutouts)
  */
-void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, float size);
+void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, float size, bool ignoreNormals);
 
 /**
  * Sets the amount of active lights (excl. ambient light).

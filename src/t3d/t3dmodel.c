@@ -294,8 +294,8 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
 
         bool setBlendMode  = lastBlendMode != mat->blendMode;
         bool setCC         = mat->colorCombiner != lastCC;
-        bool setOtherMode  = lastOtherMode != mat->otherModeValue;
         bool setTexture    = lastTextureHashA != mat->textureA.textureHash || lastTextureHashB != mat->textureB.textureHash;
+        bool setOtherMode  = lastOtherMode != mat->otherModeValue || setTexture;
         bool setPrimColor  = (mat->setColorFlags & 0b001) && color_to_packed32(lastPrimColor) != color_to_packed32(mat->primColor);
         bool setEnvColor   = (mat->setColorFlags & 0b010) && color_to_packed32(lastEnvColor) != color_to_packed32(mat->envColor);
         bool setBlendColor = (mat->setColorFlags & 0b100) || (mat->otherModeValue & SOM_ALPHACOMPARE_THRESHOLD);
@@ -305,7 +305,7 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
           rdpq_sync_pipe();
         }
 
-        if(lastTextureHashA != mat->textureA.textureHash || lastTextureHashB != mat->textureB.textureHash)
+        if(setTexture)
         {
           lastTextureHashA = mat->textureA.textureHash;
           lastTextureHashB = mat->textureB.textureHash;

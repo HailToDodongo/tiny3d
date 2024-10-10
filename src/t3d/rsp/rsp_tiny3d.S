@@ -427,46 +427,47 @@ VertexFX_Outline:
   j RSPQ_Loop
   nop
 pointLight:
-  bne $t8, $zero, LABEL_0001
+  bne $t8, $zero, LABEL_pointLight_0001
   lhu $t7, 14($s3)
   ori $at, $zero, %lo(MATRIX_MV)
-  ldv $v25, 0, 16, $at
-  ldv $v25, 8, 16, $at
+  ldv $v27, 0, 0, $at
   ldv $v28, 0, 8, $at
   ldv $v26, 0, 24, $at
   ldv $v28, 8, 8, $at
-  ldv $v24, 0, 40, $at
-  ldv $v27, 0, 0, $at
+  ldv $v25, 0, 16, $at
   ldv $v27, 8, 0, $at
-  ldv $v23, 0, 32, $at
+  ldv $v25, 8, 16, $at
+  ldv $v21, 0, 48, $at
   vmudn $v28, $v28, $v08.h0
   ldv $v26, 8, 24, $at
+  ldv $v24, 0, 40, $at
   ldv $v24, 8, 40, $at
-  ldv $v21, 0, 48, $at
+  ldv $v23, 0, 32, $at
   vmadh $v27, $v27, $v08.h0
-  ldv $v22, 0, 56, $at
   ldv $v23, 8, 32, $at
   vmadn $v28, $v26, $v08.h1
-  vmadh $v27, $v25, $v08.h1
+  ldv $v22, 0, 56, $at
   ldv $v22, 8, 56, $at
+  vmadh $v27, $v25, $v08.h1
   ldv $v21, 8, 48, $at
   vmadn $v28, $v24, $v08.h2
+  addiu $t8, $zero, 1
   vmadh $v27, $v23, $v08.h2
   vmadn $v28, $v22, $v08.h3
   vmadh $v27, $v21, $v08.h3
-  addiu $t8, $zero, 1
   vmudl $v28, $v28, $v31.e3
   vmadm $v27, $v27, $v31.e3
   vmadn $v28, $v00, $v00
-  LABEL_0001:
+  LABEL_pointLight_0001:
   ldv $v23, 0, 8, $s3
   ldv $v23, 8, 8, $s3
   vmudm $v23, $v23, $v31.e7
   vmadn $v24, $v00, $v00
-  sll $t7, $t7, 13
+  andi $t7, $t7, 32767
   vsubc $v24, $v24, $v28.v
-  vsub $v23, $v23, $v27.v
+  sll $t7, $t7, 13
   srl $at, $t7, 16
+  vsub $v23, $v23, $v27.v
   vmudl $v29, $v24, $v24.v
   vmadm $v29, $v23, $v24.v
   vmadn $v22, $v24, $v23.v
@@ -475,16 +476,19 @@ pointLight:
   vadd $v25, $v21, $v21.h1
   vaddc $v22, $v22, $v26.h2
   vadd $v21, $v21, $v25.h2
-  mtc2 $at, $v25.e3
   vrsqh $v21.e0, $v21.e0
   vrsql $v22.e0, $v22.e0
   vrsqh $v21.e0, $v21.e4
-  mtc2 $t7, $v26.e3
+  mtc2 $at, $v25.e3
   vrsql $v22.e4, $v22.e4
+  mtc2 $t7, $v26.e3
   vrsqh $v21.e4, $v00.e0
+  lbu $t7, 14($s3)
   vmudl $v29, $v22, $v26.e3
+  sra $t7, $t7, 7
   vmadm $v29, $v21, $v26.e3
   vmadn $v29, $v22, $v25.e3
+  bne $t7, $zero, LABEL_pointLight_0002
   vmadh $v01, $v21, $v25.e3
   vmudn $v22, $v22, $v31.e7
   vmadh $v21, $v21, $v31.e7
@@ -496,6 +500,13 @@ pointLight:
   vmulf $v08, $v08, $v01.h0
   jr $ra
   vmulf $v01, $v08, $v07.v
+  LABEL_pointLight_0002:
+  vmulf $v01, $v01, $v01.v
+  vmov $v01.e5, $v00.e0
+  vmov $v01.e1, $v00.e0
+  vmov $v01.e2, $v00.e0
+  jr $ra
+  vmov $v01.e6, $v00.e0
 loadCurrentMVPMat:
   ori $at, $zero, %lo(MATRIX_MVP)
   ldv $v28, 8, 8, $at

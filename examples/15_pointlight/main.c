@@ -51,7 +51,9 @@ int main()
   t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create();
 
+  // Credits (CC0): https://kaylousberg.itch.io/kaykit-dungeon-remastered
   T3DModel *model = t3d_model_load("rom://scene.t3dm");
+
   T3DModel *modelLight = t3d_model_load("rom://light.t3dm");
   T3DModel *modelCursor = t3d_model_load("rom://cursor.t3dm");
 
@@ -219,7 +221,7 @@ int main()
         pointLights[i].pos.v[0],
         pointLights[i].pos.v[1] + getFloorHeight(&pointLights[i].pos),
         pointLights[i].pos.v[2]
-      }}, pointLights[i].strength);
+      }}, pointLights[i].strength, false);
     }
     t3d_light_set_count(5);
 
