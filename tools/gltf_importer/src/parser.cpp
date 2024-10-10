@@ -110,7 +110,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
     auto mesh = node->mesh;
     if(!mesh)continue;
 
-    printf(" - Mesh %d: %s\n", i, mesh->name);
+    // printf(" - Mesh %d: %s\n", i, mesh->name);
 
     for(int j = 0; j < mesh->primitives_count; j++)
     {
