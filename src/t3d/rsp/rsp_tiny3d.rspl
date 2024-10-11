@@ -47,7 +47,7 @@
 
 // Single light packed into 16bytes, can be directional or point-light:
 // Directional: RGBA RGBA | XYZ- XYZ- (pos as packed s8)
-// Point      : RGBA RGBA | XXYX ZZSS (pos as s16, S=light size)
+// Point      : RGBA RGBA | XXYX ZZSS (pos as s16, S=light size + ignore-normal flag in MSB)
 #define LIGHT_SIZE 16
 #define MATRIX_SIZE 0x40
 

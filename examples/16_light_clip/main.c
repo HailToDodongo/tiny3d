@@ -1,14 +1,15 @@
 #include <libdragon.h>
-#include <rspq_profile.h>
 
 #include <t3d/t3d.h>
 #include <t3d/t3dmodel.h>
 
-typedef struct {
-    T3DVec3 pos;
-    float strength;
-    color_t color;
-} PointLight;
+/**
+ * Example showcasing alpha-clipping based on lighting.
+ * This uses a point-light (ignoring normals) that is completely black, but has an alpha value.
+ * Meaning it "shines" an alpha value as a sphere around it.
+ * By setting an alpha threshold, you can either cut holes, or reveal geometry wherever light shines.
+ * By combining both you can also create a mix between two models.
+ */
 
 #define MODE_REVEAL 0
 #define MODE_CUTOUT 1
@@ -134,7 +135,6 @@ int main()
 
     t3d_viewport_attach(&viewport);
 
-    //rdpq_set_prim_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
     t3d_screen_clear_color(RGBA32(20, 20, 30, 0xFF));
     t3d_screen_clear_depth();
     t3d_fog_set_enabled(false);
@@ -151,12 +151,9 @@ int main()
       t3d_light_set_ambient(colorAmbient);
       t3d_light_set_point(1, (uint8_t[]){0, 0, 0, 0xFF}, &lightPos, 0.125f, ignoreNormals);
     }
-
     t3d_light_set_count(2);
-    // directional lights can still be used together with point lights
 
     t3d_matrix_push_pos(1);
-
     t3d_matrix_set(modelMatFP, true);
 
     if(currMode != MODE_CUTOUT)rspq_block_run(dplSceneA);
