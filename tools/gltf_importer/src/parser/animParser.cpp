@@ -49,10 +49,6 @@ Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::s
     .keyframes = {},
   };
 
-  printf("Animation: %s\n", anim.name);
-  printf(" - Channels: %d\n", anim.channels_count);
-  printf(" - Samplers: %d\n", anim.samplers_count);
-
   float timeStart = 0.0f;
   float timeEnd = 0.0f;
 

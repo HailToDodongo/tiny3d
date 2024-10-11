@@ -96,8 +96,6 @@ namespace {
 
 void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bone*> &nodeMap)
 {
-  printf("Convert: %s\n", anim.name.c_str());
-
   // remove all empty channels
   anim.channelMap.erase(
     std::remove_if(anim.channelMap.begin(), anim.channelMap.end(), isEmptyChannel),

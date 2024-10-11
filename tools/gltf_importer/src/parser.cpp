@@ -69,7 +69,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
       }
 
       Bone armature = parseBoneTree(bone, nullptr, boneCount);
-      printf(" - Bone count: %d/%d\n", boneCount, skin.joints_count);
+
       //printBoneTree(armature, 0);
       t3dm.skeletons.push_back(armature);
     }
@@ -92,7 +92,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
   }
 
   // Animations
-  printf("Animations: %d\n", data->animations_count);
+  //printf("Animations: %d\n", data->animations_count);
 
   for(int i=0; i<data->animations_count; ++i) {
     auto anim = parseAnimation(data->animations[i], boneMap, config.animSampleRate);
