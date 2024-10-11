@@ -176,6 +176,8 @@ int main()
 
     t3d_light_set_ambient(colorAmbient); // one global ambient light, always active
     t3d_light_set_directional(0, colorDir, &lightDirVec); // optional directional light, can be disabled
+    t3d_light_set_count(1);
+
     /*t3d_light_set_point(0, colorDir, &(T3DVec3){{-10.0f, 10.0f, 0.0f}}, 0.3f, false); // optional point light, can be disabled
     t3d_light_set_point(1, colorDir, &(T3DVec3){{10.0f, 10.0f, 0.0f}}, 0.3f, false); // optional point light, can be disabled
     t3d_light_set_count(2);*/
