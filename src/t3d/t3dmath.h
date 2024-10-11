@@ -80,6 +80,13 @@ inline static void t3d_vec3_mul(T3DVec3 *res, const T3DVec3 *a, const T3DVec3 *b
   res->v[2] = a->v[2] * b->v[2];
 }
 
+/// @brief Sets 'res' to 'a * s'
+inline static void t3d_vec3_scale(T3DVec3 *res, const T3DVec3 *a, float s) {
+  res->v[0] = a->v[0] * s;
+  res->v[1] = a->v[1] * s;
+  res->v[2] = a->v[2] * s;
+}
+
 /// @brief Set 'res' to 'a - b'
 inline static void t3d_vec3_diff(T3DVec3 *res, const T3DVec3 *a, const T3DVec3 *b) {
   res->v[0] = a->v[0] - b->v[0];

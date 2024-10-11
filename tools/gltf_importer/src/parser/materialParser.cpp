@@ -80,7 +80,7 @@ namespace {
           printf("Error loading texture %s: %s\n", material.texPath.c_str(), lodepng_error_text(error));
         }
       }
-      printf("Loaded Texture %s, size: %dx%d\n", material.texPath.c_str(), material.texWidth, material.texHeight);
+      //printf("Loaded Texture %s, size: %dx%d\n", material.texPath.c_str(), material.texWidth, material.texHeight);
     }
   }
 
@@ -148,7 +148,7 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
     model.materialA.uuid = stringHash(prim->material->name);
     model.materialA.name = prim->material->name;
   }
-  printf("     Material: %s\n", prim->material->name);
+  //printf("     Material: %s\n", prim->material->name);
 
   if(config.ignoreMaterials) {
     printf("Ignoring material\n");

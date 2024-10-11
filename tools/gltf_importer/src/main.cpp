@@ -300,7 +300,7 @@ int main(int argc, char* argv[])
     }
 
     // vertex buffer
-    printf("  Verts: %d\n", chunks.vertices.size());
+    //printf("  Verts: %d\n", chunks.vertices.size());
     for(auto v=0; v<chunks.vertices.size(); v+=2)
     {
       const auto &vertA = chunks.vertices[v];

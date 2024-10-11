@@ -131,7 +131,12 @@ function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, 
   u32 planePtr = CLIPPING_PLANES;
   s32 planeIdx = 1;
 
-  vec16 normScaleWInv = load(NORM_SCALE_W, 8).xyzwxyzw;
+  vec16 normScaleWInv;
+  normScaleWInv.x = load(NORM_SCALE_W).w;
+  normScaleWInv = normScaleWInv.x;
+  normScaleWInv.w = 0xFFFF;
+  normScaleWInv.W = 0xFFFF;
+
   vec16 guardBandScale = load(CLIPPING_PLANES).xy;
   guardBandScale = guardBandScale.y;
 

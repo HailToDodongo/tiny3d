@@ -157,7 +157,7 @@ void t3d_light_set_ambient(const uint8_t *color)
   rspq_write(T3D_RSP_ID, T3D_CMD_LIGHT_SET,
     (RSP_T3D_COLOR_AMBIENT & 0xFFFF), // address
     (color[0] << 24) | (color[1] << 16) | (color[2] << 8) | color[3],
-    0 // dir
+    0, 0 // dir
   );
 }
 
@@ -179,11 +179,42 @@ void t3d_light_set_directional(int index, const uint8_t *color, const T3DVec3 *d
 
   index = (index*16) + RSP_T3D_LIGHT_DIR_COLOR;
   index &= 0xFFFF;
+  uint32_t dirInt = (dirFP[0] << 24) | (dirFP[1] << 16) | (dirFP[2] << 8);
 
   rspq_write(T3D_RSP_ID, T3D_CMD_LIGHT_SET,
     index, // address
     (color[0] << 24) | (color[1] << 16) | (color[2] << 8) | color[3],
-    (dirFP[0] << 24) | (dirFP[1] << 16) | (dirFP[2] << 8)
+    dirInt, dirInt
+  );
+}
+
+void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, float size, bool ignoreNormals)
+{
+  assertf(currentViewport, "t3d_light_set_point needs a viewport to be attached!");
+  T3DVec4 posView;
+  t3d_mat4_mul_vec3(&posView, &currentViewport->matCamera, pos);
+
+  size *= 0.5f;
+  size = fmaxf(size, 0.0f);
+  size = fminf(size, 0.5f);
+
+  int32_t posFP[4] = {
+    (int32_t)(posView.v[0] * 16.0f) & 0xFFFF,
+    (int32_t)(posView.v[1] * 16.0f) & 0xFFFF,
+    (int32_t)(posView.v[2] * 16.0f) & 0xFFFF,
+    (int32_t)(size * 0xFFFF)        & 0xFFFF
+  };
+  if((posFP[3] & 0xFF) == 0)posFP[3] |= 1; // non-zero size is used as point-light detection
+  if(ignoreNormals)posFP[3] |= 0x8000; // ignore normals
+
+  index = (index*16) + RSP_T3D_LIGHT_DIR_COLOR;
+  index &= 0xFFFF;
+
+  rspq_write(T3D_RSP_ID, T3D_CMD_LIGHT_SET,
+    index, // address
+    (color[0] << 24) | (color[1] << 16) | (color[2] << 8) | color[3],
+    (posFP[0] << 16) | posFP[1],
+    (posFP[2] << 16) | posFP[3]
   );
 }
 

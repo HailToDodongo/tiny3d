@@ -21,6 +21,8 @@ if [ "$1" = "clean" ] ; then
   make -C examples/12_uv_gen clean
   make -C examples/13_cel_shading clean
   make -C examples/14_outline clean
+  make -C examples/15_pointlight clean
+  make -C examples/16_light_clip clean
   make -C examples/99_testscene clean
 fi
 
@@ -49,6 +51,8 @@ make -C examples/11_segments -j4
 make -C examples/12_uv_gen -j4
 make -C examples/13_cel_shading -j4
 make -C examples/14_outline -j4
+make -C examples/15_pointlight -j4
+make -C examples/16_light_clip -j4
 make -C examples/99_testscene -j4
 
 echo "Build done!"
