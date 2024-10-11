@@ -73,7 +73,7 @@ int main()
 
   float angleHor, angleVer;
   float camDist = 130.0f;
-  int currMode = 0;
+  int currMode = MODE_MIXED;
   bool ignoreNormals = true;
   int ditherMode = 0;
 
