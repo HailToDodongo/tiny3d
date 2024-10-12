@@ -41,7 +41,6 @@ int main()
 
   // Allocate our normal screen and depth buffer...
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
-  surface_t depthBuffer = surface_alloc(FMT_RGBA16, display_get_width(), display_get_height());
 
   //... then a smaller additional buffer (color + depth) for offscreen rendering
   surface_t offscreenSurf = surface_alloc(FMT_RGBA16, OFFSCREEN_SIZE, OFFSCREEN_SIZE);
@@ -171,7 +170,7 @@ int main()
     // ======== Draw (Onscreen) ======== //
     // For our main scene we now attach the screen buffer again,
     // from now one everything is the same as in other examples
-    rdpq_attach(display_get(), &depthBuffer);
+    rdpq_attach(display_get(), display_get_zbuf());
 
     t3d_frame_start();
     t3d_viewport_attach(&viewport);
