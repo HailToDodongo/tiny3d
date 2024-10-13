@@ -259,8 +259,6 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
         uint32_t layerOOT = f3dData["draw_layer"].contains("oot") ? f3dData["draw_layer"]["oot"].get<uint32_t>() : 0;
         uint32_t layerSM64 = f3dData["draw_layer"].contains("sm64") ? f3dData["draw_layer"]["sm64"].get<uint32_t>() : 0;
 
-        printf("No render mode set, fallback to layers: %d,%d\n", layerOOT, layerSM64);
-
         // since we don't know what game was set, choose the non-zero one,
         // or if both set (impossible?) use the higher one
         if(layerOOT > layerSM64) {
