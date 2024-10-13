@@ -52,8 +52,6 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
   int boneCount = 0;
   int neutralBoneCount = 0;
   for(int i=0; i<data->skins_count; ++i) {
-    printf("Skin %d: %s\n", i, data->skins[i].name);
-
     auto &skin = data->skins[i];
     //printf(" - Skeleton: %s\n", skin.skeleton->name);
     if(skin.joints_count == 0)continue;

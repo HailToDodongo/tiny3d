@@ -190,6 +190,40 @@ typedef struct {
 } T3DModelDrawConf;
 
 /**
+ * State for model and material settings during a draw.
+ * This is used to minimize state changes across materials.
+ */
+typedef struct {
+  uint32_t lastTextureHashA;
+  uint32_t lastTextureHashB;
+  uint8_t lastFogMode;
+  uint32_t lastRenderFlags;
+  uint64_t lastCC;
+  color_t lastPrimColor;
+  color_t lastEnvColor;
+  color_t lastBlendColor;
+  uint8_t lastVertFXFunc;
+  uint16_t lastUvGenParams[2];
+  uint64_t lastOtherMode;
+  uint32_t lastBlendMode;
+  T3DModelDrawConf* drawConf; // @TODO: legacy, remove at some point
+} T3DModelState;
+
+/**
+ * Creates a new draw state with default values.
+ * @return
+ */
+static inline T3DModelState t3d_model_state_create() {
+  return (T3DModelState){
+    .lastFogMode = 0xFF,
+    .lastVertFXFunc = T3D_VERTEX_FX_NONE,
+    .lastOtherMode = 0xFF,
+    .lastBlendMode = 0xFFFFFFFF
+  };
+}
+
+
+/**
  * Free model and any related resources (e.g. textures)
  * @param model
  */
@@ -220,14 +254,26 @@ static inline void t3d_model_draw(const T3DModel* model) {
  * Draws an object in a model directly.\n
  * This will only handle the mesh part, and not any material or texture settings.\n
  * As in, it will load vertices (optionally a bone matrix) and then draw the triangles.\n
- * If you want to change material settings, you have to do it manually before calling this function.\n
- * \n
+ * If you want to change material settings, you can use 't3d_model_draw_material' before this.\n
  * Take a look at 't3d_model_iter_create' for an example of how to use it.
  *
  * @param object object to draw
  * @param boneMatrices matrices in the case of skinned meshes, set to NULL for non-skinned
  */
 void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrices);
+
+/**
+ * Draws/Applies a material of an object. This can be called before 't3d_model_draw_object'.\n
+ * This will set up the texture, CC, and other RDP and t3d settings of the material.\n
+ *
+ * NOTE: if you want to use this to record individual objects into a display list,\n
+ * make sure to pass NULL for 'state', otherwise you may only record partial state changes.\n
+ * For complete recordings, create a state via 't3d_model_state_create' and pass it to each call.
+ *
+ * @param mat material to apply
+ * @param state state for material settings, used to minimized changes across materials
+ */
+void t3d_model_draw_material(T3DMaterial *mat, T3DModelState *state);
 
 /**
  * Returns the global vertex buffer of a model.

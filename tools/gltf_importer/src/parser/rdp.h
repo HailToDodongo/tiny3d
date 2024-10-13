@@ -20,6 +20,11 @@ namespace RDP::SOM {
   constexpr uint64_t SAMPLE_BILINEAR = (uint64_t)2 << SAMPLE_SHIFT;
   constexpr uint64_t SAMPLE_MEDIAN   = (uint64_t)3 << SAMPLE_SHIFT;
   constexpr uint64_t SAMPLE_MASK     = (uint64_t)3 << SAMPLE_SHIFT;
+
+  constexpr uint64_t BLALPHA_MASK     = 3 << 12;
+  constexpr uint64_t BLALPHA_CC       = 0 << 12;
+  constexpr uint64_t BLALPHA_CVG      = 2 << 12;
+  constexpr uint64_t BLALPHA_CVG_X_CC = 1 << 12;
 }
 
 namespace RDP::BLEND {

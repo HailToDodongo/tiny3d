@@ -228,9 +228,14 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
       model.materialA.vertexFxFunc = (texGen != 0) ? UvGenFunc::SPHERE : UvGenFunc::NONE;
       model.materialB.vertexFxFunc = model.materialA.vertexFxFunc;
 
+      /*uint32_t alphaComp = rdpSettings["g_mdsft_alpha_compare"].get<uint32_t>();
+      if(alphaComp == 1) {
+        otherModeValue |= RDP::SOM::ALPHA_COMPARE;
+      }*/
+
       bool setRenderMode = rdpSettings["set_rendermode"].get<uint32_t>() != 0;
       if(setRenderMode) {
-        otherModeMask |= RDP::SOM::ZMODE_MASK;
+        otherModeMask |= RDP::SOM::ZMODE_MASK; // | RDP::SOM::BLALPHA_MASK;
 
         int renderMode1Raw = rdpSettings["rendermode_preset_cycle_1"].get<uint32_t>();
         int renderMode2Raw = rdpSettings["rendermode_preset_cycle_2"].get<uint32_t>();
@@ -242,6 +247,10 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
 
         otherModeValue |= otherMode1 | otherMode2;
 
+        /*if(rdpSettings["cvg_x_alpha"].get<uint32_t>()) {
+          otherModeValue |= RDP::SOM::BLALPHA_CVG_X_CC | RDP::SOM::BLALPHA_CVG;
+        }*/
+
         model.materialA.blendMode = is2Cycle ? blenderMode2 : blenderMode1;
         model.materialB.blendMode = model.materialA.blendMode;
 
@@ -249,8 +258,6 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
         // if no render mode is set, we need to check the draw layer
         uint32_t layerOOT = f3dData["draw_layer"].contains("oot") ? f3dData["draw_layer"]["oot"].get<uint32_t>() : 0;
         uint32_t layerSM64 = f3dData["draw_layer"].contains("sm64") ? f3dData["draw_layer"]["sm64"].get<uint32_t>() : 0;
-
-        printf("No render mode set, fallback to layers: %d,%d\n", layerOOT, layerSM64);
 
         // since we don't know what game was set, choose the non-zero one,
         // or if both set (impossible?) use the higher one

@@ -21,6 +21,7 @@ typedef struct {
 
 static uint32_t textureCacheSize = 0;
 static T3DTextureEntry *textureCache = NULL;
+static T3DModelState dummyState;
 
 static sprite_t* texture_cache_get(uint32_t hash) {
   for(uint32_t i = 0; i < textureCacheSize; i++) {
@@ -115,13 +116,13 @@ static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *co
     texParam.t.repeats = tex->t.clamp ? 1 : REPEAT_INFINITE;
     texParam.t.scale_log = (int)tex->t.shift;
 
-    if(conf->tileCb) {
+    if(conf && conf->tileCb) {
       conf->tileCb(conf->userData, &texParam, tile);
     }
 
     // @TODO: don't upload texture if only the tile settings differ
     if(tex->texReference) {
-      if(conf->dynTextureCb)conf->dynTextureCb(conf->userData, mat, &texParam, tile);
+      if(conf && conf->dynTextureCb)conf->dynTextureCb(conf->userData, mat, &texParam, tile);
     } else {
       rdpq_sync_tile();
       rdpq_sprite_upload(tile, tex->texture, &texParam);
@@ -218,161 +219,23 @@ T3DModel *t3d_model_load(const char *path) {
 
 void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
 {
-  // keeps track of various states to not emit useless RSP commands
-  // all defaults are chosen to cause a call in the first iteration
-  uint32_t lastTextureHashA = 0;
-  uint32_t lastTextureHashB = 0;
-  uint8_t lastFogMode = 0xFF;
-  uint32_t lastRenderFlags = 0;
-  uint64_t lastCC = 0;
-  color_t lastPrimColor = (color_t){0,0,0,0};
-  color_t lastEnvColor = (color_t){0,0,0,0};
-  color_t lastBlendColor = (color_t){0,0,0,0};
-  bool hadMatrixPush = false;
-  uint8_t lastVertFXFunc = T3D_VERTEX_FX_NONE;
-  uint16_t lastUvGenParams[2] = {0,0};
+  T3DModelState state = t3d_model_state_create();
+  state.drawConf = &conf;
 
-  uint64_t lastOtherMode = 0xFF;
-  uint32_t lastBlendMode = 0xFFFFFFFF;
-
-  for(uint32_t c = 0; c < model->chunkCount; c++) {
-    char chunkType = model->chunkOffsets[c].type;
-    if(chunkType != T3D_CHUNK_TYPE_OBJECT)break;
-
-    uint32_t offset = model->chunkOffsets[c].offset & 0x00FFFFFF;
-    const T3DObject *obj = (T3DObject*)((char*)model + offset);
-
-    // check a user-provided object filter
-    if(conf.filterCb && !conf.filterCb(conf.userData, obj)) {
+  T3DModelIter it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
+  while(t3d_model_iter_next(&it))
+  {
+    if(conf.filterCb && !conf.filterCb(conf.userData, it.object)) {
       continue;
     }
 
-    T3DMaterial *mat = obj->material;
-
-    // first change t3d settings, this avoids an overlay-switch.
-    // settings here also influence how 't3d_vert_load' will load vertices
-    if(mat)
-    {
-      if(mat->renderFlags != lastRenderFlags) {
-        t3d_state_set_drawflags(mat->renderFlags);
-        lastRenderFlags = mat->renderFlags;
-      }
-
-      if(mat->fogMode != T3D_FOG_MODE_DEFAULT && mat->fogMode != lastFogMode) {
-        lastFogMode = mat->fogMode;
-        t3d_fog_set_enabled(mat->fogMode == T3D_FOG_MODE_ACTIVE);
-      }
+    if(it.object->material) {
+      t3d_model_draw_material(it.object->material, &state);
     }
-
-    bool hadMaterial = false;
-    for(uint32_t p = 0; p < obj->numParts; p++)
-    {
-      const T3DObjectPart *part = &obj->parts[p];
-      hadMatrixPush = handle_bone_matrix(part, conf.matrices, hadMatrixPush);
-
-      if(mat) {
-        if(lastVertFXFunc != mat->vertexFxFunc || (
-          mat->vertexFxFunc && (lastUvGenParams[0] != mat->textureA.texWidth || lastUvGenParams[1] != mat->textureA.texHeight)
-        )) {
-          lastVertFXFunc = mat->vertexFxFunc;
-          lastUvGenParams[0] = mat->textureA.texWidth;
-          lastUvGenParams[1] = mat->textureA.texHeight;
-          t3d_state_set_vertex_fx(lastVertFXFunc, (int16_t)lastUvGenParams[0], (int16_t)lastUvGenParams[1]);
-        }
-      }
-
-      // load vertices, this will already do T&L (so matrices/fog/lighting must be set before)
-      t3d_vert_load(part->vert, part->vertDestOffset, part->vertLoadCount);
-      //debugf("Load Vertices[%d]: %d, %d | bone: %d\n", p, part->vertDestOffset, part->vertLoadCount, part->matrixIdx);
-      if(part->numIndices == 0 && part->numStripIndices[0] == 0)continue; // partial-load, last chunk of a sequence will both indices & material data
-
-      // now apply rdpq settings, these are independent of the t3d state
-      // and only need to happen before a `t3d_tri_draw` call
-      if(!hadMaterial && mat && mat->colorCombiner)
-      {
-        hadMaterial = true;
-
-        bool setBlendMode  = lastBlendMode != mat->blendMode;
-        bool setCC         = mat->colorCombiner != lastCC;
-        bool setTexture    = lastTextureHashA != mat->textureA.textureHash || lastTextureHashB != mat->textureB.textureHash;
-        bool setOtherMode  = lastOtherMode != mat->otherModeValue || setTexture;
-        bool setPrimColor  = (mat->setColorFlags & 0b001) && color_to_packed32(lastPrimColor) != color_to_packed32(mat->primColor);
-        bool setEnvColor   = (mat->setColorFlags & 0b010) && color_to_packed32(lastEnvColor) != color_to_packed32(mat->envColor);
-        bool setBlendColor = (mat->setColorFlags & 0b100) || (mat->otherModeValue & SOM_ALPHACOMPARE_THRESHOLD);
-        setBlendColor = setBlendColor && color_to_packed32(lastBlendColor) != color_to_packed32(mat->blendColor);
-
-        if(setBlendMode || setCC || setOtherMode || setTexture) {
-          rdpq_sync_pipe();
-        }
-
-        if(setTexture)
-        {
-          lastTextureHashA = mat->textureA.textureHash;
-          lastTextureHashB = mat->textureB.textureHash;
-          rdpq_sync_load();
-
-          rdpq_tex_multi_begin();
-            set_texture(mat, TILE0, &conf);
-            set_texture(mat, TILE1, &conf);
-          rdpq_tex_multi_end();
-        }
-
-        if(setCC) {
-          lastCC = mat->colorCombiner;
-          rdpq_mode_combiner(mat->colorCombiner);
-        }
-
-        if(setBlendMode) {
-          rdpq_mode_blender(mat->blendMode);
-          lastBlendMode = mat->blendMode;
-        }
-
-        if(setPrimColor) {
-          lastPrimColor = mat->primColor;
-          rdpq_set_prim_color(mat->primColor);
-        }
-
-        if(setBlendColor) {
-          lastBlendColor = mat->blendColor;
-          rdpq_set_blend_color(mat->blendColor);
-        }
-
-        if(setEnvColor) {
-          lastEnvColor = mat->envColor;
-          rdpq_set_env_color(mat->envColor);
-        }
-
-        if(setOtherMode) {
-          __rdpq_mode_change_som(mat->otherModeMask, mat->otherModeValue);
-          lastOtherMode = mat->otherModeValue;
-        }
-      }
-
-      // Draw single triangles first...
-      for(int i = 0; i < part->numIndices; i+=3) {
-        t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
-      }
-
-      // ...then strips, which are an encoded index buffer DMA'd by the RSP.
-      // Internally, this will re-use the space of the vertex cache of verts. that are not used anymore
-      uint8_t *idxPtrBase = (uint8_t*)align_pointer(part->indices + part->numIndices, 8);
-      for(int s=0; s<4; ++s) {
-        if(part->numStripIndices[s] == 0)break;
-        t3d_tri_draw_strip((int16_t*)idxPtrBase, part->numStripIndices[s]);
-        idxPtrBase = (uint8_t*)align_pointer(idxPtrBase + part->numStripIndices[s] * 2, 8);
-      }
-
-      // Sync, waits for any triangles in flight. This is necessary since the rdpq-api is not
-      // aware of this and could corrupt the RDP buffer. 't3d_vert_load' may also overwrite the source buffer too.
-      t3d_tri_sync();
-
-      // At this point the RDP may already process triangles.
-      // In the next iteration we may therefore need to sync when changing any RDP states
-    }
+    t3d_model_draw_object(it.object, conf.matrices);
   }
 
-  if(hadMatrixPush)t3d_matrix_pop(1);
-  if(lastVertFXFunc != T3D_VERTEX_FX_NONE)t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);
+  if(state.lastVertFXFunc != T3D_VERTEX_FX_NONE)t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);
 }
 
 void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrices)
@@ -383,11 +246,18 @@ void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrice
     const T3DObjectPart *part = &object->parts[p];
     hadMatrixPush = handle_bone_matrix(part, boneMatrices, hadMatrixPush);
 
+    // load vertices, this will already do T&L (so matrices/fog/lighting must be set before)
     t3d_vert_load(part->vert, part->vertDestOffset, part->vertLoadCount);
+    //debugf("Load Vertices[%d]: %d, %d | bone: %d\n", p, part->vertDestOffset, part->vertLoadCount, part->matrixIdx);
+    if(part->numIndices == 0 && part->numStripIndices[0] == 0)continue; // partial-load, last chunk of a sequence will both indices & material data
+
+    // Draw single triangles first...
     for(int i = 0; i < part->numIndices; i+=3) {
       t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
     }
 
+    // ...then strips, which are an encoded index buffer DMA'd by the RSP.
+    // Internally, this will re-use the space of the vertex cache of verts. that are not used anymore
     uint8_t *idxPtrBase = (uint8_t*)align_pointer(part->indices + part->numIndices, 8);
     for(int s=0; s<4; ++s) {
       if(part->numStripIndices[s] == 0)break;
@@ -395,9 +265,102 @@ void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrice
       idxPtrBase = (uint8_t*)align_pointer(idxPtrBase + part->numStripIndices[s] * 2, 8);
     }
 
+    // Sync, waits for any triangles in flight. This is necessary since the rdpq-api is not
+    // aware of this and could corrupt the RDP buffer. 't3d_vert_load' may also overwrite the source buffer too.
     t3d_tri_sync();
+
+    // At this point the RDP may already process triangles.
+    // In the next iteration we may therefore need to sync when changing any RDP states
   }
+
   if(hadMatrixPush)t3d_matrix_pop(1);
+}
+
+void t3d_model_draw_material(T3DMaterial *mat, T3DModelState *state)
+{
+  if(!state) {
+    dummyState = t3d_model_state_create();
+    state = &dummyState;
+  }
+
+  if(mat->renderFlags != state->lastRenderFlags) {
+    t3d_state_set_drawflags(mat->renderFlags);
+    state->lastRenderFlags = mat->renderFlags;
+  }
+
+  if(mat->fogMode != T3D_FOG_MODE_DEFAULT && mat->fogMode != state->lastFogMode) {
+    state->lastFogMode = mat->fogMode;
+    t3d_fog_set_enabled(mat->fogMode == T3D_FOG_MODE_ACTIVE);
+  }
+
+  if(state->lastVertFXFunc != mat->vertexFxFunc || (
+    mat->vertexFxFunc && (state->lastUvGenParams[0] != mat->textureA.texWidth || state->lastUvGenParams[1] != mat->textureA.texHeight)
+  )) {
+    state->lastVertFXFunc = mat->vertexFxFunc;
+    state->lastUvGenParams[0] = mat->textureA.texWidth;
+    state->lastUvGenParams[1] = mat->textureA.texHeight;
+    t3d_state_set_vertex_fx(state->lastVertFXFunc, (int16_t)state->lastUvGenParams[0], (int16_t)state->lastUvGenParams[1]);
+  }
+
+  // now apply rdpq settings, these are independent of the t3d state
+  // and only need to happen before a `t3d_tri_draw` call
+  if(mat->colorCombiner)
+  {
+    bool setBlendMode  = state->lastBlendMode != mat->blendMode;
+    bool setCC         = mat->colorCombiner != state->lastCC;
+    bool setTexture    = state->lastTextureHashA != mat->textureA.textureHash || state->lastTextureHashB != mat->textureB.textureHash;
+    bool setOtherMode  = state->lastOtherMode != mat->otherModeValue || setTexture;
+    bool setPrimColor  = (mat->setColorFlags & 0b001) && color_to_packed32(state->lastPrimColor) != color_to_packed32(mat->primColor);
+    bool setEnvColor   = (mat->setColorFlags & 0b010) && color_to_packed32(state->lastEnvColor) != color_to_packed32(mat->envColor);
+    bool setBlendColor = (mat->setColorFlags & 0b100) || (mat->otherModeValue & SOM_ALPHACOMPARE_THRESHOLD);
+    setBlendColor = setBlendColor && color_to_packed32(state->lastBlendColor) != color_to_packed32(mat->blendColor);
+
+    if(setBlendMode || setCC || setOtherMode || setTexture) {
+      rdpq_sync_pipe();
+    }
+
+    if(setTexture)
+    {
+      state->lastTextureHashA = mat->textureA.textureHash;
+      state->lastTextureHashB = mat->textureB.textureHash;
+      rdpq_sync_load();
+
+      rdpq_tex_multi_begin();
+        set_texture(mat, TILE0, state->drawConf);
+        set_texture(mat, TILE1, state->drawConf);
+      rdpq_tex_multi_end();
+    }
+
+    if(setCC) {
+      state->lastCC = mat->colorCombiner;
+      rdpq_mode_combiner(mat->colorCombiner);
+    }
+
+    if(setBlendMode) {
+      rdpq_mode_blender(mat->blendMode);
+      state->lastBlendMode = mat->blendMode;
+    }
+
+    if(setPrimColor) {
+      state->lastPrimColor = mat->primColor;
+      rdpq_set_prim_color(mat->primColor);
+    }
+
+    if(setBlendColor) {
+      state->lastBlendColor = mat->blendColor;
+      rdpq_set_blend_color(mat->blendColor);
+    }
+
+    if(setEnvColor) {
+      state->lastEnvColor = mat->envColor;
+      rdpq_set_env_color(mat->envColor);
+    }
+
+    if(setOtherMode) {
+      __rdpq_mode_change_som(mat->otherModeMask, mat->otherModeValue);
+      state->lastOtherMode = mat->otherModeValue;
+    }
+  }
 }
 
 void t3d_model_free(T3DModel *model) {
