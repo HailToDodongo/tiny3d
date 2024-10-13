@@ -197,6 +197,27 @@ int main()
       rdpq_fill_rectangle(px-1, py-1, px+2, py+2);
     }
 
+    // draw icons in 3d view of player pos
+    for(int i=0; i<PLAYER_COUNT; ++i) {
+      if(selPlayer == i)continue;
+      T3DVec3 posView;
+      T3DVec3 posCenter;
+      t3d_vec3_add(&posCenter, &players[selPlayer].position, &(T3DVec3){{0, 6.0f, 0}});
+      t3d_viewport_calc_viewspace_pos(&viewports[i], &posView, &posCenter);
+      rdpq_set_mode_fill(RGBA32(0x00, 0x00, 0x00, 0xFF));
+      posView.v[0] -= 2;
+      posView.v[1] -= 2;
+
+      // check if screen-pos is in front of us, and inside the viewport
+      if(posView.v[2] < 1.0f
+        && posView.v[0] > viewports[i].offset[0] && posView.v[1] > viewports[i].offset[1]
+        && posView.v[0] < viewports[i].offset[0] + viewports[i].size[0] - 3
+        && posView.v[1] < viewports[i].offset[1] + viewports[i].size[1] - 3
+      ) {
+        rdpq_fill_rectangle(posView.v[0], posView.v[1], posView.v[0]+3, posView.v[1]+3);
+      }
+    }
+
     rdpq_detach_show();
   }
 

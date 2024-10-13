@@ -422,15 +422,14 @@ void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVe
 
 void t3d_viewport_calc_viewspace_pos(T3DViewport *viewport, T3DVec3 *out, const T3DVec3 *pos)
 {
-  T3DMat4 matVP;
   T3DVec4 posScreen;
 
   if(viewport->_isCamProjDirty) {
-    t3d_mat4_mul(&matVP, &viewport->matProj, &viewport->matCamera);
+    t3d_mat4_mul(&viewport->matCamProj, &viewport->matProj, &viewport->matCamera);
     viewport->_isCamProjDirty = false;
   }
 
-  t3d_mat4_mul_vec3(&posScreen, &matVP, pos);
+  t3d_mat4_mul_vec3(&posScreen, &viewport->matCamProj, pos);
 
   if(posScreen.v[3] == 0) {
     return; // invalid matrix, just ignore for now
