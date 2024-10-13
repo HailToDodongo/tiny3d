@@ -156,7 +156,7 @@ int main()
 
         T3DModelIter it = t3d_model_iter_create(models[i].model, T3D_CHUNK_TYPE_OBJECT);
         while(t3d_model_iter_next(&it)) {
-          t3d_model_draw_object(it.object, NULL, NULL);
+          t3d_model_draw_object(it.object, NULL);
         }
 
         t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);

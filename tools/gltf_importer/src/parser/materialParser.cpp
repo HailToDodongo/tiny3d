@@ -228,9 +228,14 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
       model.materialA.vertexFxFunc = (texGen != 0) ? UvGenFunc::SPHERE : UvGenFunc::NONE;
       model.materialB.vertexFxFunc = model.materialA.vertexFxFunc;
 
+      /*uint32_t alphaComp = rdpSettings["g_mdsft_alpha_compare"].get<uint32_t>();
+      if(alphaComp == 1) {
+        otherModeValue |= RDP::SOM::ALPHA_COMPARE;
+      }*/
+
       bool setRenderMode = rdpSettings["set_rendermode"].get<uint32_t>() != 0;
       if(setRenderMode) {
-        otherModeMask |= RDP::SOM::ZMODE_MASK;
+        otherModeMask |= RDP::SOM::ZMODE_MASK; // | RDP::SOM::BLALPHA_MASK;
 
         int renderMode1Raw = rdpSettings["rendermode_preset_cycle_1"].get<uint32_t>();
         int renderMode2Raw = rdpSettings["rendermode_preset_cycle_2"].get<uint32_t>();
@@ -241,6 +246,10 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
         auto otherMode2 = F64_RENDER_MODE_2_TO_OTHERMODE[renderMode2Raw];
 
         otherModeValue |= otherMode1 | otherMode2;
+
+        /*if(rdpSettings["cvg_x_alpha"].get<uint32_t>()) {
+          otherModeValue |= RDP::SOM::BLALPHA_CVG_X_CC | RDP::SOM::BLALPHA_CVG;
+        }*/
 
         model.materialA.blendMode = is2Cycle ? blenderMode2 : blenderMode1;
         model.materialB.blendMode = model.materialA.blendMode;

@@ -202,7 +202,6 @@ typedef struct {
   color_t lastPrimColor;
   color_t lastEnvColor;
   color_t lastBlendColor;
-  bool hadMatrixPush;
   uint8_t lastVertFXFunc;
   uint16_t lastUvGenParams[2];
   uint64_t lastOtherMode;
@@ -258,15 +257,10 @@ static inline void t3d_model_draw(const T3DModel* model) {
  * If you want to change material settings, you can use 't3d_model_draw_material' before this.\n
  * Take a look at 't3d_model_iter_create' for an example of how to use it.
  *
- * NOTE: if you want to use this to record individual objects into a display list,\n
- * make sure to pass NULL for 'state', otherwise you may only record partial state changes.\n
- * For complete recordings, create a state via 't3d_model_state_create' and pass it to each call.
- *
  * @param object object to draw
  * @param boneMatrices matrices in the case of skinned meshes, set to NULL for non-skinned
- * @param state state for material settings, used to minimized changes across materials, can be NULL
  */
-void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrices, T3DModelState *state);
+void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrices);
 
 /**
  * Draws/Applies a material of an object. This can be called before 't3d_model_draw_object'.\n

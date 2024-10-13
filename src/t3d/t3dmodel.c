@@ -232,21 +232,19 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
     if(it.object->material) {
       t3d_model_draw_material(it.object->material, &state);
     }
-    t3d_model_draw_object(it.object, conf.matrices, &state);
+    t3d_model_draw_object(it.object, conf.matrices);
   }
 
   if(state.lastVertFXFunc != T3D_VERTEX_FX_NONE)t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);
 }
 
-void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrices, T3DModelState *state)
+void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrices)
 {
-  bool hadMatrixPushVal = false;
-  bool *hadMatrixPush = state ? &state->hadMatrixPush : &hadMatrixPushVal;
-
+  bool hadMatrixPush = false;
   for(uint32_t p = 0; p < object->numParts; p++)
   {
     const T3DObjectPart *part = &object->parts[p];
-    *hadMatrixPush = handle_bone_matrix(part, boneMatrices, *hadMatrixPush);
+    hadMatrixPush = handle_bone_matrix(part, boneMatrices, hadMatrixPush);
 
     // load vertices, this will already do T&L (so matrices/fog/lighting must be set before)
     t3d_vert_load(part->vert, part->vertDestOffset, part->vertLoadCount);
@@ -275,7 +273,7 @@ void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrice
     // In the next iteration we may therefore need to sync when changing any RDP states
   }
 
-  if(*hadMatrixPush)t3d_matrix_pop(1);
+  if(hadMatrixPush)t3d_matrix_pop(1);
 }
 
 void t3d_model_draw_material(T3DMaterial *mat, T3DModelState *state)
