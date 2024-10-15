@@ -63,6 +63,48 @@ void t3d_mat4_look_at(T3DMat4 *mat, const T3DVec3 *eye, const T3DVec3 *target, c
   }};
 }
 
+void t3d_mat4_to_frustum(T3DFrustum *frustum, const T3DMat4 *mat) {
+ for(int i=0; i<4; ++i) {
+    frustum->planes[0].v[i] = mat->m[i][3] + mat->m[i][0]; // left
+    frustum->planes[1].v[i] = mat->m[i][3] - mat->m[i][0]; // right
+    frustum->planes[2].v[i] = mat->m[i][3] + mat->m[i][1]; // bottom
+    frustum->planes[3].v[i] = mat->m[i][3] - mat->m[i][1]; // top
+    frustum->planes[4].v[i] = mat->m[i][3] + mat->m[i][2]; // near
+    frustum->planes[5].v[i] = mat->m[i][3] - mat->m[i][2]; // far
+ }
+  for(int i=0; i<6; ++i) {
+    float len = t3d_vec3_len((T3DVec3*)&frustum->planes[i]);
+    frustum->planes[i].v[0] /= len;
+    frustum->planes[i].v[1] /= len;
+    frustum->planes[i].v[2] /= len;
+    frustum->planes[i].v[3] /= len;
+  }
+}
+
+bool t3d_frustum_vs_aabb(const T3DFrustum *frustum, const T3DVec3 *min, const T3DVec3 *max)
+{
+  for(int i=0; i<6; ++i) {
+    float p0Min = frustum->planes[i].v[0] * (min->v[0]);
+    float p0Max = frustum->planes[i].v[0] * (max->v[0]);
+    float p1Min = frustum->planes[i].v[1] * (min->v[1]);
+    float p1Max = frustum->planes[i].v[1] * (max->v[1]);
+
+    float p2MinAndW = -frustum->planes[i].v[3] - frustum->planes[i].v[2] * (min->v[2]);
+    if(p0Min + p1Min > p2MinAndW) continue;
+    if(p0Max + p1Min > p2MinAndW) continue;
+    if(p0Min + p1Max > p2MinAndW) continue;
+    if(p0Max + p1Max > p2MinAndW) continue;
+
+    float p2MaxAndW = -frustum->planes[i].v[3] - frustum->planes[i].v[2] * (max->v[2]);
+    if(p0Min + p1Min > p2MaxAndW) continue;
+    if(p0Max + p1Min > p2MaxAndW) continue;
+    if(p0Min + p1Max > p2MaxAndW) continue;
+    if(p0Max + p1Max > p2MaxAndW) continue;
+    return false;
+  }
+  return true;
+}
+
 void t3d_mat4_perspective(T3DMat4 *mat, float fov, float aspect, float near, float far) {
   float tanHalfFov = tanf(fov * 0.5f);
   *mat = (T3DMat4){0};

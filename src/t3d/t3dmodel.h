@@ -77,7 +77,8 @@ typedef struct {
 
 typedef struct {
   char* name;
-  uint32_t numParts;
+  uint16_t numParts;
+  uint16_t triCount;
   T3DMaterial* material;
   int16_t aabbMin[3];
   int16_t aabbMax[3];
@@ -318,6 +319,14 @@ static inline uint32_t t3d_model_get_animation_count(const T3DModel *model) {
   uint32_t count = 0;
   for(uint32_t i = 0; i < model->chunkCount; i++) {
     if(model->chunkOffsets[i].type == T3D_CHUNK_TYPE_ANIM)count++;
+  }
+  return count;
+}
+
+static inline uint32_t t3d_model_get_chunk_count(const T3DModel *model, enum T3DModelChunkType chunkType) {
+  uint32_t count = 0;
+  for(uint32_t i = 0; i < model->chunkCount; i++) {
+    if(model->chunkOffsets[i].type == (char)chunkType)count++;
   }
   return count;
 }

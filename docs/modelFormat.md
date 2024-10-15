@@ -11,7 +11,7 @@ This file can be compressed and contains data to be streamed in during runtime (
 
 | Offset | Type            | Description                    |
 |--------|-----------------|--------------------------------|
-| 0x00   | `char[4]`       | Magic (`T3DM`)                 |
+| 0x00   | `char[4]`       | Magic (`T3M` + version)        |
 | 0x04   | `u32`           | Chunk count                    |
 | 0x08   | `u16`           | Total vertex count             |
 | 0x0A   | `u16`           | Total index count              |
@@ -129,14 +129,15 @@ Each texture can have settings for each UV axis (aka tile settings)
 ### Object (`O`)
 Model data consisting of multiple parts, can exist multiple times in a file.
 
-| Offset | Type     | Description           |
-|--------|----------|-----------------------|
-| 0x00   | `u32`    | Name                  |
-| 0x04   | `u32`    | Part count            |
-| 0x08   | `u32`    | Material, chunk index |
-| 0x0C   | `s16[3]` | AABB min (XYZ)        |
-| 0x12   | `s16[3]` | AABB max (XYZ)        |
-| 0x18   | `Part[]` | Parts                 |
+| Offset | Type     | Description                |
+|--------|----------|----------------------------|
+| 0x00   | `u32`    | Name                       |
+| 0x04   | `u16`    | Part count                 |
+| 0x06   | `u16`    | Triangle count (only info) |
+| 0x08   | `u32`    | Material, chunk index      |
+| 0x0C   | `s16[3]` | AABB min (XYZ)             |
+| 0x12   | `s16[3]` | AABB max (XYZ)             |
+| 0x18   | `Part[]` | Parts                      |
 
 #### Part
 Model part data.

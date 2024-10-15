@@ -46,6 +46,11 @@ typedef struct {
   T3DVec4FP m[4];
 } __attribute__((aligned(16))) T3DMat4FP;
 
+// View frustum, used in culling functions
+typedef struct {
+  T3DVec4 planes[6];
+} T3DFrustum;
+
 /// @brief Converts a 16.16 fixed-point number to a float
 inline static float s1616_to_float(int16_t partI, uint16_t partF)
 {
@@ -459,6 +464,24 @@ void t3d_mat4_ortho(T3DMat4 *mat, float left, float right, float bottom, float t
  * @param up camera up vector, expected to be {0,1,0} by default
  */
 void t3d_mat4_look_at(T3DMat4 *mat, const T3DVec3 *eye, const T3DVec3 *target, const T3DVec3 *up);
+
+/**
+ * Extracts the frustum planes from a 4x4 view/camera matrix
+ * @param frustum result
+ * @param mat view/camera matrix
+ */
+void t3d_mat4_to_frustum(T3DFrustum *frustum, const T3DMat4 *mat);
+
+/**
+ * Checks if an AABB is inside a frustum.
+ * Note that this function *may* choose to return false positives in favor of speed.
+ * So it should only be used where this is acceptable (e.g. culling) and not for collision detection.
+ * @param frustum frustum
+ * @param min AABB min
+ * @param max AABB max
+ * @return true if the AABB is inside the frustum
+ */
+bool t3d_frustum_vs_aabb(const T3DFrustum *frustum, const T3DVec3 *min, const T3DVec3 *max);
 
 /// @brief Multiplies the matrices 'matA' and 'matB' and stores it in 'matRes'
 inline static void t3d_mat4_mul(T3DMat4 *matRes, const T3DMat4 *matA, const T3DMat4 *matB)

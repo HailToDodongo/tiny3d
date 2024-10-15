@@ -5,6 +5,8 @@
 
 #include "t3dmodel.h"
 
+#define T3DM_VERSION 1
+
 static inline void* patch_pointer(void *ptr, uint32_t offset) {
   return (void*)(offset + (int32_t)ptr);
 }
@@ -154,6 +156,14 @@ T3DModel *t3d_model_load(const char *path) {
   int size = 0;
   T3DModel* model = asset_load(path, &size);
   int32_t ptrOffset = (int32_t)(void*)model;
+
+  if(memcmp(model->magic, "T3M", 3) != 0) {
+    assertf(false, "Invalid T3D model file: %s", path);
+  }
+  assertf(model->magic[3] == T3DM_VERSION,
+    "Invalid T3D model version: %d != %d\n"
+    "Please make a clean build of t3d and your project",
+    T3DM_VERSION, model->magic[3]);
 
   void* basePtrVertices = (char*)model + (model->chunkOffsets[model->chunkIdxVertices].offset & 0xFFFFFF);
   void* basePtrIndices = (char*)model + (model->chunkOffsets[model->chunkIdxIndices].offset & 0xFFFFFF);

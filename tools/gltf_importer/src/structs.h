@@ -165,6 +165,7 @@ struct ModelChunked {
 
   s16 aabbMin[3]{};
   s16 aabbMax[3]{};
+  u16 triCount{};
 };
 
 struct Bone {
@@ -246,3 +247,4 @@ extern Config config;
 
 constexpr int MAX_VERTEX_COUNT = 70;
 constexpr int CACHE_VERTEX_SIZE = 36;
+constexpr u8 T3DM_VERSION = 0x01;

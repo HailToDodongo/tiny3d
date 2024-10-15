@@ -107,6 +107,7 @@ int main(int argc, char* argv[])
   for(const auto & model : t3dm.models) {
     auto chunks = chunkUpModel(model);
     optimizeModelChunk(chunks);
+    chunks.triCount = model.triangles.size();
     modelChunks.push_back(chunks);
     chunkCount += 1 + 2; // object + material A/B (@TODO: optimize material count)
   }
@@ -117,7 +118,8 @@ int main(int argc, char* argv[])
 
   // Main file
   BinaryFile file{};
-  file.writeChars("T3DM", 4);
+  file.writeChars("T3M", 3);
+  file.write<uint8_t>(T3DM_VERSION);
   file.write(chunkCount); // chunk count
 
   file.write<uint16_t>(0); // total vertex count (set later)
@@ -263,7 +265,8 @@ int main(int argc, char* argv[])
     // write object chunk
     const auto &chunks = modelChunks[m];
     file.write(insertString(stringTable, chunks.chunks.back().name));
-    file.write((uint32_t)chunks.chunks.size());
+    file.write((uint16_t)chunks.chunks.size());
+    file.write(chunks.triCount);
     file.write(materialIndex++);
     file.writeArray(chunks.aabbMin, 3);
     file.writeArray(chunks.aabbMax, 3);
