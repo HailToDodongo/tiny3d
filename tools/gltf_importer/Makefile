@@ -1,10 +1,11 @@
-CXXFLAGS += -O3 -std=c++20
+CXXFLAGS += -O3 -std=c++20 -I./src/lib
 OBJDIR = build
 SRCDIR = src
 
 OBJ = build/parser.o build/main.o build/lib/lodepng.o \
 	build/parser/materialParser.o build/parser/boneParser.o build/parser/nodeParser.o \
 	build/optimizer/meshOptimizer.o \
+	build/optimizer/meshBVH.o \
 	build/parser/animParser.o \
 	build/converter/meshConverter.o \
 	build/converter/animConverter.o \

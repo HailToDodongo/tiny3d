@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
 {
   EnvArgs args{argc, argv};
   if(args.checkArg("--help")) {
-    printf("Usage: %s <gltf-file> <t3dm-file> [--base-scale=64] [--ignore-materials]\n", argv[0]);
+    printf("Usage: %s <gltf-file> <t3dm-file> [--bvh] [--base-scale=64] [--ignore-materials]\n", argv[0]);
     return 1;
   }
 
@@ -79,6 +79,7 @@ int main(int argc, char* argv[])
 
   config.globalScale = (float)args.getU32Arg("--base-scale", 64);
   config.ignoreMaterials = args.checkArg("--ignore-materials");
+  config.createBVH = args.checkArg("--bvh");
   config.animSampleRate = 60;
 
   auto t3dm = parseGLTF(gltfPath, config.globalScale);
@@ -154,6 +155,7 @@ int main(int argc, char* argv[])
   // Chunks
   BinaryFile chunkVerts{};
   BinaryFile chunkIndices{};
+  BinaryFile chunkBVH{};
   std::vector<std::shared_ptr<BinaryFile>> chunkMaterials{};
   std::vector<BinaryFile> chunkSkeletons{};
 
@@ -177,6 +179,11 @@ int main(int argc, char* argv[])
 
     chunkBone.setPos(0);
     chunkBone.write<uint16_t>(boneCount);
+  }
+
+  if(config.createBVH) {
+    auto bvhData = createMeshBVH(modelChunks);
+    chunkBVH.writeArray(bvhData.data(), bvhData.size());
   }
 
   file.align(8);
@@ -268,6 +275,8 @@ int main(int argc, char* argv[])
     file.write((uint16_t)chunks.chunks.size());
     file.write(chunks.triCount);
     file.write(materialIndex++);
+    file.write<uint32_t>(0); // block, set at runtime
+    file.write<uint32_t>(0); // visibility, set at runtime + padding
     file.writeArray(chunks.aabbMin, 3);
     file.writeArray(chunks.aabbMax, 3);
 
@@ -387,6 +396,12 @@ int main(int argc, char* argv[])
   }
 
   // Now patch all chunks together and write out the chunk-table
+
+  if(config.createBVH) {
+    file.align(8);
+    addToChunkTable('B');
+    file.writeMemFile(chunkBVH);
+  }
 
   file.align(16);
   addChunkTypeIndex();

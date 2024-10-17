@@ -5,6 +5,7 @@ include $(N64_INST)/include/n64.mk
 include $(T3D_INST)/t3d.mk
 
 N64_CFLAGS += -std=gnu2x -O2
+GLTF_FLAGS = ''
 
 PROJECT_NAME=t3d_17_culling
 
@@ -16,6 +17,8 @@ assets_ttf = $(wildcard assets/*.ttf)
 assets_conv = $(addprefix filesystem/,$(notdir $(assets_png:%.png=%.sprite))) \
 			  $(addprefix filesystem/,$(notdir $(assets_ttf:%.ttf=%.font64))) \
 			  $(addprefix filesystem/,$(notdir $(assets_gltf:%.glb=%.t3dm)))
+
+filesystem/scene.t3dm: GLTF_FLAGS = --bvh
 
 all: $(PROJECT_NAME).z64
 
@@ -32,7 +35,7 @@ filesystem/%.font64: assets/%.ttf
 filesystem/%.t3dm: assets/%.glb
 	@mkdir -p $(dir $@)
 	@echo "    [T3D-MODEL] $@"
-	$(T3D_GLTF_TO_3D) "$<" $@
+	$(T3D_GLTF_TO_3D) "$<" $@ $(GLTF_FLAGS)
 
 $(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
 $(BUILD_DIR)/$(PROJECT_NAME).elf: $(src:%.c=$(BUILD_DIR)/%.o)

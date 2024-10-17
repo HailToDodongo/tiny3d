@@ -129,15 +129,18 @@ Each texture can have settings for each UV axis (aka tile settings)
 ### Object (`O`)
 Model data consisting of multiple parts, can exist multiple times in a file.
 
-| Offset | Type     | Description                |
-|--------|----------|----------------------------|
-| 0x00   | `u32`    | Name                       |
-| 0x04   | `u16`    | Part count                 |
-| 0x06   | `u16`    | Triangle count (only info) |
-| 0x08   | `u32`    | Material, chunk index      |
-| 0x0C   | `s16[3]` | AABB min (XYZ)             |
-| 0x12   | `s16[3]` | AABB max (XYZ)             |
-| 0x18   | `Part[]` | Parts                      |
+| Offset | Type     | Description           |
+|--------|----------|-----------------------|
+| 0x00   | `u32`    | Name                  |
+| 0x04   | `u16`    | Part count            |
+| 0x06   | `u16`    | Triangle count        |
+| 0x08   | `u32`    | Material, chunk index |
+| 0x0C   | `void*`  | Block                 |
+| 0x10   | `u8`     | visible flag          |
+| 0x11   | `u8[3]`  | _padding_             |
+| 0x14   | `s16[3]` | AABB min (XYZ)        |
+| 0x1A   | `s16[3]` | AABB max (XYZ)        |
+| 0x20   | `Part[]` | Parts                 |
 
 #### Part
 Model part data.
@@ -223,6 +226,29 @@ The initial KF has always 4 bytes, to have a known start.<br>
 | 0x00   | `u16`   | Time till next KF in ticks, MSB sets type of next KF |
 | 0x01   | `u16`   | Channel Index                                        |
 | 0x02   | `u16[]` | Data, on `u16` for scalars, two `u16` for rotation   |
+
+
+## Mesh BVH (`B`)
+Binary tree of bounding boxes, optional.
+
+| Offset | Type        | Description                            |
+|--------|-------------|----------------------------------------|
+| 0x00   | `u32`       | Base pointer for data (set at runtime) |
+| 0x04   | `u16`       | Node count                             |
+| 0x06   | `u16`       | Data count                             |
+| 0x08   | `BVHNode[]` | Nodes                                  |
+| 0x??   | `u16[]`     | Data array                             |
+
+#### BVHNode
+
+| Offset | Type     | Description                    |
+|--------|----------|--------------------------------|
+| 0x00   | `s16[3]` | AABB min (model space)         |
+| 0x06   | `s16[3]` | AABB max (model space)         |
+| 0x0C   | `u16`    | 12-MSB index, 4-LSB data count |
+
+If the data count is `>0`, the node is a leaf node and the index points to the data array.<br> 
+If the data count is `0`, the node is an inner node and the index points to the next 2 nodes.
 
 ## String Table
 

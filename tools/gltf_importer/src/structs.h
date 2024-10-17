@@ -242,6 +242,7 @@ struct Config {
   float globalScale{64.0f};
   uint32_t animSampleRate{30};
   bool ignoreMaterials{false};
+  bool createBVH{false};
 };
 extern Config config;
 

@@ -4,15 +4,6 @@
 #include <t3d/t3dmodel.h>
 #include <t3d/t3ddebug.h>
 
-typedef struct
-{
-  rspq_block_t *dpl;
-  T3DVec3 aabbMin;
-  T3DVec3 aabbMax;
-  int triCount;
-  bool visible;
-} CullObject;
-
 /**
  * Example showcasing an implementation of frustum culling,
  * using a few builtin helper functions in t3d.
@@ -48,113 +39,107 @@ int main()
     (float[]){0,0,0}
   );
 
-  T3DVec3 camPos = {{2.9232f, 37.6248f, 31.1093f}};
-
-  T3DVec3 camTarget = {{0,0,0}};
+  T3DVec3 camPos = {{-60.0f, 70.0f, 20.f}};
+  T3DVec3 camPosTarget = camPos;
   T3DVec3 camDir = {{0,0,1}};
-  T3DVec3 camPosScreen;
-  T3DVec3 camTargetScreen;
+  T3DVec3 camPosScreen, camTargetScreen;
 
-  float camRotX = 1.0f;
-  float camRotY = 0.0f;
-
-  float rotAngle = 0.0f;
-  T3DVec3 rotAxis = {{1.0f, 2.5f, 0.25f}};
-  t3d_vec3_norm(&rotAxis);
-
-  double lastTimeMs = 0;
-  float time = 0.0f;
+  float camRotX = -1.2f;
+  float camRotY = -0.2f;
+  float camRotXTarget = camRotX;
+  float camRotYTarget = camRotY;
   bool debugView = false;
-  bool isNight = false;
+  bool useBVH = true;
+  bool useBlock = true;
 
-  // Prepare culling. How exactly this is done may depend on your game in the end.
-  // For this example we are reading out the included AABB data and transform it into world space.
-  // since it is a static map, there are no further or dynamic transformations.
-  // In addition, we also record each object, to directly draw it later.
   uint32_t objCount = t3d_model_get_chunk_count(model, T3D_CHUNK_TYPE_OBJECT);
-  CullObject *cullObjs = (CullObject*)malloc_uncached(sizeof(CullObject) * objCount);
-
-  auto it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
-  int idx = 0;
-  while(t3d_model_iter_next(&it))
-  {
-    T3DObject *obj = it.object;
-
-    // record model, we pass NULL as the state arg to be able to draw each object isolated
-    // if you want less state changes you can pass a state into it, however you have to make sure
-    // to not cull any object that may partially change materials then.
+  T3DModelIter it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
+  while(t3d_model_iter_next(&it)) {
     rspq_block_begin();
-      t3d_model_draw_material(obj->material, NULL);
-      t3d_model_draw_object(obj, NULL);
-    cullObjs[idx].dpl = rspq_block_end();
-
-    // extract AABB and scale to world-space
-    t3d_vec3_scale(&cullObjs[idx].aabbMin, &(T3DVec3){{obj->aabbMin[0], obj->aabbMin[1], obj->aabbMin[2]}}, modelScale);
-    t3d_vec3_scale(&cullObjs[idx].aabbMax, &(T3DVec3){{obj->aabbMax[0], obj->aabbMax[1], obj->aabbMax[2]}}, modelScale);
-
-    cullObjs[idx].triCount = it.object->triCount;
-    ++idx;
+    t3d_model_draw_object(it.object, NULL);
+    it.object->userBlock = rspq_block_end();
   }
 
-  for(;;)
+  uint64_t ticks = 0;
+  uint64_t ticksBlock = 0;
+  for(uint32_t frame=1; ; ++frame)
   {
     joypad_poll();
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
     joypad_buttons_t pressed = joypad_get_buttons_pressed(JOYPAD_PORT_1);
     if(joypad.stick_x < 10 && joypad.stick_x > -10)joypad.stick_x = 0;
     if(joypad.stick_y < 10 && joypad.stick_y > -10)joypad.stick_y = 0;
-    if(pressed.a || pressed.b)debugView = !debugView;
-    if(pressed.start)isNight = !isNight;
+    if(pressed.start)debugView = !debugView;
+    if(pressed.a)useBVH = !useBVH;
+    if(pressed.b)useBlock = !useBlock;
+    if(frame > 60 || pressed.a || pressed.b) { ticksBlock = 0; ticks = 0; frame = 1; }
 
-    double nowMs = (double)get_ticks_us() / 1000.0;
-    float deltaTime = (float)(nowMs - lastTimeMs);
-    lastTimeMs = nowMs;
-    time += deltaTime;
+    // Camera controls:
+    float camSpeed = display_get_delta_time() * 1.1f;
+    float camRotSpeed = display_get_delta_time() * 0.025f;
 
-    {
-      float camSpeed = deltaTime * 0.001f;
-      float camRotSpeed = deltaTime * 0.00001f;
+    camDir.v[0] = fm_cosf(camRotX) * fm_cosf(camRotY);
+    camDir.v[1] = fm_sinf(camRotY);
+    camDir.v[2] = fm_sinf(camRotX) * fm_cosf(camRotY);
+    t3d_vec3_norm(&camDir);
 
-      camDir.v[0] = fm_cosf(camRotX) * fm_cosf(camRotY);
-      camDir.v[1] = fm_sinf(camRotY);
-      camDir.v[2] = fm_sinf(camRotX) * fm_cosf(camRotY);
-      t3d_vec3_norm(&camDir);
+    if(joypad.btn.z) {
+      camRotXTarget += (float)joypad.stick_x * camRotSpeed;
+      camRotYTarget -= (float)joypad.stick_y * camRotSpeed;
+    } else {
+      camPosTarget.v[0] += camDir.v[0] * (float)joypad.stick_y * camSpeed;
+      camPosTarget.v[1] += camDir.v[1] * (float)joypad.stick_y * camSpeed;
+      camPosTarget.v[2] += camDir.v[2] * (float)joypad.stick_y * camSpeed;
 
-      if(joypad.btn.z) {
-        camRotX += (float)joypad.stick_x * camRotSpeed;
-        camRotY += (float)joypad.stick_y * camRotSpeed;
-      } else {
-        camPos.v[0] += camDir.v[0] * (float)joypad.stick_y * camSpeed;
-        camPos.v[1] += camDir.v[1] * (float)joypad.stick_y * camSpeed;
-        camPos.v[2] += camDir.v[2] * (float)joypad.stick_y * camSpeed;
-
-        camPos.v[0] += camDir.v[2] * (float)joypad.stick_x * -camSpeed;
-        camPos.v[2] -= camDir.v[0] * (float)joypad.stick_x * -camSpeed;
-      }
-
-      if(joypad.btn.c_up)camPos.v[1] += camSpeed * 15.0f;
-      if(joypad.btn.c_down)camPos.v[1] -= camSpeed * 15.0f;
-
-      camTarget.v[0] = camPos.v[0] + camDir.v[0];
-      camTarget.v[1] = camPos.v[1] + camDir.v[1];
-      camTarget.v[2] = camPos.v[2] + camDir.v[2];
+      camPosTarget.v[0] += camDir.v[2] * (float)joypad.stick_x * -camSpeed;
+      camPosTarget.v[2] -= camDir.v[0] * (float)joypad.stick_x * -camSpeed;
     }
 
-    rotAngle += 0.03f;
+    if(joypad.btn.c_up)camPosTarget.v[1] += camSpeed * 15.0f;
+    if(joypad.btn.c_down)camPosTarget.v[1] -= camSpeed * 15.0f;
+
+    t3d_vec3_lerp(&camPos, &camPos, &camPosTarget, 0.8f);
+    camRotX = t3d_lerp(camRotX, camRotXTarget, 0.8f);
+    camRotY = t3d_lerp(camRotY, camRotYTarget, 0.8f);
+
+    T3DVec3 camTarget;
+    t3d_vec3_add(&camTarget, &camPos, &camDir);
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(75.0f), 0.5f, 150.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
-    // update visibility, we can use 't3d_frustum_vs_aabb' to check if an object is visible
-    // inside the current view frustum set by 't3d_viewport_look_at'
-    uint64_t ticksStart = get_ticks();
-    for(int i=0; i<objCount; ++i)
-    {
-      CullObject *obj = &cullObjs[i];
-      obj->visible = t3d_frustum_vs_aabb(&viewport.viewFrustum, &obj->aabbMin, &obj->aabbMax);
+    T3DFrustum frustum = viewport.viewFrustum;
+    // scale frustum to model space (0.5)
+    for(int i=0; i<6; ++i) {
+      frustum.planes[i].v[0] *= modelScale;
+      frustum.planes[i].v[1] *= modelScale;
+      frustum.planes[i].v[2] *= modelScale;
     }
-    ticksStart = get_ticks() - ticksStart;
 
+    // update visibility, we can use 't3d_frustum_vs_aabb' to check if an object is visible.
+    // 't3d_viewport_look_at' will update this automatically
+    const T3DBvh *bvh = t3d_model_bvh_get(model);
+    t3d_model_bvh_query_frustum(bvh, &frustum);
+    assert(bvh); // BHVs are optional, you have to use '--bhv' in the gltf importer (see Makefile)
+
+    int visibleCount = 0, triCount = 0;
+    uint64_t ticksStart = get_ticks();
+    if(useBVH) {
+      t3d_model_bvh_query_frustum(bvh, &frustum);
+    } else {
+      it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
+      while(t3d_model_iter_next(&it)) {
+        it.object->isVisible = t3d_frustum_vs_aabb(&frustum,
+          &(T3DVec3){{ it.object->aabbMin[0], it.object->aabbMin[1], it.object->aabbMin[2] }},
+          &(T3DVec3){{ it.object->aabbMax[0], it.object->aabbMax[1], it.object->aabbMax[2] }}
+        );
+      }
+    }
+
+    ticks += get_ticks() - ticksStart;
+
+    // Debug top-down view, since visibility was already calculated
+    // we can switch the camera to view the mesh independently of culling
     if(debugView) {
       T3DVec3 camPosDebug = (T3DVec3){{camTarget.v[0]+2, 220.0f, camTarget.v[2]}};
       t3d_viewport_look_at(&viewport, &camPosDebug, &camTarget, &(T3DVec3){{0,1,0}});
@@ -173,39 +158,34 @@ int main()
 
     rdpq_set_prim_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
     rdpq_mode_fog(RDPQ_FOG_STANDARD);
-    if(isNight) {
-      rdpq_set_fog_color(RGBA32(11, 11, 11, 0xFF));
-      t3d_screen_clear_color(RGBA32(11, 11, 11, 0xFF));
-    } else {
-      rdpq_set_fog_color(RGBA32(110, 110, 180, 0xFF));
-      t3d_screen_clear_color(RGBA32(110, 110, 180, 0xFF));
-    }
+    rdpq_set_fog_color(RGBA32(110, 110, 180, 0xFF));
+    t3d_screen_clear_color(RGBA32(110, 110, 180, 0xFF));
 
     t3d_screen_clear_depth();
 
     t3d_fog_set_range(37.0f, 180.0f);
     t3d_fog_set_enabled(true);
 
-    if(isNight) {
-      t3d_light_set_ambient((uint8_t[]){11, 11, 11, 0xFF});
-      t3d_light_set_point(0, (uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF}, &(T3DVec3){{
-        camPos.v[0] + camDir.v[0] * 1.0f,
-        camPos.v[1] + 1.0f,
-        camPos.v[2] + camDir.v[2] * 1.0f
-      }}, 0.2f, false);
-      t3d_light_set_count(1);
-    } else {
-      t3d_light_set_ambient((uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF});
-    }
+    t3d_light_set_ambient((uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF});
+    t3d_light_set_count(0);
 
     t3d_matrix_push(modelMatFP);
 
     // Now draw all objects that we determined to be visible
-    int triCount = 0;
-    for(int i=0; i<objCount; ++i) {
-      if(cullObjs[i].visible) {
-        rspq_block_run(cullObjs[i].dpl);
-        triCount += cullObjs[i].triCount;
+    // we still want to optimize materials, so we create a state here and draw them directly
+    // the objects (so vertex loads + triangle draws) are recorded since they don't depend on visibility
+    T3DModelState state = t3d_model_state_create();
+    it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
+    while(t3d_model_iter_next(&it)) {
+      if(it.object->isVisible) {
+        // draw material and object
+        t3d_model_draw_material(it.object->material, &state);
+        rspq_block_run(it.object->userBlock);
+        it.object->isVisible = false; // BVH only sets visible objects, so we need to reset this
+
+        // collect some metrics
+        ++visibleCount;
+        triCount += it.object->triCount;
       }
     }
 
@@ -232,7 +212,9 @@ int main()
 
     t3d_debug_printf(20, 20, "FPS: %.2f", display_get_fps());
     t3d_debug_printf(20, 30, "Tris: %d", triCount);
-    t3d_debug_printf(20, 40, "Cull: %lluus", TICKS_TO_US(ticksStart));
+    t3d_debug_printf(20, 40, "%s: %lluus (%d/%d)", useBVH ? "BVH" : "AABB", TICKS_TO_US(ticks / frame), visibleCount, objCount);
+    //t3d_debug_printf(20, 50, "%s: %lluus", useBlock ? "DPL" : "Direct", TICKS_TO_US(ticksBlock));
+    t3d_debug_printf(20, 50, "%s", useBlock ? "DPL" : "Direct");
 
     if(debugView) {
       int points = 12;

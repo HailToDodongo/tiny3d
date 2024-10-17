@@ -80,11 +80,28 @@ typedef struct {
   uint16_t numParts;
   uint16_t triCount;
   T3DMaterial* material;
+  // can be used freely by the user for recording, will be freed automatically by t3d
+  rspq_block_t *userBlock;
+  uint8_t isVisible; // set by culling checks, otherwise no effect on rendering
+  uint8_t _padding[3];
   int16_t aabbMin[3];
   int16_t aabbMax[3];
 
   T3DObjectPart parts[]; // real array
 } T3DObject;
+
+typedef struct {
+  int16_t aabbMin[3];
+  int16_t aabbMax[3];
+  uint16_t value;
+} T3DBvhNode;
+
+typedef struct {
+  uint16_t nodeCount;
+  uint16_t dataCount;
+  T3DBvhNode nodes[];
+  // uint16_t data[]; // T3DObject pointer, shifted by 3, relative to 'objectBasePtr'
+} T3DBvh;
 
 typedef struct {
   char* name;
@@ -136,6 +153,8 @@ typedef struct {
   uint32_t chunkIdxMaterials;
   char* stringTablePtr;
 
+  TODO ADD AABB
+
   T3DChunkOffset chunkOffsets[];
 } T3DModel;
 
@@ -160,7 +179,8 @@ enum T3DModelChunkType {
   T3D_CHUNK_TYPE_MATERIAL = 'M',
   T3D_CHUNK_TYPE_OBJECT   = 'O',
   T3D_CHUNK_TYPE_SKELETON = 'S',
-  T3D_CHUNK_TYPE_ANIM     = 'A'
+  T3D_CHUNK_TYPE_ANIM     = 'A',
+  T3D_CHUNK_TYPE_BVH      = 'B'
 };
 
 /**
@@ -178,8 +198,6 @@ typedef bool (*T3DModelFilterCb)(void* userData, const T3DObject *obj);
 typedef void (*T3DModelDynTextureCb)(
   void* userData, const T3DMaterial *material, rdpq_texparms_t *tileParams, rdpq_tile_t tile
 );
-
-typedef bool (*T3DModelManualCb)(void* userData, const T3DObject *obj, const T3DObjectPart *part, uint32_t objIdx, uint32_t partIdx);
 
 // Defines settings and callbacks for custom drawing
 typedef struct {
@@ -358,6 +376,18 @@ T3DChunkAnim* t3d_model_get_animation(const T3DModel *model, const char* name);
 T3DObject* t3d_model_get_object(const T3DModel *model, const char *name);
 
 /**
+ * Returns an object by index.
+ * Note that no bounds checking is done, so make sure the index is valid.
+ * @param model model
+ * @param index object index
+ * @return object, invalid pointer if OOB!
+ */
+static inline T3DObject* t3d_model_get_object_by_index(const T3DModel *model, uint32_t index) {
+  uint32_t offset = model->chunkOffsets[index].offset & 0x00FFFFFF;
+  return (T3DObject*)((char*)model + offset);
+}
+
+/**
  * Returns a material by name.
  * @param model model
  * @param name material name
@@ -408,6 +438,35 @@ static inline T3DModelIter t3d_model_iter_create(const T3DModel *model, enum T3D
  * @return true if it found a chunk, false if it reached the end
  */
 bool t3d_model_iter_next(T3DModelIter *iter);
+
+/**
+ * Returns the BVH of a model.
+ * Note that this is optional and may return NULL.
+ * To create one, pass '--bvh' to the gltf importer.
+ * @param model model
+ * @return pointer to the BVH or NULL if not found
+ */
+static inline const T3DBvh* t3d_model_bvh_get(const T3DModel *model) {
+  for(uint32_t i = 0; i < model->chunkCount; i++) {
+    if(model->chunkOffsets[i].type == T3D_CHUNK_TYPE_BVH) {
+      uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
+      return (T3DBvh*)((char*)model + offset);
+    }
+  }
+  return NULL;
+}
+
+/**
+ * Queries the BVH of a model with a frustum.
+ * Note that the BVH is in model space, so the frustum may need to be transformed before.
+ * This will mark all objects in the BVH as visible via the 'isVisible' flag.
+ * Note that you need to first set all to false before calling this.
+ *
+ * @param bvh BVH to check
+ * @param frustum frustum to check against
+ * @return
+ */
+void t3d_model_bvh_query_frustum(const T3DBvh *bvh, const T3DFrustum *frustum);
 
 #ifdef __cplusplus
 }

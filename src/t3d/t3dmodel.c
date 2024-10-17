@@ -16,6 +16,12 @@ static inline void* align_pointer(void *ptr, uint32_t alignment) {
 }
 
 typedef struct {
+  int16_t aabbMin[3];
+  int16_t aabbMax[3];
+  uint16_t objectPtr;
+} T3DBvhData;
+
+typedef struct {
   uint32_t hash;
   sprite_t *texture;
   uint32_t count;
@@ -220,6 +226,22 @@ T3DModel *t3d_model_load(const char *path) {
       T3DChunkAnim *anim = (T3DChunkAnim*)((char*)model + offset);
       anim->name = patch_pointer(anim->name, (uint32_t)model->stringTablePtr);
       anim->filePath = patch_pointer(anim->filePath, (uint32_t)model->stringTablePtr);
+    }
+
+    if(chunkType == T3D_CHUNK_TYPE_BVH) {
+      // node leafs are stored as indices to the objects, we convert that to an relative address
+      // to the actual object, shifted by 2 since it's 4 byte aligned (and nodes use 16bit indices)
+      T3DBvh *bvh = (T3DBvh*)((char*)model + offset);
+      T3DBvhData *data = (T3DBvhData*)&bvh->nodes[bvh->nodeCount]; // data is right after nodes
+
+      for(int d=0; d<bvh->dataCount; ++d) {
+        T3DObject *obj = t3d_model_get_object_by_index(model, data[d].objectPtr);
+        uint32_t addr = (uint32_t)bvh  - (uint32_t)obj;
+        assert((addr & 0b11) == 0);
+        addr >>= 2;
+        assert(addr < 0x10000);
+        data[d].objectPtr = addr;
+      }
     }
   }
 
@@ -448,3 +470,42 @@ bool t3d_model_iter_next(T3DModelIter *iter) {
   return false;
 }
 
+// context for functions below, this avoids blowing up the stack-sie
+static const T3DFrustum *ctxFrustum;
+static const T3DBvhData *ctxData;
+static uint32_t ctxBasePtr;
+
+static void bvh_query_node(const T3DBvhNode *node) {
+  int dataCount = node->value & 0b1111;
+  int dataOffset = node->value >> 4;
+
+  if(dataCount == 0) {
+    if(t3d_frustum_vs_aabb(ctxFrustum,
+      &(T3DVec3){{node->aabbMin[0], node->aabbMin[1], node->aabbMin[2]}},
+      &(T3DVec3){{node->aabbMax[0], node->aabbMax[1], node->aabbMax[2]}})
+    ) {
+      bvh_query_node(&node[dataOffset]);
+      bvh_query_node(&node[dataOffset+1]);
+    }
+    return;
+  }
+
+  for(int j=0; j<dataCount; ++j) {
+    const T3DBvhData *entry = &ctxData[dataOffset + j];
+    if(t3d_frustum_vs_aabb(ctxFrustum,
+      &(T3DVec3){{entry->aabbMin[0], entry->aabbMin[1], entry->aabbMin[2]}},
+      &(T3DVec3){{entry->aabbMax[0], entry->aabbMax[1], entry->aabbMax[2]}})
+    ) {
+      uint32_t ptr = ctxBasePtr - (ctxData[dataOffset + j].objectPtr << 2);
+      ((T3DObject*)ptr)->isVisible = true;
+    }
+  }
+}
+
+void t3d_model_bvh_query_frustum(const T3DBvh *bvh, const T3DFrustum *frustum) {
+  const T3DBvhData *data = (T3DBvhData*)&bvh->nodes[bvh->nodeCount]; // data starts right after nodes
+  ctxFrustum = frustum;
+  ctxData = data;
+  ctxBasePtr = (uint32_t)(char*)bvh;
+  bvh_query_node(bvh->nodes);
+}
