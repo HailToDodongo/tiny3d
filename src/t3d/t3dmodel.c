@@ -16,8 +16,6 @@ static inline void* align_pointer(void *ptr, uint32_t alignment) {
 }
 
 typedef struct {
-  int16_t aabbMin[3];
-  int16_t aabbMax[3];
   uint16_t objectPtr;
 } T3DBvhData;
 
@@ -179,7 +177,7 @@ T3DModel *t3d_model_load(const char *path) {
   {
     char chunkType = model->chunkOffsets[i].type;
     uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
-    //debugf("Chunk[%d] '%c': %lx\n", i, chunkType, offset);
+    //debugf("Chunk[%lu] '%c': %lx\n", i, chunkType, (uint32_t)offset);
 
     if(chunkType == T3D_CHUNK_TYPE_OBJECT) {
       T3DObject *obj = (T3DObject*)((char*)model + offset);
@@ -189,16 +187,6 @@ T3DModel *t3d_model_load(const char *path) {
 
       uint32_t matIdx = model->chunkIdxMaterials + (uint32_t)obj->material;
       obj->material = (T3DMaterial*)((char*)model + (model->chunkOffsets[matIdx].offset & 0xFFFFFF));
-
-      if(obj->material->name) {
-        obj->material->name += (uint32_t)model->stringTablePtr;
-      }
-      if(obj->material->textureA.texPath) {
-        obj->material->textureA.texPath += (uint32_t)model->stringTablePtr;
-      }
-      if(obj->material->textureB.texPath) {
-        obj->material->textureB.texPath += (uint32_t)model->stringTablePtr;
-      }
 
       for(uint32_t j = 0; j < obj->numParts; j++) {
         T3DObjectPart *part = &obj->parts[j];
@@ -212,6 +200,14 @@ T3DModel *t3d_model_load(const char *path) {
           stripPtr = (uint8_t*)align_pointer(stripPtr + part->numStripIndices[s]*2, 8);
         }
       }
+    }
+
+    if(chunkType == T3D_CHUNK_TYPE_MATERIAL) {
+      T3DMaterial *mat = (T3DMaterial*)((char*)model + offset);
+
+      if(mat->name)mat->name += (uint32_t)model->stringTablePtr;
+      if(mat->textureA.texPath)mat->textureA.texPath += (uint32_t)model->stringTablePtr;
+      if(mat->textureB.texPath)mat->textureB.texPath += (uint32_t)model->stringTablePtr;
     }
 
     if(chunkType == T3D_CHUNK_TYPE_SKELETON) {
@@ -483,21 +479,21 @@ static uint32_t ctxBasePtr;
 
 static void bvh_query_node(const T3DBvhNode *node) {
   int dataCount = node->value & 0b1111;
-  int dataOffset = node->value >> 4;
+  int offset = node->value >> 4;
 
   if(dataCount == 0) {
     if(t3d_frustum_vs_aabb_s16(ctxFrustum, node->aabbMin, node->aabbMax)) {
-      bvh_query_node(&node[dataOffset]);
-      bvh_query_node(&node[dataOffset+1]);
+      bvh_query_node(&node[offset]);
+      bvh_query_node(&node[offset + 1]);
     }
     return;
   }
 
-  for(int j=0; j<dataCount; ++j) {
-    const T3DBvhData *entry = &ctxData[dataOffset + j];
-    if(t3d_frustum_vs_aabb_s16(ctxFrustum, entry->aabbMin, entry->aabbMax)) {
-      uint32_t ptr = ctxBasePtr - (ctxData[dataOffset + j].objectPtr << 2);
-      ((T3DObject*)ptr)->isVisible = true;
+  int offsetEnd = offset + dataCount;
+  while(offset < offsetEnd) {
+    T3DObject* obj = (T3DObject*)(ctxBasePtr - (ctxData[offset++].objectPtr << 2));
+    if(t3d_frustum_vs_aabb_s16(ctxFrustum, obj->aabbMin, obj->aabbMax)) {
+      obj->isVisible = true;
     }
   }
 }

@@ -127,8 +127,7 @@ ModelChunked chunkUpModel(const Model &model)
   };
   res.chunks.reserve(model.triangles.size() * 3 / MAX_VERTEX_COUNT);
   res.chunks.push_back(MeshChunk{});
-  res.chunks.back().materialA = model.materialA;
-  res.chunks.back().materialB = model.materialB;
+  res.chunks.back().material = model.material;
   res.chunks.back().name = model.name;
 
   uint32_t emittedVerts = 0;
@@ -226,7 +225,7 @@ ModelChunked chunkUpModel(const Model &model)
           }
         }
 
-        res.chunks.push_back(MeshChunk{.materialA = model.materialA, .materialB = model.materialB, .name = model.name});
+        res.chunks.push_back(MeshChunk{.material = model.material, .name = model.name});
 
         chunkOffset += emittedVerts;
         emittedVerts = 0;

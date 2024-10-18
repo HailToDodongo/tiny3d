@@ -40,7 +40,7 @@ namespace
     }
   }
 
-  void writeBVH(std::vector<int16_t> &out, Bvh &bvh, const std::vector<ModelChunked> &modelChunks) {
+  void writeBVH(std::vector<int16_t> &out, Bvh &bvh) {
     out.push_back(bvh.nodes.size());
     out.push_back(bvh.prim_ids.size());
     int nodeIndex = 0;
@@ -48,12 +48,6 @@ namespace
       writeBVHNode(out, node, nodeIndex++);
     }
     for(auto&& prim_id : bvh.prim_ids) {
-      out.push_back(modelChunks[prim_id].aabbMin[0]);
-      out.push_back(modelChunks[prim_id].aabbMin[1]);
-      out.push_back(modelChunks[prim_id].aabbMin[2]);
-      out.push_back(modelChunks[prim_id].aabbMax[0]);
-      out.push_back(modelChunks[prim_id].aabbMax[1]);
-      out.push_back(modelChunks[prim_id].aabbMax[2]);
       out.push_back(prim_id);
     }
   }
@@ -83,6 +77,6 @@ std::vector<int16_t> createMeshBVH(const std::vector<ModelChunked> &modelChunks)
   auto bvh = bvh::v2::DefaultBuilder<Node>::build(thread_pool, aabbs, centers, config);
 
   std::vector<int16_t> treeData;
-  writeBVH(treeData, bvh, modelChunks);
+  writeBVH(treeData, bvh);
   return treeData;
 }
