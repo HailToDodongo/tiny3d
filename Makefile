@@ -14,9 +14,9 @@ SOURCE_DIR=src/t3d
 
 include $(N64_INST)/include/n64.mk
 
-src := src/t3d/t3d.c src/t3d/t3dmath.c src/t3d/t3dmodel.c \
-	src/t3d/t3ddebug.c src/t3d/t3dskeleton.c src/t3d/t3danim.c \
-	src/t3d/rsp/rsp_tiny3d.S
+src := $(SOURCE_DIR)/t3d.c $(SOURCE_DIR)/t3dmath.c $(SOURCE_DIR)/t3dmodel.c \
+	$(SOURCE_DIR)/t3ddebug.c $(SOURCE_DIR)/t3dskeleton.c $(SOURCE_DIR)/t3danim.c \
+	$(SOURCE_DIR)/rsp/rsp_tiny3d.S
 
 # N64_CFLAGS += -std=gnu2x -DNDEBUG
 N64_CFLAGS += -std=gnu2x -Os -Isrc \
@@ -63,7 +63,7 @@ $(SOURCE_DIR)/rsp/rsp_tiny3d.h: $(BUILD_DIR)/rsp/rsp_tiny3d.o $(BUILD_DIR)/rsp/r
 $(BUILD_DIR)/t3d.o: $(SOURCE_DIR)/rsp/rsp_tiny3d.h
 
 # Sources
-$(BUILD_DIR)/%.o: src/t3d/%.c
+$(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c
 	@mkdir -p $(dir $@)
 	@echo "    [CC_LIB] $<"
 	$(N64_CC) -c $(CFLAGS) $(N64_CFLAGS) -o $@ $<
