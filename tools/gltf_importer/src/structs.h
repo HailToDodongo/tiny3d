@@ -108,19 +108,28 @@ struct ColorCombiner {
   uint8_t dAlpha{};
 };
 
-struct Material {
-  std::string name{};
+struct MaterialTexture {
+  std::string texPath{};
+  uint32_t texWidth{};
+  uint32_t texHeight{};
+  uint32_t texReference{};
+
   TileParam s{};
   TileParam t{};
+};
+
+struct Material {
+  uint32_t index{};
+  MaterialTexture texA;
+  MaterialTexture texB;
+  std::string name{};
+
   uint64_t colorCombiner{};
   uint64_t otherModeValue{};
   uint64_t otherModeMask{};
   uint32_t blendMode{};
   uint32_t drawFlags{};
-  std::string texPath{};
-  uint32_t texWidth{};
-  uint32_t texHeight{};
-  uint32_t texReference{};
+
   uint32_t uuid{};
   uint8_t fogMode{};
   uint8_t vertexFxFunc{};
@@ -137,8 +146,7 @@ struct Material {
 struct MeshChunk {
   std::vector<int8_t> indices{};
   std::vector<int16_t> stripIndices[4]{};
-  Material materialA{};
-  Material materialB{};
+  Material material{};
   uint32_t vertexOffset{0};
   uint32_t vertexCount{0};
   uint32_t vertexDestOffset{0};
@@ -150,8 +158,7 @@ struct MeshChunk {
 struct Model {
   std::vector<TriangleT3D> triangles{};
   std::string name{};
-  Material materialA{};
-  Material materialB{};
+  Material material{};
 };
 
 struct ModelChunked {

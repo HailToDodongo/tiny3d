@@ -88,23 +88,39 @@ int main(int argc, char* argv[])
   // sort models by transparency mode (opaque -> cutout -> transparent)
   // within the same transparency mode, sort by material
   std::sort(t3dm.models.begin(), t3dm.models.end(), [](const Model &a, const Model &b) {
-    bool isTranspA = a.materialA.blendMode == RDP::BLEND::MULTIPLY;
-    bool isTranspB = b.materialA.blendMode == RDP::BLEND::MULTIPLY;
+    bool isTranspA = a.material.blendMode == RDP::BLEND::MULTIPLY;
+    bool isTranspB = b.material.blendMode == RDP::BLEND::MULTIPLY;
     if(isTranspA == isTranspB) {
-      return a.materialA.uuid < b.materialA.uuid;
+      return a.material.uuid < b.material.uuid;
     }
     if(!isTranspA && !isTranspB) {
-       int isDecalA = (a.materialA.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
-       int isDecalB = (b.materialA.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
+       int isDecalA = (a.material.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
+       int isDecalB = (b.material.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
        return isDecalA < isDecalB;
     }
     return isTranspB;
   });
 
+  // de-dupe materials and determine material indices
+  std::unordered_map<uint32_t, uint32_t> materialUUIDMap{};
+  std::vector<Material*> usedMaterials{};
+  {
+    uint32_t nextMatIndex = 0;
+    for(auto &model : t3dm.models) {
+      auto matIdxIt = materialUUIDMap.find(model.material.uuid);
+      if(matIdxIt == materialUUIDMap.end()) {
+        materialUUIDMap.emplace(model.material.uuid, nextMatIndex++);
+        usedMaterials.push_back(&model.material);
+      }
+    }
+  }
+
   int16_t aabbMin[3] = {32767, 32767, 32767};
   int16_t aabbMax[3] = {-32768, -32768, -32768};
   uint32_t chunkIndex = 0;
   uint32_t chunkCount = 2; // vertices + indices
+  if(config.createBVH)chunkCount += 1;
+  chunkCount += usedMaterials.size();
   std::vector<ModelChunked> modelChunks{};
   modelChunks.reserve(t3dm.models.size());
   for(const auto & model : t3dm.models) {
@@ -112,7 +128,7 @@ int main(int argc, char* argv[])
     optimizeModelChunk(chunks);
     chunks.triCount = model.triangles.size();
     modelChunks.push_back(chunks);
-    chunkCount += 1 + 2; // object + material A/B (@TODO: optimize material count)
+    chunkCount += 1; // object
 
     aabbMin[0] = std::min(aabbMin[0], chunks.aabbMin[0]);
     aabbMin[1] = std::min(aabbMin[1], chunks.aabbMin[1]);
@@ -176,7 +192,6 @@ int main(int argc, char* argv[])
 
   // now write out each model (aka. collection of mesh-parts + materials)
   int m=0;
-  uint32_t materialIndex = 0;
   uint16_t totalVertCount = 0;
   uint16_t totalIndexCount = 0;
 
@@ -199,95 +214,96 @@ int main(int argc, char* argv[])
     chunkBVH.writeArray(bvhData.data(), bvhData.size());
   }
 
+  // write used materials
+  for(auto &material_ : usedMaterials) {
+    auto &material = *material_;
+    auto f = std::make_shared<BinaryFile>();
+    f->write(material.colorCombiner);
+    f->write(material.otherModeValue);
+    f->write(material.otherModeMask);
+    f->write(material.blendMode);
+    f->write(material.drawFlags);
+
+    f->write<uint8_t>(0);
+    f->write(material.fogMode);
+    f->write<uint8_t>(
+      material.setPrimColor |
+      (material.setEnvColor << 1) |
+      (material.setBlendColor << 2)
+    );
+    f->write(material.vertexFxFunc);
+
+    f->writeArray(material.primColor, 4);
+    f->writeArray(material.envColor, 4);
+    f->writeArray(material.blendColor, 4);
+    f->write(insertString(stringTable, material.name));
+
+    // @TODO: refactor materials to match file/runtime structure
+    std::vector<const MaterialTexture*> materials{&material.texA, &material.texB};
+    for(const MaterialTexture* mat_ : materials) {
+      const MaterialTexture&mat = *mat_;
+
+      f->write(mat.texReference);
+      std::string texPath = "";
+      if(!mat.texPath.empty()) {
+        texPath = fs::relative(mat.texPath, std::filesystem::current_path()).string();
+        std::replace(texPath.begin(), texPath.end(), '\\', '/');
+
+        if(texPath.find("assets/") == 0) {
+          texPath.replace(0, 7, "rom:/");
+        }
+        if(texPath.find(".png") != std::string::npos) {
+          texPath.replace(texPath.find(".png"), 4, ".sprite");
+        }
+      }
+
+      if(!texPath.empty()) {
+        // check if string already exits
+        auto strPos = insertString(stringTable, texPath);
+
+        uint32_t hash = stringHash(texPath);
+        //printf("Texture: %s (%d)\n", texPath.c_str(), hash);
+        f->write((uint32_t)strPos);
+        f->write(hash);
+
+      } else {
+        f->write(0);
+        // if no texture is set, use the reference as hash
+        // this is needed to force a reevaluation of the texture state
+        f->write(mat.texReference);
+      }
+
+      f->write((uint32_t)0); // runtime pointer
+      f->write((uint16_t)mat.texWidth);
+      f->write((uint16_t)mat.texHeight);
+
+      auto writeTile = [&](const TileParam &tile) {
+        f->write(tile.low);
+        f->write(tile.high);
+        f->write(tile.mask);
+        f->write(tile.shift);
+        f->write(tile.mirror);
+        f->write(tile.clamp);
+      };
+      writeTile(mat.s);
+      writeTile(mat.t);
+    }
+
+    chunkMaterials.push_back(f);
+  }
+
   file.align(8);
   for(auto &model : t3dm.models)
   {
     addToChunkTable('O');
-
-    // write material chunk(s)
-    auto writeMaterial = [&chunkMaterials, &stringTable](const Material &material, const Material &materialB) {
-      auto f = std::make_shared<BinaryFile>();
-      f->write(material.colorCombiner);
-      f->write(material.otherModeValue);
-      f->write(material.otherModeMask);
-      f->write(material.blendMode);
-      f->write(material.drawFlags);
-
-      f->write<uint8_t>(0);
-      f->write(material.fogMode);
-      f->write<uint8_t>(
-        material.setPrimColor |
-        (material.setEnvColor << 1) |
-        (material.setBlendColor << 2)
-      );
-      f->write(material.vertexFxFunc);
-
-      f->writeArray(material.primColor, 4);
-      f->writeArray(material.envColor, 4);
-      f->writeArray(material.blendColor, 4);
-      f->write(insertString(stringTable, material.name));
-
-      // @TODO: refactor materials to match file/runtime structure
-      std::vector<const Material*> materials{&material, &materialB};
-      for(const Material* mat_ : materials) {
-        const Material&mat = *mat_;
-
-        f->write(mat.texReference);
-        std::string texPath = "";
-        if(!mat.texPath.empty()) {
-          texPath = fs::relative(mat.texPath, std::filesystem::current_path()).string();
-          std::replace(texPath.begin(), texPath.end(), '\\', '/');
-
-          if(texPath.find("assets/") == 0) {
-            texPath.replace(0, 7, "rom:/");
-          }
-          if(texPath.find(".png") != std::string::npos) {
-            texPath.replace(texPath.find(".png"), 4, ".sprite");
-          }
-        }
-
-        if(!texPath.empty()) {
-          // check if string already exits
-          auto strPos = insertString(stringTable, texPath);
-
-          uint32_t hash = stringHash(texPath);
-          //printf("Texture: %s (%d)\n", texPath.c_str(), hash);
-          f->write((uint32_t)strPos);
-          f->write(hash);
-
-        } else {
-          f->write(0);
-          // if no texture is set, use the reference as hash
-          // this is needed to force a reevaluation of the texture state
-          f->write(mat.texReference);
-        }
-
-        f->write((uint32_t)0); // runtime pointer
-        f->write((uint16_t)mat.texWidth);
-        f->write((uint16_t)mat.texHeight);
-
-        auto writeTile = [&](const TileParam &tile) {
-          f->write(tile.low);
-          f->write(tile.high);
-          f->write(tile.mask);
-          f->write(tile.shift);
-          f->write(tile.mirror);
-          f->write(tile.clamp);
-        };
-        writeTile(mat.s);
-        writeTile(mat.t);
-      }
-
-      chunkMaterials.push_back(f);
-    };
-    writeMaterial(model.materialA, model.materialB);
+    uint32_t matIdx = materialUUIDMap[model.material.uuid];
 
     // write object chunk
     const auto &chunks = modelChunks[m];
     file.write(insertString(stringTable, chunks.chunks.back().name));
     file.write((uint16_t)chunks.chunks.size());
     file.write(chunks.triCount);
-    file.write(materialIndex++);
+    file.write(matIdx);
     file.write<uint32_t>(0); // block, set at runtime
     file.write<uint32_t>(0); // visibility, set at runtime + padding
     file.writeArray(chunks.aabbMin, 3);

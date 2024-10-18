@@ -38,7 +38,7 @@ namespace {
     param.shift = tex["shift"].get<int8_t>();
   }
 
-  void readMaterialFromJson(Material &material, const json &tex, const fs::path &gltfPath)
+  void readMaterialFromJson(MaterialTexture &material, const json &tex, const fs::path &gltfPath)
   {
     if(tex.contains("S"))readMaterialTileAxisFromJson(material.s, tex["S"]);
     if(tex.contains("T"))readMaterialTileAxisFromJson(material.t, tex["T"]);
@@ -143,10 +143,10 @@ namespace {
 }
 
 void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgltf_primitive *prim) {
-  model.materialA.uuid = j * 1000 + i;
+  model.material.uuid = j * 1000 + i;
   if(prim->material->name) {
-    model.materialA.uuid = stringHash(prim->material->name);
-    model.materialA.name = prim->material->name;
+    model.material.uuid = stringHash(prim->material->name);
+    model.material.name = prim->material->name;
   }
   //printf("     Material: %s\n", prim->material->name);
 
@@ -182,23 +182,23 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
     auto cc2 = readCCFromJson(f3dData["combiner2"]);
     bool is2Cycle = true;
 
-    model.materialA.drawFlags = DrawFlags::DEPTH;
-    model.materialA.blendColor[3] = 128; // default in case cutout is used
+    model.material.drawFlags = DrawFlags::DEPTH;
+    model.material.blendColor[3] = 128; // default in case cutout is used
 
-    model.materialA.setPrimColor = false;
+    model.material.setPrimColor = false;
     if(f3dData.contains("set_prim")) {
-      model.materialA.setPrimColor = f3dData["set_prim"].get<uint32_t>() != 0;
-      readColor(f3dData["prim_color"], model.materialA.primColor);
+      model.material.setPrimColor = f3dData["set_prim"].get<uint32_t>() != 0;
+      readColor(f3dData["prim_color"], model.material.primColor);
     }
 
     if(f3dData.contains("set_env")) {
-      model.materialA.setEnvColor = f3dData["set_env"].get<uint32_t>() != 0;
-      readColor(f3dData["env_color"], model.materialA.envColor);
+      model.material.setEnvColor = f3dData["set_env"].get<uint32_t>() != 0;
+      readColor(f3dData["env_color"], model.material.envColor);
     }
 
     if(f3dData.contains("set_blend")) {
-      model.materialA.setBlendColor = f3dData["set_blend"].get<uint32_t>() != 0;
-      readColor(f3dData["blend_color"], model.materialA.blendColor);
+      model.material.setBlendColor = f3dData["set_blend"].get<uint32_t>() != 0;
+      readColor(f3dData["blend_color"], model.material.blendColor);
     }
 
     if(f3dData.contains("rdp_settings"))
@@ -207,14 +207,13 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
       is2Cycle = rdpSettings["g_mdsft_cycletype"].get<uint32_t>() != 0;
 
       if(rdpSettings["g_cull_back"].get<uint32_t>() != 0) {
-        model.materialA.drawFlags |= DrawFlags::CULL_BACK;
+        model.material.drawFlags |= DrawFlags::CULL_BACK;
       }
       if(rdpSettings["g_cull_front"].get<uint32_t>() != 0) {
-        model.materialA.drawFlags |= DrawFlags::CULL_FRONT;
+        model.material.drawFlags |= DrawFlags::CULL_FRONT;
       }
 
-      model.materialA.fogMode = rdpSettings["g_fog"].get<uint32_t>() + 1;
-      model.materialB.fogMode = model.materialA.fogMode;
+      model.material.fogMode = rdpSettings["g_fog"].get<uint32_t>() + 1;
 
       uint32_t texFilter = rdpSettings["g_mdsft_text_filt"].get<uint32_t>() & 0b11;
       uint64_t textFilterMap[3] = {
@@ -225,8 +224,7 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
       otherModeValue |= textFilterMap[texFilter];
 
       uint32_t texGen = rdpSettings["g_tex_gen"].get<uint32_t>();
-      model.materialA.vertexFxFunc = (texGen != 0) ? UvGenFunc::SPHERE : UvGenFunc::NONE;
-      model.materialB.vertexFxFunc = model.materialA.vertexFxFunc;
+      model.material.vertexFxFunc = (texGen != 0) ? UvGenFunc::SPHERE : UvGenFunc::NONE;
 
       /*uint32_t alphaComp = rdpSettings["g_mdsft_alpha_compare"].get<uint32_t>();
       if(alphaComp == 1) {
@@ -251,8 +249,7 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
           otherModeValue |= RDP::SOM::BLALPHA_CVG_X_CC | RDP::SOM::BLALPHA_CVG;
         }*/
 
-        model.materialA.blendMode = is2Cycle ? blenderMode2 : blenderMode1;
-        model.materialB.blendMode = model.materialA.blendMode;
+        model.material.blendMode = is2Cycle ? blenderMode2 : blenderMode1;
 
       } else {
         // if no render mode is set, we need to check the draw layer
@@ -264,46 +261,46 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
         if(layerOOT > layerSM64) {
           switch(layerOOT) {
             default: // has only 3 distinct layers:
-            case 0: model.materialA.blendMode = RDP::BLEND::NONE; break; // Opaque
-            case 1: model.materialA.blendMode = RDP::BLEND::MULTIPLY; break; // Transparent
+            case 0: model.material.blendMode = RDP::BLEND::NONE; break; // Opaque
+            case 1: model.material.blendMode = RDP::BLEND::MULTIPLY; break; // Transparent
             case 2:
-              model.materialA.blendMode = RDP::BLEND::NONE;
+              model.material.blendMode = RDP::BLEND::NONE;
               otherModeValue |= RDP::SOM::ALPHA_COMPARE;
             break; // Overlay
           }
         } else {
           // has multiple layers with variants (e.g. intersecting) ignore the finer details here:
           if(layerSM64 <= 1) {
-            model.materialA.blendMode = RDP::BLEND::NONE;
+            model.material.blendMode = RDP::BLEND::NONE;
           } else if(layerSM64 <= 4) {
-            model.materialA.blendMode = RDP::BLEND::NONE;
+            model.material.blendMode = RDP::BLEND::NONE;
             otherModeValue |= RDP::SOM::ALPHA_COMPARE;
           } else {
-            model.materialA.blendMode = RDP::BLEND::MULTIPLY;
+            model.material.blendMode = RDP::BLEND::MULTIPLY;
           }
         }
       }
     }
 
-    if(model.materialA.fogMode == FogMode::ACTIVE || isUsingShade(cc1) || (is2Cycle && isUsingShade(cc2))) {
-      model.materialA.drawFlags |= DrawFlags::SHADED;
+    if(model.material.fogMode == FogMode::ACTIVE || isUsingShade(cc1) || (is2Cycle && isUsingShade(cc2))) {
+      model.material.drawFlags |= DrawFlags::SHADED;
     }
 
     if(isCCUsingTexture(cc1) || (is2Cycle && isCCUsingTexture(cc2))) {
-      model.materialA.drawFlags |= DrawFlags::TEXTURED;
+      model.material.drawFlags |= DrawFlags::TEXTURED;
 
-      if(f3dData.contains("tex0"))readMaterialFromJson(model.materialA, f3dData["tex0"], gltfBasePath);
-      if(f3dData.contains("tex1"))readMaterialFromJson(model.materialB, f3dData["tex1"], gltfBasePath);
+      if(f3dData.contains("tex0"))readMaterialFromJson(model.material.texA, f3dData["tex0"], gltfBasePath);
+      if(f3dData.contains("tex1"))readMaterialFromJson(model.material.texB, f3dData["tex1"], gltfBasePath);
     }
 
     if(is2Cycle) {
-      model.materialA.colorCombiner  = RDPQ_COMBINER_2PASS |
+      model.material.colorCombiner  = RDPQ_COMBINER_2PASS |
         rdpq_2cyc_comb2a_rgb(cc1.a, cc1.b, cc1.c, cc1.d) |
         rdpq_2cyc_comb2a_alpha(cc1.aAlpha, cc1.bAlpha, cc1.cAlpha, cc1.dAlpha) |
         rdpq_2cyc_comb2b_rgb(cc2.a, cc2.b, cc2.c, cc2.d) |
         rdpq_2cyc_comb2b_alpha(cc2.aAlpha, cc2.bAlpha, cc2.cAlpha, cc2.dAlpha);
     } else {
-      model.materialA.colorCombiner  =
+      model.material.colorCombiner  =
         rdpq_1cyc_comb_rgb(cc1.a, cc1.b, cc1.c, cc1.d) |
         rdpq_1cyc_comb_alpha(cc1.aAlpha, cc1.bAlpha, cc1.cAlpha, cc1.dAlpha);
     }
@@ -312,10 +309,6 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
     printf("No Fast64 Material data found!\n");
   }
 
-  model.materialA.otherModeValue = otherModeValue;
-  model.materialA.otherModeMask = otherModeMask;
-
-  model.materialB.colorCombiner = model.materialA.colorCombiner;
-  model.materialB.drawFlags = model.materialA.drawFlags;
-  model.materialB.uuid = model.materialA.uuid ^ 0x12345678;
+  model.material.otherModeValue = otherModeValue;
+  model.material.otherModeMask = otherModeMask;
 }
