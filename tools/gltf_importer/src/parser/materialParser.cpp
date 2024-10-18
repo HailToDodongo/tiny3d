@@ -223,6 +223,8 @@ void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgl
       };
       otherModeValue |= textFilterMap[texFilter];
 
+      model.material.uvFilterAdjust = texFilter != 0;
+
       uint32_t texGen = rdpSettings["g_tex_gen"].get<uint32_t>();
       model.material.vertexFxFunc = (texGen != 0) ? UvGenFunc::SPHERE : UvGenFunc::NONE;
 

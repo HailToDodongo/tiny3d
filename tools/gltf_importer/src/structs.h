@@ -141,6 +141,7 @@ struct Material {
   bool setPrimColor{false};
   bool setEnvColor{false};
   bool setBlendColor{false};
+  bool uvFilterAdjust{false};
 };
 
 struct MeshChunk {

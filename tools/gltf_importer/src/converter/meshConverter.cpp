@@ -48,7 +48,7 @@ namespace
 
 void convertVertex(
   float modelScale, float texSizeX, float texSizeY, const VertexNorm &v, VertexT3D &vT3D,
-  const Mat4 &mat, const std::vector<Mat4> &matrices
+  const Mat4 &mat, const std::vector<Mat4> &matrices, bool uvAdjust
 ) {
   //auto posInt = mat * v.pos * modelScale;
   auto posInt = v.pos;
@@ -101,10 +101,10 @@ void convertVertex(
   vT3D.s = (int16_t)(int32_t)(v.uv[0] * texSizeX * 32.0f);
   vT3D.t = (int16_t)(int32_t)(v.uv[1] * texSizeY * 32.0f);
 
-  //vT3D.s -= 16.0f; // bi-linear offset (@TODO: do this in ucode?)
-  //vT3D.t -= 16.0f;
-  vT3D.s += 8.0f;
-  vT3D.t += 8.0f;
+  if(uvAdjust) {
+    vT3D.s -= 16.0f;
+    vT3D.t -= 16.0f;
+  }
 
   // Generate hash for faster lookup later in the optimizer
   vT3D.hash = ((uint64_t)(uint16_t)vT3D.pos[0] << 48)
