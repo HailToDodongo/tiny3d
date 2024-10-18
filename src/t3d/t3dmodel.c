@@ -397,17 +397,23 @@ void t3d_model_draw_material(T3DMaterial *mat, T3DModelState *state)
 
 void t3d_model_free(T3DModel *model) {
   bool txtErased = false;
-  for(uint32_t c = 0; c < model->chunkCount; c++) {
+  for(uint32_t c = 0; c < model->chunkCount; c++)
+  {
     char chunkType = model->chunkOffsets[c].type;
-    if(chunkType != T3D_CHUNK_TYPE_MATERIAL) continue;
-    T3DMaterial *mat = (T3DMaterial*)((char*)model + (model->chunkOffsets[c].offset & 0x00FFFFFF));
-    if(mat->textureA.texture) {
-      texture_cache_free(mat->textureA.textureHash);
-      txtErased = true;
+    if(chunkType == T3D_CHUNK_TYPE_MATERIAL) {
+      T3DMaterial *mat = (T3DMaterial*)((char*)model + (model->chunkOffsets[c].offset & 0x00FFFFFF));
+      if(mat->textureA.texture) {
+        texture_cache_free(mat->textureA.textureHash);
+        txtErased = true;
+      }
+      if(mat->textureB.texture) {
+        texture_cache_free(mat->textureB.textureHash);
+        txtErased = true;
+      }
     }
-    if(mat->textureB.texture) {
-      texture_cache_free(mat->textureB.textureHash);
-      txtErased = true;
+    if(chunkType == T3D_CHUNK_TYPE_OBJECT) {
+      T3DObject *obj = (T3DObject*)((char*)model + (model->chunkOffsets[c].offset & 0x00FFFFFF));
+      if(obj->userBlock)rspq_block_free(obj->userBlock);
     }
   }
   free(model);
@@ -480,10 +486,7 @@ static void bvh_query_node(const T3DBvhNode *node) {
   int dataOffset = node->value >> 4;
 
   if(dataCount == 0) {
-    if(t3d_frustum_vs_aabb(ctxFrustum,
-      &(T3DVec3){{node->aabbMin[0], node->aabbMin[1], node->aabbMin[2]}},
-      &(T3DVec3){{node->aabbMax[0], node->aabbMax[1], node->aabbMax[2]}})
-    ) {
+    if(t3d_frustum_vs_aabb_s16(ctxFrustum, node->aabbMin, node->aabbMax)) {
       bvh_query_node(&node[dataOffset]);
       bvh_query_node(&node[dataOffset+1]);
     }
@@ -492,10 +495,7 @@ static void bvh_query_node(const T3DBvhNode *node) {
 
   for(int j=0; j<dataCount; ++j) {
     const T3DBvhData *entry = &ctxData[dataOffset + j];
-    if(t3d_frustum_vs_aabb(ctxFrustum,
-      &(T3DVec3){{entry->aabbMin[0], entry->aabbMin[1], entry->aabbMin[2]}},
-      &(T3DVec3){{entry->aabbMax[0], entry->aabbMax[1], entry->aabbMax[2]}})
-    ) {
+    if(t3d_frustum_vs_aabb_s16(ctxFrustum, entry->aabbMin, entry->aabbMax)) {
       uint32_t ptr = ctxBasePtr - (ctxData[dataOffset + j].objectPtr << 2);
       ((T3DObject*)ptr)->isVisible = true;
     }

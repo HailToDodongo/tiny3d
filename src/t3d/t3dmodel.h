@@ -153,7 +153,8 @@ typedef struct {
   uint32_t chunkIdxMaterials;
   char* stringTablePtr;
 
-  TODO ADD AABB
+  int16_t aabbMin[3];
+  int16_t aabbMax[3];
 
   T3DChunkOffset chunkOffsets[];
 } T3DModel;

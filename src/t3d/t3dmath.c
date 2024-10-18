@@ -81,6 +81,14 @@ void t3d_mat4_to_frustum(T3DFrustum *frustum, const T3DMat4 *mat) {
   }
 }
 
+void t3d_frustum_scale(T3DFrustum *frustum, float scale) {
+  for(int i=0; i<6; ++i) {
+    frustum->planes[i].v[0] *= scale;
+    frustum->planes[i].v[1] *= scale;
+    frustum->planes[i].v[2] *= scale;
+  }
+}
+
 bool t3d_frustum_vs_aabb(const T3DFrustum *frustum, const T3DVec3 *min, const T3DVec3 *max)
 {
   for(int i=0; i<6; ++i) {
@@ -96,6 +104,30 @@ bool t3d_frustum_vs_aabb(const T3DFrustum *frustum, const T3DVec3 *min, const T3
     if(p0Max + p1Max > p2MinAndW) continue;
 
     float p2MaxAndW = -frustum->planes[i].v[3] - frustum->planes[i].v[2] * (max->v[2]);
+    if(p0Min + p1Min > p2MaxAndW) continue;
+    if(p0Max + p1Min > p2MaxAndW) continue;
+    if(p0Min + p1Max > p2MaxAndW) continue;
+    if(p0Max + p1Max > p2MaxAndW) continue;
+    return false;
+  }
+  return true;
+}
+
+bool t3d_frustum_vs_aabb_s16(const T3DFrustum *frustum, const int16_t min[3], const int16_t max[3])
+{
+  for(int i=0; i<6; ++i) {
+    float p0Min = frustum->planes[i].v[0] * (min[0]);
+    float p0Max = frustum->planes[i].v[0] * (max[0]);
+    float p1Min = frustum->planes[i].v[1] * (min[1]);
+    float p1Max = frustum->planes[i].v[1] * (max[1]);
+
+    float p2MinAndW = -frustum->planes[i].v[3] - frustum->planes[i].v[2] * (min[2]);
+    if(p0Min + p1Min > p2MinAndW) continue;
+    if(p0Max + p1Min > p2MinAndW) continue;
+    if(p0Min + p1Max > p2MinAndW) continue;
+    if(p0Max + p1Max > p2MinAndW) continue;
+
+    float p2MaxAndW = -frustum->planes[i].v[3] - frustum->planes[i].v[2] * (max[2]);
     if(p0Min + p1Min > p2MaxAndW) continue;
     if(p0Max + p1Min > p2MaxAndW) continue;
     if(p0Min + p1Max > p2MaxAndW) continue;

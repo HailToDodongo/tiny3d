@@ -473,6 +473,14 @@ void t3d_mat4_look_at(T3DMat4 *mat, const T3DVec3 *eye, const T3DVec3 *target, c
 void t3d_mat4_to_frustum(T3DFrustum *frustum, const T3DMat4 *mat);
 
 /**
+ * Scales a frustum by a given factor.
+ * This can be used if you need to check scaled objects without having to transform the AABBs
+ * @param frustum frustum to scale
+ * @param scale scale factor (use the same as the model scale)
+ */
+void t3d_frustum_scale(T3DFrustum *frustum, float scale);
+
+/**
  * Checks if an AABB is inside a frustum.
  * Note that this function *may* choose to return false positives in favor of speed.
  * So it should only be used where this is acceptable (e.g. culling) and not for collision detection.
@@ -482,6 +490,17 @@ void t3d_mat4_to_frustum(T3DFrustum *frustum, const T3DMat4 *mat);
  * @return true if the AABB is inside the frustum
  */
 bool t3d_frustum_vs_aabb(const T3DFrustum *frustum, const T3DVec3 *min, const T3DVec3 *max);
+
+/**
+ * Checks if an s16 AABB is inside a frustum.
+ * Note that this function *may* choose to return false positives in favor of speed.
+ * So it should only be used where this is acceptable (e.g. culling) and not for collision detection.
+ * @param frustum frustum
+ * @param min AABB min
+ * @param max AABB max
+ * @return true if the AABB is inside the frustum
+ */
+bool t3d_frustum_vs_aabb_s16(const T3DFrustum *frustum, const int16_t min[3], const int16_t max[3]);
 
 /// @brief Multiplies the matrices 'matA' and 'matB' and stores it in 'matRes'
 inline static void t3d_mat4_mul(T3DMat4 *matRes, const T3DMat4 *matA, const T3DMat4 *matB)

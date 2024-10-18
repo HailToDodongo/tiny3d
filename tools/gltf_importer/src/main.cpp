@@ -101,6 +101,8 @@ int main(int argc, char* argv[])
     return isTranspB;
   });
 
+  int16_t aabbMin[3] = {32767, 32767, 32767};
+  int16_t aabbMax[3] = {-32768, -32768, -32768};
   uint32_t chunkIndex = 0;
   uint32_t chunkCount = 2; // vertices + indices
   std::vector<ModelChunked> modelChunks{};
@@ -111,6 +113,14 @@ int main(int argc, char* argv[])
     chunks.triCount = model.triangles.size();
     modelChunks.push_back(chunks);
     chunkCount += 1 + 2; // object + material A/B (@TODO: optimize material count)
+
+    aabbMin[0] = std::min(aabbMin[0], chunks.aabbMin[0]);
+    aabbMin[1] = std::min(aabbMin[1], chunks.aabbMin[1]);
+    aabbMin[2] = std::min(aabbMin[2], chunks.aabbMin[2]);
+
+    aabbMax[0] = std::max(aabbMax[0], chunks.aabbMax[0]);
+    aabbMax[1] = std::max(aabbMax[1], chunks.aabbMax[1]);
+    aabbMax[2] = std::max(aabbMax[2], chunks.aabbMax[2]);
   }
   chunkCount += t3dm.skeletons.empty() ? 0 : 1;
   chunkCount += t3dm.animations.size();
@@ -131,6 +141,9 @@ int main(int argc, char* argv[])
 
   uint32_t offsetStringTablePtr = file.getPos();
   file.skip(sizeof(uint32_t)); // string table offset (filled later)
+
+  file.writeArray(aabbMin, 3);
+  file.writeArray(aabbMax, 3);
 
   uint32_t offsetChunkTable = file.getPos();
   file.skip(chunkCount * sizeof(uint32_t)); // chunk-table

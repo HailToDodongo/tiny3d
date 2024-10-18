@@ -3,10 +3,14 @@
 #include <t3d/t3d.h>
 #include <t3d/t3dmodel.h>
 #include <t3d/t3ddebug.h>
+#include "debugDraw.h"
 
 /**
  * Example showcasing an implementation of frustum culling,
  * using a few builtin helper functions in t3d.
+ *
+ * This will record individual objects in the model, and only draw them if they are visible.
+ * Using the BVH functionality for efficient visibility checks.
  */
  [[noreturn]]
 int main()
@@ -29,7 +33,6 @@ int main()
   // Textures (CC0): https://opengameart.org/content/16x16-block-texture-set
   // Model (CC BY 4.0, modified): https://sketchfab.com/3d-models/a-minecraft-world-ee753675653240eeb71c7b2b8bf95ffe
   T3DModel *model = t3d_model_load("rom://scene.t3dm");
-  //T3DModel *model = t3d_model_load("rom://grid.t3dm");
 
   float modelScale = 0.5f;
   T3DMat4FP* modelMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
@@ -49,30 +52,35 @@ int main()
   float camRotXTarget = camRotX;
   float camRotYTarget = camRotY;
   bool debugView = false;
-  bool useBVH = true;
-  bool useBlock = true;
+  bool displayBVH = false;
 
-  uint32_t objCount = t3d_model_get_chunk_count(model, T3D_CHUNK_TYPE_OBJECT);
+  // In order to cull, we must either not record the entire mesh, or do so with individual objects.
+  // Here we do the latter. To still take advantage cross-material optimizations, we only record objects
+  uint32_t objCount = 0;
   T3DModelIter it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
   while(t3d_model_iter_next(&it)) {
     rspq_block_begin();
     t3d_model_draw_object(it.object, NULL);
+    // the object struct offers a 'userBlock' for recording, this is automatically freed when the t3dm object is freed
+    // if you need to manually free it, make sure to set it back to NULL afterward
     it.object->userBlock = rspq_block_end();
+    ++objCount;
   }
 
   uint64_t ticks = 0;
-  uint64_t ticksBlock = 0;
   for(uint32_t frame=1; ; ++frame)
   {
+    int visibleCount = 0, triCount = 0;
+
     joypad_poll();
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
     joypad_buttons_t pressed = joypad_get_buttons_pressed(JOYPAD_PORT_1);
+
     if(joypad.stick_x < 10 && joypad.stick_x > -10)joypad.stick_x = 0;
     if(joypad.stick_y < 10 && joypad.stick_y > -10)joypad.stick_y = 0;
-    if(pressed.start)debugView = !debugView;
-    if(pressed.a)useBVH = !useBVH;
-    if(pressed.b)useBlock = !useBlock;
-    if(frame > 60 || pressed.a || pressed.b) { ticksBlock = 0; ticks = 0; frame = 1; }
+    if(pressed.a || pressed.b)debugView = !debugView;
+    if(pressed.start)displayBVH = !displayBVH;
+    if(frame > 60 || pressed.a || pressed.b) { ticks = 0; frame = 1; }
 
     // Camera controls:
     float camSpeed = display_get_delta_time() * 1.1f;
@@ -108,31 +116,29 @@ int main()
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(75.0f), 0.5f, 150.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
+    // since we want to avoid transforming individual AABBs, we transform the frustum
+    // to match our map instead (model space). In this case we only have to scale it
     T3DFrustum frustum = viewport.viewFrustum;
-    // scale frustum to model space (0.5)
-    for(int i=0; i<6; ++i) {
-      frustum.planes[i].v[0] *= modelScale;
-      frustum.planes[i].v[1] *= modelScale;
-      frustum.planes[i].v[2] *= modelScale;
-    }
+    t3d_frustum_scale(&frustum, modelScale);
 
-    // update visibility, we can use 't3d_frustum_vs_aabb' to check if an object is visible.
-    // 't3d_viewport_look_at' will update this automatically
-    const T3DBvh *bvh = t3d_model_bvh_get(model);
-    t3d_model_bvh_query_frustum(bvh, &frustum);
-    assert(bvh); // BHVs are optional, you have to use '--bhv' in the gltf importer (see Makefile)
+    // before we do any finer checks with BVH, we test if the entire model is visible
+    // note that this data is always available in all models, even without a BVH
+    bool modelIsVisible = t3d_frustum_vs_aabb_s16(&frustum, model->aabbMin, model->aabbMax);
 
-    int visibleCount = 0, triCount = 0;
     uint64_t ticksStart = get_ticks();
-    if(useBVH) {
-      t3d_model_bvh_query_frustum(bvh, &frustum);
-    } else {
-      it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
-      while(t3d_model_iter_next(&it)) {
-        it.object->isVisible = t3d_frustum_vs_aabb(&frustum,
-          &(T3DVec3){{ it.object->aabbMin[0], it.object->aabbMin[1], it.object->aabbMin[2] }},
-          &(T3DVec3){{ it.object->aabbMax[0], it.object->aabbMax[1], it.object->aabbMax[2] }}
-        );
+    if(modelIsVisible) {
+      // If visible, perform more detailed checks with the BVH (if present in the file)
+      // you can also iterate over all AABBs directly (always present) and perform a manual frustum check
+
+      const T3DBvh *bvh = t3d_model_bvh_get(model); // BHVs are optional, use '--bhv' in the gltf importer (see Makefile)
+      if(bvh) {
+        t3d_model_bvh_query_frustum(bvh, &frustum);
+      } else {
+        // without BVH, you can still iterate over all objects and perform a manual frustum checks
+        it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
+        while(t3d_model_iter_next(&it)) {
+          it.object->isVisible = t3d_frustum_vs_aabb_s16(&frustum, it.object->aabbMin, it.object->aabbMax);
+        }
       }
     }
 
@@ -150,7 +156,8 @@ int main()
     }
 
     // ----------- DRAW ------------ //
-    rdpq_attach(display_get(), display_get_zbuf());
+    surface_t *surface = display_get();
+    rdpq_attach(surface, display_get_zbuf());
 
     t3d_frame_start();
     rdpq_mode_antialias(AA_REDUCED);
@@ -174,18 +181,21 @@ int main()
     // Now draw all objects that we determined to be visible
     // we still want to optimize materials, so we create a state here and draw them directly
     // the objects (so vertex loads + triangle draws) are recorded since they don't depend on visibility
-    T3DModelState state = t3d_model_state_create();
-    it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
-    while(t3d_model_iter_next(&it)) {
-      if(it.object->isVisible) {
-        // draw material and object
-        t3d_model_draw_material(it.object->material, &state);
-        rspq_block_run(it.object->userBlock);
-        it.object->isVisible = false; // BVH only sets visible objects, so we need to reset this
+    if(modelIsVisible)
+    {
+      T3DModelState state = t3d_model_state_create();
+      it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
+      while(t3d_model_iter_next(&it)) {
+        if(it.object->isVisible) {
+          // draw material and object
+          t3d_model_draw_material(it.object->material, &state);
+          rspq_block_run(it.object->userBlock);
+          it.object->isVisible = false; // BVH only sets visible objects, so we need to reset this
 
-        // collect some metrics
-        ++visibleCount;
-        triCount += it.object->triCount;
+          // collect some metrics
+          ++visibleCount;
+          triCount += it.object->triCount;
+        }
       }
     }
 
@@ -193,29 +203,11 @@ int main()
 
     // ----------- DRAW (2D) ------------ //
     t3d_debug_print_start();
-    /*rdpq_sync_pipe();
-    rdpq_sync_tile();
-    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 20, 20, "FPS: %.2f", display_get_fps());
-    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 20, 30, "Tris: %d", triCount);
-    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 20, 40, "Cull: %lluus", TICKS_TO_US(ticksStart));
+    t3d_debug_printf(18, 18, "Tris: %d", triCount);
+    t3d_debug_printf(320-96, 18, "%.2f FPS", display_get_fps());
+    t3d_debug_printf(18, 240-24, "BVH: %lluus (%d/%d)", TICKS_TO_US(ticks / frame), visibleCount, objCount);
 
-    if(debugView) {
-      float len = t3d_vec3_distance(&camPosScreen, &camTargetScreen);
-
-      rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, (int)camPosScreen.v[0]+4, (int)camPosScreen.v[1], "#");
-      for(int i=0; i<len; i+=8) {
-        float t = (float)i / len;
-        rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, (int)(camPosScreen.v[0] + (camTargetScreen.v[0] - camPosScreen.v[0]) * t),
-          (int)(camPosScreen.v[1] + (camTargetScreen.v[1] - camPosScreen.v[1]) * t), "+");
-      }
-    }*/
-
-    t3d_debug_printf(20, 20, "FPS: %.2f", display_get_fps());
-    t3d_debug_printf(20, 30, "Tris: %d", triCount);
-    t3d_debug_printf(20, 40, "%s: %lluus (%d/%d)", useBVH ? "BVH" : "AABB", TICKS_TO_US(ticks / frame), visibleCount, objCount);
-    //t3d_debug_printf(20, 50, "%s: %lluus", useBlock ? "DPL" : "Direct", TICKS_TO_US(ticksBlock));
-    t3d_debug_printf(20, 50, "%s", useBlock ? "DPL" : "Direct");
-
+    // Top-down debug view, this shows the camera position and direction
     if(debugView) {
       int points = 12;
       T3DVec3 step;
@@ -233,7 +225,15 @@ int main()
       }
     }
 
-
-    rdpq_detach_show();
+    if(displayBVH){
+      // Debug draw, this visualizes the BVH tree
+      rdpq_detach_wait();
+      uint16_t *buff = (uint16_t*)surface->buffer;
+      debugDrawBVTree(buff, t3d_model_bvh_get(model), &viewport, &frustum);
+      display_show(surface);
+    } else {
+      rdpq_detach_show();
+    }
   }
 }
+
