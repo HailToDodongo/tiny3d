@@ -417,7 +417,10 @@ void t3d_viewport_set_ortho(T3DViewport *viewport, float left, float right, floa
 
 void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVec3 *target, const T3DVec3 *up) {
   t3d_mat4_look_at(&viewport->matCamera, eye, target, up);
-  viewport->_isCamProjDirty = true;
+
+  t3d_mat4_mul(&viewport->matCamProj, &viewport->matProj, &viewport->matCamera);
+  t3d_mat4_to_frustum(&viewport->viewFrustum, &viewport->matCamProj);
+  viewport->_isCamProjDirty = false;
 }
 
 void t3d_viewport_calc_viewspace_pos(T3DViewport *viewport, T3DVec3 *out, const T3DVec3 *pos)

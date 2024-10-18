@@ -10,7 +10,7 @@
 
 void convertVertex(
   float modelScale, float texSizeX, float texSizeY, const VertexNorm &v, VertexT3D &vT3D,
-  const Mat4 &mat, const std::vector<Mat4> &matrices
+  const Mat4 &mat, const std::vector<Mat4> &matrices, bool uvAdjust
 );
 ModelChunked chunkUpModel(const Model& model);
 

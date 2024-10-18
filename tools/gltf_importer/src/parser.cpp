@@ -250,8 +250,8 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
       std::vector<VertexT3D> verticesT3D{};
       verticesT3D.resize(vertices.size());
 
-      float texSizeX = model.materialA.texWidth;
-      float texSizeY = model.materialA.texHeight;
+      float texSizeX = model.material.texA.texWidth;
+      float texSizeY = model.material.texA.texHeight;
 
       if(texSizeX == 0)texSizeX = 32;
       if(texSizeY == 0)texSizeY = 32;
@@ -261,7 +261,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
         Mat4 mat = parseNodeMatrix(node);
         convertVertex(
           modelScale, texSizeX, texSizeY, vertices[k], verticesT3D[k],
-          mat, matrixStack
+          mat, matrixStack, model.material.uvFilterAdjust
         );
       }
 

@@ -91,6 +91,7 @@ typedef struct {
   T3DMat4 matProj;   // projection matrix, can be set via `t3d_viewport_set_projection`
 
   T3DMat4 matCamProj; // combined view-projection matrix, calculated automatically on demand
+  T3DFrustum viewFrustum; // frustum, calculated from the combined matrix
   bool _isCamProjDirty; // flag to indicate if the combined matrix needs to be recalculated
 
   int32_t offset[2];  // screen offset in pixel, [0,0] by default
