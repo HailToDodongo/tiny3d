@@ -30,17 +30,15 @@ int main()
   t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create();
 
-  // Textures (CC0): https://opengameart.org/content/16x16-block-texture-set
-  // Model (CC BY 4.0, modified): https://sketchfab.com/3d-models/a-minecraft-world-ee753675653240eeb71c7b2b8bf95ffe
-  T3DModel *model = t3d_model_load("rom://scene.t3dm");
+  #define MODEL_COUNT 2
+  T3DModel *models[MODEL_COUNT] = {
+    // Textures (CC0): https://opengameart.org/content/16x16-block-texture-set
+    // Model (CC BY 4.0, modified): https://sketchfab.com/3d-models/a-minecraft-world-ee753675653240eeb71c7b2b8bf95ffe
+    t3d_model_load("rom://scene.t3dm"),
+    t3d_model_load("rom://platformer.t3dm")
+  };
 
-  float modelScale = 0.5f;
   T3DMat4FP* modelMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
-  t3d_mat4fp_from_srt_euler(modelMatFP,
-    (float[]){modelScale,modelScale,modelScale},
-    (float[]){0,0,0},
-    (float[]){0,0,0}
-  );
 
   T3DVec3 camPos = {{-60.0f, 70.0f, 20.f}};
   T3DVec3 camPosTarget = camPos;
@@ -51,21 +49,22 @@ int main()
   float camRotY = -0.2f;
   float camRotXTarget = camRotX;
   float camRotYTarget = camRotY;
+  int currentModel = 0;
   bool debugView = false;
   bool displayBVH = false;
   bool showInfoScreen = true;
 
   // In order to cull, we must either not record the entire mesh, or do so with individual objects.
   // Here we do the latter. To still take advantage cross-material optimizations, we only record objects
-  uint32_t objCount = 0;
-  T3DModelIter it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
-  while(t3d_model_iter_next(&it)) {
-    rspq_block_begin();
-    t3d_model_draw_object(it.object, NULL);
-    // the object struct offers a 'userBlock' for recording, this is automatically freed when the t3dm object is freed
-    // if you need to manually free it, make sure to set it back to NULL afterward
-    it.object->userBlock = rspq_block_end();
-    ++objCount;
+  for(int m=0; m<MODEL_COUNT; ++m) {
+    T3DModelIter it = t3d_model_iter_create(models[m], T3D_CHUNK_TYPE_OBJECT);
+    while(t3d_model_iter_next(&it)) {
+      rspq_block_begin();
+      t3d_model_draw_object(it.object, NULL);
+      // the object struct offers a 'userBlock' for recording, this is automatically freed when the t3dm object is freed
+      // if you need to manually free it, make sure to set it back to NULL afterward
+      it.object->userBlock = rspq_block_end();
+    }
   }
 
   uint64_t ticks = 0;
@@ -82,6 +81,9 @@ int main()
 
     if(pressed.b)showInfoScreen = !showInfoScreen;
     if(pressed.a)debugView = !debugView;
+
+    if(pressed.l)currentModel = (currentModel + 1) % MODEL_COUNT;
+    if(pressed.r)currentModel = (currentModel + MODEL_COUNT - 1) % MODEL_COUNT;
 
     if(pressed.start)displayBVH = !displayBVH;
     if(frame > 60 || pressed.a || pressed.b) { ticks = 0; frame = 1; }
@@ -113,12 +115,24 @@ int main()
     t3d_vec3_lerp(&camPos, &camPos, &camPosTarget, 0.8f);
     camRotX = t3d_lerp(camRotX, camRotXTarget, 0.8f);
     camRotY = t3d_lerp(camRotY, camRotYTarget, 0.8f);
+    const T3DModel *model = models[currentModel];
 
     T3DVec3 camTarget;
     t3d_vec3_add(&camTarget, &camPos, &camDir);
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(75.0f), 0.5f, 150.0f);
+    if(currentModel == 0) {
+      t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(75.0f), 1.0f, 160.0f);
+    } else {
+      t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(60.0f), 3.0f, 100.0f);
+    }
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+
+    float modelScale = currentModel == 0 ? 0.5f : 0.15f;
+    t3d_mat4fp_from_srt_euler(modelMatFP,
+      (float[]){modelScale,modelScale,modelScale},
+      (float[]){0,0,0},
+      (float[]){0,0,0}
+    );
 
     // since we want to avoid transforming individual AABBs, we transform the frustum
     // to match our map instead (model space). In this case we only have to scale it
@@ -139,7 +153,7 @@ int main()
         t3d_model_bvh_query_frustum(bvh, &frustum);
       } else {
         // without BVH, you can still iterate over all objects and perform a manual frustum checks
-        it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
+        T3DModelIter it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
         while(t3d_model_iter_next(&it)) {
           it.object->isVisible = t3d_frustum_vs_aabb_s16(&frustum, it.object->aabbMin, it.object->aabbMax);
         }
@@ -185,10 +199,11 @@ int main()
     // Now draw all objects that we determined to be visible
     // we still want to optimize materials, so we create a state here and draw them directly
     // the objects (so vertex loads + triangle draws) are recorded since they don't depend on visibility
+    int totalObjects = 0;
     if(modelIsVisible)
     {
       T3DModelState state = t3d_model_state_create();
-      it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
+      T3DModelIter it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
       while(t3d_model_iter_next(&it)) {
         if(it.object->isVisible) {
           // draw material and object
@@ -200,6 +215,7 @@ int main()
           ++visibleCount;
           triCount += it.object->triCount;
         }
+        ++totalObjects;
       }
     }
 
@@ -211,13 +227,14 @@ int main()
       t3d_debug_printf(18, 18, "Tris: %d", triCount);
       t3d_debug_printf(320-96, 18, "%.2f FPS", display_get_fps());
     }
-    t3d_debug_printf(18, 240-24, "BVH: %lluus (%d/%d)", TICKS_TO_US(ticks / frame), visibleCount, objCount);
+    t3d_debug_printf(18, 240-24, "BVH: %lluus (%d/%d)", TICKS_TO_US(ticks / frame), visibleCount, totalObjects);
 
     if(showInfoScreen) {
       const char* INFO[] = {
         "A: Toggle debug view", "Start: Toggle BVH debug",
         "Z + Stick: Rotate", "Stick: Move",
-        "C-U/D: Move up/down", " ( Press B to close )"
+        "C-U/D: Move up/down", "L/R: change model",
+        " ( Press B to close )"
       };
       for(int i=0; i<6; ++i) {
         t3d_debug_printf(74, 80+(i*16), INFO[i]);

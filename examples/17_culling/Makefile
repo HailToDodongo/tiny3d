@@ -19,6 +19,7 @@ assets_conv = $(addprefix filesystem/,$(notdir $(assets_png:%.png=%.sprite))) \
 			  $(addprefix filesystem/,$(notdir $(assets_gltf:%.glb=%.t3dm)))
 
 filesystem/scene.t3dm: GLTF_FLAGS = --bvh
+filesystem/platformer.t3dm: GLTF_FLAGS = --bvh
 
 all: $(PROJECT_NAME).z64
 
