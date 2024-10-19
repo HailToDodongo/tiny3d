@@ -5,6 +5,8 @@
 
 #include "t3dmodel.h"
 
+#define T3DM_VERSION 1
+
 static inline void* patch_pointer(void *ptr, uint32_t offset) {
   return (void*)(offset + (int32_t)ptr);
 }
@@ -12,6 +14,10 @@ static inline void* patch_pointer(void *ptr, uint32_t offset) {
 static inline void* align_pointer(void *ptr, uint32_t alignment) {
   return (void*)(((uint32_t)ptr + alignment - 1) & ~(alignment - 1));
 }
+
+typedef struct {
+  uint16_t objectPtr;
+} T3DBvhData;
 
 typedef struct {
   uint32_t hash;
@@ -155,6 +161,14 @@ T3DModel *t3d_model_load(const char *path) {
   T3DModel* model = asset_load(path, &size);
   int32_t ptrOffset = (int32_t)(void*)model;
 
+  if(memcmp(model->magic, "T3M", 3) != 0) {
+    assertf(false, "Invalid T3D model file: %s", path);
+  }
+  assertf(model->magic[3] == T3DM_VERSION,
+    "Invalid T3D model version: %d != %d\n"
+    "Please make a clean build of t3d and your project",
+    T3DM_VERSION, model->magic[3]);
+
   void* basePtrVertices = (char*)model + (model->chunkOffsets[model->chunkIdxVertices].offset & 0xFFFFFF);
   void* basePtrIndices = (char*)model + (model->chunkOffsets[model->chunkIdxIndices].offset & 0xFFFFFF);
   model->stringTablePtr = patch_pointer(model->stringTablePtr, ptrOffset);
@@ -163,7 +177,7 @@ T3DModel *t3d_model_load(const char *path) {
   {
     char chunkType = model->chunkOffsets[i].type;
     uint32_t offset = model->chunkOffsets[i].offset & 0x00FFFFFF;
-    //debugf("Chunk[%d] '%c': %lx\n", i, chunkType, offset);
+    //debugf("Chunk[%lu] '%c': %lx\n", i, chunkType, (uint32_t)offset);
 
     if(chunkType == T3D_CHUNK_TYPE_OBJECT) {
       T3DObject *obj = (T3DObject*)((char*)model + offset);
@@ -173,16 +187,6 @@ T3DModel *t3d_model_load(const char *path) {
 
       uint32_t matIdx = model->chunkIdxMaterials + (uint32_t)obj->material;
       obj->material = (T3DMaterial*)((char*)model + (model->chunkOffsets[matIdx].offset & 0xFFFFFF));
-
-      if(obj->material->name) {
-        obj->material->name += (uint32_t)model->stringTablePtr;
-      }
-      if(obj->material->textureA.texPath) {
-        obj->material->textureA.texPath += (uint32_t)model->stringTablePtr;
-      }
-      if(obj->material->textureB.texPath) {
-        obj->material->textureB.texPath += (uint32_t)model->stringTablePtr;
-      }
 
       for(uint32_t j = 0; j < obj->numParts; j++) {
         T3DObjectPart *part = &obj->parts[j];
@@ -198,6 +202,14 @@ T3DModel *t3d_model_load(const char *path) {
       }
     }
 
+    if(chunkType == T3D_CHUNK_TYPE_MATERIAL) {
+      T3DMaterial *mat = (T3DMaterial*)((char*)model + offset);
+
+      if(mat->name)mat->name += (uint32_t)model->stringTablePtr;
+      if(mat->textureA.texPath)mat->textureA.texPath += (uint32_t)model->stringTablePtr;
+      if(mat->textureB.texPath)mat->textureB.texPath += (uint32_t)model->stringTablePtr;
+    }
+
     if(chunkType == T3D_CHUNK_TYPE_SKELETON) {
       T3DChunkSkeleton *skel = (T3DChunkSkeleton*)((char*)model + offset);
       for(int j = 0; j < skel->boneCount; j++) {
@@ -210,6 +222,22 @@ T3DModel *t3d_model_load(const char *path) {
       T3DChunkAnim *anim = (T3DChunkAnim*)((char*)model + offset);
       anim->name = patch_pointer(anim->name, (uint32_t)model->stringTablePtr);
       anim->filePath = patch_pointer(anim->filePath, (uint32_t)model->stringTablePtr);
+    }
+
+    if(chunkType == T3D_CHUNK_TYPE_BVH) {
+      // node leafs are stored as indices to the objects, we convert that to an relative address
+      // to the actual object, shifted by 2 since it's 4 byte aligned (and nodes use 16bit indices)
+      T3DBvh *bvh = (T3DBvh*)((char*)model + offset);
+      T3DBvhData *data = (T3DBvhData*)&bvh->nodes[bvh->nodeCount]; // data is right after nodes
+
+      for(int d=0; d<bvh->dataCount; ++d) {
+        T3DObject *obj = t3d_model_get_object_by_index(model, data[d].objectPtr);
+        uint32_t addr = (uint32_t)bvh  - (uint32_t)obj;
+        assert((addr & 0b11) == 0);
+        addr >>= 2;
+        assert(addr < 0x10000);
+        data[d].objectPtr = addr;
+      }
     }
   }
 
@@ -365,17 +393,23 @@ void t3d_model_draw_material(T3DMaterial *mat, T3DModelState *state)
 
 void t3d_model_free(T3DModel *model) {
   bool txtErased = false;
-  for(uint32_t c = 0; c < model->chunkCount; c++) {
+  for(uint32_t c = 0; c < model->chunkCount; c++)
+  {
     char chunkType = model->chunkOffsets[c].type;
-    if(chunkType != T3D_CHUNK_TYPE_MATERIAL) continue;
-    T3DMaterial *mat = (T3DMaterial*)((char*)model + (model->chunkOffsets[c].offset & 0x00FFFFFF));
-    if(mat->textureA.texture) {
-      texture_cache_free(mat->textureA.textureHash);
-      txtErased = true;
+    if(chunkType == T3D_CHUNK_TYPE_MATERIAL) {
+      T3DMaterial *mat = (T3DMaterial*)((char*)model + (model->chunkOffsets[c].offset & 0x00FFFFFF));
+      if(mat->textureA.texture) {
+        texture_cache_free(mat->textureA.textureHash);
+        txtErased = true;
+      }
+      if(mat->textureB.texture) {
+        texture_cache_free(mat->textureB.textureHash);
+        txtErased = true;
+      }
     }
-    if(mat->textureB.texture) {
-      texture_cache_free(mat->textureB.textureHash);
-      txtErased = true;
+    if(chunkType == T3D_CHUNK_TYPE_OBJECT) {
+      T3DObject *obj = (T3DObject*)((char*)model + (model->chunkOffsets[c].offset & 0x00FFFFFF));
+      if(obj->userBlock)rspq_block_free(obj->userBlock);
     }
   }
   free(model);
@@ -438,3 +472,36 @@ bool t3d_model_iter_next(T3DModelIter *iter) {
   return false;
 }
 
+// context for functions below, this avoids blowing up the stack-sie
+static const T3DFrustum *ctxFrustum;
+static const T3DBvhData *ctxData;
+static uint32_t ctxBasePtr;
+
+static void bvh_query_node(const T3DBvhNode *node) {
+  int dataCount = node->value & 0b1111;
+  int offset = (int16_t)node->value >> 4;
+
+  if(dataCount == 0) {
+    if(t3d_frustum_vs_aabb_s16(ctxFrustum, node->aabbMin, node->aabbMax)) {
+      bvh_query_node(&node[offset]);
+      bvh_query_node(&node[offset + 1]);
+    }
+    return;
+  }
+
+  int offsetEnd = offset + dataCount;
+  while(offset < offsetEnd) {
+    T3DObject* obj = (T3DObject*)(ctxBasePtr - (ctxData[offset++].objectPtr << 2));
+    if(t3d_frustum_vs_aabb_s16(ctxFrustum, obj->aabbMin, obj->aabbMax)) {
+      obj->isVisible = true;
+    }
+  }
+}
+
+void t3d_model_bvh_query_frustum(const T3DBvh *bvh, const T3DFrustum *frustum) {
+  const T3DBvhData *data = (T3DBvhData*)&bvh->nodes[bvh->nodeCount]; // data starts right after nodes
+  ctxFrustum = frustum;
+  ctxData = data;
+  ctxBasePtr = (uint32_t)(char*)bvh;
+  bvh_query_node(bvh->nodes);
+}
