@@ -152,7 +152,7 @@ int main()
       // Note that it might be worth measuring the performance difference between the two methods
       // since at lower object counts the BVH might not be as efficient as a simple linear check
 
-      const T3DBvh *bvh = t3d_model_bvh_get(model); // BHVs are optional, use '--bhv' in the gltf importer (see Makefile)
+      const T3DBvh *bvh = t3d_model_bvh_get(model); // BVHs are optional, use '--bvh' in the gltf importer (see Makefile)
       if(bvh) {
         t3d_model_bvh_query_frustum(bvh, &frustum);
       } else {

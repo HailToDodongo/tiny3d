@@ -6,7 +6,7 @@
  * These functions here are only for debugging purposes and should not be used in production code!
  * Specifically drawing with the CPU is not ideal, but in this specific case more convenient
  *
- * Manually iterating the BHV tree is also not recommended, since the implementation may change in the future,
+ * Manually iterating the BVH tree is also not recommended, since the implementation may change in the future,
  * only interact with it via the t3d_* API!
  */
 
