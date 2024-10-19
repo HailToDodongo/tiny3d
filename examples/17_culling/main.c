@@ -35,6 +35,9 @@ int main()
     // Textures (CC0): https://opengameart.org/content/16x16-block-texture-set
     // Model (CC BY 4.0, modified): https://sketchfab.com/3d-models/a-minecraft-world-ee753675653240eeb71c7b2b8bf95ffe
     t3d_model_load("rom://scene.t3dm"),
+    // Credits: Floatland_01" (https://skfb.ly/o8K6t) by eakka
+    // licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
+    // Modified by HailToDodongo
     t3d_model_load("rom://platformer.t3dm")
   };
 
@@ -45,7 +48,7 @@ int main()
   T3DVec3 camDir = {{0,0,1}};
   T3DVec3 camPosScreen, camTargetScreen;
 
-  float camRotX = -1.2f;
+  float camRotX = 0.2f;
   float camRotY = -0.2f;
   float camRotXTarget = camRotX;
   float camRotYTarget = camRotY;
@@ -70,7 +73,7 @@ int main()
   uint64_t ticks = 0;
   for(uint32_t frame=1; ; ++frame)
   {
-    int visibleCount = 0, triCount = 0;
+    int visibleObjects = 0, triCount = 0;
 
     joypad_poll();
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
@@ -104,13 +107,12 @@ int main()
       camPosTarget.v[0] += camDir.v[0] * (float)joypad.stick_y * camSpeed;
       camPosTarget.v[1] += camDir.v[1] * (float)joypad.stick_y * camSpeed;
       camPosTarget.v[2] += camDir.v[2] * (float)joypad.stick_y * camSpeed;
-
       camPosTarget.v[0] += camDir.v[2] * (float)joypad.stick_x * -camSpeed;
       camPosTarget.v[2] -= camDir.v[0] * (float)joypad.stick_x * -camSpeed;
     }
 
-    if(joypad.btn.c_up)camPosTarget.v[1] += camSpeed * 15.0f;
-    if(joypad.btn.c_down)camPosTarget.v[1] -= camSpeed * 15.0f;
+    if(joypad.btn.c_up)camPosTarget.v[1] += camSpeed * 35.0f;
+    if(joypad.btn.c_down)camPosTarget.v[1] -= camSpeed * 35.0f;
 
     t3d_vec3_lerp(&camPos, &camPos, &camPosTarget, 0.8f);
     camRotX = t3d_lerp(camRotX, camRotXTarget, 0.8f);
@@ -123,7 +125,7 @@ int main()
     if(currentModel == 0) {
       t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(75.0f), 1.0f, 160.0f);
     } else {
-      t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(60.0f), 3.0f, 100.0f);
+      t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(60.0f), 4.0f, 110.0f);
     }
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
@@ -147,6 +149,8 @@ int main()
     if(modelIsVisible) {
       // If visible, perform more detailed checks with the BVH (if present in the file)
       // you can also iterate over all AABBs directly (always present) and perform a manual frustum check
+      // Note that it might be worth measuring the performance difference between the two methods
+      // since at lower object counts the BVH might not be as efficient as a simple linear check
 
       const T3DBvh *bvh = t3d_model_bvh_get(model); // BHVs are optional, use '--bhv' in the gltf importer (see Makefile)
       if(bvh) {
@@ -165,7 +169,7 @@ int main()
     // Debug top-down view, since visibility was already calculated
     // we can switch the camera to view the mesh independently of culling
     if(debugView) {
-      T3DVec3 camPosDebug = (T3DVec3){{camTarget.v[0]+2, 220.0f, camTarget.v[2]}};
+      T3DVec3 camPosDebug = (T3DVec3){{camTarget.v[0]+2, currentModel == 0 ? 225.0f : 130.0f, camTarget.v[2]}};
       t3d_viewport_look_at(&viewport, &camPosDebug, &camTarget, &(T3DVec3){{0,1,0}});
       t3d_viewport_calc_viewspace_pos(&viewport, &camPosScreen, &camPos);
 
@@ -212,7 +216,7 @@ int main()
           it.object->isVisible = false; // BVH only sets visible objects, so we need to reset this
 
           // collect some metrics
-          ++visibleCount;
+          ++visibleObjects;
           triCount += it.object->triCount;
         }
         ++totalObjects;
@@ -227,7 +231,7 @@ int main()
       t3d_debug_printf(18, 18, "Tris: %d", triCount);
       t3d_debug_printf(320-96, 18, "%.2f FPS", display_get_fps());
     }
-    t3d_debug_printf(18, 240-24, "BVH: %lluus (%d/%d)", TICKS_TO_US(ticks / frame), visibleCount, totalObjects);
+    t3d_debug_printf(18, 240-24, "BVH: %lluus (%d/%d)", TICKS_TO_US(ticks / frame), visibleObjects, totalObjects);
 
     if(showInfoScreen) {
       const char* INFO[] = {
@@ -236,8 +240,8 @@ int main()
         "C-U/D: Move up/down", "L/R: change model",
         " ( Press B to close )"
       };
-      for(int i=0; i<6; ++i) {
-        t3d_debug_printf(74, 80+(i*16), INFO[i]);
+      for(int i=0; i<7; ++i) {
+        t3d_debug_printf(74, 70+(i*14), INFO[i]);
       }
     }
 
@@ -259,11 +263,11 @@ int main()
       }
     }
 
-    if(displayBVH){
+    if (displayBVH) {
       // Debug draw, this visualizes the BVH tree
       rdpq_detach_wait();
       uint16_t *buff = (uint16_t*)surface->buffer;
-      debugDrawBVTree(buff, t3d_model_bvh_get(model), &viewport, &frustum);
+      debugDrawBVTree(buff, t3d_model_bvh_get(model), &viewport, &frustum, modelScale);
       display_show(surface);
     } else {
       rdpq_detach_show();

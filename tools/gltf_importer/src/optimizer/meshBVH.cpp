@@ -32,8 +32,9 @@ namespace
     int dataOffset = node.index.value >> 4;
 
     if(dataCount == 0) {
-      assert(dataOffset > nodeIndex);
-      int16_t packedVal = (dataOffset - nodeIndex) << 4;
+      int indexDiff = dataOffset - nodeIndex;
+      int16_t packedVal = (int16_t)(indexDiff << 4);
+      assert((packedVal >> 4) == indexDiff);
       out.push_back(packedVal);
     } else {
       out.push_back(node.index.value);

@@ -479,7 +479,7 @@ static uint32_t ctxBasePtr;
 
 static void bvh_query_node(const T3DBvhNode *node) {
   int dataCount = node->value & 0b1111;
-  int offset = node->value >> 4;
+  int offset = (int16_t)node->value >> 4;
 
   if(dataCount == 0) {
     if(t3d_frustum_vs_aabb_s16(ctxFrustum, node->aabbMin, node->aabbMax)) {
