@@ -53,6 +53,7 @@ int main()
   float camRotYTarget = camRotY;
   bool debugView = false;
   bool displayBVH = false;
+  bool showInfoScreen = true;
 
   // In order to cull, we must either not record the entire mesh, or do so with individual objects.
   // Here we do the latter. To still take advantage cross-material optimizations, we only record objects
@@ -78,7 +79,10 @@ int main()
 
     if(joypad.stick_x < 10 && joypad.stick_x > -10)joypad.stick_x = 0;
     if(joypad.stick_y < 10 && joypad.stick_y > -10)joypad.stick_y = 0;
-    if(pressed.a || pressed.b)debugView = !debugView;
+
+    if(pressed.b)showInfoScreen = !showInfoScreen;
+    if(pressed.a)debugView = !debugView;
+
     if(pressed.start)displayBVH = !displayBVH;
     if(frame > 60 || pressed.a || pressed.b) { ticks = 0; frame = 1; }
 
@@ -165,8 +169,8 @@ int main()
 
     rdpq_set_prim_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
     rdpq_mode_fog(RDPQ_FOG_STANDARD);
-    rdpq_set_fog_color(RGBA32(110, 110, 180, 0xFF));
-    t3d_screen_clear_color(RGBA32(110, 110, 180, 0xFF));
+    rdpq_set_fog_color(RGBA32(110, 110, 210, 0xFF));
+    t3d_screen_clear_color(RGBA32(110, 110, 210, 0xFF));
 
     t3d_screen_clear_depth();
 
@@ -203,9 +207,22 @@ int main()
 
     // ----------- DRAW (2D) ------------ //
     t3d_debug_print_start();
-    t3d_debug_printf(18, 18, "Tris: %d", triCount);
-    t3d_debug_printf(320-96, 18, "%.2f FPS", display_get_fps());
+    if(!displayBVH) {
+      t3d_debug_printf(18, 18, "Tris: %d", triCount);
+      t3d_debug_printf(320-96, 18, "%.2f FPS", display_get_fps());
+    }
     t3d_debug_printf(18, 240-24, "BVH: %lluus (%d/%d)", TICKS_TO_US(ticks / frame), visibleCount, objCount);
+
+    if(showInfoScreen) {
+      const char* INFO[] = {
+        "A: Toggle debug view", "Start: Toggle BVH debug",
+        "Z + Stick: Rotate", "Stick: Move",
+        "C-U/D: Move up/down", " ( Press B to close )"
+      };
+      for(int i=0; i<6; ++i) {
+        t3d_debug_printf(74, 80+(i*16), INFO[i]);
+      }
+    }
 
     // Top-down debug view, this shows the camera position and direction
     if(debugView) {
