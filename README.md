@@ -5,25 +5,34 @@
 </p>
 
 3D ucode/library for the N64 using [libdragon](https://github.com/DragonMinded/libdragon/tree/preview).<br>
-The motivation of this project is to provide a fast and minimal API while having all the features needed for 3D applications.<br>
+The motivation of this project is to provide a fast and easy API while having all the features needed for 3D applications.<br>
 
 ## Features
 Tiny3D comes with both RSP microcode and an easy to use C-API around it.<br>
 Features include:
 - Full 3D Pipeline for loading and rendering meshes
 - Matrix stack and functions
-- Lighting with ambient and directional lighting
+- Lighting with ambient, directional and point-lighting
 - Normals & Color at the same time with 16bytes per vertex
-- Skinned Meshes & Animation support 
+- Culling functions and BVH tree creation
+- Skinned Meshes & Animation support
     - fake-blending with 1 bone per vertex / up to 3 bones per triangle
     - animation blending
     - (compressed) animation streaming from ROM
     - attachment of non-skeletal targets (e.g. camera)
 - GLTF importer with Fast64 support ([supported settings](docs/fast64Settings.md))
     - Vertex cache optimization
+    - Triangles strip optimization
     - Automatic texture loading
     - Applies CC and related settings set in Fast64
-- Direct interop. with the RDPQ API. 
+- Direct interop. with the RDPQ API.
+
+Checkout the playlist showcasing the example projects in this repo:<br>
+<p align="center">
+<a href="https://www.youtube.com/watch?v=RIVDqBZXbwI&list=PLIjz3uuaFuI60LKKjrtr3TgKyvepZ6tV0" target="_blank">
+    <img src="https://img.youtube.com/vi/RIVDqBZXbwI/0.jpg" width="400">
+</a>
+</p>
 
 ## Usage
 Checkout this repository and build it first (see the Build section), no prebuilts are provided.<br>
@@ -67,6 +76,11 @@ To build Tiny3D, simply run the `build.sh` script in the root directory of the p
 ```sh
 ./build.sh
 ```
+If you use libdragon inside docker, run this instead:
+```sh
+libdragon exec ./build.sh
+```
+
 This will build the library itself, tools related to it, and all examples.<br>
 If you need to build specific parts, run the Makefile present in each directory.<br>
 After building, you can use the project as described in the Usage section.
