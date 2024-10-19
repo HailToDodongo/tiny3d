@@ -342,14 +342,6 @@ static inline uint32_t t3d_model_get_animation_count(const T3DModel *model) {
   return count;
 }
 
-static inline uint32_t t3d_model_get_chunk_count(const T3DModel *model, enum T3DModelChunkType chunkType) {
-  uint32_t count = 0;
-  for(uint32_t i = 0; i < model->chunkCount; i++) {
-    if(model->chunkOffsets[i].type == (char)chunkType)count++;
-  }
-  return count;
-}
-
 /**
  * Stores the pointers to all animations inside the model into `anims`.
  * Make sure to use `t3d_model_get_animation_count` to allocate enough memory.
