@@ -534,4 +534,17 @@ static inline uint16_t* t3d_vertbuffer_get_norm(T3DVertPacked vert[], int idx) {
 }
 #endif
 
+// C++ wrappers that allow (const-)references to be passed instead of pointers
+#ifdef __cplusplus
+
+inline static void t3d_viewport_attach(T3DViewport &viewport) { t3d_viewport_attach(&viewport); }
+inline static void t3d_viewport_set_area(T3DViewport &viewport, int32_t x, int32_t y, int32_t width, int32_t height) { t3d_viewport_set_area(&viewport, x, y, width, height); }
+inline static void t3d_viewport_set_projection(T3DViewport &viewport, float fov, float near, float far) { t3d_viewport_set_projection(&viewport, fov, near, far); }
+inline static void t3d_viewport_set_ortho(T3DViewport &viewport, float left, float right, float bottom, float top, float near, float far) { t3d_viewport_set_ortho(&viewport, left, right, bottom, top, near, far); }
+inline static void t3d_viewport_set_w_normalize(T3DViewport &viewport, float near, float far) { t3d_viewport_set_w_normalize(&viewport, near, far); }
+inline static void t3d_viewport_look_at(T3DViewport &viewport, const T3DVec3 &eye, const T3DVec3 &target, const T3DVec3 &up = T3DVec3{{0,1,0}}) { t3d_viewport_look_at(&viewport, &eye, &target, &up); }
+inline static void t3d_viewport_calc_viewspace_pos(T3DViewport &viewport, T3DVec3 &out, const T3DVec3 &pos) { t3d_viewport_calc_viewspace_pos(&viewport, &out, &pos); }
+
+#endif
+
 #endif //TINY3D_T3D_H

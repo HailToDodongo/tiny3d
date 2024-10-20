@@ -551,4 +551,52 @@ inline static void t3d_mat4_mul_vec3(T3DVec4* vecOut, const T3DMat4 *mat, const 
 }
 #endif
 
+// C++ wrappers that allow (const-)references to be passed instead of pointers
+#ifdef __cplusplus
+  inline static void t3d_vec3_add(T3DVec3 &res, const T3DVec3 &a, const T3DVec3 &b) { t3d_vec3_add(&res, &a, &b); }
+  inline static void t3d_vec3_mul(T3DVec3 &res, const T3DVec3 &a, const T3DVec3 &b) { t3d_vec3_mul(&res, &a, &b); }
+  inline static void t3d_vec3_scale(T3DVec3 &res, const T3DVec3 &a, float s) { t3d_vec3_scale(&res, &a, s); }
+  inline static void t3d_vec3_diff(T3DVec3 &res, const T3DVec3 &a, const T3DVec3 &b) { t3d_vec3_diff(&res, &a, &b); }
+  inline static float t3d_vec3_len2(const T3DVec3 &vec) { return t3d_vec3_len2(&vec); }
+  inline static float t3d_vec3_len(const T3DVec3 &vec) { return t3d_vec3_len(&vec); }
+  inline static float t3d_vec3_distance2(const T3DVec3 &vecA, const T3DVec3 &vecB) { return t3d_vec3_distance2(&vecA, &vecB); }
+  inline static float t3d_vec3_distance(const T3DVec3 &vecA, const T3DVec3 &vecB) { return t3d_vec3_distance(&vecA, &vecB); }
+  inline static void t3d_vec3_norm(T3DVec3 &res) { t3d_vec3_norm(&res); }
+  inline static void t3d_vec3_cross(T3DVec3 &res, const T3DVec3 &a, const T3DVec3 &b) { t3d_vec3_cross(&res, &a, &b); }
+  inline static float t3d_vec3_dot(const T3DVec3 &a, const T3DVec3 &b) { return t3d_vec3_dot(&a, &b); }
+  inline static void t3d_vec3_lerp(T3DVec3 &res, const T3DVec3 &a, const T3DVec3 &b, float t) { t3d_vec3_lerp(&res, &a, &b, t); }
+  inline static void t3d_quat_identity(T3DQuat &quat) { t3d_quat_identity(&quat); }
+  inline static void t3d_quat_from_euler(T3DQuat &quat, const float rotEuler[3]) { t3d_quat_from_euler(&quat, rotEuler); }
+  inline static void t3d_quat_from_rotation(T3DQuat &quat, float axis[3], float angleRad) { t3d_quat_from_rotation(&quat, axis, angleRad); }
+  inline static void t3d_quat_mul(T3DQuat &res, T3DQuat &a, T3DQuat &b) { t3d_quat_mul(&res, &a, &b); }
+  inline static void t3d_quat_rotate_euler(T3DQuat &quat, float axis[3], float angleRad) { t3d_quat_rotate_euler(&quat, axis, angleRad); }
+  inline static float t3d_quat_dot(const T3DQuat &a, const T3DQuat &b) { return t3d_quat_dot(&a, &b); }
+  inline static void t3d_quat_normalize(T3DQuat &quat) { t3d_quat_normalize(&quat); }
+  inline static void t3d_quat_nlerp(T3DQuat &res, const T3DQuat &a, const T3DQuat &b, float t) { t3d_quat_nlerp(&res, &a, &b, t); }
+  inline static void t3d_quat_slerp(T3DQuat &res, const T3DQuat &a, const T3DQuat &b, float t) { t3d_quat_slerp(&res, &a, &b, t); }
+  inline static void t3d_mat4_identity(T3DMat4 &mat) { t3d_mat4_identity(&mat); }
+  inline static void t3d_mat4_scale(T3DMat4 &mat, float scaleX, float scaleY, float scaleZ) { t3d_mat4_scale(&mat, scaleX, scaleY, scaleZ); }
+  inline static void t3d_mat4_translate(T3DMat4 &mat, float offsetX, float offsetY, float offsetZ) { t3d_mat4_translate(&mat, offsetX, offsetY, offsetZ); }
+  inline static void t3d_mat4_rotate(T3DMat4 &mat, const T3DVec3 &axis, float angleRad) { t3d_mat4_rotate(&mat, &axis, angleRad); }
+  inline static void t3d_mat4_from_srt(T3DMat4 &mat, const float scale[3], const float quat[4], const float translate[3]) { t3d_mat4_from_srt(&mat, scale, quat, translate); }
+  inline static void t3d_mat4_from_srt_euler(T3DMat4 &mat, const float scale[3], const float rot[3], const float translate[3]) { t3d_mat4_from_srt_euler(&mat, scale, rot, translate); }
+  inline static void t3d_mat4_rot_from_dir(T3DMat4 &mat, const T3DVec3 &dir, const T3DVec3 &up) { t3d_mat4_rot_from_dir(&mat, &dir, &up); }
+
+  inline static void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, const T3DVec3 &scale, const T3DVec3 &rot, const T3DVec3 &translate) { t3d_mat4fp_from_srt_euler(mat, scale.v, rot.v, translate.v); }
+  inline static void t3d_mat4fp_from_srt(T3DMat4FP *mat, const T3DVec3 &scale, const T3DQuat &rot, const T3DVec3 &translate) { t3d_mat4fp_from_srt(mat, scale.v, rot.v, translate.v); }
+  inline static void t3d_mat4fp_set_pos(T3DMat4FP *mat, const T3DVec3 &pos) { t3d_mat4fp_set_pos(mat, pos.v); }
+  inline static float t3d_mat4fp_get_float(const T3DMat4FP &mat, uint32_t y, uint32_t x) { return t3d_mat4fp_get_float(&mat, y, x); }
+
+  inline static void t3d_mat4_perspective(T3DMat4 &mat, float fov, float aspect, float near, float far) { t3d_mat4_perspective(&mat, fov, aspect, near, far); }
+  inline static void t3d_mat4_ortho(T3DMat4 &mat, float left, float right, float bottom, float top, float near, float far) { t3d_mat4_ortho(&mat, left, right, bottom, top, near, far); }
+  inline static void t3d_mat4_look_at(T3DMat4 &mat, const T3DVec3 &eye, const T3DVec3 &target, const T3DVec3 &up) { t3d_mat4_look_at(&mat, &eye, &target, &up); }
+  inline static void t3d_mat4_to_frustum(T3DFrustum &frustum, const T3DMat4 &mat) { t3d_mat4_to_frustum(&frustum, &mat); }
+  inline static void t3d_frustum_scale(T3DFrustum &frustum, float scale) { t3d_frustum_scale(&frustum, scale); }
+  inline static bool t3d_frustum_vs_aabb(const T3DFrustum &frustum, const T3DVec3 &min, const T3DVec3 &max) { return t3d_frustum_vs_aabb(&frustum, &min, &max); }
+  inline static bool t3d_frustum_vs_aabb_s16(const T3DFrustum &frustum, const int16_t min[3], const int16_t max[3]) { return t3d_frustum_vs_aabb_s16(&frustum, min, max); }
+  inline static void t3d_mat4_mul(T3DMat4 &matRes, const T3DMat4 &matA, const T3DMat4 &matB) { t3d_mat4_mul(&matRes, &matA, &matB); }
+  inline static void t3d_mat3_mul_vec3(T3DVec3 &vecOut, const T3DMat4 &mat, const T3DVec3 &vec) { t3d_mat3_mul_vec3(&vecOut, &mat, &vec); }
+  inline static void t3d_mat4_mul_vec3(T3DVec4 &vecOut, const T3DMat4 &mat, const T3DVec3 &vec) { t3d_mat4_mul_vec3(&vecOut, &mat, &vec); }
+#endif
+
 #endif //TINY3D_T3DMATH_H
