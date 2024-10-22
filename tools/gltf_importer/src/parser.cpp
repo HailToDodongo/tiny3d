@@ -5,6 +5,7 @@
 
 #define CGLTF_IMPLEMENTATION
 
+#include <string>
 #include "parser.h"
 #include "hash.h"
 
@@ -104,6 +105,10 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
   {
     auto node = &data->nodes[i];
     //printf("- Node %d: %s\n", i, node->name);
+
+    if(node->name && std::string(node->name).starts_with("fast64_f3d_material_library")) {
+      continue;
+    }
 
     auto mesh = node->mesh;
     if(!mesh)continue;
