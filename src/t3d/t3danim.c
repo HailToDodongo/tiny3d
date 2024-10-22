@@ -50,7 +50,7 @@ void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
 
   size_t allocQuat = sizeof(T3DAnimTargetQuat) * anim->animRef->channelsQuat;
   size_t allocScalar = sizeof(T3DAnimTargetScalar) * anim->animRef->channelsScalar;
-  anim->targetsQuat = malloc(allocQuat + allocScalar); // only allocate a single block
+  anim->targetsQuat = calloc(allocQuat + allocScalar, 1); // only allocate a single block
   anim->targetsScalar = (T3DAnimTargetScalar*)((uint8_t*)anim->targetsQuat + allocQuat);
   rewind_anim(anim);
 
