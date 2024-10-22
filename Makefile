@@ -17,6 +17,8 @@ include $(N64_INST)/include/n64.mk
 src := $(SOURCE_DIR)/t3d.c $(SOURCE_DIR)/t3dmath.c $(SOURCE_DIR)/t3dmodel.c \
 	$(SOURCE_DIR)/t3ddebug.c $(SOURCE_DIR)/t3dskeleton.c $(SOURCE_DIR)/t3danim.c \
 	$(SOURCE_DIR)/rsp/rsp_tiny3d.S
+inc := $(SOURCE_DIR)/t3d.h $(SOURCE_DIR)/t3dmath.h $(SOURCE_DIR)/t3dmodel.h \
+	$(SOURCE_DIR)/t3ddebug.h $(SOURCE_DIR)/t3dskeleton.h $(SOURCE_DIR)/t3danim.h
 
 # N64_CFLAGS += -std=gnu2x -DNDEBUG
 N64_CFLAGS += -std=gnu2x -Os -Isrc \
@@ -28,13 +30,13 @@ OBJ = $(BUILD_DIR)/t3dmath.o $(BUILD_DIR)/t3d.o \
 	$(BUILD_DIR)/t3dmodel.o $(BUILD_DIR)/t3ddebug.o $(BUILD_DIR)/t3dskeleton.o $(BUILD_DIR)/t3danim.o \
 	$(BUILD_DIR)/rsp/rsp_tiny3d.o $(BUILD_DIR)/rsp/rsp_tiny3d_clipping.o
 
-all: $(BUILD_DIR)/t3d.a
+all: $(BUILD_DIR)/libt3d.a
 
 # Static Library
-$(BUILD_DIR)/t3d.a: $(OBJ)
+$(BUILD_DIR)/libt3d.a: $(OBJ)
 	@mkdir -p $(dir $@)
 	@echo "    [LD_LIB] $<"
-	$(N64_LD) -r -o $(BUILD_DIR)/t3d.a $^
+	$(N64_LD) -r -o $(BUILD_DIR)/libt3d.a $^
 
 $(BUILD_DIR)/rsp/rsp_tiny3d.o: $(SOURCE_DIR)/rsp/rspq_triangle.inc
 $(BUILD_DIR)/rsp/rsp_tiny3d_clipping.o: $(SOURCE_DIR)/rsp/rspq_triangle.inc
@@ -67,6 +69,14 @@ $(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c
 	@mkdir -p $(dir $@)
 	@echo "    [CC_LIB] $<"
 	$(N64_CC) -c $(CFLAGS) $(N64_CFLAGS) -o $@ $<
+
+install:
+	mkdir -p $(N64_INST)/mips64-elf/include/t3d
+	install -cv -m 0644 t3d-inst.mk $(N64_INST)/include/t3d.mk
+	for file in $(inc); do \
+		install -Cv -m 0644 $$file $(N64_INST)/mips64-elf/include/t3d; \
+	done
+	install -Cv -m 0644 $(BUILD_DIR)/libt3d.a $(N64_INST)/mips64-elf/lib
 
 clean:
 	rm -rf $(BUILD_DIR)
