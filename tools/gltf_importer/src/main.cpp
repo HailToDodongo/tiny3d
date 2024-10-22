@@ -74,15 +74,15 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  const char* gltfPath = argv[1];
-  const char* t3dmPath = argv[2];
+  const std::string gltfPath = args.getFilenameArg(0);
+  const std::string t3dmPath = args.getFilenameArg(1);
 
   config.globalScale = (float)args.getU32Arg("--base-scale", 64);
   config.ignoreMaterials = args.checkArg("--ignore-materials");
   config.createBVH = args.checkArg("--bvh");
   config.animSampleRate = 60;
 
-  auto t3dm = parseGLTF(gltfPath, config.globalScale);
+  auto t3dm = parseGLTF(gltfPath.c_str(), config.globalScale);
   fs::path gltfBasePath{gltfPath};
 
   // sort models by transparency mode (opaque -> cutout -> transparent)
@@ -383,7 +383,7 @@ int main(int argc, char* argv[])
     file.write<uint16_t>(anim.channelCountQuat);
     file.write<uint16_t>(anim.channelCountScalar);
     file.write<uint32_t>(insertString(stringTable,
-      getRomPath(getStreamDataPath(t3dmPath, animIdx))
+      getRomPath(getStreamDataPath(t3dmPath.c_str(), animIdx))
     ));
 
     std::unordered_set<uint32_t> channelHasKF{};
@@ -469,10 +469,10 @@ int main(int argc, char* argv[])
   file.write(totalIndexCount);
 
   // write to actual file
-  file.writeToFile(t3dmPath);
+  file.writeToFile(t3dmPath.c_str());
 
   for(int s=0; s<streamFiles.size(); ++s) {
-    auto sdataPath = getStreamDataPath(t3dmPath, s);
+    auto sdataPath = getStreamDataPath(t3dmPath.c_str(), s);
     streamFiles[s].writeToFile(sdataPath.c_str());
   }
 }
