@@ -231,6 +231,7 @@ RDPQ_Triangle_Send_Async:
     # TODO:
     # Should we do backface culling before clipping check?
     # If so, should we do that BEFORE or AFTER the sort-of-three?
+    .set noat
 
     #ifdef STORE_VTX1
     sh vtx1, 0(s3)
@@ -306,6 +307,8 @@ RDPQ_Triangle_Send_Async:
     vmadh vnz_f, vhml, v__;                     slv vm.e0,   8,s3
     vsar vnz_i, COP2_ACC_HI;                    slv vl.e0,  12,s3
     vsar vnz_f, COP2_ACC_MD;                    ldv vhml.e2, 8,s3
+
+    .set at
 # emux_trace_stop
     #undef clip1
     #undef clip2
