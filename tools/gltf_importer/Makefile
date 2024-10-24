@@ -27,5 +27,8 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.cpp
 gltf_to_t3d: $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $ $(LINKFLAGS)
 
+install:
+	install -Cv -m 0755 gltf_to_t3d $(N64_INST)/bin/
+
 clean:
 	rm -rf ./build ./gltf_to_t3d

@@ -30,10 +30,12 @@ fi
 # Build Tiny3D
 echo "Building Tiny3D..."
 make -j4
+make install || sudo make install
 
 # Tools
 echo "Building tools..."
 make -C tools/gltf_importer -j4
+make -C tools/gltf_importer install || sudo make -C tools/gltf_importer install
 
 # Build Examples
 echo "Building examples..."
