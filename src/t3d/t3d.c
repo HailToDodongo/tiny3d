@@ -427,6 +427,7 @@ void t3d_viewport_calc_viewspace_pos(T3DViewport *viewport, T3DVec3 *out, const 
 {
   T3DVec4 posScreen;
 
+  viewport = viewport ? viewport : currentViewport;
   if(viewport->_isCamProjDirty) {
     t3d_mat4_mul(&viewport->matCamProj, &viewport->matProj, &viewport->matCamera);
     viewport->_isCamProjDirty = false;
