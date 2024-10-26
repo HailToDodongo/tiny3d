@@ -158,6 +158,7 @@ int main(int argc, char* argv[])
   uint32_t offsetStringTablePtr = file.getPos();
   file.skip(sizeof(uint32_t)); // string table offset (filled later)
 
+  file.write<uint32_t>(0); // block, set by users at runtime
   file.writeArray(aabbMin, 3);
   file.writeArray(aabbMax, 3);
 

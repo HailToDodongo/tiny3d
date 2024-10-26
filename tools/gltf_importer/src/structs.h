@@ -256,4 +256,4 @@ extern Config config;
 
 constexpr int MAX_VERTEX_COUNT = 70;
 constexpr int CACHE_VERTEX_SIZE = 36;
-constexpr u8 T3DM_VERSION = 0x01;
+constexpr u8 T3DM_VERSION = 0x02;

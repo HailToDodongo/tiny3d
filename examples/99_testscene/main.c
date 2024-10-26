@@ -62,8 +62,6 @@ int main()
   T3DVec3 rotAxis = {{1.0f, 2.5f, 0.25f}};
   t3d_vec3_norm(&rotAxis);
 
-  rspq_block_t *dplDraw = NULL;
-
   double lastTimeMs = 0;
   float time = 0.0f;
 
@@ -183,14 +181,14 @@ int main()
     t3d_light_set_count(2);*/
 
     // t3d functions can be recorded into a display list:
-    if(!dplDraw) {
+    if(!model->userBlock) {
       rspq_block_begin();
       t3d_model_draw(model);
-      dplDraw = rspq_block_end();
+      model->userBlock = rspq_block_end();
     }
 
     t3d_matrix_push(modelMatFP);
-    rspq_block_run(dplDraw);
+    rspq_block_run(model->userBlock);
     t3d_matrix_pop(1);
 
     if(vertFxTime > 0.0f) {

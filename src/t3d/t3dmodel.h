@@ -153,6 +153,9 @@ typedef struct {
   uint32_t chunkIdxMaterials;
   char* stringTablePtr;
 
+  // can be used freely by the user for recording, will be freed automatically by t3d
+  rspq_block_t *userBlock;
+
   int16_t aabbMin[3];
   int16_t aabbMax[3];
 

@@ -5,7 +5,7 @@
 
 #include "t3dmodel.h"
 
-#define T3DM_VERSION 1
+#define T3DM_VERSION 2
 
 static inline void* patch_pointer(void *ptr, uint32_t offset) {
   return (void*)(offset + (int32_t)ptr);
@@ -393,6 +393,11 @@ void t3d_model_draw_material(T3DMaterial *mat, T3DModelState *state)
 
 void t3d_model_free(T3DModel *model) {
   bool txtErased = false;
+
+  if(model->userBlock) {
+    rspq_block_free(model->userBlock);
+  }
+
   for(uint32_t c = 0; c < model->chunkCount; c++)
   {
     char chunkType = model->chunkOffsets[c].type;

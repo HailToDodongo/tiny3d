@@ -19,9 +19,10 @@ This file can be compressed and contains data to be streamed in during runtime (
 | 0x10   | `u32`           | First Indices-chunk index      |
 | 0x14   | `u32`           | First Material-chunk index     |
 | 0x18   | `u32`           | String table offset (in bytes) |
-| 0x1C   | `s16[3]`        | AABB min (model space)         |
-| 0x22   | `s16[3]`        | AABB max (model space)         |
-| 0x28   | `ChunkOffset[]` | Chunk offsets/types            |
+| 0x1C   | `void*`         | Block, only set by users       |
+| 0x20   | `s16[3]`        | AABB min (model space)         |
+| 0x26   | `s16[3]`        | AABB max (model space)         |
+| 0x2C   | `ChunkOffset[]` | Chunk offsets/types            |
 
 ### ChunkOffset
 
