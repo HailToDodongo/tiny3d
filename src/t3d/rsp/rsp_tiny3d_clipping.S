@@ -120,8 +120,6 @@
     RSPQ_DefineCommand RSPQ_Loop, 4
     RSPQ_DefineCommand RSPQ_Loop, 4
     RSPQ_DefineCommand RSPQ_Loop, 4
-    RSPQ_DefineCommand RSPQ_Loop, 4
-    RSPQ_DefineCommand RSPQ_Loop, 8
   RSPQ_EndOverlayHeader
 
   RSPQ_BeginSavedState

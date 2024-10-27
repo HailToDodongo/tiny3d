@@ -24,13 +24,13 @@ enum T3DCmd {
   T3D_CMD_VERT_LOAD    = 0x4,
   T3D_CMD_LIGHT_SET    = 0x5,
   T3D_CMD_DRAWFLAGS    = 0x6,
-  T3D_CMD_SET_UV_GEN   = 0x7,
-  T3D_CMD_PROJ_SET     = 0x8,
-  T3D_CMD_LIGHT_COUNT  = 0x9,
-  T3D_CMD_FOG_RANGE    = 0xA,
-  T3D_CMD_FOG_STATE    = 0xB,
-  T3D_CMD_TRI_SYNC     = 0xC,
-  T3D_CMD_TRI_STRIP    = 0xD,
+  T3D_CMD_PROJ_SET     = 0x7,
+  T3D_CMD_FOG_RANGE    = 0x8,
+  T3D_CMD_FOG_STATE    = 0x9,
+  T3D_CMD_TRI_SYNC     = 0xA,
+  T3D_CMD_TRI_STRIP    = 0xB,
+  //                   = 0xC,
+  //                   = 0xD,
   //                   = 0xE,
   //                   = 0xF,
 };
@@ -367,9 +367,7 @@ void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, fl
  * Note that the ambient light does not count towards this limit and is always applied.
  * @param count amount of lights (0-6)
  */
-static inline void t3d_light_set_count(int count) {
-  rspq_write(T3D_RSP_ID, T3D_CMD_LIGHT_COUNT, count * 16);
-}
+void t3d_light_set_count(int count);
 
 /**
  * Sets the range of the fog.
@@ -422,6 +420,16 @@ void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags);
  * @param arg1 second argument
  */
 void t3d_state_set_vertex_fx(enum T3DVertexFX func, int16_t arg0, int16_t arg1);
+
+/**
+ * Overrides the scale factor for some vertex effects.
+ * This is currently only used by the 'T3D_VERTEX_FX_SPHERICAL_UV' function
+ * to create an offset based on screen-space position.
+ * This is automatically calculated by the ucode when setting the screen-size.
+ * However if you see distortions near the edge of the screen, you can set this manually.
+ * @param scale scale factor
+ */
+void t3d_state_set_vertex_fx_scale(uint16_t scale);
 
 /**
  * Sets a new address in the segment table.

@@ -114,9 +114,7 @@
     RSPQ_DefineCommand T3DCmd_VertLoad, 12
     RSPQ_DefineCommand T3DCmd_LightSet, 16
     RSPQ_DefineCommand T3DCmd_RenderMode, 8
-    RSPQ_DefineCommand T3DCmd_SetUVGen, 8
     RSPQ_DefineCommand T3DCmd_MatProjectionSet, 4
-    RSPQ_DefineCommand T3DCmd_LightCount, 4
     RSPQ_DefineCommand T3DCmd_SetFogRange, 8
     RSPQ_DefineCommand T3DCmd_SetFogState, 4
     RSPQ_DefineCommand T3DCmd_TriSync, 4
@@ -566,9 +564,6 @@ T3DCmd_LightSet:
   LABEL_000A:
   j RSPQ_Loop
   sw $a1, 4($a0)
-T3DCmd_LightCount:
-  j RSPQ_Loop
-  sb $a0, %lo(ACTIVE_LIGHT_SIZE)($zero)
 T3DCmd_RenderMode:
   lbu $s7, %lo(RDPQ_OTHER_MODES + 0)
   sb $a0, %lo(FACE_CULLING)($zero)
@@ -724,12 +719,11 @@ T3DCmd_MatProjectionSet:
   j DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   ori $s4, $zero, %lo(MATRIX_PROJ)
 T3DCmd_SetWord:
+  andi $s7, $a0, 32768
+  bne $s7, $zero, RSPQ_Loop
+  sh $a1, ($a0)
   j RSPQ_Loop
   sw $a1, ($a0)
-T3DCmd_SetUVGen:
-  sh $a0, %lo(VERTEX_FX_FUNC)($zero)
-  j RSPQ_Loop
-  sw $a1, %lo(UV_GEN_PARAMS)($zero)
 T3DCmd_TriDraw_End:
   j RSPQ_Loop
   sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)

@@ -610,7 +610,7 @@ command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 scre
  * @param fogScale 16.16 scale factor
  * @param fogOffset 16.16 offset
  */
-command<10> T3DCmd_SetFogRange(s16 fogScale, s32 fogOffset)
+command<8> T3DCmd_SetFogRange(s16 fogScale, s32 fogOffset)
 {
   store(fogScale,  FOG_SCALE_OFFSET, 0x06);
   store(fogOffset, FOG_SCALE_OFFSET, 0x00);
@@ -620,7 +620,7 @@ command<10> T3DCmd_SetFogRange(s16 fogScale, s32 fogOffset)
  * Enables or disables fog.
  * @param enabled 1=enabled, 0=disabled
  */
-command<11> T3DCmd_SetFogState(u8 enabled)
+command<9> T3DCmd_SetFogState(u8 enabled)
 {
   store(enabled, FOG_STORE_OFFSET);
 }
@@ -642,15 +642,6 @@ command<5> T3DCmd_LightSet(u32 addr, u32 rgba8, u32 dirXYZ0, u32 dirXYZ1)
   }
 
   store(rgba8, addr, 4);
-}
-
-/**
- * Sets the number of active directional lights.
- * @param count range: 0 - LIGHT_COUNT
- */
-command<9> T3DCmd_LightCount(u8 count)
-{
-  store(count, ACTIVE_LIGHT_SIZE);
 }
 
 /**
@@ -825,31 +816,25 @@ command<2> T3DCmd_MatrixStack(s32 stackAdvance, u32 addressMat)
  * Sets a new projection matrix.
  * @param addressMat RDRAM address to load matrix from
  */
-command<8> T3DCmd_MatProjectionSet(u32 addressMat) {
+command<7> T3DCmd_MatProjectionSet(u32 addressMat) {
   u32<$s0> addrRDRAM = addressMat & 0xFFFFFF;
   dma_in(MATRIX_PROJ, addrRDRAM, 0x40);
 }
 
 /**
- * Stores a 32-bit word at an arbitrary address in DMEM.
+ * Stores a 32-bit or 16-bit word at an arbitrary address in DMEM.
  * This can be used to set segment addresses.
- * @param DMEM address in LSB 16 bits
+ * @param DMEM address in LSB 16 bits, MSB 1 bit for 16-bit mode
  * @param value value to store
  */
 command<3> T3DCmd_SetWord(u16 addrDMEM, u32 value) {
-  store(value, addrDMEM);
-}
+  u32 is16bit = addrDMEM & 0x8000;
+  store(value:u16, addrDMEM);
 
-/**
- * Sets the UV generation function.
- * @param uvFunc function address in IMEM
- * @param params user-defined parameters (2x u16 value)
- */
-command<7> T3DCmd_SetUVGen(u16 uvFunc, u32 params) {
-  store(uvFunc, VERTEX_FX_FUNC);
-  store(params, UV_GEN_PARAMS);
-}
+  if(is16bit)goto RSPQ_Loop;
 
+  store(value:u32, addrDMEM);
+}
 
 /**
  * Draws a triangle to the screen, if necessary also performs clipping.
@@ -912,7 +897,7 @@ command<0> T3DCmd_TriDraw_Cmd(u32 vert0, u32 vert1)
 }
 
 //@NoReturn
-command<13> T3DCmd_TriDraw_Strip(u32 rdramAddr, u32 countDmem)
+command<11> T3DCmd_TriDraw_Strip(u32 rdramAddr, u32 countDmem)
 {
   u32<$s0> dmaAddrRDRAM = rdramAddr;
   u32<$t0> copySize = countDmem >> 16;
@@ -971,7 +956,7 @@ command<13> T3DCmd_TriDraw_Strip(u32 rdramAddr, u32 countDmem)
 /**
  * Syncs triangle calls, wrapper for 'RDPQ_Triangle_Send_Async'.
  */
-command<12> T3DCmd_TriSync()
+command<10> T3DCmd_TriSync()
 {
   u8 clipLoaded = load(CLIP_CODE_ADDR);
   u32<$s4> targetImem = CLIPPING_CODE_TARGET; // (delay-slot filler)

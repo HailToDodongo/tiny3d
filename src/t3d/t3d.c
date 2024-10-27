@@ -93,6 +93,14 @@ inline static void t3d_matrix_stack(void *mat, int32_t stackAdvance, bool doMult
   );
 }
 
+inline static void t3d_dmem_set_u32(uint32_t addr, uint32_t value) {
+  rspq_write(T3D_RSP_ID, T3D_CMD_SET_WORD, addr, value);
+}
+
+inline static void t3d_dmem_set_u16(uint32_t addr, uint32_t value) {
+  rspq_write(T3D_RSP_ID, T3D_CMD_SET_WORD, addr | 0x8000, value);
+}
+
 void t3d_matrix_set(const T3DMat4FP *mat, bool doMultiply) {
   t3d_matrix_stack((void*)mat, 0, doMultiply, false);
 }
@@ -150,6 +158,11 @@ void t3d_frame_start(void) {
     //rdpq_mode_blender(0);
     rdpq_mode_fog(0);
   rdpq_mode_end();
+}
+
+void t3d_light_set_count(int count)
+{
+  t3d_dmem_set_u16((RSP_T3D_ACTIVE_LIGHT_SIZE & 0xFFF), (count * 16) << 8);
 }
 
 void t3d_light_set_ambient(const uint8_t *color)
@@ -283,15 +296,21 @@ void t3d_state_set_vertex_fx(enum T3DVertexFX func, int16_t arg0, int16_t arg1)
 
   uint32_t args = (uint16_t)arg1;
   args |= (uint16_t)arg0 << 16;
-  rspq_write(T3D_RSP_ID, T3D_CMD_SET_UV_GEN, rspFunc, args);
+
+  t3d_dmem_set_u16((RSP_T3D_VERTEX_FX_FUNC & 0xFFF), rspFunc);
+  t3d_dmem_set_u32((RSP_T3D_UV_GEN_PARAMS & 0xFFF), args);
+}
+
+void t3d_state_set_vertex_fx_scale(uint16_t scale)
+{
+  t3d_dmem_set_u16((RSP_T3D_SCREEN_UVGEN_SCALE & 0xFFF), scale);
 }
 
 void t3d_segment_set(uint8_t segmentId, void *address) {
   assert(segmentId >= 1 && segmentId <= 7);
-
-  rspq_write(T3D_RSP_ID, T3D_CMD_SET_WORD,
-     ((RSP_T3D_SEGMENT_TABLE & 0xFFF) + segmentId*sizeof(uint32_t)),
-     (uint32_t)PhysicalAddr(address)
+  t3d_dmem_set_u32(
+    (RSP_T3D_SEGMENT_TABLE & 0xFFF) + segmentId*sizeof(uint32_t),
+    (uint32_t)PhysicalAddr(address)
   );
 }
 
