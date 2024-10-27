@@ -1,6 +1,7 @@
 CXXFLAGS += -O3 -std=c++20 -I./src/lib
 OBJDIR = build
 SRCDIR = src
+INSTALLDIR = $(N64_INST)
 
 OBJ = build/parser.o build/main.o build/lib/lodepng.o \
 	build/parser/materialParser.o build/parser/boneParser.o build/parser/nodeParser.o \
@@ -28,7 +29,8 @@ gltf_to_t3d: $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $ $(LINKFLAGS)
 
 install:
-	install -Cv -m 0755 gltf_to_t3d $(N64_INST)/bin/
+	mkdir -p $(INSTALLDIR)/bin
+	install -Cv -m 0755 gltf_to_t3d $(INSTALLDIR)/bin/
 
 clean:
 	rm -rf ./build ./gltf_to_t3d
