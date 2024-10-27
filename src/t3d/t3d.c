@@ -57,12 +57,6 @@ void t3d_init(T3DInitParams params)
   *clipSizePtr = RSP_T3D_CODE_CLIP_OVERLAY_CODE_END - RSP_T3D_CODE_CLIP_clipTriangle + 7;
 
   T3D_RSP_ID = rspq_overlay_register(&rsp_tiny3d);
-
-  // It's very common to run into under-flows, to avoid costly checks
-  // and keep the same behavior as other platforms (e.g. x86) disable it
-  uint32_t fcr31 = C1_FCR31();
-  fcr31 &= ~(C1_ENABLE_UNDERFLOW);
-  C1_WRITE_FCR31(fcr31);
 }
 
 void t3d_destroy(void)
