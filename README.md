@@ -38,10 +38,16 @@ Checkout the playlist showcasing the example projects in this repo:<br>
 Checkout this repository and build it first (see the Build section), no prebuilts are provided.<br>
 To use Tiny3D in your project, add the following line in your Makefile:
 ```make
-include $(T3D_INST)/t3d.mk
+include $(N64_INST)/include/t3d.mk
 ```
-Where `T3D_INST` points to the path of this repository.<br>
-Internally this will handle adding the correct include path and linking Tiny3D itself into you project.<br>
+Internally this will handle the required configuration to link Tiny3D itself into you project.<br>
+
+If you prefer to keep a local copy of Tiny3D in your project, then just do so (eg: a submodule)
+and include t3d.mk from there:
+```make
+include path/to/t3d.mk
+```
+This will make sure that that specific copy of Tiny3D is used instead.
 
 In general, it's easier to simply take one of the included example projects as a starting point.<br>
 These can be found in the `examples` directory, where each of them goes into details about different features.<br>
