@@ -133,7 +133,7 @@ static inline void t3d_model_draw_skinned(const T3DModel* model, const T3DSkelet
     .filterCb = NULL,
     .matrices = skeleton->bufferCount == 1
       ? skeleton->boneMatricesFP
-      : t3d_segment_placeholder(T3D_SEGMENT_SKELETON)
+      : (const T3DMat4FP*)t3d_segment_placeholder(T3D_SEGMENT_SKELETON)
   });
 }
 
