@@ -12,6 +12,8 @@
 BUILD_DIR=build
 SOURCE_DIR=src/t3d
 
+INSTALLDIR=$(N64_INST)
+
 include $(N64_INST)/include/n64.mk
 
 src := $(SOURCE_DIR)/t3d.c $(SOURCE_DIR)/t3dmath.c $(SOURCE_DIR)/t3dmodel.c \
@@ -71,12 +73,12 @@ $(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c
 	$(N64_CC) -c $(CFLAGS) $(N64_CFLAGS) -o $@ $<
 
 install: all
-	mkdir -p $(N64_INST)/mips64-elf/include/t3d
-	install -cv -m 0644 t3d-inst.mk $(N64_INST)/include/t3d.mk
+	mkdir -p $(INSTALLDIR)/mips64-elf/include/t3d
+	install -cv -m 0644 t3d-inst.mk $(INSTALLDIR)/include/t3d.mk
 	for file in $(inc); do \
-		install -Cv -m 0644 $$file $(N64_INST)/mips64-elf/include/t3d; \
+		install -Cv -m 0644 $$file $(INSTALLDIR)/mips64-elf/include/t3d; \
 	done
-	install -Cv -m 0644 $(BUILD_DIR)/libt3d.a $(N64_INST)/mips64-elf/lib
+	install -Cv -m 0644 $(BUILD_DIR)/libt3d.a $(INSTALLDIR)/mips64-elf/lib
 
 clean:
 	rm -rf $(BUILD_DIR)
