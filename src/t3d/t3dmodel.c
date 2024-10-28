@@ -114,10 +114,12 @@ static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *co
     }
 
     rdpq_texparms_t texParam = (rdpq_texparms_t){};
+    texParam.s.translate = tex->s.low;
     texParam.s.mirror = tex->s.mirror;
     texParam.s.repeats = tex->s.clamp ? 1 : REPEAT_INFINITE;
     texParam.s.scale_log = (int)tex->s.shift;
 
+    texParam.t.translate = tex->t.low;
     texParam.t.mirror = tex->t.mirror;
     texParam.t.repeats = tex->t.clamp ? 1 : REPEAT_INFINITE;
     texParam.t.scale_log = (int)tex->t.shift;
