@@ -21,16 +21,15 @@ typedef struct {
   float v[3];
 } T3DVec3;
 
+// 4D float vector
 typedef struct {
   float v[4];
-} T3DVec4;
+} __attribute__((aligned(16))) T3DVec4;
 
 // float quaternion, stored as XYZW
-typedef struct {
-  float v[4];
-} T3DQuat;
+typedef T3DVec4 T3DQuat;
 
-// 4D float vector
+// 4D float matrix
 typedef struct {
   float m[4][4];
 } T3DMat4;
