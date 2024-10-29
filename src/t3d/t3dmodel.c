@@ -133,7 +133,11 @@ static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *co
       if(conf && conf->dynTextureCb)conf->dynTextureCb(conf->userData, mat, &texParam, tile);
     } else {
       rdpq_sync_tile();
-      rdpq_sprite_upload(tile, tex->texture, &texParam);
+      if(tile == TILE1 && mat->textureA.textureHash == mat->textureB.textureHash) {
+        rdpq_tex_reuse(TILE1, &texParam);
+      } else {
+        rdpq_sprite_upload(tile, tex->texture, &texParam);
+      }
     }
   }
 }
