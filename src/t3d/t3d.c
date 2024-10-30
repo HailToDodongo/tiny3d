@@ -415,11 +415,15 @@ void t3d_viewport_attach(T3DViewport *viewport) {
   t3d_matrix_set(&viewport->_matCameraFP, false);
 }
 
-void t3d_viewport_set_projection(T3DViewport *viewport, float fov, float near, float far) {
-  float aspectRatio = (float)viewport->size[0] / (float)viewport->size[1];
+void t3d_viewport_set_perspective(T3DViewport *viewport, float fov, float aspectRatio, float near, float far) {
   t3d_viewport_set_w_normalize(viewport, near, far);
   t3d_mat4_perspective(&viewport->matProj, fov, aspectRatio, near, far);
   viewport->_isCamProjDirty = true;
+}
+
+void t3d_viewport_set_projection(T3DViewport *viewport, float fov, float near, float far) {
+  float aspectRatio = (float)viewport->size[0] / (float)viewport->size[1];
+  t3d_viewport_set_perspective(viewport, fov, aspectRatio, near, far);
 }
 
 void t3d_viewport_set_ortho(T3DViewport *viewport, float left, float right, float bottom, float top, float near, float far) {

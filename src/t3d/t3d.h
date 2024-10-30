@@ -177,8 +177,22 @@ inline static void t3d_viewport_set_area(T3DViewport *viewport, int32_t x, int32
 }
 
 /**
+ * Updates the projection matrix of the given viewport using a perspective projection.
+ * The proj. matrix gets auto. applied at the next `t3d_viewport_attach` call.
+ *
+ * @param viewport
+ * @param fov fov in radians
+ * @param aspectRatio aspect ratio (= width / height)
+ * @param near near plane distance
+ * @param far far plane distance (should be >=40 to avoid depth-precision issues)
+ */
+void t3d_viewport_set_perspective(T3DViewport *viewport, float fov, float aspectRatio, float near, float far);
+
+/**
  * Updates the projection matrix of the given viewport.
  * The proj. matrix gets auto. applied at the next `t3d_viewport_attach` call.
+ *
+ * NOTE: if you need a custom aspect ratio, use 't3d_viewport_set_perspective' instead.
  *
  * @param viewport
  * @param fov fov in radians

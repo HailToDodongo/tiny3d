@@ -36,6 +36,7 @@ int main()
   dfs_init(DFS_DEFAULT_LOCATION);
 
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  float aspectRatio = (float)display_get_width() / (float)display_get_height();
 
   rdpq_init();
   //rdpq_debug_start();
@@ -107,7 +108,7 @@ int main()
       colorAmbient[1] = colorAmbient[2];
     }
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
+    t3d_viewport_set_perspective(&viewport, T3D_DEG_TO_RAD(85.0f), aspectRatio, 10.0f, 150.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     if(syncPoint)rspq_syncpoint_wait(syncPoint); // wait for the RSP to process the previous frame
