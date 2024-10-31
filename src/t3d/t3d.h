@@ -570,6 +570,7 @@ inline void t3d_viewport_calc_viewspace_pos(T3DViewport &viewport, T3DVec3 &out,
 inline void t3d_light_set_directional(int index, const uint8_t *color, const T3DVec3 &dir) { t3d_light_set_directional(index, color, &dir); }
 inline void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 &pos, float size, bool ignoreNormals = false) { t3d_light_set_point(index, color, &pos, size, ignoreNormals); }
 
+inline void t3d_light_set_ambient(const color_t &color) { t3d_light_set_ambient((const uint8_t*)&color); }
 inline void t3d_light_set_directional(int index, const color_t &color, const T3DVec3 &dir) { t3d_light_set_directional(index, (const uint8_t*)&color, &dir); }
 inline void t3d_light_set_point(int index, const color_t &color, const T3DVec3 &pos, float size, bool ignoreNormals = false) { t3d_light_set_point(index, (const uint8_t*)&color, &pos, size, ignoreNormals); }
 
