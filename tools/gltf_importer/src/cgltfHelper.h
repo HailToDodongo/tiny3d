@@ -100,6 +100,32 @@ namespace Gltf
     return result;
   }
 
+  inline Vec4 readAsColor(uint8_t* &data, cgltf_type type, cgltf_component_type compType) {
+    Vec4 result{};
+    switch(type) {
+      case cgltf_type_vec3: {
+        result[0] = readAsFloat(data, compType);
+        result[1] = readAsFloat(data + getDataSize(compType), compType);
+        result[2] = readAsFloat(data + getDataSize(compType) * 2, compType);
+        result[3] = 1.0f;
+        data += getDataSize(compType) * 3;
+        break;
+      }
+      case cgltf_type_vec4: {
+        result[0] = readAsFloat(data, compType);
+        result[1] = readAsFloat(data + getDataSize(compType), compType);
+        result[2] = readAsFloat(data + getDataSize(compType) * 2, compType);
+        result[3] = readAsFloat(data + getDataSize(compType) * 3, compType);
+        data += getDataSize(compType) * 4;
+        break;
+      }
+      default:
+        printf("Unsupported type: %s (%d)\n", getTypeString(type), type);
+        throw std::runtime_error("Unsupported type");
+    }
+    return result;
+  }
+
   inline Vec4 readAsVec4(const uint8_t* data, cgltf_type type, cgltf_component_type compType) {
     Vec4 result{};
     switch(type) {

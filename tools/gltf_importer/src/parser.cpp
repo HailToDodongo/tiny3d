@@ -17,6 +17,15 @@
 #include "parser/parser.h"
 #include "converter/converter.h"
 
+namespace {
+  const std::vector<std::string> BAD_VERSIONS{
+    "Blender I/O v4.1",
+    "Blender I/O v4.2",
+    "Blender I/O v4.3",
+    "Blender I/O v4.4",
+  };
+}
+
 void printBoneTree(const Bone &bone, int depth)
 {
   for(int i=0; i<depth; ++i)printf("  ");
@@ -48,6 +57,20 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
   }
 
   cgltf_load_buffers(&options, data, gltfPath);
+
+  if(data->asset.generator) {
+    std::string metaData(data->asset.generator);
+    for(auto &badVer : BAD_VERSIONS) {
+      if(metaData.find(badVer) != std::string::npos) {
+        std::string err = "\n==============================\n"
+          "Error: Blender glTF version not supported: '" + badVer + "'\n"
+          "Blender versions after 4.0 have a broken or incorrect GLTF exporter (e.g. wrong vertex colors)\n"
+          "For the time being, please use Blender 4.0. A fix *may* arrive in 4.4\n"
+          "==============================\n";
+        throw std::runtime_error(err);
+      }
+    }
+  }
 
   // Bones / Armature
   int boneCount = 0;
@@ -162,7 +185,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
         auto basePtr = ((uint8_t*)acc->buffer_view->buffer->data) + acc->buffer_view->offset + acc->offset;
         auto elemSize = Gltf::getDataSize(acc->component_type);
 
-        // printf("     - Attribute %d: %s\n", k, attr->name);
+        //printf("     - Attribute %d: %s\n", k, attr->name);
         if(attr->type == cgltf_attribute_type_position)
         {
           assert(attr->data->type == cgltf_type_vec3);
@@ -178,19 +201,22 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
 
         if(attr->type == cgltf_attribute_type_color)
         {
-          assert(attr->data->type == cgltf_type_vec4);
-
           for(int l = 0; l < acc->count; l++)
           {
             auto &v = vertices[l];
-            v.color[0] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
-            v.color[1] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
-            v.color[2] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
-            v.color[3] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
+            auto color = Gltf::readAsColor(basePtr, attr->data->type, acc->component_type);
+            //printf("Color[%s]: %f %f %f %f\n", attr->name, color[0], color[1], color[2], color[3]);
 
-            // linear to gamma
-            for(int c=0; c<3; ++c) {
-              v.color[c] = powf(v.color[c], 0.4545f);
+            if(!attr->name || strcmp(attr->name, "COLOR_0") == 0) {
+              v.color[0] = color[0];
+              v.color[1] = color[1];
+              v.color[2] = color[2];
+              v.color[3] = color[3];
+
+              // linear to gamma
+              for(int c=0; c<3; ++c) {
+                v.color[c] = powf(v.color[c], 0.4545f);
+              }
             }
           }
         }
