@@ -415,6 +415,10 @@ void t3d_viewport_attach(T3DViewport *viewport) {
   t3d_matrix_set(&viewport->_matCameraFP, false);
 }
 
+T3DViewport *t3d_viewport_get() {
+  return currentViewport;
+}
+
 void t3d_viewport_set_perspective(T3DViewport *viewport, float fov, float aspectRatio, float near, float far) {
   t3d_viewport_set_w_normalize(viewport, near, far);
   t3d_mat4_perspective(&viewport->matProj, fov, aspectRatio, near, far);

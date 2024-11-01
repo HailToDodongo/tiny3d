@@ -18,9 +18,11 @@ include $(N64_INST)/include/n64.mk
 
 src := $(SOURCE_DIR)/t3d.c $(SOURCE_DIR)/t3dmath.c $(SOURCE_DIR)/t3dmodel.c \
 	$(SOURCE_DIR)/t3ddebug.c $(SOURCE_DIR)/t3dskeleton.c $(SOURCE_DIR)/t3danim.c \
-	$(SOURCE_DIR)/rsp/rsp_tiny3d.S
+	$(SOURCE_DIR)/tpx.c \
+	$(SOURCE_DIR)/rsp/rsp_tiny3d.S $(SOURCE_DIR)/rsp/rsp_tinypx.S
 inc := $(SOURCE_DIR)/t3d.h $(SOURCE_DIR)/t3dmath.h $(SOURCE_DIR)/t3dmodel.h \
-	$(SOURCE_DIR)/t3ddebug.h $(SOURCE_DIR)/t3dskeleton.h $(SOURCE_DIR)/t3danim.h
+	$(SOURCE_DIR)/t3ddebug.h $(SOURCE_DIR)/t3dskeleton.h $(SOURCE_DIR)/t3danim.h \
+	$(SOURCE_DIR)/tpx.h
 
 # N64_CFLAGS += -std=gnu2x -DNDEBUG
 N64_CFLAGS += -std=gnu2x -Os -Isrc \
@@ -30,7 +32,9 @@ N64_CFLAGS += -std=gnu2x -Os -Isrc \
 
 OBJ = $(BUILD_DIR)/t3dmath.o $(BUILD_DIR)/t3d.o \
 	$(BUILD_DIR)/t3dmodel.o $(BUILD_DIR)/t3ddebug.o $(BUILD_DIR)/t3dskeleton.o $(BUILD_DIR)/t3danim.o \
-	$(BUILD_DIR)/rsp/rsp_tiny3d.o $(BUILD_DIR)/rsp/rsp_tiny3d_clipping.o
+	$(BUILD_DIR)/tpx.o \
+	$(BUILD_DIR)/rsp/rsp_tiny3d.o $(BUILD_DIR)/rsp/rsp_tiny3d_clipping.o \
+	$(BUILD_DIR)/rsp/rsp_tinypx.o
 
 all: $(BUILD_DIR)/libt3d.a
 
