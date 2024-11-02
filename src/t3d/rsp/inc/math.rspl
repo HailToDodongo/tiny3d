@@ -1,0 +1,27 @@
+/**
+* @copyright 2024 - Max Bebök
+* @license MIT
+*/
+
+/**
+ * Multiplies a matrix with a 3D-vector.
+ * This assumes a matrix duplicated in each register to
+ * multiply 2 different vectors in one register at the same time.
+ */
+macro mulMat4Vec8(
+  vec32 mat0, vec32 mat1, vec32 mat2, vec32 mat3,
+  vec16 vec, vec32 out
+) {
+  out = mat0  * vec.xxxxXXXX;
+  out = mat1 +* vec.yyyyYYYY;
+  out = mat2 +* vec.zzzzZZZZ;
+  out = mat3 +* vec.wwwwWWWW;
+}
+
+// 4D dot-product with two vectors at once, result is in 'res.x' and 'res.X'
+macro dotXYZW(vec32 res, vec32 a, vec32 b)
+{
+  res = a * b;
+  res += res.yywwYYWW;
+  res += res.zzzzZZZZ;
+}

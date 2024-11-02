@@ -18,8 +18,8 @@ extern uint32_t TPX_RSP_ID;
 enum TPXCmd {
   TPX_CMD_SYNC_T3D   = 0x0,
   TPX_CMD_DRAW_COLOR = 0x1,
-  //                 = 0x2,
-  //                 = 0x3,
+  TPX_CMD_DRAW_TEX   = 0x2,
+  TPX_CMD_SET_DMEM   = 0x3,
   //                 = 0x4,
   //                 = 0x5,
   //                 = 0x6,
@@ -65,6 +65,13 @@ void tpx_init(TPXInitParams params);
  *  - W-normalization factor
  */
 void tpx_state_from_t3d();
+
+/**
+ * Sets a global scaling factor applied to all particles
+ * Note that you can only scale down, not up.
+ * @param scale scaling factor, range: 0.0 - 1.0
+ */
+void tpx_state_set_scale(float scale);
 
 void tpx_particle_draw(TPXParticle *particles, uint32_t count);
 

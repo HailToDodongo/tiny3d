@@ -12,8 +12,8 @@ void generateParticles(TPXParticle *particles, int count, bool dynScale) {
     uint8_t *ptColor = i % 2 == 0 ? particles[p].colorA : particles[p].colorB;
 
     if(dynScale) {
-      particles[p].sizeA = 4 + (rand() % 60);
-      particles[p].sizeB = 4 + (rand() % 60);
+      particles[p].sizeA = 2 + (rand() % 24);
+      particles[p].sizeB = 2 + (rand() % 24);
     } else {
       particles[p].sizeA = 4;
       particles[p].sizeB = 4;
@@ -72,14 +72,19 @@ int main()
   model->userBlock = rspq_block_end();
 
   T3DMat4FP *matFP = malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP *matPartFP = malloc_uncached(sizeof(T3DMat4FP));
 
   T3DVec3 camPos = {{3.0f, 65.0f, 65.0f}};
   T3DVec3 camTarget = {{0,0,0}};
   T3DVec3 camDir = {{0,0,1}};
   float camRotX = 1.5;
   float camRotY = 4.0f;
+  bool showModel = true;
 
-  int particleCount = 164;
+  int batchSize = 344;
+  int batchCountMax = 500;
+  int batchCount = 10;
+  int particleCount = batchSize * batchCountMax;
   TPXParticle *particles = malloc_uncached(sizeof(TPXParticle) * particleCount/2);
   generateParticles(particles, particleCount, true);
 
@@ -89,6 +94,8 @@ int main()
 
   T3DViewport viewport = t3d_viewport_create();
   float rotAngle = 0.0f;
+  float partScale = 0.75f;
+  float partSize = 0.15f;
 
   for(;;)
   {
@@ -102,6 +109,20 @@ int main()
     if(joypad.stick_x < 10 && joypad.stick_x > -10)joypad.stick_x = 0;
     if(joypad.stick_y < 10 && joypad.stick_y > -10)joypad.stick_y = 0;
 
+    if(joypad.btn.a)partScale += deltaTime * 0.6f;
+    if(joypad.btn.b)partScale -= deltaTime * 0.6f;
+    if(joypad.btn.d_up)partSize += deltaTime * 0.6f;
+    if(joypad.btn.d_down)partSize -= deltaTime * 0.6f;
+    partSize = fmaxf(0.01f, fminf(1.0f, partSize));
+
+    if(joypad.btn.d_left)batchCount--;
+    if(joypad.btn.d_right)batchCount++;
+    if(batchCount < 0)batchCount = 0;
+    if(batchCount > batchCountMax)batchCount = batchCountMax;
+
+    particleCount = batchSize * batchCount;
+
+    if(btn.start)showModel = !showModel;
     {
       float camSpeed = deltaTime * 1.1f;
       float camRotSpeed = deltaTime * 0.02f;
@@ -132,7 +153,7 @@ int main()
     }
 
     // we can set up our viewport settings beforehand here
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(80.0f), 5.0f, 200.0f);
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(80.0f), 5.0f, 250.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     // ======== Draw (3D) ======== //
@@ -147,25 +168,34 @@ int main()
     t3d_light_set_ambient(colorAmbient); // one global ambient light, always active
     t3d_light_set_count(0);
 
-    float scale = 0.5f;
-    t3d_mat4fp_from_srt_euler(matFP,
-      (float[]){scale, scale, scale},
+    t3d_mat4fp_from_srt_euler(matPartFP,
+      (float[]){partScale, partScale, partScale},
       (float[]){rotAngle,rotAngle*2.4f,rotAngle*1.3f},
       (float[]){0,0,0}
     );
+    float modelScale = 0.25f;
+    t3d_mat4fp_from_srt_euler(matFP,
+      (float[]){modelScale, modelScale, modelScale},
+      (float[]){0,0,0},
+      (float[]){0,0,0}
+    );
     t3d_matrix_push(matFP);
+    if(showModel)rspq_block_run(model->userBlock);
+    t3d_matrix_set(matPartFP, true);
 
-    rspq_block_run(model->userBlock);
-
+    rdpq_sync_pipe();
     rdpq_set_mode_standard();
     rdpq_mode_zbuf(true, true);
     rdpq_mode_zoverride(true, 0, 0);
     rdpq_mode_combiner(RDPQ_COMBINER_FLAT);
 
     tpx_state_from_t3d(); // copy the current state from t3d to tpx
+    tpx_state_set_scale(partSize);
 
     //uint64_t ticks = get_ticks();
-    tpx_particle_draw(particles, particleCount);
+    for(int i = 0; i < batchCount; i++) {
+      tpx_particle_draw(particles + (i * batchSize/2), batchSize);
+    }
     //rspq_wait();
     //ticks = get_ticks() - ticks;
 
@@ -173,8 +203,9 @@ int main()
 
     rdpq_sync_pipe();
     rdpq_sync_tile();
-    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 24, "Cam: %.2f %.2f %.2f", camPos.v[0], camPos.v[1], camPos.v[2]);
-    //rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 24+12, "RSP: %.2f", TICKS_TO_US(ticks) / 1000.0f);
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 30, "Particles: %d (%dx%d)", particleCount, batchCount, batchSize);
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 40, "%.2f", partSize);
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 240-24, "FPS: %.2f", display_get_fps());
 
     rdpq_detach_show();
   }

@@ -6,6 +6,7 @@
 #include <t3d/t3d.h>
 
 #include "rsp/rsp_tiny3d.h"
+#include "rsp/rsp_tinypx.h"
 
 extern rsp_ucode_t rsp_tiny3d;
 DEFINE_RSP_UCODE(rsp_tinypx);
@@ -14,6 +15,16 @@ uint32_t TPX_RSP_ID = 0;
 void tpx_init([[maybe_unused]] TPXInitParams params)
 {
   TPX_RSP_ID = rspq_overlay_register(&rsp_tinypx);
+}
+
+inline static void tpx_dmem_set_u32(uint32_t addr, uint32_t value) {
+  addr &= 0xFFFF;
+  rspq_write(TPX_RSP_ID, TPX_CMD_SET_DMEM, addr, value);
+}
+
+inline static void tpx_dmem_set_u16(uint32_t addr, uint32_t value) {
+  addr &= 0xFFFF;
+  rspq_write(TPX_RSP_ID, TPX_CMD_SET_DMEM, addr | 0x8000, value);
 }
 
 void tpx_state_from_t3d()
@@ -31,10 +42,14 @@ void tpx_state_from_t3d()
   );
 }
 
+void tpx_state_set_scale(float scale) {
+  tpx_dmem_set_u16(RSP_TPX_PARTICLE_SCALE, (uint16_t)roundf(scale * 0x7FFF));
+}
+
 void tpx_particle_draw(TPXParticle *particles, uint32_t count)
 {
+  assert(count <= 344);
   count = sizeof(TPXParticle) * count / 2;
-  assert(count < 2048);
   rdpq_write(-1, TPX_RSP_ID, TPX_CMD_DRAW_COLOR,
       count, (uint32_t)UncachedAddr(particles)
    );
