@@ -73,6 +73,13 @@ void tpx_state_from_t3d();
  */
 void tpx_state_set_scale(float scale);
 
+/**
+ * Draws a given amount of particles.
+ * In contrast to triangles in t3d, this works in a single command.
+ * So load, transform and draw happens in one go.
+ * @param particles pointer to the particle data
+ * @param count number of particles to draw
+ */
 void tpx_particle_draw(TPXParticle *particles, uint32_t count);
 
 /**

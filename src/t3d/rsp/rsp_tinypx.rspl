@@ -36,7 +36,6 @@ state
 
   alignas(8) vec16 MATRIX_PROJ[4];   // projection matrix
   alignas(8) vec16 MATRIX_MVP[4];    // view * model * projection
-  alignas(8) vec16 MATRIX_MV[4];
 
   vec16 SCREEN_SCALE_OFFSET = {
     0, 0, 0,           0, // screen size scale (.xyzw)
@@ -61,7 +60,7 @@ function RDPQ_Send(u16<$s4> dmemStart, u16<$s3> dmaDmemEnd);
 
 command<0> TPXCmd_SyncT3D(u32 rdramMatrix, u32 rdramScreen, u16 wNorm)
 {
-  dma_in_async(MATRIX_PROJ, rdramMatrix, 192); // P, MVP, MV
+  dma_in_async(MATRIX_PROJ, rdramMatrix, 128); // P, MVP, MV
   store(wNorm, NORM_SCALE_W, 6);
   dma_in_async(SCREEN_SCALE_OFFSET, rdramScreen); // normal matrix
 }
@@ -112,6 +111,21 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
   vec16 globalPartSize;
   globalPartSize.x = load(PARTICLE_SCALE).x;
 
+  // while the DMA is running, we init the RDP buffer with fixed values (command ids)
+  // so we don't have to do it each loop iteration
+  {
+    u16 buffRdp = RDP_BUFF;
+    u16 buffRdpEnd = dmaDmemFlush + 24;
+    cmdRdpColor = RDP_CMD_PRIM;
+    cmdRdpDepth = RDP_CMD_DEPTH;
+    loop {
+      store(cmdRdpColor, buffRdp, 0);
+      store(cmdRdpDepth, buffRdp, 8);
+      store(ZERO:u16, buffRdp, 0x0E); // delta-z in depth command
+      buffRdp += 24;
+    } while(buffRdp != buffRdpEnd)
+  }
+
   dma_await();
 
   u32 posA, posB, posEndA, posEndB;
@@ -128,14 +142,15 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
 
   u32<$a2> temp0;
 
+  // point to clip space
+  mulMat4Vec8(mat0, mat1, mat2, mat3, posStart, posClip);
+  temp1 = clip(posClip, posClip.wwwwWWWW);
+
   // Iterate over all points, transform + clip, save back those that need to be drawn
   // the transformed amount might be smaller and shifted due to that
   loop {
-    // point to clip space
-    mulMat4Vec8(mat0, mat1, mat2, mat3, posStart, posClip);
-
     // only clip-check against Z to prevent overflow, X/Y is clamped in screen-space later
-    temp1 = clip(posClip, posClip.wwwwWWWW);
+
     clipA = temp1 & 0b0000'0100'0000'0100;
     clipB = temp1 & 0b0100'0000'0100'0000;
 
@@ -180,8 +195,6 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
 
     // load color and prepare RPD command IDs
     vec16 color = load(ptrIn, 0x08).xyzw;
-    cmdRdpColor = RDP_CMD_PRIM;
-    cmdRdpDepth = RDP_CMD_DEPTH;
     cmdRdpRect = RDP_CMD_RECT;
 
     // Save the rectangles now. Each one consists of 3 commands: color, depth, rect
@@ -190,14 +203,11 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
 
     //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
     // "Prim Color": |0x3A |  -  |    LOD    ||      color (RGBA)     |
-    store(cmdRdpColor, dmaDmemEnd);
     store(color.xy, dmaDmemEnd, 4);
 
     //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
     // "Prim Depth": |0x2E |  -  |  -  |  -  ||   depth   |  delta-Z  |
-    posCenter.w = 0; // will be the z-delta, always 0
-    store(cmdRdpDepth,  dmaDmemEnd, 0x00, 8);
-    store(posCenter.zw, dmaDmemEnd, 0x04, 8);
+    store(posCenter.z, dmaDmemEnd, 0x04, 8);
 
     //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
     //  "Fill Rect": |0x36 |   X0/Y0 (10.2)  ||  -  |  X1/Y1 (10.2)   |
@@ -217,14 +227,11 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
       dmaDmemEnd += 24;
     }
 
+    posStart.W = 1;
     // Second rectangle:
-    posCenter.W = 0;
     if(clipB == 0b0011'0000) {
-      store(cmdRdpColor, dmaDmemEnd);
       store(color.zw, dmaDmemEnd, 4);
-
-      store(cmdRdpDepth,  dmaDmemEnd, 0x00, 8);
-      store(posCenter.ZW, dmaDmemEnd, 0x04, 8);
+      store(posCenter.Z, dmaDmemEnd, 0x04, 8);
 
       store(posB, dmaDmemEnd, 0x04, 16);
       @Barrier("pos-cmd") store(posEndB, dmaDmemEnd, 0x00, 16);
@@ -233,7 +240,7 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
       dmaDmemEnd += 24;
     }
 
-    posStart.W = 1;
+    mulMat4Vec8(mat0, mat1, mat2, mat3, posStart, posClip);
 
     // When the RDP buffer in DMEM is full, submit and DMA them out.
     // If anything is left, a last call after the loop will submit the rest.
@@ -241,6 +248,8 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
       RDPQ_Send(dmaDmem, dmaDmemEnd);
       dmaDmemEnd = dmaDmem;
     }
+
+    temp1 = clip(posClip, posClip.wwwwWWWW);
 
   } while (ptrIn != ptrInEnd)
 

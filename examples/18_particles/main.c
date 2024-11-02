@@ -1,9 +1,12 @@
 #include <libdragon.h>
+#include <rspq_profile.h>
 
 #include <t3d/t3d.h>
 #include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 #include <t3d/tpx.h>
+
+#define RCP_TICKS_TO_USECS(ticks) (((ticks) * 1000000ULL) / RCP_FREQUENCY)
 
 void generateParticles(TPXParticle *particles, int count, bool dynScale) {
   for (int i = 0; i < count; i++) {
@@ -12,8 +15,8 @@ void generateParticles(TPXParticle *particles, int count, bool dynScale) {
     uint8_t *ptColor = i % 2 == 0 ? particles[p].colorA : particles[p].colorB;
 
     if(dynScale) {
-      particles[p].sizeA = 2 + (rand() % 24);
-      particles[p].sizeB = 2 + (rand() % 24);
+      particles[p].sizeA = 20 + (rand() % 10);
+      particles[p].sizeB = 20 + (rand() % 10);
     } else {
       particles[p].sizeA = 4;
       particles[p].sizeB = 4;
@@ -60,6 +63,13 @@ int main()
   rdpq_init();
   //rdpq_debug_start();
 
+  rspq_profile_data_t profile_data = (rspq_profile_data_t){};
+  uint64_t rdpTimeBusy = 0;
+  uint64_t rspTimeTPX = 0;
+  #if RSPQ_PROFILE
+    rspq_profile_start();
+  #endif
+
   joypad_init();
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
 
@@ -79,11 +89,11 @@ int main()
   T3DVec3 camDir = {{0,0,1}};
   float camRotX = 1.5;
   float camRotY = 4.0f;
-  bool showModel = true;
+  bool showModel = false;
 
   int batchSize = 344;
   int batchCountMax = 500;
-  int batchCount = 10;
+  int batchCount = 100;
   int particleCount = batchSize * batchCountMax;
   TPXParticle *particles = malloc_uncached(sizeof(TPXParticle) * particleCount/2);
   generateParticles(particles, particleCount, true);
@@ -94,7 +104,7 @@ int main()
 
   T3DViewport viewport = t3d_viewport_create();
   float rotAngle = 0.0f;
-  float partScale = 0.75f;
+  float partScale = 0.25f;
   float partSize = 0.15f;
 
   for(;;)
@@ -115,9 +125,9 @@ int main()
     if(joypad.btn.d_down)partSize -= deltaTime * 0.6f;
     partSize = fmaxf(0.01f, fminf(1.0f, partSize));
 
-    if(joypad.btn.d_left)batchCount--;
-    if(joypad.btn.d_right)batchCount++;
-    if(batchCount < 0)batchCount = 0;
+    if(joypad.btn.d_left)batchCount -= joypad.btn.z ? 10 : 1;
+    if(joypad.btn.d_right)batchCount += joypad.btn.z ? 10 : 1;
+    if(batchCount < 1)batchCount = 1;
     if(batchCount > batchCountMax)batchCount = batchCountMax;
 
     particleCount = batchSize * batchCount;
@@ -144,8 +154,8 @@ int main()
         camPos.v[2] -= camDir.v[0] * (float)joypad.stick_x * -camSpeed;
       }
 
-      if(joypad.btn.c_up)camPos.v[1] += camSpeed * 15.0f;
-      if(joypad.btn.c_down)camPos.v[1] -= camSpeed * 15.0f;
+      if(joypad.btn.c_up)camPos.v[1] += camSpeed * 45.0f;
+      if(joypad.btn.c_down)camPos.v[1] -= camSpeed * 45.0f;
 
       camTarget.v[0] = camPos.v[0] + camDir.v[0];
       camTarget.v[1] = camPos.v[1] + camDir.v[1];
@@ -204,10 +214,30 @@ int main()
     rdpq_sync_pipe();
     rdpq_sync_tile();
     rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 30, "Particles: %d (%dx%d)", particleCount, batchCount, batchSize);
-    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 40, "%.2f", partSize);
-    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 240-24, "FPS: %.2f", display_get_fps());
+    //rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 40, "%.2f", partSize);
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 240, 30, "FPS: %.2f", display_get_fps());
 
+    #if RSPQ_PROFILE
+      double timePerPart = (double)rspTimeTPX / (double)particleCount;
+      rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 240-34, "RSP/tpx: %lldus (%.4f)", rspTimeTPX, timePerPart);
+      rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 240-24, "RDP    : %lldus", rdpTimeBusy);
+    #endif
+//
     rdpq_detach_show();
+
+    #if RSPQ_PROFILE
+      rspq_profile_next_frame();
+      if(++profile_data.frame_count == 30) {
+        rspq_profile_get_data(&profile_data);
+        //rspq_profile_dump();
+        rspq_profile_reset();
+
+        rdpTimeBusy = RCP_TICKS_TO_USECS(profile_data.rdp_busy_ticks / profile_data.frame_count);
+        rspTimeTPX = RCP_TICKS_TO_USECS(profile_data.slots[3].total_ticks / profile_data.frame_count);
+
+        profile_data.frame_count = 0;
+      }
+    #endif
   }
 }
 
