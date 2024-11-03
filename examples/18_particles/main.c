@@ -41,8 +41,9 @@ static void generateParticles(TPXParticle *particles, int count) {
 }
 
 static void gradient_fire(uint8_t *color, float t) {
-    //t = (1.0f - t);
     t = fminf(1.0f, fmaxf(0.0f, t));
+    t = 0.8f - t;
+    t *= t;
 
     if (t < 0.25f) {
         // Dark red to bright red
