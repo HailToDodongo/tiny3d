@@ -15,6 +15,9 @@ which will also perform T&L on them.<br>
 After that, triangles can be drawn referencing loaded vertices by the local index in the cache (0-69).<br>
 While this means we may calculate vertices that are not used in the end (e.g. culled), it still seems to be the most efficient way.
 
+Here is the current layout with the vertex buffer highlighted, each small block is one byte:
+![image info](img/dmem_vert_buff.png)
+
 Currently, t3d has a cache-size of 70, so we have to somehow split out triangle draws to only reference any of the loaded 70 vertices.
 On top, we should optimize these splits to use as little commands and memory as possible.<br>
 While both are interlinked, we take a look of the splitting part first now.
@@ -108,10 +111,33 @@ Since we have knowledge of all triangles, we can determine for every given trian
 If there is space available, we can use that as a target to DMA our index buffer to.<br>
 The benefit of doing it that way is that we don't have to sacrifice our vertex cache size, and instead can dynamically take up free space.<br>
 
+
 ### Triangle-Strip
 
 @TODO: text
 
 ## Materials
 
-@TODO: text
+Objects in a model file are sorted by draw-layer and then materials.<br>
+Besides that, nothing can be done that couldn't be done better at runtime.
+
+But to summarize what happens at runtime:<br>
+Materials don't store the commands to emit, but rather the desired state of a material.<br>
+So this data is evaluated and turned into RDP commands, optionally being recorded into a DPL.<br>
+Due to that, t3d offers a C struct that can be passed into the model draw function.<br>
+This will keep track of the state to minimize commands even across materials or models.<br>
+By default this is always done automatically for you.
+
+
+## Edge-Cases
+There are few special things to handle:
+
+- Skinned meshes require multiple vertex loads, since between each of them they load a different matrix for the bone.<br>
+The logic still works as before, as the part is simply further split into multiple ones per bone.<br>
+
+- t3d's vertex struct contains 2 vertices at once interleaved. This is done to optimize loads on the RSP.<br>
+This needs special handling since it can only have an even amount of vertices in the buffer.
+For odd amounts it will either put garbage or a random vertex in the last once.
+
+- The model format allows only for 4 index-buffers per part, which is enough in all my tests.
+In the case it's not enough, the rest is emitted as regular `t3d_tri_draw` calls.
