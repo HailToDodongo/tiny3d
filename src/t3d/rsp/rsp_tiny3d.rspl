@@ -911,6 +911,9 @@ command<11> T3DCmd_TriDraw_Strip(u32 rdramAddr, u32 countDmem)
   u16<$sp> rejectDest;
   u16<$s7> currOffset;
 
+  u16<$s2> prtDmemEnd = prtDmem + copySize;
+  prtDmemEnd -= 3;
+
   // load culling (persists across loop), and store inverted one for resetting
   u8<$v0> faceCull = load(FACE_CULLING);
   faceCull ^= 1;
@@ -926,19 +929,16 @@ command<11> T3DCmd_TriDraw_Strip(u32 rdramAddr, u32 countDmem)
     prtDmem += 2;
   STRIP_LOOP_NEXT:
     faceCull ^= 1; // strips alternate winding order each time
+    if(prtDmem == prtDmemEnd)goto STRIP_LOOP_END;
 
     idx0     = load(prtDmem, 0);
     idx1:s16 = load(prtDmem, 4); // sign bit marks the end of the strip
     idx2     = load(prtDmem, 2);
 
-    u32 endFlag = idx2 & 0x4000;
-    if(endFlag)goto STRIP_LOOP_END;
-
     prtDmem += 2;
     if(idx1:s16 < 0)goto STRIP_LOOP_NEW;
 
-    rejectDest = STRIP_LOOP_NEXT; // jump-target for rejected/culled tris
-    if(idx0 == idx1)goto STRIP_LOOP_NEXT;
+    rejectDest = STRIP_LOOP_NEXT; // jump-target for rejected/culled tri
 
     //print(idx0, idx1, idx2);
     vertAddr = prtDmem - 2;

@@ -749,6 +749,8 @@ T3DCmd_TriDraw_Strip:
   or $s0, $zero, $a0
   lbu $v0, %lo(FACE_CULLING + 0)
   ori $ra, $zero, %lo(STRIP_LOOP_NEXT)
+  addu $s2, $s4, $t0
+  addiu $s2, $s2, 65533
   addiu $s4, $s4, 65534
   xori $v0, $v0, 1
   sh $ra, %lo(CLIP_RA)($zero)
@@ -757,18 +759,16 @@ T3DCmd_TriDraw_Strip:
   lbu $v0, %lo(RSPQ_SCRATCH_MEM + 16)
   addiu $s4, $s4, 2
   STRIP_LOOP_NEXT:
-  lhu $a2, 2($s4)
+  beq $s4, $s2, STRIP_LOOP_END
   xori $v0, $v0, 1
   lh $a1, 4($s4)
-  andi $s6, $a2, 16384
-  bne $s6, $zero, STRIP_LOOP_END
   lhu $a0, 0($s4)
+  lhu $a2, 2($s4)
   bltz $a1, STRIP_LOOP_NEW
   addiu $s4, $s4, 2
-  beq $a0, $a1, STRIP_LOOP_NEXT
-  ori $sp, $zero, %lo(STRIP_LOOP_NEXT)
-  jal RDPQ_Triangle_Send_Async ## Args: $a0, $a1, $a2, $sp, $v0
   addiu $v1, $s4, 65534
+  jal RDPQ_Triangle_Send_Async ## Args: $a0, $a1, $a2, $sp, $v0
+  ori $sp, $zero, %lo(STRIP_LOOP_NEXT)
   j STRIP_LOOP_NEXT
   sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
   STRIP_LOOP_END:

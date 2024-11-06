@@ -251,6 +251,7 @@ struct Config {
   uint32_t animSampleRate{30};
   bool ignoreMaterials{false};
   bool createBVH{false};
+  bool verbose{false};
 };
 extern Config config;
 

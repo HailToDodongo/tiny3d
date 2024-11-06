@@ -18,6 +18,9 @@ OBJ = build/parser.o build/main.o build/lib/lodepng.o \
 	build/lib/meshopt/spatialorder.o \
 	build/lib/meshopt/vcacheanalyzer.o \
 	build/lib/meshopt/vcacheoptimizer.o \
+	build/lib/tristrip/connectivity_graph.o \
+	build/lib/tristrip/policy.o \
+	build/lib/tristrip/tri_stripper.o
 
 all: gltf_to_t3d
 

@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
 {
   EnvArgs args{argc, argv};
   if(args.checkArg("--help")) {
-    printf("Usage: %s <gltf-file> <t3dm-file> [--bvh] [--base-scale=64] [--ignore-materials]\n", argv[0]);
+    printf("Usage: %s <gltf-file> <t3dm-file> [--bvh] [--base-scale=64] [--ignore-materials] [--verbose]\n", argv[0]);
     return 1;
   }
 
@@ -80,6 +80,7 @@ int main(int argc, char* argv[])
   config.globalScale = (float)args.getU32Arg("--base-scale", 64);
   config.ignoreMaterials = args.checkArg("--ignore-materials");
   config.createBVH = args.checkArg("--bvh");
+  config.verbose = args.checkArg("--verbose");
   config.animSampleRate = 60;
 
   auto t3dm = parseGLTF(gltfPath.c_str(), config.globalScale);
@@ -125,7 +126,27 @@ int main(int argc, char* argv[])
   modelChunks.reserve(t3dm.models.size());
   for(const auto & model : t3dm.models) {
     auto chunks = chunkUpModel(model);
+    if(config.verbose) {
+      printf("[%s] Vertices out: %d\n", model.name.c_str(), chunks.vertices.size());
+    }
     optimizeModelChunk(chunks);
+
+    if(config.verbose) {
+      int totalIdx=0, totalStrips=0, totalStripCmd = 0;
+      for(auto &c : chunks.chunks) {
+        printf("[%s:part-%ld] Indices | List: %d, Strip: %d %d %d %d\n",
+          model.name.c_str(), &c - &chunks.chunks[0],
+          c.indices.size(),
+          c.stripIndices[0].size(), c.stripIndices[1].size(),
+          c.stripIndices[2].size(), c.stripIndices[3].size()
+        );
+        totalIdx += c.indices.size();
+        totalStrips += c.stripIndices[0].size() + c.stripIndices[1].size() + c.stripIndices[2].size() + c.stripIndices[3].size();
+        totalStripCmd += !c.stripIndices[0].empty() + !c.stripIndices[1].empty() + !c.stripIndices[2].empty() + !c.stripIndices[3].empty();
+      }
+      printf("[%s] Total indices | List: %d, Strip: %d (commands: %d)\n", model.name.c_str(), totalIdx, totalStrips, totalStripCmd);
+    }
+
     chunks.triCount = model.triangles.size();
     modelChunks.push_back(chunks);
     chunkCount += 1; // object
