@@ -144,7 +144,7 @@ void optimizeModelChunk(ModelChunked &model)
       auto &res = chunk.stripIndices[stripIdx];
       int oldSize = res.size();
       if(!res.empty()) {
-        res.push_back((int16_t )-(strip[0]+1));
+        res.push_back(strip[0] | (1<<15));
         res.insert(res.end(), strip.begin()+1, strip.end());
       } else {
         res.insert(res.end(), strip.begin(), strip.end());

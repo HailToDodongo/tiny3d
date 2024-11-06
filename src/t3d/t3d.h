@@ -490,15 +490,16 @@ static inline void* t3d_segment_address(uint8_t segmentId, void* ptr) {
  * The input data is expected to be an array of local indices (0-69) as s16 values.
  * The first 3 values define the initial triangle.
  * Every index afterwards will extend the strip by one triangle (winding order flipped).
- * Degenerate triangles are supported (in the form of index[x] == index[x+2]).
- * To start a new strip, negate the next index and subtract one (e.g. 5 becomes -6),
- * meaning the negative value and the 2 following values will form a new triangle, re-starting the strip.
+ * Degenerate triangles are NOT supported, since it is always more efficient to use a restart flag.
+ * To start a new strip, set the MSB of the next index, so: 'idx | (1<<15)'
+ * meaning the flagged value and the 2 following values will form a new triangle, re-starting the strip.
  * Since restarting does not need a special index value, non-stripped indices (triangle lists)
  * can be encoded too without overhead.
  *
  * Examples:   (original triangles -> expected input of this function)
- * [4,5,6] [0,1,2] [7,8,9]         -> [4,5,6,-1,1,2,-8,8,9]
+ * [4,5,6] [0,1,2] [7,8,9]         -> [4,5,6,#1,1,2,#8,8,9]
  * [0,1,2] [3,0,2] [0,3,4] [5,0,4] -> [1,2,0,3,0,4,5]
+ * (The '#' is used to mark the MSB here)
  *
  * @param indices index buffer of local indices, will be modified in-place
  * @param count index count
