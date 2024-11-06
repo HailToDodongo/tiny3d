@@ -134,8 +134,10 @@ int main(int argc, char* argv[])
     if(config.verbose) {
       int totalIdx=0, totalStrips=0, totalStripCmd = 0;
       for(auto &c : chunks.chunks) {
-        printf("[%s:part-%ld] Indices | List: %d, Strip: %d %d %d %d\n",
-          model.name.c_str(), &c - &chunks.chunks[0],
+        printf("[%s:part-%ld] Vert: %d | Idx-Tris: %d | Idx-Strip: %d %d %d %d\n",
+          model.name.c_str(),
+          &c - &chunks.chunks[0],
+          c.vertexCount,
           c.indices.size(),
           c.stripIndices[0].size(), c.stripIndices[1].size(),
           c.stripIndices[2].size(), c.stripIndices[3].size()
@@ -144,7 +146,7 @@ int main(int argc, char* argv[])
         totalStrips += c.stripIndices[0].size() + c.stripIndices[1].size() + c.stripIndices[2].size() + c.stripIndices[3].size();
         totalStripCmd += !c.stripIndices[0].empty() + !c.stripIndices[1].empty() + !c.stripIndices[2].empty() + !c.stripIndices[3].empty();
       }
-      printf("[%s] Total indices | List: %d, Strip: %d (commands: %d)\n", model.name.c_str(), totalIdx, totalStrips, totalStripCmd);
+      printf("[%s] Idx-Tris: %d, Idx-Strip: %d (commands: %d)\n", model.name.c_str(), totalIdx, totalStrips, totalStripCmd);
     }
 
     chunks.triCount = model.triangles.size();

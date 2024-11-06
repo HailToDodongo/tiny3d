@@ -31,7 +31,7 @@ Here is an example visualization of the structure we want to build:<br>
 
 Note that this is the perspective of the file, so the data you see is in RDRAM.<br>
 Whereas e.g. the `t3d_vert_load(..., 0, 70)` is the offset/size of where to load it into the vertex cache.<br>
-The reason why there are strips and negative indices is explained later.<br>
+The reason why there are strips is explained later.<br>
 (For more details on how the data is stored check out the file-format: [modelFormat.md](modelFormat.md))
 
 ## Splitting
@@ -130,35 +130,152 @@ As an example, we can draw these 4 triangles with just 6 indices instead of 12:<
 
 After the first triangles that still needs 3 indices,<br>
 we can assume that the next index simply expand the triangle by re-using the last 2 indices.<br>
-The format t3d uses, also makes use of two additional features:<br>
 
 #### Reset-Index
 At some point the strip stops, mostly because not all triangles are connected.<br>
 Instead of emitting individual commands for each strip, we encode a marker to tell that a reset is needed.<br>
 This allows us to chain any given strips together, and we can load them all with one command.<br>
 
-For that we negate the first index of a new strip and subtract one.<br>
-This avoids having to waste a special value some other implementations use.<br>
-(Note that at runtime where we have DMEM addresses instead, the MSB is set. Which i may use for the model format too in the future).<br>
+For that we mark the first index of a new strip by setting the MSB to 1.<br>
+This avoids having to insert special index like some other implementations use.<br>
 
 One nice side-effect is that we could encode regular triangle-list that are not strips too without any overhead.<br>
 This is not useful for the model format, but manual usage of the t3d API can make use of this.
 
 #### Degenerate Triangles
 
-Sometimes triangles only share a single vertex with the last one.<br>
-For that we would need to restart the strip, however we can sometimes use a trick to avoid that.<br>
-By repeating the first index again, we create a "degenerate triangle", so a line instead of a polygon.<br>
-This will be discarded at runtime, in t3d's ucode directly in the strip loop by checking if the index is the same.<br>
-After that, the last two indices are different again, and we can continue the strip.<br>
+Sometimes triangles only share a single vertex with the last one, forcing us to start a new strip.<br>
+Some libraries will generate strips with degenerate triangles to avoid this.<br>
+Meaning they will emit triangles where 2 indices are the same, which causes it to be discarded, and the indices to shift.<br>
+However since we have a restart-index without any overhead, this is always worse.<br>
+In addition, the ucode would have to explicitly handle this in the loop.<br>
+For that reason, degenerated triangles are not supported.<br>
 
-As an example:
-
-@TODO: image
 
 #### Generating Strip-Commands
+Now that we know how to encode strips, we can generate them.<br>
+We first stripify the index buffer we already have in the part using this library: https://github.com/GPSnoopy/TriStripper <br>
+This will return a list of individual strips.<br>
 
-@TODO: 
+Note that i'm not using meshoptimizer here as it forces degenerate triangles.<br>
+TriStripper does explicitly not, and generates shorter sequences than meshoptimizer.<br>
+
+Here is a a very simple mesh, left the input, right the output of TriStripper:
+![tri_strip_example](./img/tri_strip_example.png)
+It created one strip, and then a single triangle for the leftover one.
+
+Since we want to have at least some room for our strips, we first make sure that at least 2 vertex slots are unused.<br>
+For that we simply draw all triangles that use them using regular triangle commands.<br>
+It's important to note that strip commands carry some overhead, needing to start a DMA and setup some registers.<br>
+So they are only more efficient when they draw several triangles.<br>
+
+Now starts the main loop, we try to fit as many strips into the free slots, preferring ones that container larger indices.<br>
+This is done to increase the chance to end up with more space after.<br>
+All fitting strips are concatenated together using the MSB flag mentioned earlier.<br>
+After nothing fits anymore, we can look at all the strips still left, and reevaluate how many vertex slots are free now.<br>
+This then repeats until not strips are left.<br>
+Note that after each iteration, the space of the previous strip is free to use again, so we can't create a dead-lock.<br>
+
+Now we are finally finished!<br>
+What we have now is a sequence of vertex loads, followed by single triangle draws, followed by commands to load and draw index buffers.<br>
+At that's left at runtime is to simply execute those commands in the given order.<br>
+
+### Example
+For some example, we can look at the testmodel in the example `99_testscene`:
+![model](./img/example_model.jpg)
+
+This is a single object with 4 disconnected meshes, the right monkey head is also flat-shaded (in the mesh, not as a draw-flag).
+
+And here the log of all the parts:
+this shows the amount of vertices loaded at once, then the index count for regulat individual triangles (so 3 per tri), and lastly the index count for each of the triangle strip commands.
+```
+[Scene] Vertices input: 3642
+[Scene] Indices input: 6978
+[Scene] Vertices out: 3698
+[Scene:part-0] Vert: 70 | Idx-Tris: 6 | Idx-Strip: 35 85
+[Scene:part-1] Vert: 70 | Idx-Tris: 6 | Idx-Strip: 34 99
+[Scene:part-2] Vert: 70 | Idx-Tris: 9 | Idx-Strip: 35 98
+[Scene:part-3] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 34 99
+[Scene:part-4] Vert: 70 | Idx-Tris: 6 | Idx-Strip: 33 107
+[Scene:part-5] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 34 110
+[Scene:part-6] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 34 96
+[Scene:part-7] Vert: 70 | Idx-Tris: 6 | Idx-Strip: 34 101
+[Scene:part-8] Vert: 70 | Idx-Tris: 6 | Idx-Strip: 35 92
+[Scene:part-9] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 35 35 81
+[Scene:part-10] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 35 95
+[Scene:part-11] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 35 127
+[Scene:part-12] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 49 109
+[Scene:part-13] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 49 18
+[Scene:part-14] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 49 18
+[Scene:part-15] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 33 35
+[Scene:part-16] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-17] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-18] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 35 33
+[Scene:part-19] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 35 39
+[Scene:part-20] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 49 18
+[Scene:part-21] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 35 34
+[Scene:part-22] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 35 33
+[Scene:part-23] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-24] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 33 35
+[Scene:part-25] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 33 36
+[Scene:part-26] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 33 35
+[Scene:part-27] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 48 19
+[Scene:part-28] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-29] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 33 35
+[Scene:part-30] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 35 33
+[Scene:part-31] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-32] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 35 33
+[Scene:part-33] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 49 18
+[Scene:part-34] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 35 33
+[Scene:part-35] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 47 20
+[Scene:part-36] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 49 67
+[Scene:part-37] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-38] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-39] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 33 36
+[Scene:part-40] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 33 35
+[Scene:part-41] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-42] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-43] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-44] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-45] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-46] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-47] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-48] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-49] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-50] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-51] Vert: 68 | Idx-Tris: 0 | Idx-Strip: 48 19
+[Scene:part-52] Vert: 70 | Idx-Tris: 3 | Idx-Strip: 66
+[Scene:part-53] Vert: 34 | Idx-Tris: 0 | Idx-Strip: 33
+[Scene] Idx-Tris: 111, Idx-Strip: 4563 (commands: 90)
+```
+
+As mentioned earlier the amount of vertices slightly increased due to the duplication logic.<br>
+However we do end up with loads that almost always load the entire cache at once.<br>
+
+The amount of individual triangle we have to draw to free up slots for strips is also very low, usually only taking 0 or 1 triangle.<br>
+For indices, we can see a decrease from 6978 to 4674, a save of ~33%.<br>
+More importantly, just 127 commands to draw them (`90 + 111/3`).<br>
+Without strips that would have been 2326 commands, which is a reduction of `94.5%`!<br>
+
+In terms of memory traffic, triangle strips also have a big effect.<br>
+If you sum up the memory-bandwidth needed for both the commands and buffers:
+```
+  37x t3d_tri_draw()       = 37   * 8b =   296b
++ 90x t3d_tri_draw_strip() = 90   * 8b =   720b
++ strip buffer             = 4563 * 2b =  9126b
+================================= Total: 10142b
+```
+Compared to no strips:
+```
+  2326x t3d_tri_draw()     = 2326 * 8b = 18608b
+================================= Total: 18608b
+```
+In total a reduction of ~45.5%!<br>
+Which ofc has the nice side-effect of making other things faster as the memory-bus is less busy.<br>
+
+In terms of RSP performance of the ucode itself, strips in this model saved 1650us.<br>
+As the time of writing, bringing it down to 8807us of RSP time.<br>
+Note there the are more factors involved to it, so RSP time saves may differ a bit depending on the scene.<br>
 
 ## Materials
 
@@ -189,4 +306,5 @@ In the case it's not enough, the rest is emitted as regular `t3d_tri_draw` calls
 
 - Index buffers are DMA'd, so they must align to 8 bytes on the RSP.<br>
 However the vertex slot size is only div. by 4 so we need assume one possible index less if we start on an odd slot.<br>
-This needs to be done since we can't overwrite previous data which would corrupt active vertices.
+This needs to be done since we can't overwrite previous data which would corrupt active vertices.<br>
+Overwriting the data after, which would be 2 bytes of garbage is ok, as it contains the clipping buffers.
