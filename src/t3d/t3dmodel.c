@@ -5,7 +5,7 @@
 
 #include "t3dmodel.h"
 
-#define T3DM_VERSION 2
+#define T3DM_VERSION 0x03
 
 static inline void* patch_pointer(void *ptr, uint32_t offset) {
   return (void*)(offset + (int32_t)ptr);

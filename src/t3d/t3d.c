@@ -474,8 +474,8 @@ void t3d_indexbuffer_convert(int16_t indices[], int count) {
   for(int i = 0; i < count; ++i) {
     int16_t idx = indices[i];
     uint16_t restartFlag = 0;
-    if(idx < 0) { // restarts a new strip
-      idx = (int16_t)(-idx - 1);
+    if(idx & (1 << 15)) { // restarts a new strip
+      idx = (int16_t)(idx & ~(1 << 15));
       restartFlag = 1 << 15;
     }
     if(i == count - 1) { // end of buffer marker
