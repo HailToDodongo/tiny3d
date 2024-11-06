@@ -1,6 +1,6 @@
-# Model Optimizations
+# Model Pre-Processing / Optimizations
 
-This document describes the process of building and optimizing meshes in the builtin model format.<br>
+This document describes the logic of building and optimizing meshes in the builtin model format.<br>
 For the most part this includes handling vertex and triangle/index data at builtime.
 
 ## Why?
@@ -56,7 +56,8 @@ In the end we will reconstruct a vertex/index buffer from it again.<br>
 
 ### Partitioning
 A 'Part' is one vertex load commands + all triangles that can be drawn with it.<br>
-To fill it, we "emit" a triangle into it by writing out it's vertices (if not already there), and then take the index from that buffer as our 3 indices for the triangle.<br>
+
+To create it, we "emit" a triangle into it by writing out it's vertices (if not already there), and then take the index from that buffer as our 3 indices for the triangle.<br>
 Note that the vertex buffer is local to the part, so it can contain only 70 vertices.<br>
 
 We start this by emitting the first triangle, which will write 3 new vertices into the empty buffer.<br>
@@ -67,7 +68,7 @@ If none can be emitted, we move on to the next triangle in the list, which will 
 This process is then repeated until we hit out limit of 70, after which a new part is started.<br>
 
 If no triangles are left, we are done and now left with an array of parts.<br>
-This state would now finally allow us to draw the model at runtime, but we can do better.
+This state would already allow us to draw the model at runtime, but we can do better.
 
 ### De-Fragmentation
 You may notice that a triangle could require a vertex from an earlier part.<br>
@@ -117,6 +118,7 @@ As a simple example:<br>
 
 If there is space available, we can use that as a target to DMA our index buffer to.<br>
 The benefit of doing it that way is that we don't have to sacrifice our vertex cache size, and instead can dynamically take up free space.<br>
+
 A single vertex slot is 36 bytes, a single index 2 bytes (direct DMEM address), so we get space for 18 indices per slot meaning 6 triangles.<br>
 However this is not very efficient, and instead we can think of a way to compress this index buffer.
 
@@ -139,14 +141,14 @@ This allows us to chain any given strips together, and we can load them all with
 For that we mark the first index of a new strip by setting the MSB to 1.<br>
 This avoids having to insert special index like some other implementations use.<br>
 
-One nice side-effect is that we could encode regular triangle-list that are not strips too without any overhead.<br>
+One nice side-effect is that we could encode regular triangle-lists that are not strips too without any overhead.<br>
 This is not useful for the model format, but manual usage of the t3d API can make use of this.
 
 #### Degenerate Triangles
 
 Sometimes triangles only share a single vertex with the last one, forcing us to start a new strip.<br>
 Some libraries will generate strips with degenerate triangles to avoid this.<br>
-Meaning they will emit triangles where 2 indices are the same, which causes it to be discarded, and the indices to shift.<br>
+Meaning they will emit triangles where 2 or 3 indices are the same, which causes it to be discarded, and the indices to shift.<br>
 However since we have a restart-index without any overhead, this is always worse.<br>
 In addition, the ucode would have to explicitly handle this in the loop.<br>
 For that reason, degenerated triangles are not supported.<br>
@@ -158,7 +160,7 @@ We first stripify the index buffer we already have in the part using this librar
 This will return a list of individual strips.<br>
 
 Note that i'm not using meshoptimizer here as it forces degenerate triangles.<br>
-TriStripper does explicitly not, and generates shorter sequences than meshoptimizer.<br>
+TriStripper does explicitly not, and generates shorter sequences than meshoptimizer too.<br>
 
 Here is a a very simple mesh, left the input, right the output of TriStripper:
 ![tri_strip_example](./img/tri_strip_example.png)
@@ -169,12 +171,14 @@ For that we simply draw all triangles that use them using regular triangle comma
 It's important to note that strip commands carry some overhead, needing to start a DMA and setup some registers.<br>
 So they are only more efficient when they draw several triangles.<br>
 
-Now starts the main loop, we try to fit as many strips into the free slots, preferring ones that container larger indices.<br>
+Now starts the main loop, we try to fit as many strips into the two free slots, preferring ones that container larger indices.<br>
 This is done to increase the chance to end up with more space after.<br>
 All fitting strips are concatenated together using the MSB flag mentioned earlier.<br>
-After nothing fits anymore, we can look at all the strips still left, and reevaluate how many vertex slots are free now.<br>
-This then repeats until not strips are left.<br>
-Note that after each iteration, the space of the previous strip is free to use again, so we can't create a dead-lock.<br>
+After nothing fits anymore, we can look at all the strips still left.<br>
+We then reevaluate how many vertex slots are free, now that triangles have been "drawn".<br>
+The process then starts over until not strips are left.<br>
+
+Note: After each iteration, the space of the previous strip is free to use again too, so we only even increase the available space as we go on.<br>
 
 Now we are finally finished!<br>
 What we have now is a sequence of vertex loads, followed by single triangle draws, followed by commands to load and draw index buffers.<br>
@@ -275,7 +279,7 @@ Which ofc has the nice side-effect of making other things faster as the memory-b
 
 In terms of RSP performance of the ucode itself, strips in this model saved 1650us.<br>
 As the time of writing, bringing it down to 8807us of RSP time.<br>
-Note there the are more factors involved to it, so RSP time saves may differ a bit depending on the scene.<br>
+Note there the are more factors involved to it, so RSP time saved may differ a bit depending on the scene.<br>
 
 ## Materials
 
@@ -303,6 +307,7 @@ For odd amounts it will either put garbage or a random vertex in the last once.
 
 - The model format allows only for 4 index-buffers per part, which is enough in all my tests.
 In the case it's not enough, the rest is emitted as regular `t3d_tri_draw` calls.
+While unlikely, this also avoids a dead-lock in case no remaining strip fits into the available DMEM.
 
 - Index buffers are DMA'd, so they must align to 8 bytes on the RSP.<br>
 However the vertex slot size is only div. by 4 so we need assume one possible index less if we start on an odd slot.<br>
