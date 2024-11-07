@@ -310,6 +310,11 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
           verticesT3D[indices[k + 2]],
         });
       }
+
+      if(config.verbose) {
+        printf("[%s] Vertices input: %d\n", mesh->name, vertexCount);
+        printf("[%s] Indices input: %d\n", mesh->name, indices.size());
+      }
     }
   }
 

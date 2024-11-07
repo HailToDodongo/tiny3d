@@ -251,9 +251,10 @@ struct Config {
   uint32_t animSampleRate{30};
   bool ignoreMaterials{false};
   bool createBVH{false};
+  bool verbose{false};
 };
 extern Config config;
 
 constexpr int MAX_VERTEX_COUNT = 70;
 constexpr int CACHE_VERTEX_SIZE = 36;
-constexpr u8 T3DM_VERSION = 0x02;
+constexpr u8 T3DM_VERSION = 0x03;

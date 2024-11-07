@@ -153,3 +153,4 @@ Tiny3D is licensed under the MIT License, see the [LICENSE](LICENSE) file for mo
 - https://github.com/jkuhlmann/cgltf (MIT License)
 - https://github.com/zeux/meshoptimizer (MIT License)
 - https://github.com/madmann91/bvh (MIT License)
+- https://github.com/GPSnoopy/TriStripper (zlib License)

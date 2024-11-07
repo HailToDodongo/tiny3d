@@ -3,10 +3,10 @@
 * @license MIT
 */
 #include "optimizer.h"
-#include "../lib/meshopt/meshoptimizer.h"
-#include <cassert>
 #include <algorithm>
 #include <array>
+
+#include "../lib/tristrip/tri_stripper.h"
 
 // NOTE: mesh optimizations prior to chunking the model up are done in parser.cpp via 'meshopt_optimizeVertexCache'
 
@@ -58,24 +58,43 @@ namespace {
   // stripify the input triangle list into multiple strips
   std::vector<std::vector<int8_t>> stripify(const TriList& tris, int vertexCount)
   {
-    std::vector<int8_t> singleStrip{};
-    singleStrip.resize(tris.size() * 5); // worst case
-    size_t count = meshopt_stripify(
-      singleStrip.data(), (int8_t*)tris[0].data(), tris.size() * 3, vertexCount, (int8_t)-1
-    );
-
     std::vector<std::vector<int8_t>> res{};
-    std::vector<int8_t> strip{};
-    for(size_t i=0; i<count; ++i) {
-      if(singleStrip[i] < 0) {
-        res.push_back(strip);
-        strip.clear();
-      } else {
-        strip.push_back(singleStrip[i]);
-      }
+    triangle_stripper::primitive_vector PrimitivesVector{};
+    std::vector<triangle_stripper::index> indices{};
+    for(auto &tri : tris) {
+      indices.push_back(tri[0]);
+      indices.push_back(tri[1]);
+      indices.push_back(tri[2]);
     }
-    if(!strip.empty())res.push_back(strip);
-    return res;
+    triangle_stripper::tri_stripper TriStripper(indices);
+
+		TriStripper.SetMinStripSize(2);
+		TriStripper.SetCacheSize(0);
+		TriStripper.SetBackwardSearch(false); // seems to be broken(?)
+		TriStripper.Strip(&PrimitivesVector);
+
+		for(auto &v : PrimitivesVector) {
+
+		  if(v.Type == triangle_stripper::primitive_type::TRIANGLES)  {
+		    for(int i=0; i<v.Indices.size(); i+=3) {
+		      res.push_back({(int8_t)v.Indices[i], (int8_t)v.Indices[i+1], (int8_t)v.Indices[i+2]});
+		    }
+      } else {
+        std::vector<int8_t> strip{};
+        for(auto idx : v.Indices) {
+          strip.push_back(idx);
+        }
+        res.push_back(strip);
+      }
+		}
+		// sort res by the highest index inside of the individual array
+		std::sort(res.begin(), res.end(), [](const std::vector<int8_t> &a, const std::vector<int8_t> &b) {
+      auto minA = *std::max_element(a.begin(), a.end());
+      auto minB = *std::max_element(b.begin(), b.end());
+      return minA < minB;
+    });
+
+		return res;
   }
 
   std::vector<int8_t> destripify(const std::vector<int8_t> &strip)
@@ -125,7 +144,7 @@ void optimizeModelChunk(ModelChunked &model)
       auto &res = chunk.stripIndices[stripIdx];
       int oldSize = res.size();
       if(!res.empty()) {
-        res.push_back((int16_t )-(strip[0]+1));
+        res.push_back(strip[0] | (1<<15));
         res.insert(res.end(), strip.begin()+1, strip.end());
       } else {
         res.insert(res.end(), strip.begin(), strip.end());
