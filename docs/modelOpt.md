@@ -24,7 +24,7 @@ On top, we should optimize these splits to use as little commands and memory as 
 While both are interlinked, we take a look of the splitting part first now.
 
 For this we have to build up an array of structs that define what vertices to load, and then which triangles to draw after.<br>
-This also means the loads/draws are fully known and prepared at builtime.<br>
+This also means the loads/draws are fully known and prepared at build-time.<br>
 
 Here is an example visualization of the structure we want to build:<br>
 ![image info](./img/file_format.png)
@@ -146,13 +146,12 @@ This is not useful for the model format, but manual usage of the t3d API can mak
 
 #### Degenerate Triangles
 
-Sometimes triangles only share a single vertex with the last one, forcing us to start a new strip.<br>
+Sometimes triangles only share a single vertex with the last one, or have the wrong winding order, forcing us to start a new strip.<br>
 Some libraries will generate strips with degenerate triangles to avoid this.<br>
 Meaning they will emit triangles where 2 or 3 indices are the same, which causes it to be discarded, and the indices to shift.<br>
-However since we have a restart-index without any overhead, this is always worse.<br>
+However since we have a restart-index without any overhead, this is almost always worse.<br>
 In addition, the ucode would have to explicitly handle this in the loop.<br>
-For that reason, degenerated triangles are not supported.<br>
-
+For that reason, degenerated triangles are not generated/supported.<br>
 
 #### Generating Strip-Commands
 Now that we know how to encode strips, we can generate them.<br>
@@ -162,7 +161,7 @@ This will return a list of individual strips.<br>
 Note that i'm not using meshoptimizer here as it forces degenerate triangles.<br>
 TriStripper does explicitly not, and generates shorter sequences than meshoptimizer too.<br>
 
-Here is a a very simple mesh, left the input, right the output of TriStripper:
+Here is a very simple mesh, left the input, right the output of TriStripper:
 ![tri_strip_example](./img/tri_strip_example.png)
 It created one strip, and then a single triangle for the leftover one.
 
@@ -191,7 +190,7 @@ For some example, we can look at the testmodel in the example `99_testscene`:
 This is a single object with 4 disconnected meshes, the right monkey head is also flat-shaded (in the mesh, not as a draw-flag).
 
 And here the log of all the parts:
-this shows the amount of vertices loaded at once, then the index count for regulat individual triangles (so 3 per tri), and lastly the index count for each of the triangle strip commands.
+this shows the amount of vertices loaded at once, then the index count for regular individual triangles (so 3 per tri), and lastly the index count for each of the triangle strip commands.
 ```
 [Scene] Vertices input: 3642
 [Scene] Indices input: 6978
@@ -275,11 +274,11 @@ Compared to no strips:
 ================================= Total: 18608b
 ```
 In total a reduction of ~45.5%!<br>
-Which ofc has the nice side-effect of making other things faster as the memory-bus is less busy.<br>
+Which ofc has the nice side effect of making other things faster as the memory-bus is less busy.<br>
 
 In terms of RSP performance of the ucode itself, strips in this model saved 1650us.<br>
-As the time of writing, bringing it down to 8807us of RSP time.<br>
-Note there the are more factors involved to it, so RSP time saved may differ a bit depending on the scene.<br>
+At the time of writing, bringing it down to 8807us of RSP time.<br>
+Note that there are more factors involved to it, so RSP time saved may differ a bit depending on the scene.<br>
 
 ## Materials
 
