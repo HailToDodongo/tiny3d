@@ -309,6 +309,7 @@ In the case it's not enough, the rest is emitted as regular `t3d_tri_draw` calls
 While unlikely, this also avoids a dead-lock in case no remaining strip fits into the available DMEM.
 
 - Index buffers are DMA'd, so they must align to 8 bytes on the RSP.<br>
-However the vertex slot size is only div. by 4 so we need assume one possible index less if we start on an odd slot.<br>
-This needs to be done since we can't overwrite previous data which would corrupt active vertices.<br>
-Overwriting the data after, which would be 2 bytes of garbage is ok, as it contains the clipping buffers.
+However the vertex slot size is only div. by 4 so we need assume two possible indices less if we start on an odd slot.<br>
+The DMA is adjusted 4 bytes forward to still make use of the rest of the buffer.<br>
+Doing so causes it to write 4 bytes of garbage into the data after, but that contains the clipping buffer so it's ok.<br>
+
