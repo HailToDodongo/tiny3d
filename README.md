@@ -91,11 +91,6 @@ This will build the library itself, tools related to it, and all examples.<br>
 If you need to build specific parts, run the Makefile present in each directory.<br>
 After building, you can use the project as described in the Usage section.
 
-If you want to perform a clean build for everything, run:
-```sh
-./build.sh clean
-```
-
 ### Customization
 You will notice that Tiny3D does not install itself in any system-wide location.<br>
 This is done on purpose, as it allows you to easily modify the library.<br>
