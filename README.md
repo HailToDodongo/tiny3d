@@ -21,8 +21,7 @@ Features include:
     - (compressed) animation streaming from ROM
     - attachment of non-skeletal targets (e.g. camera)
 - GLTF importer with Fast64 support ([supported settings](docs/fast64Settings.md))
-    - Vertex cache optimization
-    - Triangle strip optimization
+    - Vertex cache & triangle strip optimization (details: [modelOpt.md](docs/modelOpt.md))
     - Automatic texture loading
     - Applies CC and related settings set in Fast64
 - Direct interop. with the RDPQ API.
