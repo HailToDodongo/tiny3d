@@ -2,30 +2,28 @@
 
 set -e
 
-if [ "$1" = "clean" ] ; then
-  echo "Cleaning up..."
-  make clean
-  make -C tools/gltf_importer clean
-  make -C examples/00_quad clean
-  make -C examples/01_model clean
-  make -C examples/02_lighting clean
-  make -C examples/03_objects clean
-  make -C examples/04_dynamic clean
-  make -C examples/05_splitscreen clean
-  make -C examples/06_offscreen clean
-  make -C examples/07_skeleton clean
-  make -C examples/08_animation clean
-  make -C examples/09_anim_viewer clean
-  make -C examples/10_flipbook_tex clean
-  make -C examples/11_segments clean
-  make -C examples/12_uv_gen clean
-  make -C examples/13_cel_shading clean
-  make -C examples/14_outline clean
-  make -C examples/15_pointlight clean
-  make -C examples/16_light_clip clean
-  make -C examples/17_culling clean
-  make -C examples/99_testscene clean
-fi
+echo "Cleaning up..."
+make clean
+make -C tools/gltf_importer clean
+make -C examples/00_quad clean
+make -C examples/01_model clean
+make -C examples/02_lighting clean
+make -C examples/03_objects clean
+make -C examples/04_dynamic clean
+make -C examples/05_splitscreen clean
+make -C examples/06_offscreen clean
+make -C examples/07_skeleton clean
+make -C examples/08_animation clean
+make -C examples/09_anim_viewer clean
+make -C examples/10_flipbook_tex clean
+make -C examples/11_segments clean
+make -C examples/12_uv_gen clean
+make -C examples/13_cel_shading clean
+make -C examples/14_outline clean
+make -C examples/15_pointlight clean
+make -C examples/16_light_clip clean
+make -C examples/17_culling clean
+make -C examples/99_testscene clean
 
 # Build Tiny3D
 echo "Building Tiny3D..."
