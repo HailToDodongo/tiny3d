@@ -21,8 +21,7 @@ Features include:
     - (compressed) animation streaming from ROM
     - attachment of non-skeletal targets (e.g. camera)
 - GLTF importer with Fast64 support ([supported settings](docs/fast64Settings.md))
-    - Vertex cache optimization
-    - Triangle strip optimization
+    - Vertex cache & triangle strip optimization (details: [modelOpt.md](docs/modelOpt.md))
     - Automatic texture loading
     - Applies CC and related settings set in Fast64
 - Direct interop. with the RDPQ API.
@@ -91,15 +90,10 @@ This will build the library itself, tools related to it, and all examples.<br>
 If you need to build specific parts, run the Makefile present in each directory.<br>
 After building, you can use the project as described in the Usage section.
 
-If you want to perform a clean build for everything, run:
-```sh
-./build.sh clean
-```
-
 ### Customization
-You will notice that Tiny3D does not install itself in any system-wide location.<br>
+You may notice that Tiny3D allows for local installs in addition to the default system-wide one.<br>
 This is done on purpose, as it allows you to easily modify the library.<br>
-Use-cases can be wanting to specialize the API for your project, or to modify the ucode.<br>
+Use-cases can be to pin a version, specialize the API for your project, or to modify the ucode.<br>
 
 ### RSP ucode
 The ucode of Tiny3D is written in [RSPL](https://gitlab.com/mbeboek/rspl), a high level language that has been worked on in parallel with this project.<br>
