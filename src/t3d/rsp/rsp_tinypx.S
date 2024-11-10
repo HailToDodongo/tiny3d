@@ -102,7 +102,7 @@
     .align 3
     NORM_SCALE_W: .half 65535, 65535, 65535, 0
     .align 1
-    PARTICLE_SCALE: .half 32767
+    PARTICLE_SCALE: .half 32767, 32767
     STATE_MEM_END:
   RSPQ_EndSavedState
 
@@ -130,71 +130,72 @@ TPXCmd_SyncT3D:
   j DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   or $t2, $zero, $zero
 TPXCmd_DrawColor:
-  or $t2, $zero, $zero
-  andi $t0, $a0, 65535
-  or $s0, $zero, $a1
   ori $s4, $zero, %lo(PARTICLE_BUFF)
+  andi $t0, $a0, 65535
   addu $s7, $s4, $t0
-  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  or $t2, $zero, $zero
   addiu $t0, $t0, -1
+  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  or $s0, $zero, $a1
+  vmudl $v20, $v00, $v31.e3
   ori $at, $zero, %lo(MATRIX_MVP)
-  ldv $v27, 0, 0, $at
-  lw $s1, %lo(RDPQ_SCISSOR_RECT + 0)
-  ldv $v22, 0, 56, $at
   ldv $v24, 0, 40, $at
-  ldv $v21, 0, 48, $at
-  ldv $v28, 0, 8, $at
-  ldv $v26, 0, 24, $at
-  ldv $v25, 0, 16, $at
-  ldv $v28, 8, 8, $at
   lw $s2, %lo(RDPQ_SCISSOR_RECT + 4)
-  ldv $v26, 8, 24, $at
+  ldv $v28, 0, 8, $at
+  ldv $v27, 0, 0, $at
   or $s6, $zero, $s4
-  ldv $v21, 8, 48, $at
-  mtc2 $s1, $v16.e5
+  ldv $v26, 0, 24, $at
+  ldv $v22, 0, 56, $at
+  ldv $v28, 8, 8, $at
+  lui $t7, 0x3A00
+  lw $s1, %lo(RDPQ_SCISSOR_RECT + 0)
+  mtc2 $s2, $v15.e1
+  ldv $v21, 0, 48, $at
+  ldv $v25, 0, 16, $at
   ldv $v23, 0, 32, $at
-  ldv $v23, 8, 32, $at
   srl $t4, $s2, 12
-  ldv $v27, 8, 0, $at
-  ldv $v22, 8, 56, $at
   ldv $v25, 8, 16, $at
   ldv $v24, 8, 40, $at
-  vmudl $v20, $v00, $v31.e3
+  ldv $v26, 8, 24, $at
+  ldv $v22, 8, 56, $at
+  ldv $v27, 8, 0, $at
+  ldv $v21, 8, 48, $at
+  ldv $v23, 8, 32, $at
   ori $at, $zero, %lo(SCREEN_SCALE_OFFSET)
-  ldv $v18, 0, 8, $at
+  ori $s3, $zero, %lo(RDP_BUFF)
   mtc2 $s1, $v16.e1
+  mtc2 $t4, $v15.e4
   ldv $v19, 0, 0, $at
   ldv $v19, 8, 0, $at
-  ldv $v18, 8, 8, $at
-  ori $s3, $zero, %lo(RDP_BUFF)
-  addiu $s5, $s3, 528
-  mtc2 $t4, $v15.e0
-  mtc2 $s2, $v15.e5
-  ori $at, $zero, %lo(NORM_SCALE_W)
-  ldv $v17, 0, 0, $at
-  mtc2 $t4, $v15.e4
-  vmadm $v19, $v19, $v31.e3
-  ldv $v17, 8, 0, $at
+  ldv $v18, 0, 8, $at
   addiu $a0, $zero, 46
-  addiu $at, $zero, 4095
+  ldv $v18, 8, 8, $at
+  mtc2 $s2, $v15.e5
+  vmadm $v19, $v19, $v31.e3
+  ori $at, $zero, %lo(NORM_SCALE_W)
   ori $s4, $zero, %lo(RDP_BUFF)
-  mtc2 $s2, $v15.e1
+  mtc2 $t4, $v15.e0
   vmadn $v20, $v00, $v00
+  ldv $v17, 0, 0, $at
+  ldv $v17, 8, 0, $at
+  ori $s2, $zero, %lo(RDP_BUFF)
+  addiu $at, $zero, 4095
+  mtc2 $s1, $v16.e5
   mtc2 $at, $v15.e3
   ori $at, $zero, %lo(PARTICLE_SCALE)
   srl $t4, $s1, 12
-  mtc2 $t4, $v16.e4
   mtc2 $t4, $v16.e0
+  mtc2 $t4, $v16.e4
   vand $v15, $v15, $v15.e3
-  lsv $v13, 0, 0, $at
+  llv $v13, 0, 0, $at
+  llv $v13, 8, 0, $at
+  addiu $s5, $s3, 528
   addiu $s1, $s5, 24
-  lui $t7, 0x3A00
-  ori $s2, $zero, %lo(RDP_BUFF)
   vand $v16, $v16, $v15.e3
   LABEL_TPXCmd_DrawColor_0001:
+  sh $zero, 14($s2)
   sw $t7, 0($s2)
   sb $a0, 8($s2)
-  sh $zero, 14($s2)
   addiu $s2, $s2, 24
   bne $s2, $s1, LABEL_TPXCmd_DrawColor_0001
   nop
@@ -202,10 +203,10 @@ TPXCmd_DrawColor:
   jal DMAWaitIdle
   nop
   lpv $v10, 0, 0, $s6
+  vmulf $v14, $v13, $v10.h3
   vmudm $v10, $v10, $v31.e7
-  vmulf $v14, $v10, $v13.e0
-  vmov $v10.e7, $v30.e7
   vmov $v10.e3, $v30.e7
+  vmov $v10.e7, $v30.e7
   vxor $v09, $v00, $v30.e7
   vmudn $v12, $v28, $v10.h0
   vmadh $v11, $v27, $v10.h0
@@ -225,86 +226,88 @@ TPXCmd_DrawColor:
   vrcph $v07.e3, $v11.e3
   vrcpl $v08.e3, $v12.e3
   vrcph $v07.e3, $v11.e7
-  ldv $v03, 0, 8, $s6
   vrcpl $v08.e7, $v12.e7
-  addiu $t2, $zero, 54
+  vmov $v12.e3, $v00.e0
+  vmov $v11.e3, $v30.e0
+  addiu $at, $zero, 3
   vrcph $v07.e7, $v00.e7
-  vmov $v11.e7, $v14.e7
-  vmov $v11.e3, $v14.e3
-  vmov $v12.e3, $v00.e3
-  vmov $v12.e7, $v00.e7
+  vmov $v11.e7, $v30.e0
+  vmov $v12.e7, $v00.e0
   vmudl $v29, $v12, $v08.h3
   vmadm $v29, $v11, $v08.h3
   vmadn $v12, $v12, $v07.h3
-  andi $t1, $t4, 1028
   vmadh $v11, $v11, $v07.h3
+  vmulf $v14, $v14, $v11.h3
+  ldv $v03, 0, 8, $s6
   vmudl $v29, $v12, $v20.v
+  addiu $t2, $zero, 54
   vmadm $v29, $v11, $v20.v
-  andi $t5, $t4, 16448
   vmadn $v08, $v12, $v19.v
-  addiu $s6, $s6, 16
-  slv $v03, 0, 4, $s3
   vmadh $v07, $v11, $v19.v
   vmadh $v06, $v18, $v09.v
-  addiu $at, $zero, 3
-  vmadh $v05, $v09, $v11.h3
-  vsubc $v10, $v06, $v11.h3
+  andi $t1, $t4, 1028
+  vmadh $v05, $v09, $v14.v
+  vsubc $v10, $v06, $v14.v
+  addiu $s6, $s6, 16
+  slv $v03, 0, 4, $s3
   vlt $v05, $v05, $v15
   ssv $v06, 4, 12, $s3
-  mfc2 $fp, $v05.e1
-  vge $v10, $v10, $v16
   mfc2 $sp, $v05.e5
-  andi $fp, $fp, 4095
+  vge $v10, $v10, $v16
+  mfc2 $fp, $v05.e1
+  andi $t5, $t4, 16448
   mfc2 $k1, $v10.e0
   mfc2 $s2, $v10.e1
   andi $sp, $sp, 4095
-  vlt $v04, $v10, $v05
   sll $k1, $k1, 12
-  cfc2 $t4, $vcc
+  mfc2 $s1, $v10.e5
+  vlt $v04, $v10, $v05
   andi $s2, $s2, 4095
   or $s2, $s2, $k1
   mfc2 $k1, $v10.e4
-  mfc2 $s1, $v10.e5
-  andi $a2, $t4, 3
-  or $t1, $t1, $a2
-  sll $k1, $k1, 12
-  lpv $v10, 0, 0, $s6
+  cfc2 $t4, $vcc
   andi $s1, $s1, 4095
+  sll $k1, $k1, 12
   or $s1, $s1, $k1
   mfc2 $k1, $v05.e0
-  sw $s2, 4 + 16($s3)
-  andi $a2, $t4, 48
-  vmudm $v10, $v10, $v31.e7
+  andi $a2, $t4, 3
+  lpv $v10, 0, 0, $s6
   sll $k1, $k1, 12
+  andi $fp, $fp, 4095
   or $fp, $fp, $k1
   mfc2 $k1, $v05.e4
+  vmulf $v14, $v13, $v10.h3
   sw $fp, 0 + 16($s3) ## Barrier: 0x1
-  or $t5, $t5, $a2
-  vmulf $v14, $v10, $v13.e0
-  sb $t2, 0 + 16($s3) ## Barrier: 0x1
-  sll $k1, $k1, 12
+  or $t1, $t1, $a2
+  vmudm $v10, $v10, $v31.e7
+  sw $s2, 4 + 16($s3)
   vmov $v10.e3, $v30.e7
-  bne $t1, $at, LABEL_TPXCmd_DrawColor_0005
+  andi $a2, $t4, 48
+  sll $k1, $k1, 12
+  sb $t2, 0 + 16($s3) ## Barrier: 0x1
   or $sp, $sp, $k1
+  bne $t1, $at, LABEL_TPXCmd_DrawColor_0005
+  or $t5, $t5, $a2
   addiu $s3, $s3, 24
   LABEL_TPXCmd_DrawColor_0005:
+  vmov $v10.e7, $v30.e7
   addiu $at, $zero, 48
   bne $t5, $at, LABEL_TPXCmd_DrawColor_0006
-  vmov $v10.e7, $v30.e7
-  slv $v03, 4, 4, $s3
-  ssv $v06, 12, 12, $s3
+  nop
   sw $sp, 0 + 16($s3) ## Barrier: 0x1
+  ssv $v06, 12, 12, $s3
   sb $t2, 0 + 16($s3) ## Barrier: 0x1
   sw $s1, 4 + 16($s3)
+  slv $v03, 4, 4, $s3
   addiu $s3, $s3, 24
   LABEL_TPXCmd_DrawColor_0006:
   vmudn $v12, $v28, $v10.h0
   vmadh $v11, $v27, $v10.h0
   vmadn $v12, $v26, $v10.h1
+  sltu $at, $s3, $s5
   vmadh $v11, $v25, $v10.h1
   vmadn $v12, $v24, $v10.h2
   vmadh $v11, $v23, $v10.h2
-  sltu $at, $s3, $s5
   vmadn $v12, $v22, $v10.h3
   bne $at, $zero, LABEL_TPXCmd_DrawColor_0007
   vmadh $v11, $v21, $v10.h3

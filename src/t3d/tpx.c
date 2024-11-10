@@ -42,12 +42,15 @@ void tpx_state_from_t3d()
   );
 }
 
-void tpx_state_set_scale(float scale) {
-  tpx_dmem_set_u16(RSP_TPX_PARTICLE_SCALE, (uint16_t)roundf(scale * 0x7FFF));
+void tpx_state_set_scale(float scaleX, float scaleY) {
+  uint16_t scaleXNorm = (uint16_t)roundf(scaleX * 0x7FFF);
+  uint16_t scaleYNorm = (uint16_t)roundf(scaleY * 0x7FFF);
+  tpx_dmem_set_u32(RSP_TPX_PARTICLE_SCALE, (scaleXNorm << 16) | scaleYNorm);
 }
 
 void tpx_particle_draw(TPXParticle *particles, uint32_t count)
 {
+  count &= ~1;
   assert(count <= 344);
   count = sizeof(TPXParticle) * count / 2;
   rdpq_write(-1, TPX_RSP_ID, TPX_CMD_DRAW_COLOR,

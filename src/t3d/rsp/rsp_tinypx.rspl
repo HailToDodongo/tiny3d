@@ -46,7 +46,7 @@ state
     0xFFFF, 0xFFFF, 0xFFFF, 0x0000
   };
 
-  u16 PARTICLE_SCALE = {0x7FFF};
+  u16 PARTICLE_SCALE[2] = {0x7FFF, 0x7FFF};
 }
 
 temp_state {
@@ -109,7 +109,8 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
 
   vec16 localPartSize;
   vec16 globalPartSize;
-  globalPartSize.x = load(PARTICLE_SCALE).x;
+  globalPartSize.xy = load(PARTICLE_SCALE).xy;
+  globalPartSize.XY = load(PARTICLE_SCALE).xy;
 
   // while the DMA is running, we init the RDP buffer with fixed values (command ids)
   // so we don't have to do it each loop iteration
@@ -133,13 +134,12 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
 
   // de-phase parts of the loop, this part is also at the end of the loop
   vec16 posStart = load_vec_s8(ptrIn, 0x00);
+  localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
   posStart >>= 8;
-  localPartSize = posStart:sfract * globalPartSize:sfract.x;
   posStart.w = 1;
   posStart.W = 1;
 
   const vec16 vecOne = 1;
-
   u32<$a2> temp0;
 
   // point to clip space
@@ -160,21 +160,24 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
     invW.w = invert_half(posClip).w;
     invW.W = invert_half(posClip).W;
 
-    // store particle size in W to only do one perspective division
-    posClip.w = localPartSize.w;
-    posClip.W = localPartSize.W;
+    // store a particle base-size in W to only do one perspective division
+    posClip.w = 128;
+    posClip.W = 128;
 
     // perspective division
     posClip *= invW.wwwwWWWW;
     undef invW;
+
+    // scale particle size by perspective
+    localPartSize:sfract *= posClip:sint.wwwwWWWW;
 
     // transform to screen-space, this is the center of the particles and its depth-value
     vec32 posScreen = posClip * screenSize;
     vec16 posCenter = screenOffset:sint +* vecOne;
 
     // extend to both sides for start/end point...
-    vec16 posEnd = vecOne +* posClip:sint.wwwwWWWW;
-    posStart = posCenter - posClip:sint.wwwwWWWW;
+    vec16 posEnd = vecOne +* localPartSize:sint;
+    posStart = posCenter - localPartSize:sint;
 
     // ... and clamp to the edges of the screen
     posEnd = min(posEnd, screenMax);
@@ -218,9 +221,9 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
     // load particle for next iteration
     ptrIn += PARTICLE_INPUT_SIZE;
     posStart = load_vec_s8(ptrIn, 0x00, PARTICLE_INPUT_SIZE);
+    localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
     posStart >>= 8;
 
-    localPartSize = posStart:sfract * globalPartSize:sfract.x;
     posStart.w = 1;
 
     if(clipA == 0b0000'0011) {

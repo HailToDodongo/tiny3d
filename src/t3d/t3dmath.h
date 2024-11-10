@@ -582,6 +582,9 @@ inline static void t3d_mat4_mul_vec3(T3DVec4* vecOut, const T3DMat4 *mat, const 
   inline void t3d_mat4_from_srt_euler(T3DMat4 &mat, const float scale[3], const float rot[3], const float translate[3]) { t3d_mat4_from_srt_euler(&mat, scale, rot, translate); }
   inline void t3d_mat4_rot_from_dir(T3DMat4 &mat, const T3DVec3 &dir, const T3DVec3 &up) { t3d_mat4_rot_from_dir(&mat, &dir, &up); }
 
+  inline void t3d_mat4_from_srt(T3DMat4 &mat, const T3DVec3 &scale, const T3DQuat &rot, const T3DVec3 &translate) { t3d_mat4_from_srt(&mat, scale.v, rot.v, translate.v); }
+  inline void t3d_mat4_from_srt_euler(T3DMat4 &mat, const T3DVec3 &scale, const T3DVec3 &rot, const T3DVec3 &translate) { t3d_mat4_from_srt_euler(&mat, scale.v, rot.v, translate.v); }
+
   inline void t3d_mat4fp_from_srt_euler(T3DMat4FP *mat, const T3DVec3 &scale, const T3DVec3 &rot, const T3DVec3 &translate) { t3d_mat4fp_from_srt_euler(mat, scale.v, rot.v, translate.v); }
   inline void t3d_mat4fp_from_srt(T3DMat4FP *mat, const T3DVec3 &scale, const T3DQuat &rot, const T3DVec3 &translate) { t3d_mat4fp_from_srt(mat, scale.v, rot.v, translate.v); }
   inline void t3d_mat4fp_set_pos(T3DMat4FP *mat, const T3DVec3 &pos) { t3d_mat4fp_set_pos(mat, pos.v); }

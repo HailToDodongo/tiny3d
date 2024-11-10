@@ -2,13 +2,14 @@
 #include <rspq_profile.h>
 
 #include <t3d/t3d.h>
+#include <t3d/t3ddebug.h>
 #include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 #include <t3d/tpx.h>
 
 #define RCP_TICKS_TO_USECS(ticks) (((ticks) * 1000000ULL) / RCP_FREQUENCY)
 
-static void generateParticles(TPXParticle *particles, int count) {
+static void generateParticles(TPXParticle *particles, uint32_t count) {
   for (int i = 0; i < count; i++) {
     int p = i / 2;
     int8_t *ptPos = i % 2 == 0 ? particles[p].posA : particles[p].posB;
@@ -69,8 +70,60 @@ static void gradient_fire(uint8_t *color, float t) {
 }
 
 static int currentPart  = 0;
+static int lastCount = 0;
 
-static void simulate_particles(TPXParticle *particles, int partCount, float posX, float posZ) {
+static int noise2d(int x, int y) {
+    int n = x + y * 57;
+    n = (n << 13) ^ n;
+    return (n * (n * n * 60493 + 19990303) + 89);
+}
+
+static int simulate_particles_grass(TPXParticle *particles, int partCount, float time, float posX, float posZ) {
+  int dist = 3;
+  int heightParts = 3;
+  int sideLen = fm_floorf(sqrt(partCount));
+  sideLen /= heightParts;
+  int drawCount = sideLen * sideLen * heightParts;
+
+  if(lastCount == partCount)return drawCount;
+  lastCount = partCount;
+  debugf("Rebuilding particles: %d\n", partCount);
+
+  int p = 0;
+  for(int y=heightParts-1; y>=0; --y)
+  {
+    int8_t ptPosX = -(dist * sideLen) / 2;
+    for(int x=0; x<sideLen; ++x)
+    {
+      int8_t ptPosZ = -(dist * sideLen) / 2;
+      for(int z=0; z<sideLen; ++z)
+      {
+        int8_t *ptPos = tpx_buffer_get_pos(particles, p);
+        uint8_t *ptColor = tpx_buffer_get_rgba(particles, p);
+        ++p;
+
+        int rnd = noise2d(x, z);
+        float height = fm_sinf((time + x + z) * 0.1f) * 0.5f + 0.5f;
+        height += fm_cosf((time + x + z) * 0.13f) * 0.5f + 0.5f;
+        int8_t size = ((heightParts-y) * 6) + 6 + height;
+
+        ptColor[0] = ptColor[1] = ptColor[2] = (100 + y*50) + (rnd % 55);
+
+        ptPos[0] = ptPosX + ((rnd % 3) - 1);
+        ptPos[1] = y + height;
+        ptPos[2] = ptPosZ + ((rnd % 3) - 1);
+        *tpx_buffer_get_size(particles, p) = size;
+
+        ptPosZ += dist;
+      }
+      ptPosX += dist;
+    }
+  }
+
+  return drawCount;
+}
+
+static void simulate_particles(TPXParticle *particles, int partCount, float time, float posX, float posZ) {
   int p = currentPart / 2;
   if(currentPart % (1+(rand() % 3)) == 0) {
     int8_t *ptPos = currentPart % 2 == 0 ? particles[p].posA : particles[p].posB;
@@ -128,6 +181,8 @@ int main()
   t3d_init((T3DInitParams){});
   tpx_init((TPXInitParams){});
 
+  t3d_debug_print_init();
+
   T3DModel *model = t3d_model_load("rom://scene.t3dm");
   rspq_block_begin();
     t3d_model_draw(model);
@@ -135,19 +190,21 @@ int main()
 
   T3DMat4FP *matFP = malloc_uncached(sizeof(T3DMat4FP));
   T3DMat4FP *matPartFP = malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP *matPartBFP = malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP *matPartCFP = malloc_uncached(sizeof(T3DMat4FP));
 
   T3DVec3 camPos = {{3.0f, 65.0f, 65.0f}};
   T3DVec3 camTarget = {{0,0,0}};
   T3DVec3 camDir = {{0,0,1}};
   float camRotX = 1.5;
   float camRotY = 4.0f;
-  bool showModel = false;
-  int example = 0;
+  bool showModel = true;
+  int example = 1;
 
-  int batchSize = 344;
-  int batchCountMax = 500;
-  int batchCount = 2;
-  int particleCount = batchSize * batchCountMax;
+  uint32_t batchSize = tpx_buffer_get_max_count();
+  uint32_t batchCountMax = 500;
+  uint32_t batchCount = 24;
+  uint32_t particleCount = batchSize * batchCountMax;
   TPXParticle *particles = malloc_uncached(sizeof(TPXParticle) * particleCount/2);
   generateParticles(particles, particleCount);
 
@@ -157,11 +214,19 @@ int main()
 
   T3DViewport viewport = t3d_viewport_create();
   float rotAngle = 0.0f;
-  float partScale = 0.25f;
-  float partSize = 0.15f;
+  float partScale = 0.8f;
+  float partSizeX = 0.4f;
+  float partSizeY = 0.9f;
 
   T3DVec3 flameScale;
   T3DVec3 flamePos = {{0,0,0}};
+  float time = 0;
+
+  color_t grassColors[2] = {
+    (color_t){0xAA, 0xFF, 0x55, 0xFF},
+    (color_t){0xFF, 0xAA, 0x55, 0xFF},
+  };
+  int currGrassColor = 0;
 
   for(;;)
   {
@@ -169,6 +234,7 @@ int main()
     joypad_poll();
     float deltaTime = display_get_delta_time();
     rotAngle += deltaTime * 0.1f;
+    time += deltaTime;
 
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
     joypad_buttons_t btn = joypad_get_buttons_pressed(JOYPAD_PORT_1);
@@ -177,19 +243,29 @@ int main()
 
     if(joypad.btn.a)partScale += deltaTime * 0.6f;
     if(joypad.btn.b)partScale -= deltaTime * 0.6f;
-    if(joypad.btn.d_up)partSize += deltaTime * 0.6f;
-    if(joypad.btn.d_down)partSize -= deltaTime * 0.6f;
-    partSize = fmaxf(0.01f, fminf(1.0f, partSize));
+
+    if(joypad.btn.c_right)partSizeX += deltaTime * 0.6f;
+    if(joypad.btn.c_left)partSizeX -= deltaTime * 0.6f;
+    if(joypad.btn.c_up)partSizeY += deltaTime * 0.6f;
+    if(joypad.btn.c_down)partSizeY -= deltaTime * 0.6f;
+
+    partSizeX = fmaxf(0.01f, fminf(1.0f, partSizeX));
+    partSizeY = fmaxf(0.01f, fminf(1.0f, partSizeY));
 
     if(joypad.btn.d_left)batchCount -= joypad.btn.z ? 10 : 1;
     if(joypad.btn.d_right)batchCount += joypad.btn.z ? 10 : 1;
     if(batchCount < 1)batchCount = 1;
     if(batchCount > batchCountMax)batchCount = batchCountMax;
 
-    if(btn.c_left || btn.c_right) {
+    /*if(btn.d_up || btn.d_down)
+    {
       example = example == 1 ? 0 : 1;
+      time = 0.0f;
       generateParticles(particles, particleCount);
-    }
+    }*/
+
+    if(btn.l)currGrassColor = 0;
+    if(btn.r)currGrassColor = 1;
 
     if(btn.start)showModel = !showModel;
     {
@@ -222,24 +298,24 @@ int main()
         }
       }
 
-      if(joypad.btn.c_up)camPos.v[1] += camSpeed * 45.0f;
-      if(joypad.btn.c_down)camPos.v[1] -= camSpeed * 45.0f;
+      //if(joypad.btn.c_up)camPos.v[1] += camSpeed * 45.0f;
+      //if(joypad.btn.c_down)camPos.v[1] -= camSpeed * 45.0f;
 
       camTarget.v[0] = camPos.v[0] + camDir.v[0];
       camTarget.v[1] = camPos.v[1] + camDir.v[1];
       camTarget.v[2] = camPos.v[2] + camDir.v[2];
     }
 
+    particleCount = batchSize * batchCount;
     if(example == 1) {
       //batchCount = 2;
       rotAngle = 0;
-      simulate_particles(particles, batchSize * batchCount, flamePos.v[0], flamePos.v[2]);
-      flameScale = (T3DVec3){{0.7f, partScale, 0.7f}};
+      particleCount = simulate_particles_grass(particles, batchSize * batchCount, time, flamePos.v[0], flamePos.v[2]);
+      //flameScale = (T3DVec3){{0.7f, partScale, 0.7f}};
+      flameScale = (T3DVec3){{partScale, partSizeY*2.9f, partScale}};
     } else {
       flameScale = (T3DVec3){{partScale, partScale, partScale}};
     }
-
-    particleCount = batchSize * batchCount;
 
     // we can set up our viewport settings beforehand here
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(80.0f), 5.0f, 250.0f);
@@ -261,46 +337,69 @@ int main()
     t3d_light_set_count(0);
 
     t3d_mat4fp_from_srt_euler(matPartFP,
-      flameScale.v,
-      (float[]){rotAngle,rotAngle*2.4f,rotAngle*1.3f},
-      (float[]){0, example == 1 ? (100*partScale) : 0, 0}
+      flameScale.v, (float[]){rotAngle,rotAngle*2.4f,rotAngle*1.3f},
+      (float[]){0, 0, 0}
     );
+    t3d_mat4fp_from_srt_euler(matPartBFP,
+      flameScale.v, (float[]){rotAngle,rotAngle*2.4f,rotAngle*1.3f},
+      (float[]){0, 2, 0}
+    );
+    t3d_mat4fp_from_srt_euler(matPartCFP,
+      flameScale.v, (float[]){rotAngle,rotAngle*2.4f,rotAngle*1.3f},
+      (float[]){0, 4, 0}
+    );
+
     float modelScale = 0.25f;
     t3d_mat4fp_from_srt_euler(matFP,
       (float[]){modelScale, modelScale, modelScale},
       (float[]){0,0,0},
-      (float[]){0,-10,0}
+      (float[]){0,-1,0}
     );
-    t3d_matrix_push(matFP);
+
+    t3d_matrix_push_pos(1);
+
+    t3d_matrix_set(matFP, true);
     if(showModel)rspq_block_run(model->userBlock);
+
     t3d_matrix_set(matPartFP, true);
 
     rdpq_sync_pipe();
     rdpq_set_mode_standard();
     rdpq_mode_zbuf(true, true);
     rdpq_mode_zoverride(true, 0, 0);
-    rdpq_mode_combiner(RDPQ_COMBINER_FLAT);
+    rdpq_mode_combiner(RDPQ_COMBINER1((PRIM,0,ENV,0), (0,0,0,1)));
+
+    rdpq_set_env_color(grassColors[currGrassColor]);
 
     tpx_state_from_t3d(); // copy the current state from t3d to tpx
-    tpx_state_set_scale(partSize);
+    tpx_state_set_scale(partSizeX, partSizeY);
 
-    for(int i = 0; i < batchCount; i++) {
-      tpx_particle_draw(particles + (i * batchSize/2), batchSize);
+    TPXParticle *part = particles;
+    for(uint32_t i = 0; i < particleCount; i += batchSize) {
+      uint32_t sizeLeft = (particleCount - i);
+      tpx_particle_draw(part, sizeLeft < batchSize ? sizeLeft : batchSize);
+      part += batchSize / 2;
     }
+
+    /*t3d_frame_start();
+    rdpq_mode_antialias(AA_NONE);
+    rdpq_mode_dithering(DITHER_NONE_NONE);
+
+    t3d_matrix_set(matFP, true);
+    if(showModel)rspq_block_run(model->userBlock);*/
 
     t3d_matrix_pop(1);
 
-    rdpq_sync_pipe();
-    rdpq_sync_tile();
-    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 30, "Particles: %d (%dx%d)", particleCount, batchCount, batchSize);
-    //rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 40, "%.2f", partSize);
-    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 240, 30, "FPS: %.2f", display_get_fps());
+    t3d_debug_print_start();
+    t3d_debug_printf(20, 24, "Particles: %ld", particleCount);
+    t3d_debug_printf(20, 34, "%.2f %.2f", partSizeX, partSizeY);
+    t3d_debug_printf(220, 24, "FPS: %.2f", display_get_fps());
 
     #if RSPQ_PROFILE
-      double timePerPart = (double)rspTimeTPX / (double)particleCount;
-      //rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 240-34, "RSP/tpx: %lldus (%.4f)", rspTimeTPX, timePerPart);
-      rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 240-34, "RSP/tpx: %lldus", rspTimeTPX);
-      rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 24, 240-24, "RDP    : %lldus", rdpTimeBusy);
+      double timePerPart = (double)rspTimeTPX / (double)particleCount * 1000;
+      t3d_debug_printf(20, 240-34, "RSP/tpx: %6lldus (%.4f)", rspTimeTPX, timePerPart);
+      //t3d_debug_printf(20, 240-34, "RSP/tpx: %6lldus", rspTimeTPX);
+      t3d_debug_printf(20, 240-24, "RDP    : %6lldus", rdpTimeBusy);
     #endif
 //
     rdpq_detach_show();
@@ -310,6 +409,7 @@ int main()
       if(++profile_data.frame_count == 30) {
         rspq_profile_get_data(&profile_data);
         //rspq_profile_dump();
+        //rspq_wait();
         rspq_profile_reset();
 
         rdpTimeBusy = RCP_TICKS_TO_USECS(profile_data.rdp_busy_ticks / profile_data.frame_count);

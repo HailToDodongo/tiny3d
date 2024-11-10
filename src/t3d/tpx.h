@@ -69,9 +69,10 @@ void tpx_state_from_t3d();
 /**
  * Sets a global scaling factor applied to all particles
  * Note that you can only scale down, not up.
- * @param scale scaling factor, range: 0.0 - 1.0
+ * @param scaleX horizontal scaling factor, range: 0.0 - 1.0
+ * @param scaleY vertical scaling factor, range: 0.0 - 1.0
  */
-void tpx_state_set_scale(float scale);
+void tpx_state_set_scale(float scaleX, float scaleY);
 
 /**
  * Draws a given amount of particles.
@@ -81,6 +82,51 @@ void tpx_state_set_scale(float scale);
  * @param count number of particles to draw
  */
 void tpx_particle_draw(TPXParticle *particles, uint32_t count);
+
+/**
+ * Returns the maximum amount of particles that can be drawn in a single call
+ * NOTE: due to interleaving the max. size of an TPXParticle array is half of that!
+ * @return
+ */
+inline static uint32_t tpx_buffer_get_max_count() {
+  return 344;
+}
+
+/**
+ * Returns the pointer to a position of a particle in a buffer
+ * @param vert particle buffer
+ * @param idx particle index
+ */
+static inline int8_t* tpx_buffer_get_pos(TPXParticle pt[], int idx) {
+  return (idx & 1) ? pt[idx/2].posB : pt[idx/2].posA;
+}
+
+/**
+ * Returns the pointer to the size of a particle in a buffer
+ * @param pt particle buffer
+ * @param idx particle index
+ */
+static inline int8_t* tpx_buffer_get_size(TPXParticle pt[], int idx) {
+  return (idx & 1) ? &pt[idx/2].sizeB : &pt[idx/2].sizeA;
+}
+
+/**
+ * Returns the pointer to the color (as a u32) of a particle in a buffer
+ * @param pt particle buffer
+ * @param idx particle index
+ */
+static inline uint32_t* tpx_buffer_get_color(TPXParticle pt[], int idx) {
+  return (idx & 1) ? (uint32_t*)&pt[idx/2].colorB : (uint32_t*)&pt[idx/2].colorA;
+}
+
+/**
+ * Returns the pointer to the color (as a u8[4]) of a particle in a buffer
+ * @param pt particle buffer
+ * @param idx particle index
+ */
+static inline uint8_t* tpx_buffer_get_rgba(TPXParticle pt[], int idx) {
+  return (idx & 1) ? pt[idx/2].colorB : pt[idx/2].colorA;
+}
 
 /**
  * Destroys the tinyPX library and frees all resources
