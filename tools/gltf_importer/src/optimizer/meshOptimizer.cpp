@@ -193,6 +193,15 @@ void optimizeModelChunk(ModelChunked &model)
     // to free up as much vertex space. meaning the next batch has way more space to work with
     for(int s=0; s<4 && !stipChunks.empty(); ++s)
     {
+      // check if it makes sense to emit the strip
+      // too few triangles are slower as strips than as regular triangles
+      uint32_t totalStripIndices = 0;
+      for(auto &strip : stipChunks) {
+        totalStripIndices += strip.size();
+      }
+      if(totalStripIndices < 7)break;
+
+      // if there are enough indices, emit the strip
       for(size_t i=0; i<stipChunks.size(); ++i) {
         int size = (int)stipChunks[i].size()+1;
         if(freeIndices - size >= 0) {
