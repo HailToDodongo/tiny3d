@@ -138,6 +138,16 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
 
     // printf(" - Mesh %d: %s\n", i, mesh->name);
 
+    bool hasMat = false;
+    for(int j = 0; j < mesh->primitives_count; j++) {
+      if(mesh->primitives[j].material) {
+        hasMat = true;
+        break;
+      }
+    }
+
+    if(!hasMat)continue;
+
     for(int j = 0; j < mesh->primitives_count; j++)
     {
       t3dm.models.push_back({});

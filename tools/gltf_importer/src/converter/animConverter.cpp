@@ -136,6 +136,7 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bo
       // Now calculate the relative time until the next keyframe is needed
       float nextNeededTime = (k+1) < keyframes.size() ? keyframes[k+1].timeNeeded : anim.duration;
       kf.timeNextInChannel = nextNeededTime - kf.timeNeeded;
+      if(kf.timeNextInChannel < 0)kf.timeNextInChannel = 0;
 
       kf.timeTicks = time_to_ticks(kf.time);
       kf.timeNeededTicks = time_to_ticks(kf.timeNeeded);
