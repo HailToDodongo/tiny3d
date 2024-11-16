@@ -69,9 +69,12 @@ struct Vec3
     };
   }
 
+  [[nodiscard]] float length() const {
+    return sqrtf(data[0]*data[0] + data[1]*data[1] + data[2]*data[2]);
+  }
+
   [[nodiscard]] Vec3 normalize() const {
-    f32 len = sqrtf(data[0]*data[0] + data[1]*data[1] + data[2]*data[2]);
-    return *this / len;
+    return *this / length();
   }
 
   [[nodiscard]] constexpr Vec3 clamp(f32 min, f32 max) const {
