@@ -6,6 +6,7 @@
 #define TINYPX_PTX_H
 
 #include <libdragon.h>
+#include <t3d/t3dmath.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -16,26 +17,28 @@ extern uint32_t TPX_RSP_ID;
 
 // RSP commands, must match with the commands defined in `rsp/rsp_tinypx.rspl`
 enum TPXCmd {
-  TPX_CMD_SYNC_T3D   = 0x0,
-  TPX_CMD_DRAW_COLOR = 0x1,
-  TPX_CMD_DRAW_TEX   = 0x2,
-  TPX_CMD_SET_DMEM   = 0x3,
-  //                 = 0x4,
-  //                 = 0x5,
-  //                 = 0x6,
-  //                 = 0x7,
-  //                 = 0x8,
-  //                 = 0x9,
-  //                 = 0xA,
-  //                 = 0xB,
-  //                 = 0xC,
-  //                 = 0xD,
-  //                 = 0xE,
-  //                 = 0xF,
+  TPX_CMD_SYNC_T3D     = 0x0,
+  TPX_CMD_DRAW_COLOR   = 0x1,
+  TPX_CMD_MATRIX_STACK = 0x2,
+  TPX_CMD_SET_DMEM     = 0x3,
+  //                   = 0x4,
+  //                   = 0x5,
+  //                   = 0x6,
+  //                   = 0x7,
+  //                   = 0x8,
+  //                   = 0x9,
+  //                   = 0xA,
+  //                   = 0xB,
+  //                   = 0xC,
+  //                   = 0xD,
+  //                   = 0xE,
+  //                   = 0xF,
 };
 
 typedef struct {
-  // nothing here yet
+   // Internal matrix stack size, must be at least 2.
+   // If set two zero, 4 will be used by default.
+  int matrixStackSize;
 } TPXInitParams;
 
 typedef struct {
@@ -82,6 +85,43 @@ void tpx_state_set_scale(float scaleX, float scaleY);
  * @param count number of particles to draw
  */
 void tpx_particle_draw(TPXParticle *particles, uint32_t count);
+
+/**
+ * Directly loads a matrix, overwriting the current stack position.
+ *
+ * With 'doMultiply' set to false, this lets you completely replace the current matrix.
+ * With 'doMultiply' set to true, it serves as a faster version of a pop+push combination.
+ *
+ * @param mat address to load matrix from
+ * @param doMultiply if true, the matrix will be multiplied with the previous stack entry
+ */
+void tpx_matrix_set(const T3DMat4FP *mat, bool doMultiply);
+
+/**
+ * Multiplies a matrix with the current stack position, then pushes it onto the stack.
+ * @param mat address to load matrix from
+ */
+void tpx_matrix_push(const T3DMat4FP *mat);
+
+/**
+ * Pops the current matrix from the stack.
+ * @param count how many matrices to pop
+ */
+void tpx_matrix_pop(int count);
+
+/**
+ * Moves the stack pos. without changing a matrix or causing re-calculations.
+ * This should only be used in preparation for 'tpx_matrix_set' calls.
+ *
+ * E.g. instead of multiple push/pop combis, use:
+ * - 'tpx_matrix_push_pos(1)' once
+ * - then multiple 'tpx_matrix_set'
+ * - finish with 'tpx_matrix_pop'
+ *
+ * This is the most efficient way to set multiple matrices at the same level.
+ * @param count relative change (matrix count), should usually be 1
+ */
+void tpx_matrix_push_pos(int count);
 
 /**
  * Returns the maximum amount of particles that can be drawn in a single call

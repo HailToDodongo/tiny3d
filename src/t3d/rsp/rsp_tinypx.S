@@ -87,7 +87,7 @@
   RSPQ_BeginOverlayHeader
     RSPQ_DefineCommand TPXCmd_SyncT3D, 12
     RSPQ_DefineCommand TPXCmd_DrawColor, 8
-    RSPQ_DefineCommand RSPQ_Loop, 4
+    RSPQ_DefineCommand T3DCmd_MatrixStack, 8
     RSPQ_DefineCommand TPXCmd_SetDMEM, 8
   RSPQ_EndOverlayHeader
 
@@ -97,10 +97,14 @@
     MATRIX_PROJ: .ds.b 64
     .align 3
     MATRIX_MVP: .ds.b 64
+    .align 3
+    MATRIX_MV: .ds.b 64
     .align 4
     SCREEN_SCALE_OFFSET: .half 0, 0, 0, 0, 0, 0, 16383, 255
     .align 3
     NORM_SCALE_W: .half 65535, 65535, 65535, 0
+    .align 2
+    MATRIX_STACK_PTR: .word 0
     .align 1
     PARTICLE_SCALE: .half 32767, 32767
     STATE_MEM_END:
@@ -117,18 +121,24 @@
 OVERLAY_CODE_START:
 
 TPXCmd_SyncT3D:
-  ori $t0, $zero, 127
   ori $s4, $zero, %lo(MATRIX_PROJ)
+  ori $t0, $zero, 191
   or $t2, $zero, $zero
   jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   or $s0, $zero, $a0
-  or $s0, $zero, $a1
+  ori $s4, $zero, %lo(SCREEN_SCALE_OFFSET)
   sh $a2, %lo(6 + NORM_SCALE_W)($zero)
   ori $t0, $zero, 15
-  ori $s4, $zero, %lo(SCREEN_SCALE_OFFSET)
-  ori $ra, $zero, %lo(RSPQ_Loop)
-  j DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  or $s0, $zero, $a1
+  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   or $t2, $zero, $zero
+  ori $s4, $zero, %lo(MATRIX_MV)
+  addiu $t2, $zero, -32756
+  lw $s0, %lo(MATRIX_STACK_PTR + 0)
+  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  ori $t0, $zero, 63
+  j RSPQ_Loop
+  nop
 TPXCmd_DrawColor:
   ori $s4, $zero, %lo(PARTICLE_BUFF)
   andi $t0, $a0, 65535
@@ -322,6 +332,112 @@ TPXCmd_DrawColor:
   LABEL_TPXCmd_DrawColor_0004:
   j RDPQ_Send
   ori $ra, $zero, %lo(RSPQ_Loop)
+mulMat4Mat4:
+  ldv $v01, 0, 0, $s3
+  ldv $v10, 0, 8, $s4
+  ldv $v02, 0, 8, $s3
+  ldv $v09, 0, 0, $s4
+  ldv $v02, 8, 8, $s3
+  ldv $v10, 8, 24, $s4
+  ldv $v01, 8, 0, $s3
+  ldv $v09, 8, 16, $s4
+  ldv $v03, 0, 16, $s3
+  ldv $v05, 0, 32, $s3
+  vmudl $v29, $v02, $v10.h0
+  ldv $v04, 0, 24, $s3
+  ldv $v06, 0, 40, $s3
+  ldv $v06, 8, 40, $s3
+  ldv $v04, 8, 24, $s3
+  vmadm $v29, $v01, $v10.h0
+  ldv $v03, 8, 16, $s3
+  vmadn $v14, $v02, $v09.h0
+  ldv $v07, 0, 48, $s3
+  ldv $v08, 0, 56, $s3
+  vmadh $v13, $v01, $v09.h0
+  vmadl $v29, $v04, $v10.h1
+  ldv $v05, 8, 32, $s3
+  vmadm $v29, $v03, $v10.h1
+  ldv $v11, 0, 32, $s4
+  ldv $v12, 0, 40, $s4
+  vmadn $v14, $v04, $v09.h1
+  vmadh $v13, $v03, $v09.h1
+  ldv $v08, 8, 56, $s3
+  vmadl $v29, $v06, $v10.h2
+  ldv $v12, 8, 56, $s4
+  ldv $v07, 8, 48, $s3
+  vmadm $v29, $v05, $v10.h2
+  vmadn $v14, $v06, $v09.h2
+  ldv $v11, 8, 48, $s4
+  vmadh $v13, $v05, $v09.h2
+  vmadl $v29, $v08, $v10.h3
+  vmadm $v29, $v07, $v10.h3
+  vmadn $v10, $v08, $v09.h3
+  vmadh $v09, $v07, $v09.h3
+  vmudl $v29, $v02, $v12.h0
+  vmadm $v29, $v01, $v12.h0
+  vmadn $v14, $v02, $v11.h0
+  vmadh $v13, $v01, $v11.h0
+  vmadl $v29, $v04, $v12.h1
+  vmadm $v29, $v03, $v12.h1
+  sdv $v09, 0, 0, $s2
+  vmadn $v14, $v04, $v11.h1
+  vmadh $v13, $v03, $v11.h1
+  vmadl $v29, $v06, $v12.h2
+  sdv $v10, 8, 24, $s2
+  sdv $v09, 8, 16, $s2
+  vmadm $v29, $v05, $v12.h2
+  vmadn $v14, $v06, $v11.h2
+  vmadh $v13, $v05, $v11.h2
+  vmadl $v29, $v08, $v12.h3
+  vmadm $v29, $v07, $v12.h3
+  vmadn $v12, $v08, $v11.h3
+  vmadh $v11, $v07, $v11.h3
+  sdv $v10, 0, 8, $s2
+  sdv $v12, 0, 40, $s2
+  sdv $v11, 0, 32, $s2
+  sdv $v12, 8, 56, $s2
+  jr $ra
+  sdv $v11, 8, 48, $s2
+T3DCmd_MatrixStack:
+  andi $s6, $a0, 2
+  andi $s7, $a0, 1
+  lh $a0, %lo(RSPQ_DMEM_BUFFER  -7)($gp)
+  lw $s5, %lo(MATRIX_STACK_PTR + 0)
+  addu $s5, $s5, $a0
+  bne $s6, $zero, RSPQ_Loop
+  sw $s5, %lo(MATRIX_STACK_PTR)($zero)
+  bgez $a0, LABEL_0009
+  ori $s4, $zero, %lo(MATRIX_MV)
+  or $a1, $zero, $s5
+  LABEL_0009:
+  lui $at, 0xFF
+  ori $at, $at, 0xFFFF
+  and $s0, $a1, $at
+  addiu $t2, $zero, 12
+  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  ori $t0, $zero, 63
+  beq $s7, $zero, LABEL_000A
+  nop
+  ori $s4, $zero, %lo(PARTICLE_BUFF)
+  ori $t0, $zero, 63
+  addiu $s0, $s5, 65472
+  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  addiu $t2, $zero, 12
+  ori $s3, $zero, %lo(PARTICLE_BUFF)
+  ori $s4, $zero, %lo(MATRIX_MV)
+  jal mulMat4Mat4 ## Args: $s2, $s3, $s4
+  ori $s2, $zero, %lo(MATRIX_MV)
+  LABEL_000A:
+  addiu $t2, $zero, -32756
+  or $s0, $zero, $s5
+  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  ori $t0, $zero, 63
+  ori $s4, $zero, %lo(MATRIX_MV)
+  ori $s2, $zero, %lo(MATRIX_MVP)
+  jal mulMat4Mat4 ## Args: $s2, $s3, $s4
+  ori $s3, $zero, %lo(MATRIX_PROJ)
+  j RSPQ_Loop
+  nop
 TPXCmd_SetDMEM:
   andi $s7, $a0, 32768
   bne $s7, $zero, RSPQ_Loop

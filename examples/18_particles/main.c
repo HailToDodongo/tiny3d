@@ -356,12 +356,11 @@ int main()
       (float[]){0,-1,0}
     );
 
-    t3d_matrix_push_pos(1);
-
-    t3d_matrix_set(matFP, true);
-    if(showModel)rspq_block_run(model->userBlock);
-
-    t3d_matrix_set(matPartFP, true);
+    if(showModel) {
+      t3d_matrix_push(matFP);
+      rspq_block_run(model->userBlock);
+      t3d_matrix_pop(1);
+    }
 
     rdpq_sync_pipe();
     rdpq_set_mode_standard();
@@ -370,8 +369,9 @@ int main()
     rdpq_mode_combiner(RDPQ_COMBINER1((PRIM,0,ENV,0), (0,0,0,1)));
 
     rdpq_set_env_color(grassColors[currGrassColor]);
-
+    
     tpx_state_from_t3d(); // copy the current state from t3d to tpx
+    tpx_matrix_push(matPartFP);
     tpx_state_set_scale(partSizeX, partSizeY);
 
     TPXParticle *part = particles;
@@ -380,6 +380,7 @@ int main()
       tpx_particle_draw(part, sizeLeft < batchSize ? sizeLeft : batchSize);
       part += batchSize / 2;
     }
+    tpx_matrix_pop(1);
 
     /*t3d_frame_start();
     rdpq_mode_antialias(AA_NONE);
@@ -387,8 +388,6 @@ int main()
 
     t3d_matrix_set(matFP, true);
     if(showModel)rspq_block_run(model->userBlock);*/
-
-    t3d_matrix_pop(1);
 
     t3d_debug_print_start();
     t3d_debug_printf(20, 24, "Particles: %ld", particleCount);

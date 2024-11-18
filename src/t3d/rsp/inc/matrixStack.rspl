@@ -1,0 +1,151 @@
+/**
+* @copyright 2024 - Max Bebök
+* @license MIT
+*/
+
+// NOTE: this is file used by both t3d and tpx!
+
+#define MATRIX_SIZE 0x40
+
+/**
+ * Multiplies two matrices in memory.
+ *
+ * @param addrOut destination pointer
+ * @param addrMatL pointer to left matrix
+ * @param addrMatR pointer to right matrix
+ */
+function mulMat4Mat4(u32<$s2> addrOut, u32<$s3> addrMatL, u32<$s4> addrMatR)
+{
+  vec32 matL0 = load(addrMatL, 0x00).xyzwxyzw;
+  vec32 matL1 = load(addrMatL, 0x10).xyzwxyzw;
+  vec32 matL2 = load(addrMatL, 0x20).xyzwxyzw;
+  vec32 matL3 = load(addrMatL, 0x30).xyzwxyzw;
+
+  vec32 matR01, matR23;
+
+  matR01.xyzw = load(addrMatR, 0x00).xyzw;
+  matR01.XYZW = load(addrMatR, 0x10).xyzw;
+  matR23.xyzw = load(addrMatR, 0x20).xyzw;
+  matR23.XYZW = load(addrMatR, 0x30).xyzw;
+
+  vec32 tmp;
+  tmp    = matL0  * matR01.xxxxXXXX;
+  tmp    = matL1 +* matR01.yyyyYYYY;
+  tmp    = matL2 +* matR01.zzzzZZZZ;
+  matR01 = matL3 +* matR01.wwwwWWWW;
+
+  tmp    = matL0  * matR23.xxxxXXXX;
+  tmp    = matL1 +* matR23.yyyyYYYY;
+  tmp    = matL2 +* matR23.zzzzZZZZ;
+  matR23 = matL3 +* matR23.wwwwWWWW;
+
+  store(matR01.xyzw, addrOut, 0x00);
+  store(matR01.XYZW, addrOut, 0x10);
+  store(matR23.xyzw, addrOut, 0x20);
+  store(matR23.XYZW, addrOut, 0x30);
+}
+
+/**
+ * Normalize a matrix vector (column) in memory and saves it as a fraction.
+ * This is used to normalize the normal matrix.
+ *
+ * @param addrIn vector input address (s16.16 format)
+ * @param addrOut vector output address (s0.16 format)
+ */
+#ifdef HAS_NORMAL_MATRIX
+function normalizeMatrixVector(u32<$s4> addrIn, u32<$t1> addrOut)
+{
+  vec32 v = load(addrIn, 0x00).xyzw;
+
+  // get vector length
+  vec32 vLenInv = v * v;
+  vec32 tmp = vLenInv + vLenInv.yyyyYYYY;
+  vLenInv   = vLenInv + tmp.zzzzZZZZ;
+
+  // inverse of the length
+  vLenInv.w = invert_half_sqrt(vLenInv).x;
+  vLenInv >>= 9;
+
+  v *= vLenInv.wwwwWWWW; // normalize
+  v:sfract += v:sfract; // prevent over/underflow
+
+  store(v:sfract.xyzw, addrOut, 0x00);
+
+  addrIn += 0x10;
+  addrOut += 0x8;
+}
+#endif
+
+/**
+ * Manages the matrix stack, implements 'push'/'pop' as well as 'set'.
+ * The actual stack itself is held in RDRAM, only the current matrix is in DMEM.
+ *
+ * @param stackAdvance byte 0  : (internal)
+ *                     byte 1-2: bytes to advance the stack pointer as an s16
+ *                     byte 3  : flags (1=mul, 2=only advance)
+ * @param addressMat RDRAM address to load matrix from
+ */
+command<2> T3DCmd_MatrixStack(s32 stackAdvance, u32 addressMat)
+{
+  u32<$s4> dmaDest;
+
+  u16 doMultiply = stackAdvance & 0b01;
+  u16 onlyStackMove = stackAdvance & 0b10;
+
+  stackAdvance:s16 = load_arg(1); // re-load from args to get sign extension
+
+  s32 stackPtr = load(MATRIX_STACK_PTR);
+  stackPtr += stackAdvance;
+  store(stackPtr, MATRIX_STACK_PTR);
+
+  // only move the stack pointer, can be used to prepare following matrix_set calls
+  if(onlyStackMove)exit;
+  dmaDest = MATRIX_MV; // load new matrix
+  resolveSegmentAddr(addressMat, addressMat);
+
+  // stackAdvance less than zero -> matrix pop, load matrix from stack
+  if(stackAdvance < 0)addressMat = stackPtr;
+  u32<$s0> addrRDRAM = addressMat & 0xFFFFFF;
+
+  dma_in(dmaDest, addrRDRAM, MATRIX_SIZE);
+
+  #ifdef HAS_NORMAL_MATRIX
+    u32<$t1> normOut = MATRIX_NORMAL;
+  #endif
+
+  // if we advanced the stack, we need to multiply by the previous matrix
+  if(doMultiply) {
+    // load the mat. to multiply with from the stack...
+    dmaDest = MATRIX_TEMP_MUL;
+    addrRDRAM = stackPtr -  MATRIX_SIZE;
+    dma_in(dmaDest, addrRDRAM, MATRIX_SIZE);
+
+    // ...then multiply and store back top the same pos. in DMEM
+    u32<$s2> mulDest = MATRIX_MV;
+    u32<$s3> mulLeft = MATRIX_TEMP_MUL;
+    dmaDest = MATRIX_MV;
+    mulMat4Mat4(mulDest, mulLeft, dmaDest);
+  }
+
+  // save calc. matrix back to the stack
+  addrRDRAM = stackPtr;
+  dma_out(dmaDest, addrRDRAM, MATRIX_SIZE); // async
+
+  // now grab the normal matrix and store it in a special slot.
+
+  u32<$s2> mulDest = MATRIX_MVP;
+  #ifdef HAS_NORMAL_MATRIX
+    normalizeMatrixVector(dmaDest, normOut);
+  #endif
+  u32<$s3> mulLeft = MATRIX_PROJ;
+  #ifdef HAS_NORMAL_MATRIX
+    normalizeMatrixVector(dmaDest, normOut);
+    normalizeMatrixVector(dmaDest, normOut);
+  #endif
+  undef dmaDest;
+
+  // ...followed by applying the projection matrix, storing it in a special slot too.
+  // Together, these two special slots are used for vertex transformation later on.
+  u32<$s4> mulRight = MATRIX_MV;
+  mulMat4Mat4(mulDest, mulLeft, mulRight);
+}

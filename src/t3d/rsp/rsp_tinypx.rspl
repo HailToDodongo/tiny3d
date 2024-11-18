@@ -36,6 +36,7 @@ state
 
   alignas(8) vec16 MATRIX_PROJ[4];   // projection matrix
   alignas(8) vec16 MATRIX_MVP[4];    // view * model * projection
+  alignas(8) vec16 MATRIX_MV[4];
 
   vec16 SCREEN_SCALE_OFFSET = {
     0, 0, 0,           0, // screen size scale (.xyzw)
@@ -46,6 +47,7 @@ state
     0xFFFF, 0xFFFF, 0xFFFF, 0x0000
   };
 
+  s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
   u16 PARTICLE_SCALE[2] = {0x7FFF, 0x7FFF};
 }
 
@@ -60,9 +62,12 @@ function RDPQ_Send(u16<$s4> dmemStart, u16<$s3> dmaDmemEnd);
 
 command<0> TPXCmd_SyncT3D(u32 rdramMatrix, u32 rdramScreen, u16 wNorm)
 {
-  dma_in_async(MATRIX_PROJ, rdramMatrix, 128); // P, MVP, MV
+  dma_in_async(MATRIX_PROJ, rdramMatrix, 192); // P, MVP, MV
   store(wNorm, NORM_SCALE_W, 6);
   dma_in_async(SCREEN_SCALE_OFFSET, rdramScreen); // normal matrix
+
+  u32<$s0> addrRDRAM = load(MATRIX_STACK_PTR);
+  dma_out(MATRIX_MV, addrRDRAM);
 }
 
 command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
@@ -261,10 +266,11 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
   goto RDPQ_Send;
 }
 
-command<2> TPXCmd_DrawTexture()
-{
-  // @TODO: implement
-}
+// #### // Matrix stack function, shared with t3d:
+#define MATRIX_TEMP_MUL PARTICLE_BUFF
+macro resolveSegmentAddr(u32 _, u32 __) {}
+#include "inc/matrixStack.rspl"
+// #### //
 
 command<3> TPXCmd_SetDMEM(u16 addrDMEM, u32 value) {
   u32 is16bit = addrDMEM & 0x8000;
