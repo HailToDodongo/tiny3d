@@ -17,16 +17,25 @@ extern "C"
 #define T3D_PI 3.14159265358979f
 
 // 3D float vector
-typedef struct {
+typedef union {
+  struct {
+    float x, y, z;
+  };
   float v[3];
 } T3DVec3;
 
-typedef struct {
+typedef union {
+  struct {
+    float x, y, z, w;
+  };
   float v[4];
 } T3DVec4;
 
 // float quaternion, stored as XYZW
-typedef struct {
+typedef union {
+  struct {
+    float x, y, z, w;
+  };
   float v[4];
 } T3DQuat;
 
