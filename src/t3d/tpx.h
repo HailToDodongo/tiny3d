@@ -48,7 +48,7 @@ typedef struct {
   int8_t sizeB;
   uint8_t colorA[4];
   uint8_t colorB[4];
-}  __attribute__((packed, aligned(__alignof__(uint32_t)))) TPXParticle;
+}  __attribute__((packed, aligned(16))) TPXParticle;
 
 _Static_assert(sizeof(TPXParticle) == 16, "TPXParticle size mismatch");
 
@@ -167,6 +167,23 @@ static inline uint32_t* tpx_buffer_get_color(TPXParticle pt[], int idx) {
 static inline uint8_t* tpx_buffer_get_rgba(TPXParticle pt[], int idx) {
   return (idx & 1) ? pt[idx/2].colorB : pt[idx/2].colorA;
 }
+
+/**
+ * Swaps two particles in a buffer
+ * @param pt buffer to swap particles in
+ * @param idxA index of the first particle
+ * @param idxB index of the second particle
+ */
+void tpx_buffer_swap(TPXParticle pt[], uint32_t idxA, uint32_t idxB);
+
+/**
+ * Copies a particle into another place in a buffer
+ * This will overwrite the destination particle and keep the source particle unchanged.
+ * @param pt buffer to copy particles in
+ * @param idxDst destination index
+ * @param idxSrc source index
+ */
+void tpx_buffer_copy(TPXParticle pt[], uint32_t idxDst, uint32_t idxSrc);
 
 /**
  * Destroys the tinyPX library and frees all resources

@@ -12,6 +12,8 @@ extern rsp_ucode_t rsp_tiny3d;
 DEFINE_RSP_UCODE(rsp_tinypx);
 uint32_t TPX_RSP_ID = 0;
 
+#define SWAP_U32(a, b) {uint32_t tmp = a; a = b; b = tmp;}
+
 static T3DMat4FP *matrixStack = NULL;
 
 void tpx_init([[maybe_unused]] TPXInitParams params)
@@ -62,7 +64,7 @@ void tpx_state_set_scale(float scaleX, float scaleY) {
 
 void tpx_particle_draw(TPXParticle *particles, uint32_t count)
 {
-  count &= ~1;
+  assert((count & 1) == 0);
   assert(count <= 344);
   count = sizeof(TPXParticle) * count / 2;
   rdpq_write(-1, TPX_RSP_ID, TPX_CMD_DRAW_COLOR,
@@ -94,6 +96,28 @@ void tpx_matrix_pop(int count) {
 void tpx_matrix_push_pos(int count) {
   int32_t stackAdvance = sizeof(T3DMat4FP) * count;
   tpx_matrix_stack(NULL, stackAdvance, false, true);
+}
+
+void tpx_buffer_swap(TPXParticle pt[], uint32_t idxA, uint32_t idxB) {
+  uint32_t *dataA = (uint32_t*)&pt[idxA/2];
+  uint32_t *dataB = (uint32_t*)&pt[idxB/2];
+
+  dataA += idxA & 1;
+  dataB += idxB & 1;
+
+  SWAP_U32(dataA[0], dataB[0]);
+  SWAP_U32(dataA[2], dataB[2]);
+}
+
+void tpx_buffer_copy(TPXParticle *pt, uint32_t idxDst, uint32_t idxSrc) {
+  uint32_t *dataDst = (uint32_t*)&pt[idxDst/2];
+  uint32_t *dataSrc = (uint32_t*)&pt[idxSrc/2];
+
+  dataDst += idxDst & 1;
+  dataSrc += idxSrc & 1;
+
+  dataDst[0] = dataSrc[0];
+  dataDst[2] = dataSrc[2];
 }
 
 void tpx_destroy()
