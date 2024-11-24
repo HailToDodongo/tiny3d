@@ -511,6 +511,17 @@ bool t3d_frustum_vs_aabb(const T3DFrustum *frustum, const T3DVec3 *min, const T3
  */
 bool t3d_frustum_vs_aabb_s16(const T3DFrustum *frustum, const int16_t min[3], const int16_t max[3]);
 
+/**
+ * Checks if a Sphere is inside a frustum.
+ * Note that this function *may* choose to return false positives in favor of speed.
+ * So it should only be used where this is acceptable (e.g. culling) and not for collision detection.
+ * @param frustum frustum
+ * @param center Sphere center
+ * @param radius Sphere radius
+ * @return true if the Sphere is inside the frustum
+ */
+bool t3d_frustum_vs_sphere(const T3DFrustum *frustum, const T3DVec3 *center, const float radius);
+
 /// @brief Multiplies the matrices 'matA' and 'matB' and stores it in 'matRes'
 inline static void t3d_mat4_mul(T3DMat4 *matRes, const T3DMat4 *matA, const T3DMat4 *matB)
 {

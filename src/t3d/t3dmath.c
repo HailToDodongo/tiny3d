@@ -137,6 +137,14 @@ bool t3d_frustum_vs_aabb_s16(const T3DFrustum *frustum, const int16_t min[3], co
   return true;
 }
 
+bool t3d_frustum_vs_sphere(const T3DFrustum *frustum, const T3DVec3 *center, const float radius){
+  for(int i=0; i<6; ++i) {
+    float dist = t3d_vec3_dot((T3DVec3*)&frustum->planes[i], center) + frustum->planes[i].v[3];
+    if(dist < -radius) return false;
+  }
+  return true;
+}
+
 void t3d_mat4_perspective(T3DMat4 *mat, float fov, float aspect, float near, float far) {
   float tanHalfFov = tanf(fov * 0.5f);
   *mat = (T3DMat4){0};

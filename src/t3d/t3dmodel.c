@@ -15,6 +15,10 @@ static inline void* align_pointer(void *ptr, uint32_t alignment) {
   return (void*)(((uint32_t)ptr + alignment - 1) & ~(alignment - 1));
 }
 
+static inline bool is_power_of_two(uint16_t x) {
+  return (x & (x - 1)) == 0;
+}
+
 typedef struct {
   uint16_t objectPtr;
 } T3DBvhData;
@@ -116,13 +120,29 @@ static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *co
     rdpq_texparms_t texParam = (rdpq_texparms_t){};
     texParam.s.translate = tex->s.low;
     texParam.s.mirror = tex->s.mirror;
-    texParam.s.repeats = tex->s.clamp ? 1 : REPEAT_INFINITE;
+    texParam.s.repeats = REPEAT_INFINITE;
     texParam.s.scale_log = (int)tex->s.shift;
+
+    if(tex->s.clamp) {
+      if(is_power_of_two(tex->texWidth)) {
+        texParam.s.repeats = (tex->s.height+1.0f) / (float)tex->texWidth;
+      } else {
+        texParam.s.repeats = 1;
+      }
+    }
 
     texParam.t.translate = tex->t.low;
     texParam.t.mirror = tex->t.mirror;
-    texParam.t.repeats = tex->t.clamp ? 1 : REPEAT_INFINITE;
+    texParam.t.repeats = REPEAT_INFINITE;
     texParam.t.scale_log = (int)tex->t.shift;
+
+    if(tex->t.clamp) {
+      if(is_power_of_two(tex->texHeight)) {
+        texParam.t.repeats = (tex->t.height+1.0f) / (float)tex->texHeight;
+      } else {
+        texParam.t.repeats = 1;
+      }
+    }
 
     if(conf && conf->tileCb) {
       conf->tileCb(conf->userData, &texParam, tile);
