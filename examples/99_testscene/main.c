@@ -15,7 +15,7 @@
 int main()
 {
   profile_data.frame_count = 0;
-	debug_init_isviewer();
+	//debug_init_isviewer();
 	debug_init_usblog();
 	asset_init_compression(2);
 
