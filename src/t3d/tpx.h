@@ -124,15 +124,6 @@ void tpx_matrix_pop(int count);
 void tpx_matrix_push_pos(int count);
 
 /**
- * Returns the maximum amount of particles that can be drawn in a single call
- * NOTE: due to interleaving the max. size of an TPXParticle array is half of that!
- * @return
- */
-inline static uint32_t tpx_buffer_get_max_count() {
-  return 344;
-}
-
-/**
  * Returns the pointer to a position of a particle in a buffer
  * @param vert particle buffer
  * @param idx particle index

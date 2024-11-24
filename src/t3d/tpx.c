@@ -13,6 +13,7 @@ DEFINE_RSP_UCODE(rsp_tinypx);
 uint32_t TPX_RSP_ID = 0;
 
 #define SWAP_U32(a, b) {uint32_t tmp = a; a = b; b = tmp;}
+#define MAX_PARTICLES_COLOR 344
 
 static T3DMat4FP *matrixStack = NULL;
 
@@ -65,11 +66,18 @@ void tpx_state_set_scale(float scaleX, float scaleY) {
 void tpx_particle_draw(TPXParticle *particles, uint32_t count)
 {
   assert((count & 1) == 0);
-  assert(count <= 344);
-  count = sizeof(TPXParticle) * count / 2;
-  rdpq_write(-1, TPX_RSP_ID, TPX_CMD_DRAW_COLOR,
-      count, (uint32_t)UncachedAddr(particles)
-   );
+
+  for(uint32_t i = 0; i < count; i += MAX_PARTICLES_COLOR) {
+    uint32_t batchSize = (count - i);
+    if(batchSize > MAX_PARTICLES_COLOR)batchSize = MAX_PARTICLES_COLOR;
+
+    uint32_t loadSize = sizeof(TPXParticle) * batchSize / 2;
+    rdpq_write(-1, TPX_RSP_ID, TPX_CMD_DRAW_COLOR,
+        loadSize, (uint32_t)UncachedAddr(particles)
+    );
+
+    particles += MAX_PARTICLES_COLOR / 2;
+  }
 }
 
 inline static void tpx_matrix_stack(void *mat, int32_t stackAdvance, bool doMultiply, bool onlyStackMove) {
