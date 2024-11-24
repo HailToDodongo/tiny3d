@@ -275,9 +275,9 @@ int main()
     // You can either continue with t3d (remember to revert rdpq settings again) or do other 2D draws.
 
     t3d_debug_print_start();
-    t3d_debug_printf(20, 24, "[D] Particles: %ld", particleCount);
-    t3d_debug_printf(20, 34, "[C] %.2f %.2f", partSizeX, partSizeY);
-    t3d_debug_printf(220, 24, "FPS: %.2f", display_get_fps());
+    t3d_debug_printf(20,  18, "[D] Particles: %ld", particleCount);
+    t3d_debug_printf(20,  30, "[C] %.2f %.2f", partSizeX, partSizeY);
+    t3d_debug_printf(220, 18, "FPS: %.2f", display_get_fps());
 
     #if RSPQ_PROFILE
       double timePerPart = 0;
