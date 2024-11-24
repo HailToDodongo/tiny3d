@@ -280,8 +280,11 @@ int main()
     t3d_debug_printf(220, 24, "FPS: %.2f", display_get_fps());
 
     #if RSPQ_PROFILE
-      double timePerPart = (double)rspTimeTPX / (double)particleCount * 1000;
-      t3d_debug_printf(20, 240-34, "RSP/tpx: %6lldus (%.4f)", rspTimeTPX, timePerPart);
+      double timePerPart = 0;
+      if(particleCount > 0) {
+        timePerPart = (double)rspTimeTPX / (double)particleCount * 1000;
+      }
+      t3d_debug_printf(20, 240-34, "RSP/tpx: %6lldus %.1f", rspTimeTPX, timePerPart);
       //t3d_debug_printf(20, 240-34, "RSP/tpx: %6lldus", rspTimeTPX);
       t3d_debug_printf(20, 240-24, "RDP    : %6lldus", rdpTimeBusy);
     #else
