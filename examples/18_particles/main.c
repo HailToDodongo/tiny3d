@@ -245,6 +245,7 @@ int main()
     // In our case, we want to combine it with env. color in the CC.
     // In order to have depth, you also need to enable `rdpq_mode_zoverride` so the ucode can set this correctly.
     rdpq_sync_pipe();
+    rdpq_sync_tile();
     rdpq_set_mode_standard();
     rdpq_mode_zbuf(true, true);
     rdpq_mode_zoverride(true, 0, 0);
@@ -274,7 +275,7 @@ int main()
     // You can either continue with t3d (remember to revert rdpq settings again) or do other 2D draws.
 
     t3d_debug_print_start();
-    t3d_debug_printf(20, 24, "[DPAD] Count: %ld", particleCount);
+    t3d_debug_printf(20, 24, "[D] Particles: %ld", particleCount);
     t3d_debug_printf(20, 34, "[C] %.2f %.2f", partSizeX, partSizeY);
     t3d_debug_printf(220, 24, "FPS: %.2f", display_get_fps());
 
