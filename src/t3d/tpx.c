@@ -20,6 +20,8 @@ static T3DMat4FP *matrixStack = NULL;
 void tpx_init([[maybe_unused]] TPXInitParams params)
 {
   if(params.matrixStackSize <= 0)params.matrixStackSize = 8;
+
+  rspq_init();
   matrixStack = malloc_uncached(sizeof(T3DMat4FP) * params.matrixStackSize);
   t3d_mat4fp_identity(&matrixStack[0]);
 
