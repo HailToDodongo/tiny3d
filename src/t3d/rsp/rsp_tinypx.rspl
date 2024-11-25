@@ -1,0 +1,332 @@
+/***************************************
+ *   3D-particle ucode for libdragon   *
+ *                                     *
+ * @copyright Max Bebök 2024           *
+ * @license MIT                        *
+ ***************************************/
+
+include "rsp_queue.inc"
+include "rsp_rdpq.inc"
+include "rdpq_macros.h"
+
+// See: https://n64brew.dev/wiki/Reality_Display_Processor/Commands
+#define RDP_CMD_PRIM  0x3A00'0000
+#define RDP_CMD_DEPTH 0x2E
+#define RDP_CMD_RECT  0x36
+#define RDP_CMD_TEX_RECT 0x24
+
+// size of the 'T3DParticle' struct, containing 2 interleaved particles each
+#define PARTICLE_INPUT_SIZE 16
+// max particles, this must be a multiple of 2
+#define PARTICLE_MAX_COUNT 344
+
+// max size before flush
+// it must be a multiple of 24, and assume one extra 24 bytes over the limit to still fit
+#define RDP_FLUSH_SIZE 528
+#define RDP_POS_MASK 0b1111'1111'1111
+
+state
+{
+  // external libdragon labels
+  extern u32 RDPQ_OTHER_MODES;
+  extern u16 RSPQ_Loop;
+  extern u16 RSPQ_SCRATCH_MEM;
+  extern u16 CLIPPING_CODE_TARGET;
+  extern u32 RDPQ_SCISSOR_RECT;
+
+  alignas(8) vec16 MATRIX_PROJ[4];   // projection matrix
+  alignas(8) vec16 MATRIX_MVP[4];    // view * model * projection
+
+  vec16 SCREEN_SCALE_OFFSET = {
+    0, 0, 0,           0, // screen size scale (.xyzw)
+    0, 0, 0x3FFF, 0x00FF  // screen size offset (.XYZW), W is used for a fake clipping-code in 'triToScreenSpace'
+  };
+
+  alignas(8) s16 NORM_SCALE_W[4] = {
+    0xFFFF, 0xFFFF, 0xFFFF, 0x0000
+  };
+
+  s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
+  u16 PARTICLE_SCALE[2] = {0x7FFF, 0x7FFF};
+}
+
+temp_state {
+  alignas(16) u8 PARTICLE_BUFF[PARTICLE_MAX_COUNT][8];
+  alignas(16) u8 RDP_BUFF[RDP_FLUSH_SIZE];
+}
+
+#include "inc/math.rspl"
+
+function RDPQ_Send(u16<$s4> dmemStart, u16<$s3> dmaDmemEnd);
+
+command<0> TPXCmd_SyncT3D(u32 rdramMatrix, u32 rdramScreen, u16 wNorm)
+{
+  dma_in_async(MATRIX_PROJ, rdramMatrix, 128); // P, MVP
+
+  rdramMatrix += 128;
+  dma_in_async(RDP_BUFF, rdramMatrix, 64); // MV
+  u32<$s0> addrRDRAM = load(MATRIX_STACK_PTR);
+  dma_out_async(RDP_BUFF, addrRDRAM, 64);
+
+  store(wNorm, NORM_SCALE_W, 6);
+
+  // get screen-size, this must happen after the matrix load
+  // since the MV matrix will spill into the screen-size offset
+  dma_in(SCREEN_SCALE_OFFSET, rdramScreen);
+}
+
+command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
+{
+  u16<$s4> dmaDmem = PARTICLE_BUFF;
+  u32<$t0> dmaSize = dataSize & 0xFFFF;
+
+  // Reserve regs used by RDPQ_Send, DMA and indirect functions.
+  // since we call it in our loop, we must reserve them here, and they can only use it for temporaries.
+  // Those function are part of libdragon and in ASM, so we have no control over them.
+  u8<$t3> syncOngoing;
+  s32<$s0> rdram_cur;
+  undef dataSize;
+  u32<$t4> temp1;
+  u32<$t1> clipA; u8<$t2> cmdRdpRect;
+  u32<$t5> clipB; u8<$a0> cmdRdpDepth;
+  u32<$t7> cmdRdpColor;
+  // end of reserved regs
+
+  // Load in all particles at once, re-use vertex buffer here
+  u32 ptrInEnd = dmaDmem + dmaSize;
+  dma_in_async(dmaDmem, rdramAddr, dmaSize);
+
+  u32 ptrIn = dmaDmem;
+
+  dmaDmem = RDP_BUFF; // make 'dmaDmem' point to the output buffer now
+  u16<$s3> dmaDmemEnd = RDP_BUFF;
+  u16 dmaDmemFlush = dmaDmemEnd + RDP_FLUSH_SIZE;
+
+  vec32 mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
+  vec32 mat1 = load(MATRIX_MVP, 0x10).xyzwxyzw;
+  vec32 mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
+  vec32 mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
+
+  vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
+  screenSize:sfract = 0;
+  screenSize >>= 4;
+
+  vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
+  vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
+
+  vec16 screenMin, screenMax;
+  loadScissorMinMax(screenMin, screenMax);
+
+  vec16 localPartSize;
+  vec16 globalPartSize;
+  globalPartSize.xy = load(PARTICLE_SCALE).xy;
+  globalPartSize.XY = load(PARTICLE_SCALE).xy;
+
+  // while the DMA is running, we init the RDP buffer with fixed values (command ids)
+  // so we don't have to do it each loop iteration
+  {
+    u16 buffRdp = RDP_BUFF;
+    u16 buffRdpEnd = dmaDmemFlush + 24;
+    cmdRdpColor = RDP_CMD_PRIM;
+    cmdRdpDepth = RDP_CMD_DEPTH;
+    loop {
+      store(cmdRdpColor, buffRdp, 0);
+      store(cmdRdpDepth, buffRdp, 8);
+      store(ZERO:u16, buffRdp, 0x0E); // delta-z in depth command
+      buffRdp += 24;
+    } while(buffRdp != buffRdpEnd)
+  }
+
+  dma_await();
+
+  u32 posA, posB, posEndA, posEndB;
+  vec32 posClip;
+
+  // de-phase parts of the loop, this part is also at the end of the loop
+  vec16 posStart = load_vec_s8(ptrIn, 0x00);
+  localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
+  posStart >>= 8;
+  posStart.w = 1;
+  posStart.W = 1;
+
+  const vec16 vecOne = 1;
+  u32<$a2> temp0;
+
+  // point to clip space
+  mulMat4Vec8(mat0, mat1, mat2, mat3, posStart, posClip);
+  temp1 = clip(posClip, posClip.wwwwWWWW);
+
+  // Iterate over all points, transform + clip, save back those that need to be drawn
+  // the transformed amount might be smaller and shifted due to that
+  loop {
+    // only clip-check against Z to prevent overflow, X/Y is clamped in screen-space later
+
+    clipA = temp1 & 0b0000'0100'0000'0100;
+    clipB = temp1 & 0b0100'0000'0100'0000;
+
+    vec32 invW;
+    posClip *= normScaleW:ufract;
+
+    invW.w = invert_half(posClip).w;
+    invW.W = invert_half(posClip).W;
+
+    // store a particle base-size in W to only do one perspective division
+    posClip.w = 128;
+    posClip.W = 128;
+
+    // perspective division
+    posClip *= invW.wwwwWWWW;
+    undef invW;
+
+    // scale particle size by perspective
+    localPartSize:sfract *= posClip:sint.wwwwWWWW;
+
+    // transform to screen-space, this is the center of the particles and its depth-value
+    vec32 posScreen = posClip * screenSize;
+    vec16 posCenter = screenOffset:sint +* vecOne;
+
+    // extend to both sides for start/end point...
+    vec16 posEnd = vecOne +* localPartSize:sint;
+    posStart = posCenter - localPartSize:sint;
+
+    // ... and clamp to the edges of the screen
+    posEnd = min(posEnd, screenMax);
+    posStart = max(posStart, screenMin);
+
+    encodeRectPos(posA, posB, posStart);
+    encodeRectPos(posEndA, posEndB, posEnd);
+
+    // now check if it's completely outside the screen or has a zero-size
+    vec16 extend = posStart < posEnd;
+    temp1 = get_vcc();
+
+    temp0 = temp1 & 0b0000'0011; // only check X/Y
+    clipA |= temp0;
+
+    temp0 = temp1 & 0b0011'0000;
+    clipB |= temp0;
+
+    // load color and prepare RPD command IDs
+    vec16 color = load(ptrIn, 0x08).xyzw;
+    cmdRdpRect = RDP_CMD_RECT;
+
+    // Save the rectangles now. Each one consists of 3 commands: color, depth, rect
+    // The first one is always saved here to allow better reordering,
+    // however both will only submit it by advancing 'dmaDmemEnd'
+
+    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
+    // "Prim Color": |0x3A |  -  |    LOD    ||      color (RGBA)     |
+    store(color.xy, dmaDmemEnd, 4);
+
+    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
+    // "Prim Depth": |0x2E |  -  |  -  |  -  ||   depth   |  delta-Z  |
+    store(posCenter.z, dmaDmemEnd, 0x04, 8);
+
+    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
+    //  "Fill Rect": |0x36 |   X0/Y0 (10.2)  ||  -  |  X1/Y1 (10.2)   |
+    store(posA, dmaDmemEnd, 0x04, 16);
+    @Barrier("pos-cmd") store(posEndA, dmaDmemEnd, 0x00, 16);
+    @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16);
+
+    // load particle for next iteration
+    ptrIn += PARTICLE_INPUT_SIZE;
+    posStart = load_vec_s8(ptrIn, 0x00, PARTICLE_INPUT_SIZE);
+    localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
+    posStart >>= 8;
+
+    posStart.w = 1;
+
+    if(clipA == 0b0000'0011) {
+      dmaDmemEnd += 24;
+    }
+
+    posStart.W = 1;
+    // Second rectangle:
+    if(clipB == 0b0011'0000) {
+      store(color.zw, dmaDmemEnd, 4);
+      store(posCenter.Z, dmaDmemEnd, 0x04, 8);
+
+      store(posB, dmaDmemEnd, 0x04, 16);
+      @Barrier("pos-cmd") store(posEndB, dmaDmemEnd, 0x00, 16);
+      @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16);
+
+      dmaDmemEnd += 24;
+    }
+
+    mulMat4Vec8(mat0, mat1, mat2, mat3, posStart, posClip);
+
+    // When the RDP buffer in DMEM is full, submit and DMA them out.
+    // If anything is left, a last call after the loop will submit the rest.
+    if(dmaDmemEnd >= dmaDmemFlush) {
+      RDPQ_Send(dmaDmem, dmaDmemEnd);
+      dmaDmemEnd = dmaDmem;
+    }
+
+    temp1 = clip(posClip, posClip.wwwwWWWW);
+
+  } while (ptrIn != ptrInEnd)
+
+  // submit the rest of the buffer (if any)
+  RA = RSPQ_Loop; // @TODO: add RSPL auto-opt. for this (needs RA assign)
+  goto RDPQ_Send;
+}
+
+// #### // Matrix stack function, shared with t3d:
+#define MATRIX_TEMP_MUL PARTICLE_BUFF
+#define MATRIX_MV RDP_BUFF
+macro resolveSegmentAddr(u32 _, u32 __) {}
+#include "inc/matrixStack.rspl"
+// #### //
+
+command<3> TPXCmd_SetDMEM(u16 addrDMEM, u32 value) {
+  u32 is16bit = addrDMEM & 0x8000;
+  store(value:u16, addrDMEM);
+
+  if(is16bit)goto RSPQ_Loop;
+
+  store(value:u32, addrDMEM);
+}
+
+/**
+ * Converts a screen-space position to a 10.2 rect. command position
+ * @param outA XY pos for .xy component of pos
+ * @param outB XY pos for .XY component of pos
+ * @param pos input position
+ */
+macro encodeRectPos(u32 outA, u32 outB, vec16 pos)
+{
+  outA = pos.y;
+  outA &= RDP_POS_MASK;
+  u32 tmp = pos.x;
+  tmp <<= 12;
+  outA |= tmp;
+
+  outB = pos.Y;
+  outB &= RDP_POS_MASK;
+  tmp = pos.X;
+  tmp <<= 12;
+  outB |= tmp;
+}
+
+/**
+ * Loads the current scissor area from the shared 'RDPQ_SCISSOR_RECT' setting
+ * @param screenMin minimum (sets .xy & .XY)
+ * @param screenMax maximum (sets .xy & .XY)
+ */
+macro loadScissorMinMax(vec16 screenMin, vec16 screenMax)
+{
+  screenMax.w = RDP_POS_MASK; // mask to extract 10.2 values
+  u32 extMax = load(RDPQ_SCISSOR_RECT, 4);
+  u32 extMin = load(RDPQ_SCISSOR_RECT, 0);
+
+  temp1 = extMax >> 12;
+  screenMax.x = temp1;  screenMax.X = temp1;
+  screenMax.y = extMax; screenMax.Y = extMax;
+
+  temp1 = extMin >> 12;
+  screenMin.x = temp1;  screenMin.X = temp1;
+  screenMin.y = extMin; screenMin.Y = extMin;
+
+  screenMax &= screenMax.w;
+  screenMin &= screenMax.w;
+}

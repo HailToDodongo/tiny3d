@@ -162,6 +162,12 @@ inline static T3DViewport t3d_viewport_create() {
 void t3d_viewport_attach(T3DViewport *viewport);
 
 /**
+ * Returns the currently attached viewport.
+ * @return viewport or NULL if none is attached
+ */
+T3DViewport *t3d_viewport_get();
+
+/**
  * Convenience function to set the area of a viewport.
  * @param viewport
  * @param x position (0 by default)

@@ -15,7 +15,7 @@
 int main()
 {
   profile_data.frame_count = 0;
-	debug_init_isviewer();
+	//debug_init_isviewer();
 	debug_init_usblog();
 	asset_init_compression(2);
 
@@ -42,9 +42,7 @@ int main()
   // Now allocate a fixed-point matrix, this is what t3d uses internally.
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
 
-  float camScale = 0.5f;
   T3DVec3 camPos = {{2.9232f, 67.6248f, 61.1093f}};
-
   T3DVec3 camTarget = {{0,0,0}};
   T3DVec3 camDir = {{0,0,1}};
 
