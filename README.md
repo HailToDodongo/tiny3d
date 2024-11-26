@@ -64,6 +64,7 @@ In order to best use the N64 hardware, it is recommended to use [Fast64](https:/
 > **Note**: Due to internal changes in the GLTF exporter, only blender up to version 4.0 is supported at the moment.<br>
 Exporting embedded texture may also cause issues, so it's recommended to use files.
 
+You can find blender in version 4.0 here: https://download.blender.org/release/Blender4.0/
 
 At the moment only fast64 materials are supported.<br>
 For this to work, custom properties export must be enabled.<br>
