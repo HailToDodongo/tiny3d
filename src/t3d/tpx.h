@@ -21,7 +21,7 @@ enum TPXCmd {
   TPX_CMD_DRAW_COLOR   = 0x1,
   TPX_CMD_MATRIX_STACK = 0x2,
   TPX_CMD_SET_DMEM     = 0x3,
-  //                   = 0x4,
+  TPX_CMD_DRAW_TEXTURE = 0x4,
   //                   = 0x5,
   //                   = 0x6,
   //                   = 0x7,
@@ -85,6 +85,18 @@ void tpx_state_set_scale(float scaleX, float scaleY);
  * @param count number of particles to draw
  */
 void tpx_particle_draw(TPXParticle *particles, uint32_t count);
+
+/**
+ * Draws a given amount of particles with a texture.
+ * In contrast to triangles in t3d, this works in a single command.
+ * So load, transform and draw happens in one go.
+ * Note: this expects that you already setup textures.
+ * It will also always use TILE0 for the rect-commands.
+ *
+ * @param particles pointer to the particle data
+ * @param count number of particles to draw
+ */
+void tpx_particle_draw_tex(TPXParticle *particles, uint32_t count);
 
 /**
  * Directly loads a matrix, overwriting the current stack position.
