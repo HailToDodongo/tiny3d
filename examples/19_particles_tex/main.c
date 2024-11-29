@@ -54,13 +54,14 @@ int main()
 
 
   uint32_t particleCountMax = 100'000;
-  uint32_t particleCount = 8;
+  uint32_t particleCount = 2;
   uint32_t allocSize = sizeof(TPXParticle) * particleCountMax / 2;
   TPXParticle *particles = malloc_uncached(allocSize);
   debugf("Particle-Buffer %ldkb\n", allocSize / 1024);
   generate_particles_random(particles, particleCount);
 
-  sprite_t *texTest = sprite_load("rom://unit1m.i8.sprite");
+  //sprite_t *texTest = sprite_load("rom://coin.i4.sprite");
+  sprite_t *texTest = sprite_load("rom://swirl.i4.sprite");
 
   T3DModel *model = t3d_model_load("rom://scene.t3dm");
   rspq_block_begin();
@@ -98,6 +99,7 @@ int main()
   T3DVec3 particleRot = {{0, 0, 0}};
   float time = 0;
   bool needRebuild = true;
+  int spriteIdx = 0;
 
   for(;;)
   {
@@ -160,7 +162,7 @@ int main()
     switch(example)
     {
       case 0: // Random
-        time += deltaTime * 0.2f;
+        time += deltaTime * 1.0f;
         //particleRot = (T3DVec3){{time,time*0.77f,time*1.42f}};
         particleMatScale = (T3DVec3){{partMatScaleVal, partMatScaleVal, partMatScaleVal}};
 
@@ -229,21 +231,25 @@ int main()
     rdpq_mode_zbuf(true, true);
     rdpq_mode_zoverride(true, 0, 0);
     rdpq_mode_filter(FILTER_POINT);
-    rdpq_mode_combiner(RDPQ_COMBINER1((PRIM,0,TEX0,0), (0,0,0,1)));
+    rdpq_mode_alphacompare(10);
+
+    rdpq_mode_combiner(RDPQ_COMBINER1((PRIM,0,TEX0,0), (0,0,0,TEX0)));
 
     // upload texture for the following particles
     rdpq_texparms_t p = {};
     p.s.repeats = REPEAT_INFINITE;
     p.t.repeats = REPEAT_INFINITE;
-    p.s.scale_log = -1;
-    p.t.scale_log = -1;
-
-    p.s.translate = (fm_floorf(time*5.0f) * 16);
+    p.s.mirror = true;
+    p.t.mirror = true;
+    p.s.scale_log = -2;
+    p.t.scale_log = -2;
     rdpq_sprite_upload(TILE0, texTest, &p);
 
     tpx_state_from_t3d();
     tpx_matrix_push(matPartFP);
     tpx_state_set_scale(partSizeX, partSizeY);
+    int idx = (int16_t)(fm_floorf(time*22.0f) * 32) % 512;
+    tpx_state_set_tex_offset(idx);
 
     tpx_particle_draw_tex(particles, particleCount);
 

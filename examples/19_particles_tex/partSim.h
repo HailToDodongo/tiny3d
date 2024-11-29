@@ -2,6 +2,18 @@
 
 static int currentPart  = 0;
 
+color_t get_rainbow_color(float s, float brightness) {
+  float r = fm_sinf(s) * 0.5f + 0.5f;
+  float g = fm_sinf(s + 2.094f) * 0.5f + 0.5f;
+  float b = fm_sinf(s + 4.188f) * 0.5f + 0.5f;
+  return (color_t){
+    (uint8_t)(r * brightness * 255.0f),
+    (uint8_t)(g * brightness * 255.0f),
+    (uint8_t)(b * brightness * 255.0f),
+    0xFF
+  };
+}
+
 /**
  * Basic static particles with random positions and colors.
  */
@@ -30,11 +42,20 @@ static void generate_particles_random(TPXParticle *particles, uint32_t count) {
     ptPos[1] = (rand() % 256) - 128;
     ptPos[2] = (rand() % 256) - 128;
 
-    ptColor[3] = (rand() & 1) ? 32 : 0;
-    ptColor[0] = 25 + (rand() % 230);
-    ptColor[1] = 25 + (rand() % 230);
-    ptColor[2] = 25 + (rand() % 230);
+    //ptColor[3] = (rand() % 8) * 32;
+    ptColor[3] = i == 0 ? 0 : 32;
 
+    if(rand() & 1) {
+      color_t c = get_rainbow_color((float)i * 0.0128f, 1.0f);
+      ptColor[0] = c.r;
+      ptColor[1] = c.g;
+      ptColor[2] = c.b;
+    } else {
+      int colorRange = 200;
+      ptColor[0] = (255-colorRange) + (rand() % colorRange);
+      ptColor[1] = (255-colorRange) + (rand() % colorRange);
+      ptColor[2] = (255-colorRange) + (rand() % colorRange);
+    }
   }
 }
 
@@ -130,6 +151,8 @@ static void simulate_particles_fire(TPXParticle *particles, uint32_t partCount, 
     ptPos[0] = posX + (rand() % 16) - 8;
     ptPos[1] = -126;
     gradient_fire(color, 0);
+    color[3] = (PhysicalAddr(ptPos) % 8) * 32;
+
     ptPos[2] = posZ + (rand() % 16) - 8;
     *size = 60 + (rand() % 10);
   }

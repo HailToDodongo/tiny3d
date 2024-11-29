@@ -53,6 +53,7 @@ state
 
   s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
   u16 PARTICLE_SCALE[2] = {0x7FFF, 0x7FFF};
+  u16 TEX_OFFSET = {0};
 }
 
 temp_state {
@@ -355,7 +356,31 @@ command<4> TPXCmd_DrawTextured(s16 dataSize, s32 rdramAddr)
     } while(buffRdp != buffRdpEnd)
   }
 
-  s16 tileIdx = 0;
+
+  s16 texOffset = load(TEX_OFFSET);
+
+  vec16 texMirrorMask = 0; // various masks for clamping UVs to spite sections
+  vec16 texMirrorCompare = 0; // threshold after which to mirror UVs
+
+  {
+    u8 tiles = 8;
+    u8 tilesEnd = tiles + tiles;
+
+    texMirrorMask.Y = 1;
+    texMirrorMask.y = 1;
+    texMirrorMask.z = tiles;
+    texMirrorMask.w = tilesEnd;
+
+    tilesEnd -= 1;
+    texMirrorMask.x = tilesEnd;
+    texMirrorMask.X = tilesEnd;
+    texMirrorMask.W = 0x100;
+    texMirrorMask = texMirrorMask * texMirrorMask.W;
+
+    VTEMP = texMirrorMask - 1;
+    texMirrorMask.w = VTEMP.w;
+    texMirrorCompare = VTEMP.z;
+  }
 
   dma_await();
 
@@ -404,12 +429,14 @@ command<4> TPXCmd_DrawTextured(s16 dataSize, s32 rdramAddr)
     vec32 posScreen = posClip * screenSize;
     vec16 posCenter = screenOffset:sint +* vecOne;
 
+    undef posScreen;
+
     // extend to both sides for start/end point
     vec16 posEnd = vecOne +* localPartSize:sint;
     posStart = posCenter - localPartSize:sint;
 
     // calculate UV delta, this is the increment in texture-coords per screen-space pixel
-    // no matter if clipped or not, this is constant
+    // even if clipped, this doesn't need further adjustment
     localPartSize *= 2;
     invW.x = invert_half(localPartSize).x;
     invW.y = invert_half(localPartSize).y;
@@ -421,21 +448,41 @@ command<4> TPXCmd_DrawTextured(s16 dataSize, s32 rdramAddr)
     // since rect-pos can't be negative, we clamp it and need to adjust UVs instead
     vec16 uvStart = posStart * invW:sint;
     uvStart >>= 7;
-    uvStart = VZERO - uvStart;
-    uvStart = uvStart >= 0;
+    uvStart = uvStart < 0;
 
+    // local UV offset, stored in alpha channel of color, this is added to the global
     temp0:s32 = load(ptrIn, 0x08);
     temp1:s32 = load(ptrIn, 0x0C);
-    temp0 &= 0xFF;
-    temp1 &= 0xFF;
-    temp0 <<= 3;
-    temp1 <<= 3;
-
-    uvStart.w = temp0:s16;
-    uvStart.W = temp1:s16;
-    uvStart += uvStart.wwwwWWWW;
+    temp0 &= 0xFF; temp0 += texOffset; temp0 <<= 3;
+    temp1 &= 0xFF; temp1 += texOffset; temp1 <<= 3;
 
     undef invW;
+
+    // Repeating & mirroring of UVs for half-rotation effect.
+    // E.g.: given a texture (64x16) animating a half-rotation in 4 frames, it will go through 8 steps:
+    // x-axis goes from 0-112 in steps of 16 repeating the 4 frames two times,
+    // y-axis stays 0 until half-way, then goes to 16 for the other half.
+    // The texture needs to be mirrored, which causes it to mirror on both axis after half the frames.
+    // (Note that clipping which shifts UVs needs to be taken into account here)
+    {
+      vec16 texOffsetTotal = 0;
+      texOffsetTotal.x = temp0:s16;
+      texOffsetTotal.X = temp1:s16;
+      texOffsetTotal &= texMirrorMask.w; // mask to stay within out tile counts
+
+      vec16 uvStartNeg = VZERO - uvStart;
+      // this check here is inverted since we would need to negate in the case of clipping beforehand too
+      uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStartNeg : uvStart;
+      uvStart += texOffsetTotal;
+
+      // shift range to middle to invert, only used if we are in the second half (the mirrored one)
+      // E.g.: with 4 frames: (4,5,6,7) becomes (7,6,5,4)
+      // this is needed since mirroring inverts the indices of an animation
+      uvStartNeg = texMirrorMask - uvStart;
+      uvStartNeg += texMirrorMask.z;
+
+      uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStart : uvStartNeg;
+    }
 
     // clamp to the edges of the screen
     posEnd = min(posEnd, screenMax);
@@ -501,7 +548,10 @@ command<4> TPXCmd_DrawTextured(s16 dataSize, s32 rdramAddr)
       @Barrier("pos-cmd") store(posEndB, dmaDmemEnd, 0x00, 16);
       @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16);
 
-      // dmaDmemEnd += 32;
+      store(uvStart.XY, dmaDmemEnd, 0x08, 16);
+      store(uvDelta.XY, dmaDmemEnd, 0x0C, 16);
+
+      dmaDmemEnd += 32;
     }
 
     mulMat4Vec8(mat0, mat1, mat2, mat3, posStart, posClip);

@@ -65,6 +65,11 @@ void tpx_state_set_scale(float scaleX, float scaleY) {
   tpx_dmem_set_u32(RSP_TPX_PARTICLE_SCALE, (scaleXNorm << 16) | scaleYNorm);
 }
 
+void tpx_state_set_tex_offset(int16_t offsetX)
+{
+  tpx_dmem_set_u16(RSP_TPX_TEX_OFFSET, offsetX);
+}
+
 inline static void tpx_particle_draw_generic(TPXParticle *particles, uint32_t count, uint32_t rspCmd)
 {
   assert((count & 1) == 0);
