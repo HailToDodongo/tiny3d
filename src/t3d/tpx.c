@@ -65,9 +65,10 @@ void tpx_state_set_scale(float scaleX, float scaleY) {
   tpx_dmem_set_u32(RSP_TPX_PARTICLE_SCALE, (scaleXNorm << 16) | scaleYNorm);
 }
 
-void tpx_state_set_tex_offset(int16_t offsetX)
+void tpx_state_set_tex_params(int16_t offsetX, uint16_t mirrorPoint)
 {
-  tpx_dmem_set_u16(RSP_TPX_TEX_OFFSET, offsetX);
+  uint32_t val = ((uint32_t)offsetX << 16) | mirrorPoint;
+  tpx_dmem_set_u32(RSP_TPX_TEX_OFFSET, val);
 }
 
 inline static void tpx_particle_draw_generic(TPXParticle *particles, uint32_t count, uint32_t rspCmd)

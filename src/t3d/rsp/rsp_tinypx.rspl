@@ -54,6 +54,7 @@ state
   s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
   u16 PARTICLE_SCALE[2] = {0x7FFF, 0x7FFF};
   u16 TEX_OFFSET = {0};
+  u16 TILE_COUNT = {0};
 }
 
 temp_state {
@@ -363,8 +364,8 @@ command<4> TPXCmd_DrawTextured(s16 dataSize, s32 rdramAddr)
   vec16 texMirrorCompare = 0; // threshold after which to mirror UVs
 
   {
-    u8 tiles = 8;
-    u8 tilesEnd = tiles + tiles;
+    u16 tiles = load(TILE_COUNT);
+    u16 tilesEnd = tiles + tiles;
 
     texMirrorMask.Y = 1;
     texMirrorMask.y = 1;

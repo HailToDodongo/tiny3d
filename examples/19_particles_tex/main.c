@@ -20,7 +20,7 @@
 
 #define RCP_TICKS_TO_USECS(ticks) (((ticks) * 1000000ULL) / RCP_FREQUENCY)
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
-static const char* EXAMPLE_NAMES[] = {"Random"};
+static const char* EXAMPLE_NAMES[] = {"Random", "Fire", "Coins"};
 
 [[noreturn]]
 int main()
@@ -54,14 +54,16 @@ int main()
 
 
   uint32_t particleCountMax = 100'000;
-  uint32_t particleCount = 2;
+  uint32_t particleCount = 1000;
   uint32_t allocSize = sizeof(TPXParticle) * particleCountMax / 2;
   TPXParticle *particles = malloc_uncached(allocSize);
   debugf("Particle-Buffer %ldkb\n", allocSize / 1024);
-  generate_particles_random(particles, particleCount);
+  //generate_particles_random(particles, particleCount);
 
-  //sprite_t *texTest = sprite_load("rom://coin.i4.sprite");
-  sprite_t *texTest = sprite_load("rom://swirl.i4.sprite");
+  sprite_t *texTest[2] = {
+      sprite_load("rom://coin.i4.sprite"),
+      sprite_load("rom://swirl.i4.sprite")
+  };
 
   T3DModel *model = t3d_model_load("rom://scene.t3dm");
   rspq_block_begin();
@@ -77,27 +79,28 @@ int main()
     (float[]){0,-1,0}
   );
 
-  T3DVec3 camPos = {{-50.0f, 20.0f, 0.0f}};
+  T3DVec3 camPos = {{-80.0f, 40.0f, 0.0f}};
   T3DVec3 camTarget = {{0,0,0}};
   T3DVec3 camDir = {{0,0,1}};
   float camRotX = 0.0f;
   float camRotY = -0.2f;
   bool showModel = false;
-  uint32_t example = 0;
+  uint32_t example = 2;
 
   uint8_t colorAmbient[4] = {0xFF, 0xFF, 0xFF, 0xFF};
   T3DVec3 lightDirVec = {{0.0f, 0.0f, 1.0f}};
   t3d_vec3_norm(&lightDirVec);
 
   T3DViewport viewport = t3d_viewport_create();
-  float partSizeX = 0.9f;
-  float partSizeY = 0.9f;
+  float partSizeX = 0.3f;
+  float partSizeY = 0.3f;
 
-  float partMatScaleVal = 0.3f;
+  float partMatScaleVal = 1.3f;
   T3DVec3 particleMatScale = {{1, 1, 1}};
   T3DVec3 particlePos = {{0, 0, 0}};
   T3DVec3 particleRot = {{0, 0, 0}};
   float time = 0;
+  float timeTile = 0;
   bool needRebuild = true;
   int spriteIdx = 0;
 
@@ -159,19 +162,23 @@ int main()
       camTarget.v[2] = camPos.v[2] + camDir.v[2];
     }
 
+    bool isSpriteRot = false;
     switch(example)
     {
       case 0: // Random
-        time += deltaTime * 1.0f;
+        time += deltaTime * 0.2f;
+        timeTile += deltaTime * 0.1f;
         //particleRot = (T3DVec3){{time,time*0.77f,time*1.42f}};
         particleMatScale = (T3DVec3){{partMatScaleVal, partMatScaleVal, partMatScaleVal}};
 
-        if(needRebuild)generate_particles_random(particles, particleCount);
+        if(needRebuild)generate_particles_explosion(particles, particleCount, 0.5f);
         rdpq_set_env_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
+        isSpriteRot = true;
       break;
       case 1: // Flame
         particleRot = (T3DVec3){{0,0,0}};
         if(!joypad.btn.z)time += deltaTime * 1.0f;
+        timeTile += deltaTime * 25.1f;
         particleCount = 128;
         float posX = fm_cosf(time) * 80.0f;
         float posZ = fm_sinf(2*time) * 40.0f;
@@ -180,20 +187,23 @@ int main()
         particleMatScale = (T3DVec3){{0.9f, partMatScaleVal, 0.9f}};
         particlePos.y = partMatScaleVal * 130.0f;
         rdpq_set_env_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
+        isSpriteRot = true;
       break;
       case 2: // Grass
-        time += deltaTime * 1.0f;
+        time += deltaTime * 1.2f;
+        timeTile += deltaTime * 20.0f;
         particleRot = (T3DVec3){{0,0,0}};
         particlePos.y = 0;
         if(needRebuild) {
           particleCount = simulate_particles_grass(particles, particleCount);
         }
         particleMatScale = (T3DVec3){{partMatScaleVal, partSizeY * 2.9f, partMatScaleVal}};
-        rdpq_set_env_color(blend_colors(
+        rdpq_set_env_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
+        /*rdpq_set_env_color(blend_colors(
           (color_t){0xAA, 0xFF, 0x55, 0xFF},
           (color_t){0xFF, 0xAA, 0x55, 0xFF},
           fm_sinf(time)*0.5f+0.5f
-        ));
+        ));*/
       break;
     }
     needRebuild = false;
@@ -212,7 +222,7 @@ int main()
 
     t3d_viewport_attach(&viewport);
 
-    t3d_screen_clear_color(RGBA32(30, 30, 30, 0));
+    t3d_screen_clear_color(RGBA32(30, 30, 50, 0));
     t3d_screen_clear_depth();
 
     t3d_light_set_ambient(colorAmbient);
@@ -227,6 +237,7 @@ int main()
     // ======== Draw (Particles) ======== //
     rdpq_sync_pipe();
     rdpq_sync_tile();
+    rdpq_sync_load();
     rdpq_set_mode_standard();
     rdpq_mode_zbuf(true, true);
     rdpq_mode_zoverride(true, 0, 0);
@@ -239,17 +250,27 @@ int main()
     rdpq_texparms_t p = {};
     p.s.repeats = REPEAT_INFINITE;
     p.t.repeats = REPEAT_INFINITE;
-    p.s.mirror = true;
-    p.t.mirror = true;
-    p.s.scale_log = -2;
+    p.s.mirror = isSpriteRot;
+    p.t.mirror = isSpriteRot;
+    p.s.scale_log = -2; // scale into the 16px base-size
     p.t.scale_log = -2;
-    rdpq_sprite_upload(TILE0, texTest, &p);
+    rdpq_sprite_upload(TILE0, texTest[example == 2 ? 0 : 1], &p);
+
+    //rdpq_mode_antialias(AA_REDUCED);
+    //rdpq_change_other_modes_raw(SOM_BLALPHA_CVG_TIMES_CC, SOM_BLALPHA_CVG_TIMES_CC);
 
     tpx_state_from_t3d();
     tpx_matrix_push(matPartFP);
     tpx_state_set_scale(partSizeX, partSizeY);
-    int idx = (int16_t)(fm_floorf(time*22.0f) * 32) % 512;
-    tpx_state_set_tex_offset(idx);
+
+    float tileIdx = fm_floorf(timeTile) * 32;
+    if(tileIdx >= 512)timeTile = 0;
+
+    if(example == 2) {
+      tpx_state_set_tex_params((int16_t)tileIdx, 32);
+    } else {
+      tpx_state_set_tex_params((int16_t)tileIdx, 8);
+    }
 
     tpx_particle_draw_tex(particles, particleCount);
 

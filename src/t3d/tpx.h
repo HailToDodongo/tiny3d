@@ -77,7 +77,7 @@ void tpx_state_from_t3d();
  */
 void tpx_state_set_scale(float scaleX, float scaleY);
 
-void tpx_state_set_tex_offset(int16_t offsetX);
+void tpx_state_set_tex_params(int16_t offsetX, uint16_t mirrorPoint);
 
 /**
  * Draws a given amount of particles.
