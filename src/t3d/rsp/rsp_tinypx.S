@@ -89,6 +89,7 @@
     RSPQ_DefineCommand TPXCmd_DrawColor, 8
     RSPQ_DefineCommand T3DCmd_MatrixStack, 8
     RSPQ_DefineCommand TPXCmd_SetDMEM, 8
+    RSPQ_DefineCommand TPXCmd_DrawTextured, 8
   RSPQ_EndOverlayHeader
 
   RSPQ_BeginSavedState
@@ -105,6 +106,10 @@
     MATRIX_STACK_PTR: .word 0
     .align 1
     PARTICLE_SCALE: .half 32767, 32767
+    .align 1
+    TEX_OFFSET: .half 0
+    .align 1
+    TILE_COUNT: .half 0
     STATE_MEM_END:
   RSPQ_EndSavedState
 
@@ -449,6 +454,252 @@ TPXCmd_SetDMEM:
   sh $a1, ($a0)
   j RSPQ_Loop
   sw $a1, ($a0)
+TPXCmd_DrawTextured:
+  andi $t0, $a0, 65535
+  or $s0, $zero, $a1
+  ori $s4, $zero, %lo(PARTICLE_BUFF)
+  or $t2, $zero, $zero
+  addu $s7, $s4, $t0
+  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  addiu $t0, $t0, -1
+  ori $at, $zero, %lo(MATRIX_MVP)
+  ldv $v28, 0, 8, $at
+  ldv $v26, 0, 24, $at
+  ldv $v23, 0, 32, $at
+  ldv $v25, 0, 16, $at
+  ldv $v27, 0, 0, $at
+  ldv $v22, 0, 56, $at
+  ldv $v25, 8, 16, $at
+  ldv $v24, 0, 40, $at
+  ldv $v26, 8, 24, $at
+  ldv $v21, 0, 48, $at
+  lw $s2, %lo(RDPQ_SCISSOR_RECT + 4)
+  ldv $v23, 8, 32, $at
+  ldv $v27, 8, 0, $at
+  ldv $v22, 8, 56, $at
+  ldv $v21, 8, 48, $at
+  ldv $v28, 8, 8, $at
+  ldv $v24, 8, 40, $at
+  ori $at, $zero, %lo(SCREEN_SCALE_OFFSET)
+  ldv $v19, 0, 0, $at
+  ori $s3, $zero, %lo(RDP_BUFF)
+  vmudl $v20, $v00, $v31.e3
+  or $s6, $zero, $s4
+  ldv $v19, 8, 0, $at
+  mtc2 $s2, $v15.e1
+  ldv $v18, 0, 8, $at
+  ldv $v18, 8, 8, $at
+  lw $s1, %lo(RDPQ_SCISSOR_RECT + 0)
+  srl $t4, $s2, 12
+  ori $at, $zero, %lo(NORM_SCALE_W)
+  mtc2 $t4, $v15.e4
+  mtc2 $t4, $v15.e0
+  srl $t4, $s1, 12
+  ldv $v17, 0, 0, $at
+  vmadm $v19, $v19, $v31.e3
+  vmadn $v20, $v00, $v00
+  mtc2 $s2, $v15.e5
+  ldv $v17, 8, 0, $at
+  addiu $at, $zero, 4095
+  addiu $a0, $zero, 46
+  mtc2 $s1, $v16.e1
+  mtc2 $at, $v15.e3
+  ori $at, $zero, %lo(PARTICLE_SCALE)
+  llv $v13, 0, 0, $at
+  mtc2 $s1, $v16.e5
+  ori $s4, $zero, %lo(RDP_BUFF)
+  addiu $s5, $s3, 480
+  mtc2 $t4, $v16.e4
+  mtc2 $t4, $v16.e0
+  vand $v15, $v15, $v15.e3
+  llv $v13, 8, 0, $at
+  lui $t7, 0x3A00
+  addiu $s1, $s5, 32
+  ori $s2, $zero, %lo(RDP_BUFF)
+  vand $v16, $v16, $v15.e3
+  LABEL_000C:
+  sb $a0, 8($s2)
+  sw $t7, 0($s2)
+  sh $zero, 14($s2)
+  addiu $s2, $s2, 32
+  bne $s2, $s1, LABEL_000C
+  nop
+  LABEL_000D:
+  lhu $s1, %lo(TILE_COUNT + 0)
+  vxor $v11, $v00, $v00.e0
+  lh $s2, %lo(TEX_OFFSET + 0)
+  vxor $v12, $v00, $v00.e0
+  vmov $v12.e5, $v30.e7
+  addu $fp, $s1, $s1
+  mtc2 $fp, $v12.e3
+  mtc2 $s1, $v12.e2
+  vmov $v12.e1, $v30.e7
+  addiu $fp, $fp, 65535
+  vmov $v12.e7, $v31.e7
+  mtc2 $fp, $v12.e4
+  mtc2 $fp, $v12.e0
+  vmudn $v12, $v12, $v12.e7
+  vsubc $v29, $v12, $v30.e7
+  vmov $v12.e3, $v29.e3
+  jal DMAWaitIdle
+  vor $v11, $v00, $v29.e2
+  lpv $v08, 0, 0, $s6
+  vmulf $v14, $v13, $v08.h3
+  vmudm $v08, $v08, $v31.e7
+  vmov $v08.e7, $v30.e7
+  vmov $v08.e3, $v30.e7
+  vxor $v07, $v00, $v30.e7
+  vmudn $v10, $v28, $v08.h0
+  vmadh $v09, $v27, $v08.h0
+  vmadn $v10, $v26, $v08.h1
+  vmadh $v09, $v25, $v08.h1
+  vmadn $v10, $v24, $v08.h2
+  vmadh $v09, $v23, $v08.h2
+  vmadn $v10, $v22, $v08.h3
+  vmadh $v09, $v21, $v08.h3
+  vch $v29, $v09, $v09.h3
+  vcl $v29, $v10, $v10.h3
+  cfc2 $t4, $vcc
+  LABEL_000E:
+  vmudl $v10, $v10, $v17.v
+  vmadm $v09, $v09, $v17.v
+  vmadn $v10, $v00, $v00
+  vrcph $v05.e3, $v09.e3
+  vrcpl $v06.e3, $v10.e3
+  lw $a2, 8($s6)
+  vrcph $v05.e3, $v09.e7
+  vmov $v09.e7, $v30.e0
+  vrcpl $v06.e7, $v10.e7
+  vmov $v09.e3, $v30.e0
+  addiu $t2, $zero, 36
+  vmov $v10.e3, $v00.e0
+  andi $a2, $a2, 255
+  andi $t1, $t4, 1028
+  vrcph $v05.e7, $v00.e7
+  vmov $v10.e7, $v00.e0
+  vmudl $v29, $v10, $v06.h3
+  vmadm $v29, $v09, $v06.h3
+  vmadn $v10, $v10, $v05.h3
+  vmadh $v09, $v09, $v05.h3
+  andi $t5, $t4, 16448
+  vmulf $v14, $v14, $v09.h3
+  vmudl $v29, $v10, $v20.v
+  vmadm $v29, $v09, $v20.v
+  vmadn $v04, $v10, $v19.v
+  vmadh $v03, $v09, $v19.v
+  vmadh $v02, $v18, $v07.v
+  vmadh $v04, $v07, $v14.v
+  vsubc $v08, $v02, $v14.v
+  vmudn $v14, $v14, $v30.e6
+  vrcp $v06.e0, $v14.e0
+  lw $t4, 12($s6)
+  vrcph $v05.e0, $v14.e0
+  vrcp $v06.e1, $v14.e1
+  vrcph $v05.e1, $v14.e1
+  vrcp $v06.e4, $v14.e4
+  vrcph $v05.e4, $v14.e4
+  addu $a2, $a2, $s2
+  vrcp $v06.e5, $v14.e5
+  andi $t4, $t4, 255
+  vrcph $v05.e5, $v14.e5
+  vor $v03, $v00, $v05
+  addu $t4, $t4, $s2
+  vmudh $v01, $v08, $v05.v
+  vmudm $v01, $v01, $v31.e6
+  vxor $v06, $v00, $v00.e0
+  sll $a2, $a2, 3
+  sll $t4, $t4, 3
+  mtc2 $a2, $v06.e0
+  mtc2 $t4, $v06.e4
+  vlt $v01, $v01, $v00.e0
+  vand $v06, $v06, $v12.e3
+  vsubc $v05, $v00, $v01.v
+  vge $v29, $v11, $v06.h0
+  vmrg $v01, $v05, $v01
+  vaddc $v01, $v01, $v06.v
+  vsubc $v05, $v12, $v01.v
+  vaddc $v05, $v05, $v12.e2
+  vge $v29, $v11, $v06.h0
+  ssv $v02, 4, 12, $s3
+  vmrg $v01, $v01, $v05
+  ldv $v05, 0, 8, $s6
+  addiu $at, $zero, 3
+  vlt $v04, $v04, $v15
+  vge $v08, $v08, $v16
+  addiu $s6, $s6, 16
+  slv $v03, 0, 28, $s3
+  slv $v01, 0, 24, $s3
+  mfc2 $sp, $v04.e1
+  mfc2 $k0, $v08.e0
+  andi $sp, $sp, 4095
+  mfc2 $s1, $v08.e1
+  vlt $v06, $v08, $v04
+  mfc2 $fp, $v08.e5
+  sll $k0, $k0, 12
+  andi $s1, $s1, 4095
+  mfc2 $k1, $v04.e5
+  cfc2 $t4, $vcc
+  andi $fp, $fp, 4095
+  or $s1, $s1, $k0
+  andi $a2, $t4, 3
+  mfc2 $k0, $v08.e4
+  slv $v05, 0, 4, $s3
+  or $t1, $t1, $a2
+  sll $k0, $k0, 12
+  or $fp, $fp, $k0
+  mfc2 $k0, $v04.e0
+  andi $k1, $k1, 4095
+  andi $a2, $t4, 48
+  sll $k0, $k0, 12
+  or $sp, $sp, $k0
+  sw $sp, 0 + 16($s3) ## Barrier: 0x1
+  mfc2 $k0, $v04.e4
+  sw $s1, 4 + 16($s3)
+  lpv $v08, 0, 0, $s6
+  sll $k0, $k0, 12
+  or $k1, $k1, $k0
+  or $t5, $t5, $a2
+  sb $t2, 0 + 16($s3) ## Barrier: 0x1
+  vmulf $v14, $v13, $v08.h3
+  vmudm $v08, $v08, $v31.e7
+  bne $t1, $at, LABEL_0010
+  vmov $v08.e3, $v30.e7
+  addiu $s3, $s3, 32
+  LABEL_0010:
+  vmov $v08.e7, $v30.e7
+  addiu $at, $zero, 48
+  bne $t5, $at, LABEL_0011
+  nop
+  slv $v03, 8, 28, $s3
+  ssv $v02, 12, 12, $s3
+  sw $k1, 0 + 16($s3) ## Barrier: 0x1
+  sb $t2, 0 + 16($s3) ## Barrier: 0x1
+  slv $v05, 4, 4, $s3
+  slv $v01, 8, 24, $s3
+  sw $fp, 4 + 16($s3)
+  addiu $s3, $s3, 32
+  LABEL_0011:
+  vmudn $v10, $v28, $v08.h0
+  vmadh $v09, $v27, $v08.h0
+  vmadn $v10, $v26, $v08.h1
+  vmadh $v09, $v25, $v08.h1
+  vmadn $v10, $v24, $v08.h2
+  sltu $at, $s3, $s5
+  vmadh $v09, $v23, $v08.h2
+  vmadn $v10, $v22, $v08.h3
+  bne $at, $zero, LABEL_0012
+  vmadh $v09, $v21, $v08.h3
+  jal RDPQ_Send ## Args: $s4, $s3
+  nop
+  or $s3, $zero, $s4
+  LABEL_0012:
+  vch $v29, $v09, $v09.h3
+  vcl $v29, $v10, $v10.h3
+  bne $s6, $s7, LABEL_000E
+  cfc2 $t4, $vcc
+  LABEL_000F:
+  j RDPQ_Send
+  ori $ra, $zero, %lo(RSPQ_Loop)
 
 OVERLAY_CODE_END:
 
