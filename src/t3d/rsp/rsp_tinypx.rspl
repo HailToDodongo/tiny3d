@@ -452,10 +452,10 @@ command<4> TPXCmd_DrawTextured(s16 dataSize, s32 rdramAddr)
     uvStart = uvStart < 0;
 
     // local UV offset, stored in alpha channel of color, this is added to the global
-    temp0:s32 = load(ptrIn, 0x08);
-    temp1:s32 = load(ptrIn, 0x0C);
-    temp0 &= 0xFF; temp0 += texOffset; temp0 <<= 3;
-    temp1 &= 0xFF; temp1 += texOffset; temp1 <<= 3;
+    temp0:s8 = load(ptrIn, 0x0B);
+    temp1:s8 = load(ptrIn, 0x0F);
+    temp0 += texOffset; temp0 <<= 3;
+    temp1 += texOffset; temp1 <<= 3;
 
     undef invW;
 
@@ -466,14 +466,20 @@ command<4> TPXCmd_DrawTextured(s16 dataSize, s32 rdramAddr)
     // The texture needs to be mirrored, which causes it to mirror on both axis after half the frames.
     // (Note that clipping which shifts UVs needs to be taken into account here)
     {
+      vec16 uvStartNeg = VZERO - uvStart;
+
       vec16 texOffsetTotal = 0;
       texOffsetTotal.x = temp0:s16;
       texOffsetTotal.X = temp1:s16;
       texOffsetTotal &= texMirrorMask.w; // mask to stay within out tile counts
 
-      vec16 uvStartNeg = VZERO - uvStart;
       // this check here is inverted since we would need to negate in the case of clipping beforehand too
       uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStartNeg : uvStart;
+
+      // clamp Pos to the edges of the screen
+      posEnd = min(posEnd, screenMax);
+      posStart = max(posStart, screenMin);
+
       uvStart += texOffsetTotal;
 
       // shift range to middle to invert, only used if we are in the second half (the mirrored one)
@@ -484,10 +490,6 @@ command<4> TPXCmd_DrawTextured(s16 dataSize, s32 rdramAddr)
 
       uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStart : uvStartNeg;
     }
-
-    // clamp to the edges of the screen
-    posEnd = min(posEnd, screenMax);
-    posStart = max(posStart, screenMin);
 
     encodeRectPos(posA, posB, posStart);
     encodeRectPos(posEndA, posEndB, posEnd);
