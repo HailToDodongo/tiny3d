@@ -57,26 +57,8 @@ static void gradient_fire(uint8_t *color, float t) {
     }
 }
 
-static float step(float a, float b) {
-  return a < b ? 0.0f : 1.0f;
-}
-static float mix(float a, float b, float t) {
-  return a * (1.0f - t) + b * t;
-}
 static float fract(float a) {
   return a - floorf(a);
-}
-static float clamp(float a, float min, float max) {
-  return a < min ? min : a > max ? max : a;
-}
-static float map(float value, float oldMin, float oldMax, float newMin, float newMax) {
-  return (value - oldMin) / (oldMax - oldMin) * (newMax - newMin) + newMin;
-}
-static float map01(float value, float newMin, float newMax) {
-  return clamp(map(value, 0.0, 1.0, newMin, newMax), 0.0, 1.0);
-}
-static float easeOutExpo(float x) {
-  return x == 1.0f ? 1.0f : 1.0f - powf(2.0f, -10.0f * x);
 }
 
 float randNoise3d_rand(float coX, float coY){
@@ -94,82 +76,45 @@ T3DVec3 randNoise3d(float uvX, float uvY) {
   }};
 }
 
-static uint32_t seed = 0x12345678;
-static uint32_t rand_local() {
-  seed = (seed * 1664525) + 1013904223;
-  return seed;
-}
-
-static void generate_particles_explosion(TPXParticle *particles, uint32_t count, float time) {
-  float timeNorm = time / 2.0f;
-  timeNorm = fmodf(timeNorm, 1.0f);
-
-  seed = 0x12345678;
-
-  for (int i = 0; i < count; i++) {
-    int8_t *ptPos = tpx_buffer_get_pos(particles, i);
-    uint8_t *ptColor = tpx_buffer_get_rgba(particles, i);
-    int8_t *ptSize = tpx_buffer_get_size(particles, i);
-
-    float partSize = 1.0f;
-    T3DVec3 partPos = {{0.0f, 0.0f, 0.0f}};
-
-    //debugf("Time: %f\n", timeNorm);
-    gradient_fire(ptColor, timeNorm);
-    ptColor[3] = (rand_local() % 8) * 32;
-
-
-      int partType = rand_local() % 3;
-      // Ring
-      float randSeedA = (float)(rand_local() % 512) * (1.0f / 256.0f) - 1.0f;
-      float randSeedB = (float)(rand_local() % 512) * (1.0f / 256.0f) - 1.0f;
-      float randSeed01 = (float)(rand_local() % 512) * (1.0f / 512.0f);
-      float timeNormExpo = easeOutExpo(timeNorm);
-
-      if(partType == 0) // Ring
-      {
-        partPos = (T3DVec3){{randSeedA, 0.0f, randSeedB}};
-        t3d_vec3_norm(&partPos);
-        float radius = timeNormExpo * (0.8f + randSeed01 * 0.2f);
-        t3d_vec3_scale(&partPos, &partPos, radius);
-        partSize = (easeOutExpo(1.0f - timeNorm));
-      } else // Sphere
-      {
-        // sample points of the surface of a sphere
-        float theta = randNoise3d_rand(randSeedA, randSeedB) * 2.0f * T3D_PI;
-        float phi = randNoise3d_rand(randSeedB, randSeedA) * T3D_PI;
-
-        partPos.x = fm_sinf(phi) * fm_cosf(theta);
-        partPos.y = fm_cosf(phi);
-        partPos.z = fm_sinf(phi) * fm_sinf(theta);
-        t3d_vec3_scale(&partPos, &partPos, timeNormExpo * 0.4f);
-        partSize = (easeOutExpo(1.0f - timeNorm)) * 1.25f;
-      }
-
-      ptSize[0] = partSize * 80.0f;
-      ptPos[0] = partPos.x * 127;
-      ptPos[1] = partPos.y * 127;
-      ptPos[2] = partPos.z * 127;
-
-      // color
-      //fragColor.rgb *= 1.0 - map01(timeNormLoopEase, -0.75, 1.0);
-      //fragColor.rgb *= 1.0 + (typeSphere * 0.5);
-      //fragColor.g *= max(typeSphere, 0.5);
-
-  }
-}
-
 static int noise_2d(int x, int y) {
   int n = x + y * 57;
   n = (n << 13) ^ n;
   return (n * (n * n * 60493 + 19990303) + 89);
 }
 
-/**
- * Static particles simulating grass.
- * This will create a random grid of 3 particles stacked on top of each other representing grass-blades.
- */
-static int simulate_particles_grass(TPXParticle *particles, uint32_t partCount) {
+static void generate_particles_random(TPXParticle *particles, uint32_t count) {
+  for (int i = 0; i < count; i++) {
+    int p = i / 2;
+    int8_t *ptPos = i % 2 == 0 ? particles[p].posA : particles[p].posB;
+    uint8_t *ptColor = i % 2 == 0 ? particles[p].colorA : particles[p].colorB;
+
+    particles[p].sizeA = 20 + (rand() % 10);
+    particles[p].sizeB = 20 + (rand() % 10);
+
+    T3DVec3 pos = {{
+       (i * 1 + rand()) % 128 - 64,
+       (i * 3 + rand()) % 128 - 64,
+       (i * 4 + rand()) % 128 - 64
+     }};
+
+    t3d_vec3_norm(&pos);
+    float len = rand() % 40;
+    pos.v[0] *= len;
+    pos.v[1] *= len;
+    pos.v[2] *= len;
+
+    ptPos[0] = (rand() % 256) - 128;
+    ptPos[1] = (rand() % 256) - 128;
+    ptPos[2] = (rand() % 256) - 128;
+
+    ptColor[0] = 25 + (rand() % 230);
+    ptColor[1] = 25 + (rand() % 230);
+    ptColor[2] = 25 + (rand() % 230);
+    ptColor[3] = 0; // alpha is the texture offset, as with the global one in 1/4h of a pixel steps
+  }
+}
+
+static int simulate_particles_coins(TPXParticle *particles, uint32_t partCount) {
 
   int dist = 3;
   int heightParts = 1;
@@ -189,19 +134,9 @@ static int simulate_particles_grass(TPXParticle *particles, uint32_t partCount) 
       int rnd = noise_2d(x, z);
       float height = fm_sinf((x + z) * 0.1f) * 0.5f + 0.5f;
       height += fm_cosf((x + z) * 0.13f) * 0.5f + 0.5f;
-      //height += 4;
       int8_t size = (rand() % 8)*4 + 50;
 
-      //*ptColor = (rnd & 1) ? get_rand_color(20) : get_rainbow_color((x + z) * 0.1f, 1.0f);
-
-
-      *ptColor = blend_colors(
-          (color_t){0xAA, 0xFF, 0x55, 0xFF},
-          (color_t){0x55, 0xAA, 0x00, 0xFF},
-          (rnd & 100) * 0.1f
-        );
-
-
+      *ptColor = (rnd & 1) ? get_rand_color(20) : get_rainbow_color((x + z) * 0.1f, 1.0f);
       ptColor->a = (rand() % 8) * 32;
 
       ptPos[0] = ptPosX + ((rnd % 3) - 1);

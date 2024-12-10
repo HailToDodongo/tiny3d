@@ -67,6 +67,7 @@ void tpx_state_set_scale(float scaleX, float scaleY) {
 
 void tpx_state_set_tex_params(int16_t offsetX, uint16_t mirrorPoint)
 {
+  if(mirrorPoint == 0)mirrorPoint = 128;
   uint32_t val = ((uint32_t)offsetX << 16) | mirrorPoint;
   tpx_dmem_set_u32(RSP_TPX_TEX_OFFSET, val);
 }

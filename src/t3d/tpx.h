@@ -77,6 +77,18 @@ void tpx_state_from_t3d();
  */
 void tpx_state_set_scale(float scaleX, float scaleY);
 
+/**
+ * Sets global params for textured particles.
+ * Those can be used to animate particles over time.
+ * NOTE: Check out the '19_particles_tex' example for more info.
+ *
+ * @param offsetX base-offset UV offset in 1/4th pixels.<br>
+ *                This refers to the 8x8px base size irrespective of the actual texture size.
+ * @param mirrorPoint point where the texture should be mirrored<br>
+ *                This is in amount of sections of the 8x8px base size.<br>
+ *                So if you want to repeat after 32px set it to 4.<br>
+ *                If you want no mirroring, set it to 0.
+ */
 void tpx_state_set_tex_params(int16_t offsetX, uint16_t mirrorPoint);
 
 /**
