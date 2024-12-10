@@ -144,6 +144,7 @@ int main()
 
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
     joypad_buttons_t btn = joypad_get_buttons_pressed(JOYPAD_PORT_1);
+    joypad_buttons_t released = joypad_get_buttons_released(JOYPAD_PORT_1);
     if(joypad.stick_x < 10 && joypad.stick_x > -10)joypad.stick_x = 0;
     if(joypad.stick_y < 10 && joypad.stick_y > -10)joypad.stick_y = 0;
 
@@ -158,8 +159,9 @@ int main()
     partSizeX = fmaxf(0.01f, fminf(1.0f, partSizeX));
     partSizeY = fmaxf(0.01f, fminf(1.0f, partSizeY));
 
-    if(joypad.btn.d_left) { particleCount -= joypad.btn.z ? 200 : 20; needRebuild = true; }
-    if(joypad.btn.d_right) { particleCount += joypad.btn.z ? 200 : 20; needRebuild = true; }
+    if(joypad.btn.d_left)particleCount -= joypad.btn.z ? 200 : 20;
+    if(joypad.btn.d_right)particleCount += joypad.btn.z ? 200 : 20;
+    if(released.d_left || released.d_right)needRebuild = true;
     if(particleCount < 2)particleCount = 2;
     if(particleCount > 0xFFFFFF)particleCount = 0;
     if(particleCount > particleCountMax)particleCount = particleCountMax;
@@ -249,7 +251,7 @@ int main()
 
     t3d_viewport_attach(&viewport);
 
-    t3d_screen_clear_color(RGBA32(30, 30, 50, 0));
+    t3d_screen_clear_color(RGBA32(60, 36, 71, 255));
     t3d_screen_clear_depth();
 
     t3d_light_set_ambient(colorAmbient);

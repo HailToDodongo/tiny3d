@@ -24,6 +24,7 @@ make -C examples/15_pointlight clean
 make -C examples/16_light_clip clean
 make -C examples/17_culling clean
 make -C examples/18_particles clean
+make -C examples/19_particles_tex clean
 make -C examples/99_testscene clean
 
 # Build Tiny3D
@@ -57,6 +58,7 @@ make -C examples/15_pointlight -j4
 make -C examples/16_light_clip -j4
 make -C examples/17_culling -j4
 make -C examples/18_particles -j4
+make -C examples/19_particles_tex -j4
 make -C examples/99_testscene -j4
 
 echo "Build done!"
