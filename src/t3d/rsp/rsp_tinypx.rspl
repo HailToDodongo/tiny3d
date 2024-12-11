@@ -14,6 +14,7 @@ include "rdpq_macros.h"
 #define RDP_CMD_DEPTH 0x2E
 #define RDP_CMD_RECT  0x36
 #define RDP_CMD_TEX_RECT 0x24
+#define RDP_CMD_TEX_RECT_FLIP 0x25
 
 // size of the 'T3DParticle' struct, containing 2 interleaved particles each
 #define PARTICLE_INPUT_SIZE 16
@@ -23,6 +24,10 @@ include "rdpq_macros.h"
 // max size before flush
 // it must be a multiple of 24, and assume one extra 24 bytes over the limit to still fit
 #define RDP_FLUSH_SIZE 528
+// same as above but for textured-particles, must be a multiple of 32 + and extra 32 bytes
+// NOTE: this cannot be larger than 'RDP_FLUSH_SIZE'
+#define RDP_TEX_FLUSH_SIZE 480
+
 #define RDP_POS_MASK 0b1111'1111'1111
 
 state
@@ -48,6 +53,8 @@ state
 
   s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
   u16 PARTICLE_SCALE[2] = {0x7FFF, 0x7FFF};
+  u16 TEX_OFFSET = {0};
+  u16 TILE_COUNT = {0};
 }
 
 temp_state {
@@ -285,6 +292,287 @@ command<3> TPXCmd_SetDMEM(u16 addrDMEM, u32 value) {
   if(is16bit)goto RSPQ_Loop;
 
   store(value:u32, addrDMEM);
+}
+
+
+command<4> TPXCmd_DrawTextured(s16 dataSize, s32 rdramAddr)
+{
+  u16<$s4> dmaDmem = PARTICLE_BUFF;
+  u32<$t0> dmaSize = dataSize & 0xFFFF;
+
+  // Reserve regs used by RDPQ_Send, DMA and indirect functions.
+  // since we call it in our loop, we must reserve them here, and they can only use it for temporaries.
+  // Those function are part of libdragon and in ASM, so we have no control over them.
+  u8<$t3> syncOngoing;
+  s32<$s0> rdram_cur;
+  undef dataSize;
+  u32<$t4> temp1;
+  u32<$t1> clipA; u8<$t2> cmdRdpRect;
+  u32<$t5> clipB; u8<$a0> cmdRdpDepth;
+  u32<$t7> cmdRdpColor;
+  // end of reserved regs
+
+  // Load in all particles at once, re-use vertex buffer here
+  u32 ptrInEnd = dmaDmem + dmaSize;
+  dma_in_async(dmaDmem, rdramAddr, dmaSize);
+
+  u32 ptrIn = dmaDmem;
+
+  dmaDmem = RDP_BUFF; // make 'dmaDmem' point to the output buffer now
+  u16<$s3> dmaDmemEnd = RDP_BUFF;
+  u16 dmaDmemFlush = dmaDmemEnd + RDP_TEX_FLUSH_SIZE; // @TODO
+
+  vec32 mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
+  vec32 mat1 = load(MATRIX_MVP, 0x10).xyzwxyzw;
+  vec32 mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
+  vec32 mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
+
+  vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
+  screenSize:sfract = 0;
+  screenSize >>= 4;
+
+  vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
+  vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
+
+  vec16 screenMin, screenMax;
+  loadScissorMinMax(screenMin, screenMax);
+
+  vec16 localPartSize;
+  vec16 globalPartSize;
+  globalPartSize.xy = load(PARTICLE_SCALE).xy;
+  globalPartSize.XY = load(PARTICLE_SCALE).xy;
+
+  // while the DMA is running, we init the RDP buffer with fixed values (command ids)
+  // so we don't have to do it each loop iteration
+  {
+    u16 buffRdp = RDP_BUFF;
+    u16 buffRdpEnd = dmaDmemFlush + 32;
+    cmdRdpColor = RDP_CMD_PRIM;
+    cmdRdpDepth = RDP_CMD_DEPTH;
+    loop {
+      store(cmdRdpColor, buffRdp, 0);
+      store(cmdRdpDepth, buffRdp, 8);
+      store(ZERO:u16, buffRdp, 0x0E); // delta-z in depth command
+      buffRdp += 32;
+    } while(buffRdp != buffRdpEnd)
+  }
+
+
+  s16 texOffset = load(TEX_OFFSET);
+
+  vec16 texMirrorMask = 0; // various masks for clamping UVs to spite sections
+  vec16 texMirrorCompare = 0; // threshold after which to mirror UVs
+
+  {
+    u16 tiles = load(TILE_COUNT);
+    u16 tilesEnd = tiles + tiles;
+
+    texMirrorMask.Y = 1;
+    texMirrorMask.y = 1;
+    texMirrorMask.z = tiles;
+    texMirrorMask.w = tilesEnd;
+
+    tilesEnd -= 1;
+    texMirrorMask.x = tilesEnd;
+    texMirrorMask.X = tilesEnd;
+    texMirrorMask.W = 0x100;
+    texMirrorMask = texMirrorMask * texMirrorMask.W;
+
+    VTEMP = texMirrorMask - 1;
+    texMirrorMask.w = VTEMP.w;
+    texMirrorCompare = VTEMP.z;
+  }
+
+  dma_await();
+
+  u32 posA, posB, posEndA, posEndB;
+  vec32 posClip;
+
+  // de-phase parts of the loop, this part is also at the end of the loop
+  vec16 posStart = load_vec_s8(ptrIn, 0x00);
+  localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
+  posStart >>= 8;
+  posStart.w = 1;
+  posStart.W = 1;
+
+  const vec16 vecOne = 1;
+  u32<$a2> temp0;
+
+  // point to clip space
+  mulMat4Vec8(mat0, mat1, mat2, mat3, posStart, posClip);
+  temp1 = clip(posClip, posClip.wwwwWWWW);
+
+  // Iterate over all points, transform + clip, save back those that need to be drawn
+  // the transformed amount might be smaller and shifted due to that
+  loop {
+    // only clip-check against Z to prevent overflow, X/Y is clamped in screen-space later
+
+    clipA = temp1 & 0b0000'0100'0000'0100;
+    clipB = temp1 & 0b0100'0000'0100'0000;
+
+    vec32 invW;
+    posClip *= normScaleW:ufract;
+
+    invW.w = invert_half(posClip).w;
+    invW.W = invert_half(posClip).W;
+
+    // store a particle base-size in W to only do one perspective division
+    posClip.w = 128;
+    posClip.W = 128;
+
+    // perspective division
+    posClip *= invW.wwwwWWWW;
+
+    // scale particle size by perspective
+    localPartSize:sfract *= posClip:sint.wwwwWWWW;
+
+    // transform to screen-space, this is the center of the particles and its depth-value
+    vec32 posScreen = posClip * screenSize;
+    vec16 posCenter = screenOffset:sint +* vecOne;
+
+    undef posScreen;
+
+    // extend to both sides for start/end point
+    vec16 posEnd = vecOne +* localPartSize:sint;
+    posStart = posCenter - localPartSize:sint;
+
+    // calculate UV delta, this is the increment in texture-coords per screen-space pixel
+    // even if clipped, this doesn't need further adjustment
+    localPartSize *= 2;
+    invW.x = invert_half(localPartSize).x;
+    invW.y = invert_half(localPartSize).y;
+    invW.X = invert_half(localPartSize).X;
+    invW.Y = invert_half(localPartSize).Y;
+    vec16 uvDelta = invW:sint;
+
+    // offset of the UV, only actually used if it is clipped on the upper or left side
+    // since rect-pos can't be negative, we clamp it and need to adjust UVs instead
+    vec16 uvStart = posStart * invW:sint;
+    uvStart >>= 7;
+    uvStart = uvStart < 0;
+
+    // local UV offset, stored in alpha channel of color, this is added to the global
+    temp0:s8 = load(ptrIn, 0x0B);
+    temp1:s8 = load(ptrIn, 0x0F);
+    temp0 += texOffset; temp0 <<= 3;
+    temp1 += texOffset; temp1 <<= 3;
+
+    undef invW;
+
+    // Repeating & mirroring of UVs for half-rotation effect.
+    // E.g.: given a texture (64x16) animating a half-rotation in 4 frames, it will go through 8 steps:
+    // x-axis goes from 0-112 in steps of 16 repeating the 4 frames two times,
+    // y-axis stays 0 until half-way, then goes to 16 for the other half.
+    // The texture needs to be mirrored, which causes it to mirror on both axis after half the frames.
+    // (Note that clipping which shifts UVs needs to be taken into account here)
+    {
+      vec16 uvStartNeg = VZERO - uvStart;
+
+      vec16 texOffsetTotal = 0;
+      texOffsetTotal.x = temp0:s16;
+      texOffsetTotal.X = temp1:s16;
+      texOffsetTotal &= texMirrorMask.w; // mask to stay within out tile counts
+
+      // this check here is inverted since we would need to negate in the case of clipping beforehand too
+      uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStartNeg : uvStart;
+
+      // clamp Pos to the edges of the screen
+      posEnd = min(posEnd, screenMax);
+      posStart = max(posStart, screenMin);
+
+      uvStart += texOffsetTotal;
+
+      // shift range to middle to invert, only used if we are in the second half (the mirrored one)
+      // E.g.: with 4 frames: (4,5,6,7) becomes (7,6,5,4)
+      // this is needed since mirroring inverts the indices of an animation
+      uvStartNeg = texMirrorMask - uvStart;
+      uvStartNeg += texMirrorMask.z;
+
+      uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStart : uvStartNeg;
+    }
+
+    encodeRectPos(posA, posB, posStart);
+    encodeRectPos(posEndA, posEndB, posEnd);
+
+    // now check if it's completely outside the screen or has a zero-size
+    vec16 extend = posStart < posEnd;
+    temp1 = get_vcc();
+
+    temp0 = temp1 & 0b0000'0011; // only check X/Y
+    clipA |= temp0;
+
+    temp0 = temp1 & 0b0011'0000;
+    clipB |= temp0;
+
+    // load color and prepare RPD command IDs
+    vec16 color = load(ptrIn, 0x08).xyzw;
+    cmdRdpRect = RDP_CMD_TEX_RECT;
+
+    // Save the rectangles now. Each one consists of 3 commands: color, depth, rect
+    // The first one is always saved here to allow better reordering,
+    // however both will only submit it by advancing 'dmaDmemEnd'
+
+    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
+    // "Prim Color": |0x3A |  -  |    LOD    ||      color (RGBA)     |
+    store(color.xy, dmaDmemEnd, 4);
+
+    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
+    // "Prim Depth": |0x2E |  -  |  -  |  -  ||   depth   |  delta-Z  |
+    store(posCenter.z, dmaDmemEnd, 0x04, 8);
+
+    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
+    //   "Tex Rect": |0x24 |   X0/Y0 (10.2)  ||  -  |  X1/Y1 (10.2)   |
+    //               |  S (5.10) | T (5.10)  || Ds (5.10) | Dt (5.10) |
+    store(posA, dmaDmemEnd, 0x04, 16);
+    @Barrier("pos-cmd") store(posEndA, dmaDmemEnd, 0x00, 16);
+    @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16);
+    store(uvStart.xy, dmaDmemEnd, 0x08, 16);
+    store(uvDelta.xy, dmaDmemEnd, 0x0C, 16);
+
+    // load particle for next iteration
+    ptrIn += PARTICLE_INPUT_SIZE;
+    posStart = load_vec_s8(ptrIn, 0x00, PARTICLE_INPUT_SIZE);
+    localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
+    posStart >>= 8;
+
+    posStart.w = 1;
+
+    if(clipA == 0b0000'0011) {
+      dmaDmemEnd += 32;
+    }
+
+    posStart.W = 1;
+    // Second rectangle:
+    if(clipB == 0b0011'0000) {
+      store(color.zw, dmaDmemEnd, 4);
+      store(posCenter.Z, dmaDmemEnd, 0x04, 8);
+
+      store(posB, dmaDmemEnd, 0x04, 16);
+      @Barrier("pos-cmd") store(posEndB, dmaDmemEnd, 0x00, 16);
+      @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16);
+
+      store(uvStart.XY, dmaDmemEnd, 0x08, 16);
+      store(uvDelta.XY, dmaDmemEnd, 0x0C, 16);
+
+      dmaDmemEnd += 32;
+    }
+
+    mulMat4Vec8(mat0, mat1, mat2, mat3, posStart, posClip);
+
+    // When the RDP buffer in DMEM is full, submit and DMA them out.
+    // If anything is left, a last call after the loop will submit the rest.
+    if(dmaDmemEnd >= dmaDmemFlush) {
+      RDPQ_Send(dmaDmem, dmaDmemEnd);
+      dmaDmemEnd = dmaDmem;
+    }
+
+    temp1 = clip(posClip, posClip.wwwwWWWW);
+
+  } while (ptrIn != ptrInEnd)
+
+  // submit the rest of the buffer (if any)
+  RA = RSPQ_Loop; // @TODO: add RSPL auto-opt. for this (needs RA assign)
+  goto RDPQ_Send;
 }
 
 /**

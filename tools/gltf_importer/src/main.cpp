@@ -92,6 +92,9 @@ int main(int argc, char* argv[])
     bool isTranspA = a.material.blendMode == RDP::BLEND::MULTIPLY;
     bool isTranspB = b.material.blendMode == RDP::BLEND::MULTIPLY;
     if(isTranspA == isTranspB) {
+      if(a.material.uuid == b.material.uuid) {
+        return a.name < b.name;
+      }
       return a.material.uuid < b.material.uuid;
     }
     if(!isTranspA && !isTranspB) {

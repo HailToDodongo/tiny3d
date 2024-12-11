@@ -21,7 +21,7 @@ enum TPXCmd {
   TPX_CMD_DRAW_COLOR   = 0x1,
   TPX_CMD_MATRIX_STACK = 0x2,
   TPX_CMD_SET_DMEM     = 0x3,
-  //                   = 0x4,
+  TPX_CMD_DRAW_TEXTURE = 0x4,
   //                   = 0x5,
   //                   = 0x6,
   //                   = 0x7,
@@ -78,6 +78,20 @@ void tpx_state_from_t3d();
 void tpx_state_set_scale(float scaleX, float scaleY);
 
 /**
+ * Sets global params for textured particles.
+ * Those can be used to animate particles over time.
+ * NOTE: Check out the '19_particles_tex' example for more info.
+ *
+ * @param offsetX base-offset UV offset in 1/4th pixels.<br>
+ *                This refers to the 8x8px base size irrespective of the actual texture size.
+ * @param mirrorPoint point where the texture should be mirrored<br>
+ *                This is in amount of sections of the 8x8px base size.<br>
+ *                So if you want to repeat after 32px set it to 4.<br>
+ *                If you want no mirroring, set it to 0.
+ */
+void tpx_state_set_tex_params(int16_t offsetX, uint16_t mirrorPoint);
+
+/**
  * Draws a given amount of particles.
  * In contrast to triangles in t3d, this works in a single command.
  * So load, transform and draw happens in one go.
@@ -85,6 +99,18 @@ void tpx_state_set_scale(float scaleX, float scaleY);
  * @param count number of particles to draw
  */
 void tpx_particle_draw(TPXParticle *particles, uint32_t count);
+
+/**
+ * Draws a given amount of particles with a texture.
+ * In contrast to triangles in t3d, this works in a single command.
+ * So load, transform and draw happens in one go.
+ * Note: this expects that you already setup textures.
+ * It will also always use TILE0 for the rect-commands.
+ *
+ * @param particles pointer to the particle data
+ * @param count number of particles to draw
+ */
+void tpx_particle_draw_tex(TPXParticle *particles, uint32_t count);
 
 /**
  * Directly loads a matrix, overwriting the current stack position.

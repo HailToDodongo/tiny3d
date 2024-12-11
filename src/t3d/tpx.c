@@ -65,7 +65,14 @@ void tpx_state_set_scale(float scaleX, float scaleY) {
   tpx_dmem_set_u32(RSP_TPX_PARTICLE_SCALE, (scaleXNorm << 16) | scaleYNorm);
 }
 
-void tpx_particle_draw(TPXParticle *particles, uint32_t count)
+void tpx_state_set_tex_params(int16_t offsetX, uint16_t mirrorPoint)
+{
+  if(mirrorPoint == 0)mirrorPoint = 128;
+  uint32_t val = ((uint32_t)offsetX << 16) | mirrorPoint;
+  tpx_dmem_set_u32(RSP_TPX_TEX_OFFSET, val);
+}
+
+inline static void tpx_particle_draw_generic(TPXParticle *particles, uint32_t count, uint32_t rspCmd)
 {
   assert((count & 1) == 0);
 
@@ -74,12 +81,20 @@ void tpx_particle_draw(TPXParticle *particles, uint32_t count)
     if(batchSize > MAX_PARTICLES_COLOR)batchSize = MAX_PARTICLES_COLOR;
 
     uint32_t loadSize = sizeof(TPXParticle) * batchSize / 2;
-    rdpq_write(-1, TPX_RSP_ID, TPX_CMD_DRAW_COLOR,
+    rdpq_write(-1, TPX_RSP_ID, rspCmd,
         loadSize, (uint32_t)UncachedAddr(particles)
     );
 
     particles += MAX_PARTICLES_COLOR / 2;
   }
+}
+
+void tpx_particle_draw(TPXParticle *particles, uint32_t count) {
+  tpx_particle_draw_generic(particles, count, TPX_CMD_DRAW_COLOR);
+}
+
+void tpx_particle_draw_tex(TPXParticle *particles, uint32_t count) {
+  tpx_particle_draw_generic(particles, count, TPX_CMD_DRAW_TEXTURE);
 }
 
 inline static void tpx_matrix_stack(void *mat, int32_t stackAdvance, bool doMultiply, bool onlyStackMove) {
