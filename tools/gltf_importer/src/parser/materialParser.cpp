@@ -27,6 +27,8 @@ namespace {
   #define rdpq_2cyc_comb2b_rgb(suba, subb, mul, add)   ((((uint64_t)suba)<<37) | (((uint64_t)subb)<<24) | (((uint64_t)mul)<<32) | (((uint64_t)add)<<6))
   #define rdpq_2cyc_comb2b_alpha(suba, subb, mul, add) ((((uint64_t)suba)<<21) | (((uint64_t)subb)<<3)  | (((uint64_t)mul)<<18) | (((uint64_t)add)<<0))
 
+  std::vector<std::string> scannedTextures{};
+
   void readMaterialTileAxisFromJson(TileParam &param, const json &tex)
   {
     if(tex.empty())return;
@@ -77,7 +79,35 @@ namespace {
         std::vector<unsigned char> image; // pixels
         auto error = lodepng::decode(image, material.texWidth, material.texHeight, material.texPath);
         if(error) {
-          printf("Error loading texture %s: %s\n", material.texPath.c_str(), lodepng_error_text(error));
+          // texture not found, try finding another one with the same name
+          if(!scannedTextures.size()) {
+            if(config.verbose)printf("Scanning textures...\n");
+            for(auto &entry : fs::recursive_directory_iterator(config.assetPathFull)) {
+              if(entry.path().extension() == ".png") {
+                scannedTextures.push_back(entry.path().string());
+                if(config.verbose)printf("Found texture: %s\n", entry.path().string().c_str());
+              }
+            }
+          }
+
+          std::string pngName = std::string{"/"} + fs::path(material.texPath).filename().string();
+          // sometimes blender appends ".001" to the name if re-named or duped
+          if(pngName.find(".png.") != std::string::npos) {
+            pngName = pngName.substr(0, pngName.find(".png") + 4);
+          }
+
+          // check if any end with the name
+          for(auto &path : scannedTextures) {
+            if(path.ends_with(pngName)) {
+              material.texPath = path;
+              error = lodepng::decode(image, material.texWidth, material.texHeight, material.texPath);
+              break;
+            }
+          }
+
+          if(error) {
+            printf("Error loading texture %s: %s\n", pngName.c_str(), lodepng_error_text(error));
+          }
         }
       }
       //printf("Loaded Texture %s, size: %dx%d\n", material.texPath.c_str(), material.texWidth, material.texHeight);

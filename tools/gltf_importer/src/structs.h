@@ -252,6 +252,8 @@ struct Config {
   bool ignoreMaterials{false};
   bool createBVH{false};
   bool verbose{false};
+  std::string assetPath{};
+  std::string assetPathFull{};
 };
 extern Config config;
 
