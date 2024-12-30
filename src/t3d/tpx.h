@@ -78,6 +78,16 @@ void tpx_state_from_t3d();
 void tpx_state_set_scale(float scaleX, float scaleY);
 
 /**
+ * Sets a global base size from which all particles are scaled.
+ * This values can later only be scaled down, not up.
+ * By default it is set to 128, which should be good enough for most cases.
+ * If you notices particles are way too small or large, you can change this value.
+ * This may happen if you use large or very small screen sizes, or unusual near/far values.
+ * @param baseSize unit-less base size, def.: 128
+ */
+void tpx_state_set_base_size(uint16_t baseSize);
+
+/**
  * Sets global params for textured particles.
  * Those can be used to animate particles over time.
  * NOTE: Check out the '19_particles_tex' example for more info.

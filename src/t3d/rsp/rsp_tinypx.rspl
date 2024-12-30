@@ -55,6 +55,7 @@ state
   u16 PARTICLE_SCALE[2] = {0x7FFF, 0x7FFF};
   u16 TEX_OFFSET = {0};
   u16 TILE_COUNT = {0};
+  u16 BASE_SIZE = {128};
 }
 
 temp_state {
@@ -178,8 +179,10 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
     invW.W = invert_half(posClip).W;
 
     // store a particle base-size in W to only do one perspective division
-    posClip.w = 128;
-    posClip.W = 128;
+    posClip:sint.w = load(BASE_SIZE).x;
+    posClip:sint.W = load(BASE_SIZE).x;
+    posClip:sfract.w = 0;
+    posClip:sfract.W = 0;
 
     // perspective division
     posClip *= invW.wwwwWWWW;
@@ -417,8 +420,10 @@ command<4> TPXCmd_DrawTextured(s16 dataSize, s32 rdramAddr)
     invW.W = invert_half(posClip).W;
 
     // store a particle base-size in W to only do one perspective division
-    posClip.w = 128;
-    posClip.W = 128;
+    posClip:sint.w = load(BASE_SIZE).x;
+    posClip:sint.W = load(BASE_SIZE).x;
+    posClip:sfract.w = 0;
+    posClip:sfract.W = 0;
 
     // perspective division
     posClip *= invW.wwwwWWWW;
