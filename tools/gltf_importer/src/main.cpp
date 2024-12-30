@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
 {
   EnvArgs args{argc, argv};
   if(args.checkArg("--help")) {
-    printf("Usage: %s <gltf-file> <t3dm-file> [--bvh] [--base-scale=64] [--ignore-materials] [--verbose]\n", argv[0]);
+    printf("Usage: %s <gltf-file> <t3dm-file> [--bvh] [--base-scale=64] [--ignore-materials] [--asset-path=assets] [--verbose]\n", argv[0]);
     return 1;
   }
 
@@ -81,6 +81,20 @@ int main(int argc, char* argv[])
   config.ignoreMaterials = args.checkArg("--ignore-materials");
   config.createBVH = args.checkArg("--bvh");
   config.verbose = args.checkArg("--verbose");
+
+  config.assetPath = args.getStringArg("--asset-path");
+  if(config.assetPath.empty()) {
+    config.assetPath = "assets/";
+  }
+  if(config.assetPath.back() != '/') {
+    config.assetPath.push_back('/');
+  }
+
+  config.assetPathFull = fs::absolute(config.assetPath).string();
+  if(config.verbose) {
+    printf("Asset path: %s (%s)\n", config.assetPath.c_str(), config.assetPathFull.c_str());
+  }
+
   config.animSampleRate = 60;
 
   auto t3dm = parseGLTF(gltfPath.c_str(), config.globalScale);
@@ -276,8 +290,8 @@ int main(int argc, char* argv[])
         texPath = fs::relative(mat.texPath, std::filesystem::current_path()).string();
         std::replace(texPath.begin(), texPath.end(), '\\', '/');
 
-        if(texPath.find("assets/") == 0) {
-          texPath.replace(0, 7, "rom:/");
+        if(texPath.find(config.assetPath) == 0) {
+          texPath.replace(0, config.assetPath.size(), "rom:/");
         }
         if(texPath.find(".png") != std::string::npos) {
           texPath.replace(texPath.find(".png"), 4, ".sprite");
