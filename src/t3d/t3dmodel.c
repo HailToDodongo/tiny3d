@@ -337,11 +337,6 @@ void t3d_model_draw_material(T3DMaterial *mat, T3DModelState *state)
     state = &dummyState;
   }
 
-  if(mat->renderFlags != state->lastRenderFlags) {
-    t3d_state_set_drawflags(mat->renderFlags);
-    state->lastRenderFlags = mat->renderFlags;
-  }
-
   if(mat->fogMode != T3D_FOG_MODE_DEFAULT && mat->fogMode != state->lastFogMode) {
     state->lastFogMode = mat->fogMode;
     t3d_fog_set_enabled(mat->fogMode == T3D_FOG_MODE_ACTIVE);
@@ -415,6 +410,12 @@ void t3d_model_draw_material(T3DMaterial *mat, T3DModelState *state)
       state->lastOtherMode = mat->otherModeValue;
     }
   }
+
+  if(mat->renderFlags != state->lastRenderFlags) {
+    t3d_state_set_drawflags(mat->renderFlags);
+    state->lastRenderFlags = mat->renderFlags;
+  }
+
 }
 
 void t3d_model_free(T3DModel *model) {
