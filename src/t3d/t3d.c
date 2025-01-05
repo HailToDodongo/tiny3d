@@ -69,6 +69,8 @@ void t3d_destroy(void)
     free_uncached(matrixStack);
     matrixStack = NULL;
   }
+
+  currentViewport = NULL;
 }
 
 void t3d_screen_clear_color(color_t color) {
@@ -170,12 +172,9 @@ void t3d_light_set_ambient(const uint8_t *color)
 
 void t3d_light_set_directional(int index, const uint8_t *color, const T3DVec3 *dir)
 {
+  assertf(currentViewport, "t3d_light_set_directional needs a viewport to be attached!");
   T3DVec3 lightDirView;
-  if(currentViewport) {
-    t3d_mat3_mul_vec3(&lightDirView, &currentViewport->matCamera, dir);
-  } else {
-  lightDirView = *dir;
-  }
+  t3d_mat3_mul_vec3(&lightDirView, &currentViewport->matCamera, dir);
   t3d_vec3_norm(&lightDirView);
 
   uint8_t dirFP[3] = {
