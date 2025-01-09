@@ -152,6 +152,7 @@ static inline bool load_keyframe(T3DAnim *anim) {
 
   targetBase->timeStart = targetBase->timeEnd;
   targetBase->timeEnd += (float)kf.nextTime * KF_TIME_TICK;
+  if(kf.nextTime == 0)targetBase->timeStart -= 0.00001f; // avoid zero-div for overlapping keyframes
 
   if(channelMap->targetType == T3D_ANIM_TARGET_ROTATION) {
     T3DAnimTargetQuat *target = (T3DAnimTargetQuat*)targetBase;
