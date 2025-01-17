@@ -17,32 +17,10 @@ extern "C"
 #define T3D_PI 3.14159265358979f
 
 // 3D float vector
-typedef union {
-  struct {
-    float x, y, z;
-  };
-  float v[3];
-} T3DVec3;
-
-typedef union {
-  struct {
-    float x, y, z, w;
-  };
-  float v[4];
-} T3DVec4;
-
-// float quaternion, stored as XYZW
-typedef union {
-  struct {
-    float x, y, z, w;
-  };
-  float v[4];
-} T3DQuat;
-
-// 4D float vector
-typedef struct {
-  float m[4][4];
-} T3DMat4;
+typedef fm_vec3_t T3DVec3;
+typedef fm_vec4_t T3DVec4;
+typedef fm_quat_t T3DQuat;
+typedef fm_mat4_t T3DMat4;
 
 // 3D s16.16 fixed-point vector, used as-is by the RSP.
 typedef struct {
