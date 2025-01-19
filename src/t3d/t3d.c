@@ -230,14 +230,14 @@ uint16_t t3d_vert_pack_normal(const T3DVec3 *normal)
   t3d_vec3_norm(&norm);
 
   int32_t xInt = (int32_t)roundf(norm.v[0] * 15.5f);
-  int32_t yInt = (int32_t)roundf(norm.v[1] * 15.5f);
+  int32_t yInt = (int32_t)roundf(norm.v[1] * 31.5f);
   int32_t zInt = (int32_t)roundf(norm.v[2] * 15.5f);
   xInt = CLAMP(xInt, -16, 15);
-  yInt = CLAMP(yInt, -16, 15);
+  yInt = CLAMP(yInt, -32, 31);
   zInt = CLAMP(zInt, -16, 15);
 
   return ((uint16_t)(xInt) & 0b11111) << 10
-       | ((uint16_t)(yInt) & 0b11111) <<  5
+       | ((uint16_t)(yInt) & 0b111111) << 5
        | ((uint16_t)(zInt) & 0b11111) <<  0;
 }
 
