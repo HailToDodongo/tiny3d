@@ -236,7 +236,7 @@ uint16_t t3d_vert_pack_normal(const T3DVec3 *normal)
   yInt = CLAMP(yInt, -32, 31);
   zInt = CLAMP(zInt, -16, 15);
 
-  return ((uint16_t)(xInt) & 0b11111) << 10
+  return ((uint16_t)(xInt) & 0b11111) << 11
        | ((uint16_t)(yInt) & 0b111111) << 5
        | ((uint16_t)(zInt) & 0b11111) <<  0;
 }
