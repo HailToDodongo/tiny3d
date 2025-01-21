@@ -4,8 +4,12 @@
 <img src="logo.png" width="530">
 </p>
 
-3D ucode/library for the N64 using [libdragon](https://github.com/DragonMinded/libdragon/tree/preview).<br>
-The motivation of this project is to provide a fast and easy API while having all the features needed for 3D applications.<br>
+3D ucode & library for the N64 using [libdragon](https://github.com/DragonMinded/libdragon/tree/preview).<br>
+The goal of this project is to provide a fast 3D API, offering both low-level access and easy to use high-level functions.<br>
+
+![](docs/img/clip00.gif) ![](docs/img/clip03.gif) ![](docs/img/clip02.gif) ![](docs/img/clip01.gif)
+
+Note: This ucode was written from scratch and is not based on any proprietary code.<br>
 
 ## Features
 Tiny3D comes with both RSP microcode and an easy to use C-API around it.<br>
@@ -29,7 +33,7 @@ Features include:
 Checkout the playlist showcasing the example projects in this repo:<br>
 <p align="center">
 <a href="https://www.youtube.com/watch?v=RIVDqBZXbwI&list=PLIjz3uuaFuI60LKKjrtr3TgKyvepZ6tV0" target="_blank">
-    <img src="https://img.youtube.com/vi/RIVDqBZXbwI/0.jpg" width="400">
+    <img src="https://img.youtube.com/vi/RIVDqBZXbwI/0.jpg" width="200">
 </a>
 </p>
 
@@ -140,7 +144,7 @@ Contributions via PRs or any feedback is welcome.<br>
 Same as above, feel free to talk about changes on Discord.<br>
 
 ## Credits & License
-© 2023-2024 - Max Bebök (HailToDodongo)<br>
+© 2023-2025 - Max Bebök (HailToDodongo)<br>
 
 Tiny3D is licensed under the MIT License, see the [LICENSE](LICENSE) file for more information.<br>
 
