@@ -72,6 +72,14 @@ int main()
       .text = "Fresnel (Camera)",
       .subText = "LERP of tex. and color"
     },
+    (Model){.model = t3d_model_load("rom:/env.t3dm"), .scale = 0.1f,
+      .text = "UVGen LERP",
+      .subText = "LERP of 2 uvgen textures"
+    },
+    (Model){.model = t3d_model_load("rom:/force.t3dm"), .scale = 0.18f,
+      .text = "Fresnel as ALpha",
+      .subText = "Fresnel to alpha, I8 texture"
+    },
   };
   uint32_t modelCount = sizeof(models)/sizeof(models[0]);
 
@@ -124,6 +132,7 @@ int main()
     );
 
     color_t colPrim = get_rainbow_color(rotAngle * 0.42f);
+    colPrim.a = 0x20;
 
     // ======== Draw ======== //
     rdpq_attach(display_get(), display_get_zbuf());
@@ -160,7 +169,6 @@ int main()
     rdpq_set_fog_color(RGBA32(0, 0, 0, 80));
     rdpq_fill_rectangle(70, 14, display_get_width()-70, 28);
     rdpq_fill_rectangle(50, display_get_height()-34, display_get_width()-50, display_get_height()-20);
-
 
     rdpq_textparms_t texParam = {
         .width = display_get_width(),
