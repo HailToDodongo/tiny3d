@@ -36,6 +36,7 @@ int main()
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
 
   rdpq_init();
+  //rdpq_debug_start();
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
 
   joypad_init();
@@ -81,22 +82,24 @@ int main()
         T3DObject *obj = t3d_model_get_object_by_index(models[i].model, 0);
 
         rdpq_texparms_t texParam = (rdpq_texparms_t){};
-
         texParam.s.repeats = REPEAT_INFINITE;
         texParam.t.repeats = REPEAT_INFINITE;
 
+        // For manual mipmaps we have to upload the textures individually.
+        // This is the same as for multi-texturing, so just advance the tile per texture here.
         rdpq_tex_multi_begin();
           for(int t=0; t<6; ++t) {
             rdpq_sprite_upload(TILE0+t, rainbows[t], &texParam);
           }
         rdpq_tex_multi_end();
+        // Lastly, enable mipmaps and set the level to the total amount of textures (incl. the first one)
+        // Note: t3d only updates this internally after a state update via 't3d_state_set_drawflags()'.
+        // This will happen in 't3d_model_draw_material' however, just be aware of that for any manual usage.
         rdpq_mode_mipmap(MIPMAP_INTERPOLATE, 6);
 
         t3d_model_draw_material(obj->material, NULL);
-
-        rdpq_mode_combiner(RDPQ_COMBINER_TEX_SHADE);
-
         t3d_model_draw_object(obj, NULL);
+
       } else {
         t3d_model_draw(models[i].model);
       }
@@ -162,13 +165,15 @@ int main()
     // ======== 2D ======== //
     rdpq_sync_pipe();
     rdpq_sync_tile();
+    rdpq_set_mode_standard();
 
     // clear coverage + backdrop for text
     rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY_CONST);
-    rdpq_set_fog_color(RGBA32(0, 0, 0, 80));
     rdpq_mode_combiner(RDPQ_COMBINER_FLAT);
     rdpq_change_other_modes_raw(SOM_COVERAGE_DEST_MASK, SOM_COVERAGE_DEST_ZAP);
+
     rdpq_set_prim_color((color_t){0, 0, 0, 0xFF});
+    rdpq_set_fog_color(RGBA32(0, 0, 0, 80));
     rdpq_fill_rectangle(70, 14, display_get_width()-70, 28);
     rdpq_fill_rectangle(50, display_get_height()-34, display_get_width()-50, display_get_height()-20);
 
