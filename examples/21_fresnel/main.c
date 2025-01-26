@@ -24,12 +24,17 @@
  * Which is pointed directly away from the camera.
  */
 
+#define LIGHT_TYPE_DIR 0
+#define LIGHT_TYPE_POINT 1
+#define LIGHT_TYPE_SHARP 2
+
 typedef struct {
   T3DModel *model;
   rspq_block_t *dplModel;
   T3DMat4FP *modelMatFP;
   const char* text;
   const char* subText;
+  int lightType;
   float scale;
 } Model;
 
@@ -49,9 +54,10 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE);
 
   rdpq_init();
+  //rdpq_debug_start();
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
 
   joypad_init();
@@ -66,19 +72,43 @@ int main()
   Model models[] = {
     (Model){.model = t3d_model_load("rom:/sphere.t3dm"), .scale = 0.14f,
       .text = "Fresnel (Screen)",
-      .subText = "LERP of tex. and color, screen-space"
+      .subText = "LERP of tex. and color, screen-space",
+      .lightType = LIGHT_TYPE_DIR
     },
     (Model){.model = t3d_model_load("rom:/sphere.t3dm"), .scale = 0.14f,
       .text = "Fresnel (Camera)",
-      .subText = "LERP of tex. and color"
+      .subText = "LERP of tex. and color",
+      .lightType = LIGHT_TYPE_POINT
+    },
+    (Model){.model = t3d_model_load("rom:/sphere.t3dm"), .scale = 0.14f,
+      .text = "Fresnel 2x",
+      .subText = "2 Lights for sharp falloff",
+      .lightType = LIGHT_TYPE_SHARP
     },
     (Model){.model = t3d_model_load("rom:/env.t3dm"), .scale = 0.1f,
       .text = "UVGen LERP",
-      .subText = "LERP of 2 uvgen textures"
+      .subText = "LERP of 2 uvgen textures",
+      .lightType = LIGHT_TYPE_POINT
     },
     (Model){.model = t3d_model_load("rom:/force.t3dm"), .scale = 0.18f,
-      .text = "Fresnel as ALpha",
-      .subText = "Fresnel to alpha, I8 texture"
+      .text = "Force-Field",
+      .subText = "Fresnel to alpha, I8 texture",
+      .lightType = LIGHT_TYPE_POINT
+    },
+    (Model){.model = t3d_model_load("rom:/glass.t3dm"), .scale = 0.18f,
+      .text = "Ghost",
+      .subText = "Fresnel to alpha, color only",
+      .lightType = LIGHT_TYPE_POINT
+    },
+    (Model){.model = t3d_model_load("rom:/dark.t3dm"), .scale = 0.18f,
+      .text = "No-Lighting",
+      .subText = "LERP color to env-texture",
+      .lightType = LIGHT_TYPE_SHARP
+    },
+    (Model){.model = t3d_model_load("rom:/clip.t3dm"), .scale = 0.15f,
+      .text = "Outline",
+      .subText = "Fresnel to alpha-threshold, 2 draws",
+      .lightType = LIGHT_TYPE_SHARP
     },
   };
   uint32_t modelCount = sizeof(models)/sizeof(models[0]);
@@ -137,21 +167,42 @@ int main()
     // ======== Draw ======== //
     rdpq_attach(display_get(), display_get_zbuf());
     t3d_frame_start();
+    rdpq_mode_antialias(AA_NONE);
     t3d_viewport_attach(&viewport);
 
     t3d_screen_clear_color((color_t){40, 40, 40, 0xFF});
     t3d_screen_clear_depth();
 
     t3d_light_set_ambient(colorAmbient);
-    if(currModelIdx == 0) {
-      t3d_light_set_directional(0, (uint8_t[4]){0x00, 0x00, 0x00, 0xFF}, &(T3DVec3){{0, 0, 1}});
-    } else {
-      t3d_light_set_point(0,
-        (uint8_t[4]){0x00, 0x00, 0x00, 0xFF},
-        &(T3DVec3){{camPos.x, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false
-      );
+    switch(model->lightType)
+    {
+      case LIGHT_TYPE_DIR:
+        // Approx. using a directional light, only works for curved surfaces but is very fast
+        t3d_light_set_directional(0, (uint8_t[4]){0x00, 0x00, 0x00, 0xFF}, &(T3DVec3){{0, 0, 1}});
+        t3d_light_set_count(1);
+      break;
+      case LIGHT_TYPE_POINT:
+        // Proper fresnel, but per-vertex, so more expensive
+        t3d_light_set_point(0,
+          (uint8_t[4]){0x00, 0x00, 0x00, 0xFF},
+          &(T3DVec3){{camPos.x, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false
+        );
+        t3d_light_set_count(1);
+      break;
+      case LIGHT_TYPE_SHARP:
+        // Same as before but a sharper falloff.
+        // This works since each light source is added together, and the CC inverts it
+        t3d_light_set_point(0,
+          (uint8_t[4]){0x00, 0x00, 0x00, 0xFF},
+          &(T3DVec3){{camPos.x, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false
+        );
+        t3d_light_set_point(1,
+          (uint8_t[4]){0x00, 0x00, 0x00, 0xFF},
+          &(T3DVec3){{camPos.x, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false
+        );
+        t3d_light_set_count(2);
+      break;
     }
-    t3d_light_set_count(1);
 
     rdpq_set_prim_color(colPrim);
     rspq_block_run(model->dplModel);
@@ -159,6 +210,7 @@ int main()
 
     // ======== 2D ======== //
     rdpq_sync_pipe();
+    rdpq_set_mode_standard();
 
     // clear coverage + backdrop for text
     rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY_CONST);
