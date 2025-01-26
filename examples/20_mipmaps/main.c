@@ -24,6 +24,7 @@ typedef struct {
   float scale;
 } Model;
 
+[[noreturn]]
 int main()
 {
 	debug_init_isviewer();
@@ -58,7 +59,7 @@ int main()
   Model models[] = {
     (Model){.model = t3d_model_load("rom:/rainbow.t3dm"), .scale = 0.5f,
       .text = "Custom Mipmaps",
-      .subText = "6x RGBA16, each one rainbow-color"
+      .subText = "6x RGBA16, unique color per level"
     },
     (Model){.model = t3d_model_load("rom:/tunnel.t3dm"), .scale = 0.5f,
       .text = "No Mipmaps",
@@ -116,11 +117,9 @@ int main()
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
     joypad_buttons_t btn = joypad_get_buttons_pressed(JOYPAD_PORT_1);
 
-    uint32_t lastModelIdx = currModelIdx;
     if(btn.l || btn.c_left || btn.d_left)--currModelIdx;
     if(btn.r || btn.c_right || btn.d_right)++currModelIdx;
     currModelIdx %= modelCount;
-
 
     Model* model = &models[currModelIdx];
 
@@ -148,9 +147,9 @@ int main()
     // ======== Draw ======== //
     rdpq_attach(display_get(), display_get_zbuf());
     t3d_frame_start();
+
     t3d_viewport_attach(&viewport);
 
-    t3d_screen_clear_color(RGBA32(40, 40, 40, 0xFF));
     t3d_screen_clear_depth();
 
     t3d_light_set_ambient(colorAmbient);
@@ -162,6 +161,16 @@ int main()
 
     // ======== 2D ======== //
     rdpq_sync_pipe();
+    rdpq_sync_tile();
+
+    // clear coverage + backdrop for text
+    rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY_CONST);
+    rdpq_set_fog_color(RGBA32(0, 0, 0, 80));
+    rdpq_mode_combiner(RDPQ_COMBINER_FLAT);
+    rdpq_change_other_modes_raw(SOM_COVERAGE_DEST_MASK, SOM_COVERAGE_DEST_ZAP);
+    rdpq_set_prim_color((color_t){0, 0, 0, 0xFF});
+    rdpq_fill_rectangle(70, 14, display_get_width()-70, 28);
+    rdpq_fill_rectangle(50, display_get_height()-34, display_get_width()-50, display_get_height()-20);
 
     rdpq_textparms_t texParam = {
         .width = display_get_width(),
@@ -175,7 +184,4 @@ int main()
 
     rdpq_detach_show();
   }
-
-  t3d_destroy();
-  return 0;
 }
