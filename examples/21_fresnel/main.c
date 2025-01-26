@@ -70,6 +70,11 @@ int main()
   uint8_t colorAmbient[4] = {0xFF, 0xFF, 0xFF, 0x00};
 
   Model models[] = {
+    (Model){.model = t3d_model_load("rom:/wall.t3dm"), .scale = 0.135f,
+        .text = "Roughness",
+        .subText = "2 blended Draws, uvgen + no-uvgen",
+        .lightType = LIGHT_TYPE_SHARP
+      },
     (Model){.model = t3d_model_load("rom:/sphere.t3dm"), .scale = 0.14f,
       .text = "Fresnel (Screen)",
       .subText = "LERP of tex. and color, screen-space",
@@ -197,7 +202,7 @@ int main()
           &(T3DVec3){{camPos.x, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false
         );
         t3d_light_set_point(1,
-          (uint8_t[4]){0x00, 0x00, 0x00, 0xFF},
+          (uint8_t[4]){0x00, 0x00, 0x00, 0x77},
           &(T3DVec3){{camPos.x, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false
         );
         t3d_light_set_count(2);
