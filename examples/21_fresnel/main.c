@@ -36,6 +36,7 @@ typedef struct {
   const char* subText;
   int lightType;
   bool fixedBlend;
+  bool disableAA;
   float scale;
 } Model;
 
@@ -55,7 +56,7 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
 
   rdpq_init();
   //rdpq_debug_start();
@@ -109,7 +110,8 @@ int main()
     (Model){.model = t3d_model_load("rom:/clip.t3dm"), .scale = 0.15f,
       .text = "Outline",
       .subText = "Fresnel to alpha-threshold, 2 draws",
-      .lightType = LIGHT_TYPE_SHARP
+      .lightType = LIGHT_TYPE_SHARP,
+      .disableAA = true
     },
     (Model){.model = t3d_model_load("rom:/wallColor.t3dm"), .scale = 0.135f,
       .text = "Roughness (Color)",
@@ -188,10 +190,10 @@ int main()
     // ======== Draw ======== //
     rdpq_attach(display_get(), display_get_zbuf());
     t3d_frame_start();
-    rdpq_mode_antialias(AA_NONE);
+    rdpq_mode_antialias(model->disableAA ? AA_NONE : AA_STANDARD);
     t3d_viewport_attach(&viewport);
 
-    t3d_screen_clear_color((color_t){40, 40, 40, 0xFF});
+    t3d_screen_clear_color((color_t){40, 40, 60, 0xFF});
     t3d_screen_clear_depth();
 
     t3d_light_set_ambient(colorAmbient);
