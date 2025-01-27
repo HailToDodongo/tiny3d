@@ -35,6 +35,7 @@ typedef struct {
   const char* text;
   const char* subText;
   int lightType;
+  bool fixedBlend;
   float scale;
 } Model;
 
@@ -70,11 +71,6 @@ int main()
   uint8_t colorAmbient[4] = {0xFF, 0xFF, 0xFF, 0x00};
 
   Model models[] = {
-    (Model){.model = t3d_model_load("rom:/wall.t3dm"), .scale = 0.135f,
-        .text = "Roughness",
-        .subText = "2 blended Draws, uvgen + no-uvgen",
-        .lightType = LIGHT_TYPE_SHARP
-      },
     (Model){.model = t3d_model_load("rom:/sphere.t3dm"), .scale = 0.14f,
       .text = "Fresnel (Screen)",
       .subText = "LERP of tex. and color, screen-space",
@@ -115,10 +111,29 @@ int main()
       .subText = "Fresnel to alpha-threshold, 2 draws",
       .lightType = LIGHT_TYPE_SHARP
     },
+    (Model){.model = t3d_model_load("rom:/wallColor.t3dm"), .scale = 0.135f,
+      .text = "Roughness (Color)",
+      .subText = "TEX0/fresnel to alpha, blend with color",
+      .lightType = LIGHT_TYPE_SHARP,
+      .fixedBlend = true
+    },
+    (Model){.model = t3d_model_load("rom:/wall.t3dm"), .scale = 0.135f,
+      .text = "Roughness (Env)",
+      .subText = "2 blended draws, uvgen + no-uvgen",
+      .lightType = LIGHT_TYPE_SHARP
+    },
   };
-  uint32_t modelCount = sizeof(models)/sizeof(models[0]);
+  int modelCount = sizeof(models)/sizeof(models[0]);
 
-  for(int i = 0; i < modelCount; i++) {
+  for(int i = 0; i < modelCount; i++)
+  {
+    if(models[i].fixedBlend) { // @TODO: remove once fast64 supports rdpq settings/overrides
+      T3DModelIter it = t3d_model_iter_create(models[i].model, T3D_CHUNK_TYPE_MATERIAL);
+      while(t3d_model_iter_next(&it)) {
+        it.material->blendMode = RDPQ_BLENDER((IN_RGB, IN_ALPHA, BLEND_RGB, INV_MUX_ALPHA));
+      }
+    }
+
     models[i].modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
     rspq_block_begin();
       t3d_matrix_push(models[i].modelMatFP);
@@ -127,7 +142,7 @@ int main()
     models[i].dplModel = rspq_block_end();
   }
 
-  uint32_t currModelIdx = 0;
+  int currModelIdx = 0;
   float rotAngle = 0.0f;
   rspq_syncpoint_t syncPoint = 0;
   T3DVec3 currentPos = {{0,0,0}};
@@ -141,11 +156,12 @@ int main()
 
     if(btn.l || btn.c_left || btn.d_left)--currModelIdx;
     if(btn.r || btn.c_right || btn.d_right)++currModelIdx;
+    if(currModelIdx < 0)currModelIdx += modelCount;
     currModelIdx %= modelCount;
 
     Model* model = &models[currModelIdx];
 
-    rotAngle += 0.015f;
+    if(!joypad.btn.z)rotAngle += 0.015f;
     if(joypad.btn.a)rotAngle += 0.04f;
     if(joypad.btn.b)rotAngle = 0;
 
@@ -156,7 +172,7 @@ int main()
     }};
     t3d_vec3_lerp(&currentPos, &currentPos, &trargetPos, 0.2f);
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 4.0f, 160.0f);
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 4.0f, 100.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     if(syncPoint)rspq_syncpoint_wait(syncPoint);
@@ -188,6 +204,7 @@ int main()
       break;
       case LIGHT_TYPE_POINT:
         // Proper fresnel, but per-vertex, so more expensive
+        // Note: point lights exactly at the camera will not work properly, so offset it slightly
         t3d_light_set_point(0,
           (uint8_t[4]){0x00, 0x00, 0x00, 0xFF},
           &(T3DVec3){{camPos.x, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false
@@ -198,18 +215,19 @@ int main()
         // Same as before but a sharper falloff.
         // This works since each light source is added together, and the CC inverts it
         t3d_light_set_point(0,
-          (uint8_t[4]){0x00, 0x00, 0x00, 0xFF},
-          &(T3DVec3){{camPos.x, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false
+          (uint8_t[4]){0x00, 0x00, 0x00, 0xF0},
+          &(T3DVec3){{camPos.x+0.075f, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false
         );
         t3d_light_set_point(1,
-          (uint8_t[4]){0x00, 0x00, 0x00, 0x77},
-          &(T3DVec3){{camPos.x, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false
+          (uint8_t[4]){0x00, 0x00, 0x00, 0x90},
+          &(T3DVec3){{camPos.x+0.075f, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false
         );
         t3d_light_set_count(2);
       break;
     }
 
     rdpq_set_prim_color(colPrim);
+    rdpq_set_blend_color(colPrim);
     rspq_block_run(model->dplModel);
     syncPoint = rspq_syncpoint_new();
 
@@ -224,16 +242,19 @@ int main()
 
     rdpq_set_prim_color((color_t){0, 0, 0, 0xFF});
     rdpq_set_fog_color(RGBA32(0, 0, 0, 80));
+
+    uint32_t subTextLen = (strlen(model->subText) * 6 + 8) / 2;
+    float centerX = (float)display_get_width() * 0.5f;
     rdpq_fill_rectangle(70, 14, display_get_width()-70, 28);
-    rdpq_fill_rectangle(50, display_get_height()-34, display_get_width()-50, display_get_height()-20);
+    rdpq_fill_rectangle(centerX-subTextLen, display_get_height()-34, centerX+subTextLen, display_get_height()-20);
 
     rdpq_textparms_t texParam = {
-        .width = display_get_width(),
+        .width = (uint16_t)display_get_width(),
         .align = ALIGN_CENTER,
     };
 
     rdpq_text_printf(&texParam, FONT_BUILTIN_DEBUG_MONO, 0, 24,
-      "< [%ld/%ld] %s >", currModelIdx+1, modelCount, model->text
+      "< [%d/%d] %s >", currModelIdx+1, modelCount, model->text
     );
     rdpq_text_print(&texParam, FONT_BUILTIN_DEBUG_MONO, 0, display_get_height()-24, model->subText);
 
