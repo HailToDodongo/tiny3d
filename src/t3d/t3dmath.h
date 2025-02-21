@@ -149,9 +149,7 @@ inline static void t3d_quat_identity(T3DQuat *quat) {
 /**
  * Creates a quaternion from euler angles (radians)
  * @param quat result (in XYZW order)
- * @param x
- * @param y
- * @param z
+ * @param rotEuler
  */
 inline static void t3d_quat_from_euler(T3DQuat *quat, const float rotEuler[3])
 {
