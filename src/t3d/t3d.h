@@ -38,7 +38,7 @@ enum T3DCmd {
 // Internal vertex format, interleaves two vertices
 typedef struct {
   /* 0x00 */ int16_t posA[3]; // s16 (used in the ucode as the int. part of a s16.16)
-  /* 0x06 */ uint16_t normA;  // 5,5,5 packed normal
+  /* 0x06 */ uint16_t normA;  // 5,6,5 packed normal
   /* 0x08 */ int16_t posB[3]; // s16 (used in the ucode as the int. part of a s16.16)
   /* 0x0E */ uint16_t normB;  // 5,6,5 packed normal
   /* 0x10 */ uint32_t rgbaA; // RGBA8 color
@@ -255,7 +255,6 @@ void t3d_viewport_calc_viewspace_pos(T3DViewport *viewport, T3DVec3 *out, const 
 
 /**
  * @brief Draws a single triangle, referencing loaded vertices
- * @param draw_flags flags from 'T3DDrawFlags'
  * @param v0 vertex index 0
  * @param v1 vertex index 1
  * @param v2 vertex index 2
@@ -338,8 +337,8 @@ void t3d_matrix_set_proj(const T3DMat4FP *mat);
  * Loads a vertex buffer with a given size, this can then be used to draw triangles.
  *
  * @param vertices vertex buffer
- * @param offset offset in the target buffer (0-62)
- * @param count how many vertices to load (2-64), must be multiple of 2!
+ * @param offset offset in the target buffer (0-68)
+ * @param count how many vertices to load (2-70), must be multiple of 2!
  */
 void t3d_vert_load(const T3DVertPacked *vertices, uint32_t offset, uint32_t count);
 
@@ -453,7 +452,7 @@ void t3d_state_set_vertex_fx_scale(uint16_t scale);
 
 /**
  * Sets a new address in the segment table.
- * This acts ase a base-address for addresses in matrices/vertices
+ * This acts as a base-address for addresses in matrices/vertices
  * with a matching segment index.
  * Segment 0 is reserved and always has a zero value.
  * @param segmentId id (1-7)
@@ -478,7 +477,7 @@ static inline void* t3d_segment_placeholder(uint8_t segmentId) {
  * and the address in there to be added on top.
  * To set entries in the segment table use 't3d_segment_set'.
  * @param segmentId id (1-7)
- * @param ptr pointer, can ber NULL for absolute addressing
+ * @param ptr pointer, can be NULL for absolute addressing
  * @return segmented address
  */
 static inline void* t3d_segment_address(uint8_t segmentId, void* ptr) {
@@ -489,7 +488,7 @@ static inline void* t3d_segment_address(uint8_t segmentId, void* ptr) {
 
 /**
  * Converts an index buffer for triangle strips from indices to encoded DMEM pointers.
- * This is necessary in order for t3d_tri_draw_indexed to work.
+ * This is necessary in order for 't3d_tri_draw_strip' to work.
  * Internally this data will be DMA'd by the ucode later on.
  *
  * Format:
