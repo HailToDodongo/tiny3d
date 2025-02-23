@@ -265,6 +265,10 @@ void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags)
   rspq_write(T3D_RSP_ID, T3D_CMD_DRAWFLAGS, cullMask, cmd);
 }
 
+void t3d_state_set_depth_offset(int16_t offset) {
+  t3d_dmem_set_u16((RSP_T3D_SCREEN_SCALE_OFFSET & 0xFFF) + 12, 0x3FFF + offset);
+}
+
 void t3d_state_set_vertex_fx(enum T3DVertexFX func, int16_t arg0, int16_t arg1)
 {
   uint16_t rspFunc = RSP_T3D_CODE_VertexFX_None & 0xFFF;

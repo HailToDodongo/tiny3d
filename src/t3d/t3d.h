@@ -423,6 +423,15 @@ uint16_t t3d_vert_pack_normal(const T3DVec3 *normal);
 void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags);
 
 /**
+ * Offsets the final screen-space depth by a fixed amount.
+ * This can be used as an alternative to decals by drawing normally with an offset instead.
+ * E.g.: t3d_state_set_depth_offset(-0x40);
+ *
+ * @param offset relative offset, negative value to pull depth closer. Pass '0' to reset.
+ */
+void t3d_state_set_depth_offset(int16_t offset);
+
+/**
  * Sets a function for vertex effects.
  * To disable it, set the function to 'T3D_VERTEX_FX_NONE'.
  * The arg0/arg1 values are stored ín DMEM and are used by the ucode.
