@@ -379,19 +379,21 @@ VertexFX_None:
   nop
 VertexFX_Spherical:
   #if RSPQ_PROFILE == 0
-  vsubc $v04, $v05, $v12.v
-  vmudn $v04, $v04, $v09.e3
-  vmulf $v03, $v02, $v09.v
-  vmulf $v04, $v04, $v02.h2
-  vaddc $v03, $v03, $v09.e0
-  vmulf $v04, $v04, $v09.e0
-  vaddc $v03, $v03, $v04.v
-  slv $v03, 0, 12, $s6
-  bne $s4, $s7, LOOP_START
-  slv $v03, 8, 12, $s5
-  j RSPQ_Loop
-  nop
+  vge $v05, $v05, $v00.e0 ## L:607
+  vsubc $v04, $v05, $v12.v ## L:608
+  vlt $v04, $v04, $v12 ## L:609
+  vmulf $v03, $v02, $v09.v ## L:610
+  vmudn $v04, $v04, $v09.e3 ## L:612
+  vaddc $v03, $v03, $v09.e0 ## L:616
+  vmulf $v04, $v04, $v02.h2 ## L:613
+  vmulf $v04, $v04, $v09.e0 ## L:614
+  vaddc $v03, $v03, $v04.v ## L:617
+  slv $v03, 0, 12, $s6 ## L:619
+  bne $s4, $s7, LOOP_START ## L:585
+  slv $v03, 8, 12, $s5 ## L:620
   #endif
+  j RSPQ_Loop ## L:585
+  nop ## L:585
 VertexFX_CelShadeColor:
   #if RSPQ_PROFILE == 0
   vge $v04, $v04, $v04

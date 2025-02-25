@@ -21,12 +21,16 @@ function VertexFX_Spherical(
   vec16<$v09> uvGenArgs, vec16<$v02> normal, vec16<$v03> uv,
   u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
 ) {
+
+  posClipInt = posClipInt >= 0;
   uvOffsetFactor = posClipInt - screenOffset; // move back to center=0
+  uvOffsetFactor = uvOffsetFactor < screenOffset;
+  uv:sfract = normal * uvGenArgs;
+
   uvOffsetFactor *= uvGenArgs.w; // undo screen-space conversion into a normalized factor
   uvOffsetFactor:sfract *= normal.zzzzZZZZ; // the less aligned to the camera, the less offset
   uvOffsetFactor:sfract *= uvGenArgs.x; // scale down to texture size
 
-  uv:sfract = normal * uvGenArgs;
   uv += uvGenArgs.x;
   uv += uvOffsetFactor;
 
