@@ -447,6 +447,14 @@ void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVe
   viewport->_isCamProjDirty = false;
 }
 
+void t3d_viewport_set_view_matrix(T3DViewport *viewport, const T3DMat4 *mat) {
+  viewport->matCamera = *mat;
+
+  t3d_mat4_mul(&viewport->matCamProj, &viewport->matProj, &viewport->matCamera);
+  t3d_mat4_to_frustum(&viewport->viewFrustum, &viewport->matCamProj);
+  viewport->_isCamProjDirty = false;
+}
+
 void t3d_viewport_calc_viewspace_pos(T3DViewport *viewport, T3DVec3 *out, const T3DVec3 *pos)
 {
   T3DVec4 posScreen;

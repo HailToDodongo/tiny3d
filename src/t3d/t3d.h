@@ -244,6 +244,15 @@ inline static void t3d_viewport_set_w_normalize(T3DViewport *viewport, float nea
 void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVec3 *target, const T3DVec3 *up);
 
 /**
+ * Sets a new view (aka camera) matrix for the given viewport.
+ * If you have a look-at based camera prefer using 't3d_viewport_look_at'.
+ *
+ * @param viewport viewport to set for
+ * @param mat new view matrix
+ */
+void t3d_viewport_set_view_matrix(T3DViewport *viewport, const T3DMat4 *mat);
+
+/**
  * Calculates the view-space position of a given world-space position.
  * This will also handle offset viewports (e.g. for splitscreens)
  *
