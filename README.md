@@ -101,7 +101,7 @@ This is done on purpose, as it allows you to easily modify the library.<br>
 Use-cases can be to pin a version, specialize the API for your project, or to modify the ucode.<br>
 
 ### RSP ucode
-The ucode of Tiny3D is written in [RSPL](https://gitlab.com/mbeboek/rspl), a high level language that has been worked on in parallel with this project.<br>
+The ucode of Tiny3D is written in [RSPL](https://github.com/HailToDodongo/rspl), a high level language that has been worked on in parallel with this project.<br>
 By default, the generated ASM is included to avoid any additional dependencies.<br>
 If you plan on modifying the ucode, you will need to either install the RSPL transpiler or use the [WebUI](https://mbeboek.gitlab.io/rspl/).<br>
 Keep in mind to enable reordering within RSPL to get maximum performance.<br> 
