@@ -1,0 +1,102 @@
+include "rsp_queue.inc"
+
+#define SCREEN_WIDTH 320
+
+// RGBA32
+#define SCREEN_LINE_SIZE_IN 1280
+// RGBA16
+#define SCREEN_LINE_SIZE_OUT 640
+#define SCREEN_LINE_SIZE_OUT_DMA 639
+
+#define SCREEN_SIZE_BYTES_IN 307200
+
+#define SP_STATUS_SIG3 0x400
+#define SP_STATUS_SIG4 0x800
+
+state {
+
+}
+
+temp_state {
+  alignas(16) u8 IMG_ROW_A[SCREEN_LINE_SIZE_IN];
+  alignas(16) u8 IMG_ROW_B[SCREEN_LINE_SIZE_IN];
+  alignas(16) u8 TEX_CACHE[8][16];
+}
+
+macro awaitDMA() {
+    loop {
+      isBusy = get_dma_busy();
+    } while(isBusy != 0)
+}
+
+command<0> FX_ApplyTex(u32 rdramUV, u32 rdramUVEnd, u32 rdramOut)
+{
+  u32<$s4> dmaDst = IMG_ROW_A;
+  u32<$t0> dmaSize;
+
+  rdramOut &= 0x00FFFFFF;
+  rdramUV &= 0x00FFFFFF;
+  u32<$s0> dmaRDRAM = rdramUV;
+
+  u32 cachedTex = 0;
+  u32 imgRowA = IMG_ROW_A;
+  u32 imgRowB = IMG_ROW_B;
+
+  loop {
+    swap(imgRowA, imgRowB);
+
+    dmaSize = SCREEN_LINE_SIZE_IN;
+    dmaRDRAM = rdramUV;
+    dmaDst = imgRowA;
+    dma_in_async(dmaDst, dmaRDRAM, dmaSize);
+
+    u32 dmaSizeEnd = dmaDst + SCREEN_LINE_SIZE_IN;
+    u32 dmaDstOut = dmaDst;
+    u32 dmaDstIn = dmaDst;
+
+    u32 cacheKey;
+    u32 ADDR_MASK = 0xFFFFF0;
+    dmaDst = TEX_CACHE;
+    dmaSize = 15;
+
+    dmaRDRAM = load(dmaDstIn, -1);
+
+    u32 isBusy;
+    awaitDMA();
+
+    loop {
+      u32 localIdx = dmaRDRAM & 0b1111;
+      dmaRDRAM &= ADDR_MASK;
+
+      set_dma_addr_rsp(dmaDst);
+      if(cachedTex != dmaRDRAM) {
+        set_dma_addr_rdram(dmaRDRAM);
+        DMA_START:
+        set_dma_read(dmaSize);
+
+        cachedTex = dmaRDRAM;
+        awaitDMA();
+      }
+      u32 indices = load(TEX_CACHE, 8);
+
+      localIdx *= 2;
+      indices >>= localIdx;
+      indices &= 0b110;
+
+      u16 col = load(indices, TEX_CACHE);
+      dmaDstOut += 2;
+      dmaDstIn += 4;
+      store(col, dmaDstOut, -2);
+      dmaRDRAM = load(dmaDstIn, -1);
+    } while(dmaDstIn != dmaSizeEnd)
+
+    dmaSize = SCREEN_LINE_SIZE_OUT_DMA;
+    @Barrier("DMA") set_dma_addr_rsp(imgRowA);
+    @Barrier("DMA") set_dma_addr_rdram(rdramOut);
+    @Barrier("DMA") set_dma_write(dmaSize);
+
+    rdramUV += SCREEN_LINE_SIZE_IN;
+    rdramOut += SCREEN_LINE_SIZE_OUT;
+  } while(rdramUV != rdramUVEnd)
+
+}

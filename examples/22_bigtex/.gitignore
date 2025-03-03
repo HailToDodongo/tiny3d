@@ -1,0 +1,10 @@
+filesystem/
+build/
+*.z64
+cmake*/
+.idea/
+*.o
+*.t3dm
+*.coll
+*.scene
+*.blend1
