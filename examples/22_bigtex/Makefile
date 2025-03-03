@@ -6,7 +6,7 @@ include $(T3D_INST)/t3d.mk
 
 N64_CXXFLAGS += -std=gnu++20 -ftrivial-auto-var-init=uninitialized -fno-exceptions -Os -Isrc
 
-PROJECT_NAME=t3d_21_bigtex
+PROJECT_NAME=t3d_22_bigtex
 
 src =  $(wildcard src/*.cpp) $(wildcard src/**/*.cpp) $(wildcard src/**/**/*.cpp)
 
