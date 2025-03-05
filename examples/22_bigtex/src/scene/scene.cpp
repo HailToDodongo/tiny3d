@@ -3,22 +3,30 @@
 * @license MIT
 */
 #include "scene.h"
-#include "../main.h"
-#include "../utils/memory.h"
-#include "../rsp/rspFX.h"
 #include "../render/fbCpuDraw.h"
 #include "../render/debugDraw.h"
 #include "debugMenu.h"
 
-extern "C" {
-  // see: ./tex.S
-  extern uint32_t applyTexture(uint32_t fbTexIn, uint32_t fbTexInEnd, uint32_t fbOut64);
+namespace {
+
+  struct LightData {
+    color_t lightAmbient{};
+    color_t lightDir{};
+  };
+
+  constexpr LightData lightData[4] = {
+    {{0x99, 0x99, 0x99, 0x99}, {0xFF, 0x99, 0x99, 0xFF}},
+    {{0xFF, 0xFF, 0xFF, 0x99}, {0xFF, 0xFF, 0xFF, 0xFF}},
+    {{0x44, 0x44, 0x44, 0x99}, {168, 160, 44, 0xFF}},
+    {{0x11, 0x11, 0x11, 0x99}, {255, 255, 255, 0xFF}},
+  };
 
   const char* const MAP_PATHS[3] = {
     "rom:/model.t3dm",
     "rom:/model2.t3dm",
     "rom:/model3.t3dm",
   };
+
 }
 
 Scene::Scene()
@@ -56,32 +64,14 @@ void Scene::draw(const Memory::FrameBuffers &buffers, surface_t *surf)
     rdpq_fill_rectangle(0,0, SCREEN_WIDTH, SCREEN_HEIGHT);
   rdpq_mode_pop();
 
-
   T3DVec3 lightDir{
-    fm_sinf(lightTimer*0.8f) * 0.75f,
-    0.75f,
+    fm_sinf(lightTimer*0.8f) * 0.75f, 0.75f,
     fm_cosf(lightTimer*0.8f) * 0.75f
   };
   t3d_vec3_norm(lightDir);
 
-  switch(state.currSkybox) {
-    case 0: default:
-      t3d_light_set_ambient({0x99, 0x99, 0x99, 0x99});
-      t3d_light_set_directional(0, {0xFF, 0x99, 0x99, 0xFF}, lightDir);
-    break;
-    case 1:
-      t3d_light_set_ambient({0xFF, 0xFF, 0xFF, 0x99});
-      t3d_light_set_directional(0, {0xFF, 0xFF, 0xFF, 0xFF}, lightDir);
-    break;
-    case 2:
-      t3d_light_set_ambient({0x44, 0x44, 0x44, 0x99});
-      t3d_light_set_directional(0, {168, 160, 44, 0xFF}, lightDir);
-    break;
-    case 3:
-      t3d_light_set_ambient({0x11, 0x11, 0x11, 0x99});
-      t3d_light_set_directional(0, {255, 255, 255, 0xFF}, lightDir);
-    break;
-  }
+  t3d_light_set_ambient(lightData[state.currSkybox].lightAmbient);
+  t3d_light_set_directional(0, lightData[state.currSkybox].lightDir, lightDir);
   t3d_light_set_count(0);
 
   rdpq_set_color_image(&buffers.uv[state.frameIdx]);
@@ -121,66 +111,11 @@ void Scene::draw(const Memory::FrameBuffers &buffers, surface_t *surf)
   rspq_flush();
 
   uint64_t ticks = get_ticks();
-  uint32_t FB_SIZE_IN = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
   auto *texIn = (uint64_t*)CachedAddr(buffers.uv[frameIdxLast].buffer);
 
-  switch(state.drawMode)
-  {
-    case State::DRAW_MODE_DEF: {
-      uint32_t quarterSlice = FB_SIZE_IN / SHADE_BLEND_SLICES / 3;
-      uint32_t stepSizeTexIn = quarterSlice * 2;
-      uint32_t stepSizeTexInRSP = quarterSlice * 1;
-
-      uint32_t ptrInPos = (uint32_t)(texIn);
-      uint32_t ptrOutPos = (uint32_t) CachedAddr(surf->buffer);
-
-      // Texture look-up
-      // This starts the CPU/RSP tasks to convert UVs into actual pixels.
-      // RSP and CPU are doing this in slices, so that they can work in parallel...
-      if(state.drawShade && state.drawMap)
-      {
-        for(int p=0; p<SHADE_BLEND_SLICES; ++p) {
-          if(p % 4 == 0)
-          {
-            RSP::FX::fillTextures(ptrInPos, ptrInPos + stepSizeTexInRSP, ptrOutPos);
-            rspq_flush(); // <- make sure to flush to guarantee that the RSP is busy
-            ptrInPos += stepSizeTexInRSP;
-            ptrOutPos += stepSizeTexInRSP / 2;
-            applyTexture(ptrInPos, ptrInPos + stepSizeTexIn, ptrOutPos);
-            ptrInPos += stepSizeTexIn;
-            ptrOutPos += stepSizeTexIn / 2;
-          } else {
-            applyTexture(ptrInPos, ptrInPos + quarterSlice*3, ptrOutPos);
-            ptrInPos += quarterSlice * 3;
-            ptrOutPos += quarterSlice * 3 / 2;
-          }
-          data_cache_hit_writeback_invalidate((char*)CachedAddr(ptrOutPos) - 0x1000, 0x1000);
-          // ...in the case of shading enabled, we also start the final blend inbetween,
-          // this can once again run in parallel
-          fbBlend.blend(p);
-
-          rspq_flush();
-        }
-      } else {
-        // version without shading, this is the same as above without the RDP tasks inbetween
-        stepSizeTexIn =  FB_SIZE_IN / SHADE_BLEND_SLICES;
-        for(int p=0; p<SHADE_BLEND_SLICES; ++p)
-        {
-          if(p % 4 == 0) {
-            RSP::FX::fillTextures(
-              ptrInPos, ptrInPos + stepSizeTexIn, ptrOutPos
-            );
-            rspq_flush();
-          } else {
-            applyTexture(ptrInPos, ptrInPos + stepSizeTexIn, ptrOutPos);
-            data_cache_hit_writeback_invalidate((char*)CachedAddr(ptrOutPos + stepSizeTexIn/2) - 0x1000, 0x1000);
-          }
-
-          ptrOutPos += stepSizeTexIn / 2;
-          ptrInPos += stepSizeTexIn;
-        }
-      }
-    } break;
+  uint32_t FB_SIZE_IN = SCREEN_WIDTH * SCREEN_HEIGHT * 4;
+  switch(state.drawMode) {
+    case State::DRAW_MODE_DEF: FbCPU::applyTextures(texIn, (uint16_t*)surf->buffer, FB_SIZE_IN, fbBlend); break;
     case State::DRAW_MODE_UV:  FbCPU::applyTexturesUV(texIn, (uint16_t*)surf->buffer, FB_SIZE_IN); break;
     case State::DRAW_MODE_MAT: FbCPU::applyTexturesMat(texIn, (uint16_t*)surf->buffer, FB_SIZE_IN); break;
   }

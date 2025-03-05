@@ -3,9 +3,73 @@
 * @license MIT
 */
 #include "fbCpuDraw.h"
+#include "../main.h"
+#include "../rsp/rspFX.h"
 
 #pragma GCC push_options
 #pragma GCC optimize ("-O3")
+
+extern "C" {
+  // see: ./tex.S
+  extern uint32_t applyTexture(uint32_t fbTexIn, uint32_t fbTexInEnd, uint32_t fbOut64);
+}
+
+void FbCPU::applyTextures(uint64_t *fbTexIn, uint16_t *buffOut, uint32_t buffSize, const FbBlend &fbBlend)
+{
+  uint32_t quarterSlice = buffSize / SHADE_BLEND_SLICES / 3;
+  uint32_t stepSizeTexIn = quarterSlice * 2;
+  uint32_t stepSizeTexInRSP = quarterSlice * 1;
+
+  uint32_t ptrInPos = (uint32_t)(fbTexIn);
+  uint32_t ptrOutPos = (uint32_t) CachedAddr(buffOut);
+
+  // Texture look-up
+  // This starts the CPU/RSP tasks to convert UVs into actual pixels.
+  // RSP and CPU are doing this in slices, so that they can work in parallel...
+  if(state.drawShade && state.drawMap)
+  {
+    for(int p=0; p<SHADE_BLEND_SLICES; ++p) {
+      if(p % 4 == 0)
+      {
+        RSP::FX::fillTextures(ptrInPos, ptrInPos + stepSizeTexInRSP, ptrOutPos);
+        rspq_flush(); // <- make sure to flush to guarantee that the RSP is busy
+        ptrInPos += stepSizeTexInRSP;
+        ptrOutPos += stepSizeTexInRSP / 2;
+        applyTexture(ptrInPos, ptrInPos + stepSizeTexIn, ptrOutPos);
+        ptrInPos += stepSizeTexIn;
+        ptrOutPos += stepSizeTexIn / 2;
+      } else {
+        applyTexture(ptrInPos, ptrInPos + quarterSlice*3, ptrOutPos);
+        ptrInPos += quarterSlice * 3;
+        ptrOutPos += quarterSlice * 3 / 2;
+      }
+      data_cache_hit_writeback_invalidate((char*)CachedAddr(ptrOutPos) - 0x1000, 0x1000);
+      // ...in the case of shading enabled, we also start the final blend inbetween,
+      // this can once again run in parallel
+      fbBlend.blend(p);
+
+      rspq_flush();
+    }
+  } else {
+    // version without shading, this is the same as above without the RDP tasks inbetween
+    stepSizeTexIn =  buffSize / SHADE_BLEND_SLICES;
+    for(int p=0; p<SHADE_BLEND_SLICES; ++p)
+    {
+      if(p % 4 == 0) {
+        RSP::FX::fillTextures(
+          ptrInPos, ptrInPos + stepSizeTexIn, ptrOutPos
+        );
+        rspq_flush();
+      } else {
+        applyTexture(ptrInPos, ptrInPos + stepSizeTexIn, ptrOutPos);
+        data_cache_hit_writeback_invalidate((char*)CachedAddr(ptrOutPos + stepSizeTexIn/2) - 0x1000, 0x1000);
+      }
+
+      ptrOutPos += stepSizeTexIn / 2;
+      ptrInPos += stepSizeTexIn;
+    }
+  }
+}
 
 void FbCPU::applyTexturesUV(uint64_t *fbTexIn, uint16_t *buffOut, uint32_t buffSize)
 {
@@ -68,4 +132,4 @@ void FbCPU::applyTexturesMat(uint64_t *fbTexIn, uint16_t *buffOut, uint32_t buff
   }
 }
 
-  #pragma GCC pop_options
+#pragma GCC pop_options

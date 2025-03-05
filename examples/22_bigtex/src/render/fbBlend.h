@@ -18,7 +18,7 @@ class FbBlend
     FbBlend();
     ~FbBlend();
 
-    inline void blend(int idx) {
+    inline void blend(int idx) const {
       rspq_block_run(blendBlocks[idx]);
     }
 };
