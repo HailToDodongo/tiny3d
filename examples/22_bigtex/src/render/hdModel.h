@@ -16,6 +16,7 @@ class HDModel
     RingMat4FP matFP{};
     rspq_block_t *dplDraw{};
     rspq_block_t *dplDrawShade{};
+    rspq_block_t *dplDrawTrans{};
 
   public:
     HDModel(const std::string &t3dmPath, Textures& textures);
@@ -24,4 +25,5 @@ class HDModel
     void setPos(const T3DVec3 &pos);
     void draw();
     void drawShade();
+    void drawTrans();
 };

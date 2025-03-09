@@ -10,19 +10,22 @@ PROJECT_NAME=t3d_22_bigtex
 
 src =  $(wildcard src/*.cpp) $(wildcard src/**/*.cpp) $(wildcard src/**/**/*.cpp)
 
-assets_png = $(wildcard assets/*.rgba16.png) $(wildcard assets/*.ia4.png) $(wildcard assets/*.ci4.png)
-assets_glb = $(wildcard assets/*.glb) $(wildcard assets/obj/*.glb) $(wildcard assets/map/**/*.glb)
+assets_png = $(wildcard assets/*.rgba16.png) $(wildcard assets/*.ia4.png) $(wildcard assets/*.ci4.png) \
+	$(wildcard assets/room/*.i8.png)
+assets_glb = $(wildcard assets/*.glb) $(wildcard assets/room/*.glb)
 assets_ttf = $(wildcard assets/*.ttf)
 assets_mp3 = $(wildcard assets/bgm/*.mp3)
 assets_wav = $(wildcard assets/sfx/*.wav)
-assets_bci = $(wildcard assets/*.bci.png) $(wildcard assets/skybox/*/*.bci.png)
+assets_bci = $(wildcard assets/*.bci.png) $(wildcard assets/skybox/*/*.bci.png) $(wildcard assets/room/*.bci.png)
+assets_lpb = $(wildcard assets/room/*.probe)
 
 assets_conv = $(patsubst assets/%,filesystem/%,$(assets_png:%.png=%.sprite)) \
 			  $(patsubst assets/%,filesystem/%,$(assets_glb:%.glb=%.t3dm)) \
 			  $(patsubst assets/%,filesystem/%,$(assets_ttf:%.ttf=%.font64)) \
 			  $(patsubst assets/%,filesystem/%,$(assets_mp3:%.mp3=%.wav64)) \
 			  $(patsubst assets/%,filesystem/%,$(assets_wav:%.wav=%.wav64)) \
-			  $(patsubst assets/%,filesystem/%,$(assets_bci:%.png=%))
+			  $(patsubst assets/%,filesystem/%,$(assets_bci:%.png=%)) \
+			  $(patsubst assets/%,filesystem/%,$(assets_lpb:%.probe=%.lpb))
 
 # $(info $$assets_conv is [${assets_conv}])
 
@@ -68,6 +71,12 @@ filesystem/%.bci: assets/%.bci.png
 	@echo "    [HD-IMG] $@ $<"
 	./tools/imgconv/imgconv "$<" $@
 	$(N64_BINDIR)/mkasset -c 2 -o $(dir $@) $@
+
+filesystem/%.lpb: assets/%.probe
+	@mkdir -p $(dir $@)
+	@echo "    [LIGHT-PROBES] $@ $<"
+	./tools/probeconv/probeconv "$<" $@
+	$(N64_BINDIR)/mkasset -c 1 -o $(dir $@) $@
 
 build/%.dfs:
 	@mkdir -p $(dir $@)

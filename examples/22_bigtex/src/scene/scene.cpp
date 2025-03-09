@@ -8,6 +8,7 @@
 #include "debugMenu.h"
 
 namespace {
+  constexpr float PLAYER_SCALE = 0.025f;
 
   struct LightData {
     color_t lightAmbient{};
@@ -21,33 +22,56 @@ namespace {
     {{0x11, 0x11, 0x11, 0x99}, {255, 255, 255, 0xFF}},
   };
 
-  const char* const MAP_PATHS[3] = {
+  const char* const MAP_PATHS[4] = {
     "rom:/model.t3dm",
     "rom:/model2.t3dm",
     "rom:/model3.t3dm",
+    "rom:/room/room.t3dm",
   };
 
 }
 
 Scene::Scene()
-  : mapModel{MAP_PATHS[state.mapModel], textures}
+  : lightProbes{state.mapModel == 3 ? "rom:/room/light.lpb" : ""},
+  mapModel{MAP_PATHS[state.mapModel], textures}
 {
   skybox.change(state.currSkybox);
+  modelPlayer = t3d_model_load("rom:/player.t3dm");
+  rspq_block_begin();
+    t3d_model_draw(modelPlayer);
+  modelPlayer->userBlock = rspq_block_end();
+
+  playerMatFP.fillSRT({PLAYER_SCALE, PLAYER_SCALE, PLAYER_SCALE}, {0,0,0}, playerPos);
+}
+
+Scene::~Scene() {
+  t3d_model_free(modelPlayer);
 }
 
 void Scene::update(float deltaTime) {
   auto btn = joypad_get_buttons_pressed(JOYPAD_PORT_1);
+  auto held = joypad_get_buttons_held(JOYPAD_PORT_1);
   if(btn.start)state.menuOpen = !state.menuOpen;
 
-  camera.setCamLerpSpeed(state.slowCam ? 0.5f : 0);
+  auto oldCamPos = camera.getPosition();
+
+  camera.setCamLerpSpeed(state.slowCam ? 0.08f : 0);
   camera.update(deltaTime);
   skybox.update(camera.getPosition());
   lightTimer += deltaTime;
+
+  if(held.a) {
+    auto camDelta = camera.getPosition() - oldCamPos;
+    playerPos += camDelta;
+    playerPos.y = 4.0;
+    t3d_mat4fp_from_srt_euler(playerMatFP.getNext(), {PLAYER_SCALE, PLAYER_SCALE, PLAYER_SCALE}, {0,0,0}, playerPos);
+  }
 }
 
 void Scene::draw(const Memory::FrameBuffers &buffers, surface_t *surf)
 {
-  surface_t *surfDepth = Memory::getZBuffer();
+  surface_t *surfDepth = Memory::getZBuffer(state.frame & 1);
+  surface_t *surfDepthLast = Memory::getZBuffer(1 - (state.frame & 1));
   uint32_t frameIdxLast = (state.frameIdx + 2) % 3;
 
   t3d_frame_start();
@@ -98,11 +122,10 @@ void Scene::draw(const Memory::FrameBuffers &buffers, surface_t *surf)
     rdpq_sync_pipe();
   }
 
-  t3d_matrix_pop(1);
-
   rdpq_sync_tile();
   rdpq_sync_load();
   rdpq_set_color_image(surf);
+  rdpq_set_z_image(surfDepthLast);
   rdpq_set_mode_standard();
 
   rdpq_set_lookup_address(1, buffers.shade[frameIdxLast].buffer);
@@ -121,6 +144,47 @@ void Scene::draw(const Memory::FrameBuffers &buffers, surface_t *surf)
   }
   ticks = get_ticks() - ticks;
 
+  rdpq_sync_pipe();
+  rdpq_sync_tile();
+  t3d_frame_start();
+
+  rdpq_mode_antialias(AA_NONE);
+  rdpq_mode_dithering(DITHER_NONE_NONE);
+  rdpq_set_prim_color({0xFF, 0xFF, 0xFF, 0xFF});
+
+  t3d_matrix_pop(1);
+  camera.attachLast();
+  t3d_matrix_push_pos(1);
+
+  if(state.drawMap) {
+    auto ticksP = get_ticks();
+    auto probeRes = lightProbes.query(playerPos);
+    ticksP = get_ticks() - ticksP;
+    if(state.menuOpen && state.frame % 60 == 0) {
+      debugf("Probe time: %lldus\n", TICKS_TO_US(ticksP));
+    }
+    const auto &c = probeRes.colors;
+
+    t3d_light_set_ambient({0,0,0,0});
+    t3d_light_set_directional(0, {c[0][0], c[0][1], c[0][2], 0xFF}, {-1,0,0});
+    t3d_light_set_directional(1, {c[1][0], c[1][1], c[1][2], 0xFF}, {1,0,0});
+    t3d_light_set_directional(2, {c[2][0], c[2][1], c[2][2], 0xFF}, {0,-1,0});
+    t3d_light_set_directional(3, {c[3][0], c[3][1], c[3][2], 0xFF}, {0,1,0});
+    t3d_light_set_directional(4, {c[4][0], c[4][1], c[4][2], 0xFF}, {0,0,-1});
+    t3d_light_set_directional(5, {c[5][0], c[5][1], c[5][2], 0xFF}, {0,0,1});
+    t3d_light_set_count(6);
+
+    t3d_matrix_set(playerMatFP.get(), true);
+    rspq_block_run(modelPlayer->userBlock);
+
+    t3d_light_set_ambient({0xFF, 0xFF, 0xFF, 0xFF});
+    t3d_light_set_count(0);
+    mapModel.drawTrans();
+  }
+
+  t3d_matrix_pop(1);
+
+  Debug::draw(static_cast<uint16_t *>(surf->buffer));
   Debug::printStart();
   if(state.menuOpen) {
     DebugMenu::draw(skybox);

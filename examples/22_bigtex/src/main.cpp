@@ -5,7 +5,6 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
 #include <string>
-
 #include "render/textures.h"
 #include "render/hdModel.h"
 #include "utils/memory.h"
@@ -54,6 +53,12 @@ int main()
   uint64_t lastTime = get_ticks() - 10000;
   float lastDeltas[32] = {0};
 
+  state.currSkybox = 3;
+  state.menuOpen = false;
+  state.slowCam = true;
+  state.mapModel = 3;
+  state.drawShade = false;
+
   auto buffers = Memory::allocOptimalFrameBuffers();
   Debug::init();
 
@@ -80,7 +85,7 @@ int main()
     debugf("Scene load: %lldms\n", TICKS_TO_MS(get_ticks() - ticksScene));
 
     SwapChain::setDrawPass([&scene, &buffers](surface_t *surf, uint32_t fbIndex, auto done) {
-      rdpq_attach(surf, Memory::getZBuffer());
+      rdpq_attach(surf, Memory::getZBuffer(state.frame & 1));
       scene.draw(buffers, surf);
       rdpq_detach_cb((void(*)(void*))(done), (void*)fbIndex);
     });

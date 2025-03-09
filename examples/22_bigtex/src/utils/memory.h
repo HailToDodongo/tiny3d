@@ -10,11 +10,11 @@ namespace Memory {
     surface_t color[3]{};
     surface_t uv[3]{};
     surface_t shade[3]{};
-    surface_t *depth{};
+    surface_t *depth[2]{};
   };
 
   void dumpHeap(const char* name = nullptr);
-  surface_t* getZBuffer();
+  surface_t* getZBuffer(uint32_t idx = 0);
 
   FrameBuffers allocOptimalFrameBuffers();
 }

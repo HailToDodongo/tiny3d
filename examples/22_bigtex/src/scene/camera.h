@@ -30,7 +30,9 @@ class Camera
 
     void update(float deltaTime);
     void attach();
+    void attachLast();
     void setCamLerpSpeed(float speed) { camLerpSpeed = speed; }
 
     const T3DVec3& getPosition() const { return pos; }
+    const T3DVec3& getTarget() const { return target; }
 };

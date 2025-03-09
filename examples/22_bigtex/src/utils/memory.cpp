@@ -12,7 +12,7 @@ extern "C" {
 
 namespace {
   heap_stats_t heap_stats{};
-  surface_t zBuffer{};
+  surface_t zBuffer[2]{};
 
   constexpr uint32_t FB_BYTE_SIZE = 320*240*2;
   constexpr uint32_t FB_BANK_ADDR[6] = {
@@ -32,9 +32,9 @@ void Memory::dumpHeap(const char *name) {
   }
 }
 
-surface_t *Memory::getZBuffer() {
-  assert(zBuffer.buffer);
-  return &zBuffer;
+surface_t *Memory::getZBuffer(uint32_t idx) {
+  assert(zBuffer[idx].buffer);
+  return &zBuffer[idx];
 }
 
 Memory::FrameBuffers Memory::allocOptimalFrameBuffers() {
@@ -45,7 +45,9 @@ Memory::FrameBuffers Memory::allocOptimalFrameBuffers() {
     buf = sbrk_top(missing);
     assert(FB_BANK_ADDR[0] == (uint32_t)buf);
 
-    zBuffer = surface_make(UncachedAddr(FB_BANK_ADDR[5]), FMT_RGBA16, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH*2);
+    zBuffer[0] = surface_make(UncachedAddr(FB_BANK_ADDR[5]), FMT_RGBA16, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH*2);
+    zBuffer[1] = surface_make(UncachedAddr(FB_BANK_ADDR[5] + (320*240*2)), FMT_RGBA16, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH*2);
+
     return {
       .color = {
         surface_make(UncachedAddr(FB_BANK_ADDR[2]), FMT_RGBA16, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH*2),
@@ -69,9 +71,10 @@ Memory::FrameBuffers Memory::allocOptimalFrameBuffers() {
         //surface_make(UncachedAddr(FB_BANK_ADDR[1]), FMT_RGBA16, SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_WIDTH*2),
 
       },
-      .depth = &zBuffer
+      .depth = {&zBuffer[0], &zBuffer[1]}
     };
   } else {
     assertf(false, "Expansion-Pack required!");
   }
 }
+

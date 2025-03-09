@@ -32,6 +32,8 @@ HDModel::HDModel(const std::string &t3dmPath, Textures& textures) {
   {
     auto *mat = obj->material;
     if(mat->textureA.texReference == 0xFF)continue;
+    //debugf("Mat: %s %d\n", mat->name, mat->textureA.texWidth);
+    if(mat->textureA.texWidth != 256)continue;
 
     uint8_t matIdx = 0;
     if (mat->textureA.texReference) {
@@ -82,11 +84,24 @@ HDModel::HDModel(const std::string &t3dmPath, Textures& textures) {
   rspq_block_begin();
     auto t3dState = t3d_model_state_create();
     for(auto obj : objects) {
-      t3d_model_draw_material(obj->material, &t3dState);
-      t3d_model_draw_object(obj, nullptr);
+      if(obj->material->textureA.texWidth == 256) {
+        t3d_model_draw_material(obj->material, &t3dState);
+        t3d_model_draw_object(obj, nullptr);
+      }
     }
     t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0,0);
   dplDraw = rspq_block_end();
+
+  rspq_block_begin();
+  t3dState = t3d_model_state_create();
+  for(auto obj : objects) {
+    if(obj->material->textureA.texWidth != 256) {
+      t3d_model_draw_material(obj->material, &t3dState);
+      t3d_model_draw_object(obj, nullptr);
+    }
+  }
+  t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0,0);
+  dplDrawTrans = rspq_block_end();
 
   rspq_block_begin();
     rdpq_sync_pipe();
@@ -136,4 +151,9 @@ void HDModel::drawShade() {
 
 void HDModel::setPos(const T3DVec3 &pos) {
   t3d_mat4fp_set_pos(matFP.getNext(), pos);
+}
+
+void HDModel::drawTrans() {
+  t3d_matrix_set(matFP.get(), true);
+  rspq_block_run(dplDrawTrans);
 }

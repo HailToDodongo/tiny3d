@@ -11,9 +11,46 @@ namespace
 {
   sprite_t *font{};
   rspq_block_t *dplSetup{};
+
+  struct Line {
+    T3DVec3 a{};
+    T3DVec3 b{};
+    uint16_t color;
+    uint16_t _padding;
+  };
+
+  std::vector<Line> lines{};
+
+  void debugDrawLine(uint16_t *fb, int px0, int py0, int px1, int py1, uint16_t color)
+  {
+    int width = SCREEN_WIDTH;
+    int height = SCREEN_HEIGHT;
+    if((px0 > width + 200) || (px1 > width + 200) ||
+       (py0 > height + 200) || (py1 > height + 200)) {
+      return;
+    }
+
+    float pos[2]{(float)px0, (float)py0};
+    int dx = px1 - px0;
+    int dy = py1 - py0;
+    int steps = abs(dx) > abs(dy) ? abs(dx) : abs(dy);
+    if(steps <= 0)return;
+    float xInc = dx / (float)steps;
+    float yInc = dy / (float)steps;
+
+    for(int i=0; i<steps; ++i)
+    {
+      if((i%3 != 0) && pos[1] >= 0 && pos[1] < height && pos[0] >= 0 && pos[0] < width) {
+        fb[(int)pos[1] * width + (int)pos[0]] = color;
+      }
+      pos[0] += xInc;
+      pos[1] += yInc;
+    }
+  }
 }
 
 void Debug::init() {
+  lines = {};
   font = sprite_load("rom:/font.ia4.sprite");
 
   rspq_block_begin();
@@ -34,8 +71,58 @@ void Debug::init() {
 }
 
 void Debug::destroy() {
+  lines.clear();
+  lines.shrink_to_fit();
+
   sprite_free(font);
   rspq_block_free(dplSetup);
+}
+
+
+void Debug::drawLine(const T3DVec3 &a, const T3DVec3 &b, color_t color) {
+  if(lines.size() > 1000)return;
+  lines.push_back({a, b, color_to_packed16(color)});
+}
+
+void Debug::draw(uint16_t *fb) {
+  if(lines.empty())return;
+  debugf("Drawing %d lines\n", lines.size());
+  //rspq_wait();
+
+  for(auto &line : lines) {
+    t3d_viewport_calc_viewspace_pos(nullptr, &line.a, &line.a);
+    t3d_viewport_calc_viewspace_pos(nullptr, &line.b, &line.b);
+  }
+
+  float maxX = SCREEN_WIDTH;
+  float maxY = SCREEN_HEIGHT;
+  for(auto &line : lines) {
+    if(line.a.x < 0 && line.b.x < 0)continue;
+    if(line.a.y < 0 && line.b.y < 0)continue;
+    if(line.a.x > maxX && line.b.x > maxX)continue;
+    if(line.a.y > maxY && line.b.y > maxY)continue;
+    debugDrawLine(fb, line.a.x, line.a.y, line.b.x, line.b.y, line.color);
+  }
+
+  lines.clear();
+}
+
+void Debug::drawAABB(const T3DVec3 &p, const T3DVec3 &halfExtend, color_t color) {
+  T3DVec3 a = p - halfExtend;
+  T3DVec3 b = p + halfExtend;
+  // draw all 12 edges
+  drawLine(a, T3DVec3{b.x, a.y, a.z}, color);
+  drawLine(a, T3DVec3{a.x, b.y, a.z}, color);
+  drawLine(a, T3DVec3{a.x, a.y, b.z}, color);
+  drawLine(T3DVec3{b.x, a.y, a.z}, T3DVec3{b.x, b.y, a.z}, color);
+  drawLine(T3DVec3{b.x, a.y, a.z}, T3DVec3{b.x, a.y, b.z}, color);
+  drawLine(T3DVec3{a.x, b.y, a.z}, T3DVec3{b.x, b.y, a.z}, color);
+  drawLine(T3DVec3{a.x, b.y, a.z}, T3DVec3{a.x, b.y, b.z}, color);
+  drawLine(T3DVec3{a.x, a.y, b.z}, T3DVec3{b.x, a.y, b.z}, color);
+  drawLine(T3DVec3{a.x, a.y, b.z}, T3DVec3{a.x, b.y, b.z}, color);
+  drawLine(T3DVec3{b.x, b.y, a.z}, T3DVec3{b.x, b.y, b.z}, color);
+  drawLine(T3DVec3{b.x, b.y, a.z}, T3DVec3{a.x, b.y, a.z}, color);
+  drawLine(T3DVec3{b.x, b.y, b.z}, T3DVec3{a.x, b.y, b.z}, color);
 }
 
 void Debug::printStart() {

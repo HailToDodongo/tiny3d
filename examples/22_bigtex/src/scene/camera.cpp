@@ -77,3 +77,7 @@ void Camera::update(float deltaTime) {
 void Camera::attach() {
   t3d_viewport_attach(&viewport[frameIdx]);
 }
+
+void Camera::attachLast() {
+  t3d_viewport_attach(&viewport[(frameIdx + 2) % 3]);
+}
