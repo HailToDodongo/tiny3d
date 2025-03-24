@@ -708,16 +708,13 @@ T3DCmd_MatrixStack:
   ori $s3, $zero, %lo(MATRIX_PROJ)
   jal normalizeMatrixVector ## Args: $s4, $t1
   nop
-  jal mulMat4Mat4 ## Args: $s2, $s3, $s4
+  ori $ra, $zero, %lo(RSPQ_Loop)
+  j mulMat4Mat4 ## Args: $s2, $s3, $s4
   ori $s4, $zero, %lo(MATRIX_MV)
-  j RSPQ_Loop
-  nop
 T3DCmd_MatProjectionSet:
-  lui $at, 0xFF
   addiu $t2, $zero, 12
   ori $t0, $zero, 63
-  ori $at, $at, 0xFFFF
-  and $s0, $a0, $at
+  or $s0, $zero, $a0
   j DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
   ori $s4, $zero, %lo(MATRIX_PROJ)
 T3DCmd_SetWord:

@@ -662,7 +662,7 @@ command<6> T3DCmd_RenderMode(u8 culling, u32 triCommand) {
  * @param addressMat RDRAM address to load matrix from
  */
 command<7> T3DCmd_MatProjectionSet(u32 addressMat) {
-  u32<$s0> addrRDRAM = addressMat & 0xFFFFFF;
+  u32<$s0> addrRDRAM = addressMat;
   dma_in(MATRIX_PROJ, addrRDRAM, 0x40);
 }
 
