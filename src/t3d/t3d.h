@@ -55,6 +55,7 @@ enum T3DDrawFlags {
   T3D_FLAG_SHADED     = 1 << 2,
   T3D_FLAG_CULL_FRONT = 1 << 3,
   T3D_FLAG_CULL_BACK  = 1 << 4,
+  T3D_FLAG_NO_LIGHT   = 1 << 16,
 };
 
 // Segment addresses, some are used internally but can be set by the user too

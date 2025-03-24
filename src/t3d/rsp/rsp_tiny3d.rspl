@@ -361,10 +361,18 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   u32 ptrBuffB = ptrBuffA - TRI_SIZE; // ptr to second output vertex
 
   u16 ptrLight;
+
+  ptrLight:u8 = load(TRI_COMMAND);
   u8 ptrLightEnd = load(ACTIVE_LIGHT_SIZE);
   ptrLightEnd += LIGHT_DIR_COLOR;
 
-  vec16 uvGenArgs;
+  vec16 uvGenArgs = 0;
+
+  if(ptrLight) {
+    ptrLightEnd = LIGHT_DIR_COLOR;
+    uvGenArgs.W = fogScaleOffset.z;
+  }
+
   uvGenArgs.xy = load(UV_GEN_PARAMS).xy;
   uvGenArgs.XY = load(UV_GEN_PARAMS).xy;
   uvGenArgs.w = load(SCREEN_UVGEN_SCALE).x;
@@ -473,6 +481,8 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       packClipCodeInverted(rejCodesA, rejCodes);
       packClipCodeInverted(rejCodesB, rejCodesB);
     }
+
+    lightColor |= uvGenArgs.W;
 
     posClip *= normScaleW:ufract;
 
