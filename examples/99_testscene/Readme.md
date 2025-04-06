@@ -13,7 +13,7 @@ There are a few manual changes necessary to make this work:
 
 #### Libdragon
 
-In `include/rspq_constants.h` set the define `RSPQ_PROFILE` to `1`.
+In `include/rspq_constants.h` set the define `RSPQ_PROFILE` to `1`, and `RSPQ_DEBUG` to `0`.
 
 Then rebuild libdragon.
 
