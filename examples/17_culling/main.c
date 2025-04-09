@@ -23,7 +23,6 @@ int main()
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
 
   rdpq_init();
-  t3d_debug_print_init();
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
 
   joypad_init();
@@ -226,23 +225,24 @@ int main()
     t3d_matrix_pop(1);
 
     // ----------- DRAW (2D) ------------ //
-    t3d_debug_print_start();
     if(!displayBVH) {
-      t3d_debug_printf(18, 18, "Tris: %d", triCount);
-      t3d_debug_printf(320-96, 18, "%.2f FPS", display_get_fps());
+      rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 18, 18, "Tris: %d", triCount);
+      rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 320-96, 18, "%.2f FPS", display_get_fps());
     }
-    t3d_debug_printf(18, 240-24, "BVH: %lluus (%d/%d)", TICKS_TO_US(ticks / frame), visibleObjects, totalObjects);
+    rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 18, 240-24, "BVH: %lluus (%d/%d)", TICKS_TO_US(ticks / frame), visibleObjects, totalObjects);
 
     if(showInfoScreen) {
-      const char* INFO[] = {
-        "A: Toggle debug view", "Start: Toggle BVH debug",
-        "Z + Stick: Rotate", "Stick: Move",
-        "C-U/D: Move up/down", "L/R: change model",
-        " ( Press B to close )"
+      const char* INFO = {
+        "A: Toggle debug view\n"
+        "Start: Toggle BVH debug\n"
+        "Z + Stick: Rotate\n"
+        "Stick: Move\n"
+        "C-U/D: Move up/down\n"
+        "L/R: change model\n"
+        " ( Press B to close )\n"
       };
-      for(int i=0; i<7; ++i) {
-        t3d_debug_printf(74, 70+(i*14), INFO[i]);
-      }
+
+      rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 74, 70, INFO);
     }
 
     // Top-down debug view, this shows the camera position and direction
