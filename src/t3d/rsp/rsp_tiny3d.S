@@ -383,7 +383,6 @@ VertexFX_None:
   bne $s4, $s7, LOOP_START
   slv $v03, 4, 12, $s5
   j RSPQ_Loop
-  nop
 VertexFX_Spherical:
   #if RSPQ_PROFILE == 0
   vge $v05, $v05, $v00.e0 ## L:607
@@ -400,7 +399,6 @@ VertexFX_Spherical:
   slv $v03, 8, 12, $s5 ## L:620
   #endif
   j RSPQ_Loop ## L:585
-  nop ## L:585
 VertexFX_CelShadeColor:
   #if RSPQ_PROFILE == 0
   vge $v04, $v04, $v04
@@ -411,7 +409,6 @@ VertexFX_CelShadeColor:
   bne $s4, $s7, LOOP_START
   slv $v03, 0, 12, $s6
   j RSPQ_Loop
-  nop
   #endif
 VertexFX_CelShadeAlpha:
   #if RSPQ_PROFILE == 0
@@ -421,7 +418,6 @@ VertexFX_CelShadeAlpha:
   bne $s4, $s7, LOOP_START
   slv $v03, 0, 12, $s6
   j RSPQ_Loop
-  nop
   #endif
 VertexFX_Outline:
   #if RSPQ_PROFILE == 0
