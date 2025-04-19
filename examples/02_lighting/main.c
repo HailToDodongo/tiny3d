@@ -10,6 +10,12 @@ typedef struct {
 
 /**
  * Example showing off the lighting API.
+ *
+ * Tiny3d has support for ambient, directional and point lighting.
+ * The one ambient light is always active, whereas the others can be enabled/disabled
+ * (or rather the amount of lights can be changed).
+ *
+ * By default all objects will receive lighting, but it can be selectively disabled in the material.
  */
 int main()
 {
@@ -45,6 +51,10 @@ int main()
 
   T3DModel *model = t3d_model_load("rom:/model.t3dm");
   T3DModel *modelLight = t3d_model_load("rom:/light.t3dm");
+
+  // It is possible to selectively disable all lighting for a specific material.
+  // For that add T3D_FLAG_NO_LIGHT to the render flags.
+  t3d_model_get_material(model, "unlit")->renderFlags |= T3D_FLAG_NO_LIGHT;
 
   rspq_block_begin();
   t3d_matrix_push(modelMatFP);
