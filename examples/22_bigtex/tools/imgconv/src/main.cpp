@@ -24,7 +24,7 @@ struct Color {
     bool operator==(const Color&other) const {
       return r == other.r && g == other.g && b == other.b;
     }
-    u_int16_t toRGBA555() const {
+    uint16_t toRGBA555() const {
       return ((r << 8) & 0b11111'00000'00000'0)
        |     ((g << 3) & 0b00000'11111'00000'0)
        |     ((b >> 2) & 0b00000'00000'11111'0);
