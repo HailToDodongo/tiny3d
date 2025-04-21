@@ -5,7 +5,8 @@
 #include <t3d/t3d.h>
 #include "rsp/rsp_tiny3d.h"
 
-_Static_assert(RSP_T3D_TEMP_STATE_MEM_END == RSP_T3D_CLIP_TEMP_STATE_MEM_END, "Overlay data doesn't match!");
+_Static_assert((RSP_T3D_RSPQ_SCRATCH_MEM & 0xFFFF) == 0x80, "Scratch-Memory location changed!");
+_Static_assert(RSP_T3D_BSS_TEMP_STATE_MEM_END == RSP_T3D_CLIP_BSS_TEMP_STATE_MEM_END, "Overlay data doesn't match!");
 _Static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_Async == RSP_T3D_CODE_CLIP_RDPQ_Triangle_Send_Async, "Overlay code doesn't match!");
 _Static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_End == RSP_T3D_CODE_CLIP_RDPQ_Triangle_Send_End, "Overlay code doesn't match!");
 _Static_assert(RSP_T3D_CODE_RSPQCmd_RdpAppendBuffer == RSP_T3D_CODE_CLIP_RSPQCmd_RdpAppendBuffer, "Overlay code doesn't match!");
@@ -124,7 +125,7 @@ void t3d_vert_load(const T3DVertPacked *vertices, uint32_t offset, uint32_t coun
 
   // calculate where to start the DMA, this may overlap the buffer of transformed vertices
   // we have to place it so that racing the input data is possible
-  uint32_t tmpBufferEnd = (RSP_T3D_CLIP_BUFFER_RESULT & 0xFFFF) + 6*16;
+  uint32_t tmpBufferEnd = (RSP_T3D_BSS_CLIP_BUFFER_RESULT & 0xFFFF) + 6*16;
   uint16_t offsetDest = tmpBufferEnd - inputSize;
   offsetDest = (offsetDest & ~0xF); // make sure it's aligned to 16 bytes, must be aligned backwards
 
@@ -159,6 +160,11 @@ void t3d_frame_start(void) {
 void t3d_light_set_count(int count)
 {
   t3d_dmem_set_u16((RSP_T3D_ACTIVE_LIGHT_SIZE & 0xFFF), (count * 16) << 8);
+}
+
+void t3d_light_set_exposure(uint16_t exposure)
+{
+  t3d_dmem_set_u16((RSP_T3D_COLOR_EXPOSURE & 0xFFF), exposure);
 }
 
 void t3d_light_set_ambient(const uint8_t *color)
@@ -331,7 +337,7 @@ void t3d_tri_draw_strip(int16_t* indexBuff, int count)
 {
   uint32_t loadAddr = (uint32_t)PhysicalAddr(indexBuff);
 
-  uint32_t dmemAddr = (RSP_T3D_CLIP_BUFFER_TMP & 0xFFFF);
+  uint32_t dmemAddr = (RSP_T3D_BSS_CLIP_BUFFER_TMP & 0xFFFF);
   dmemAddr -= count * 2; // 16bit indices
   dmemAddr &= ~7; // align start to 8 bytes
 

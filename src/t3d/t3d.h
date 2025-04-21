@@ -399,6 +399,15 @@ void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, fl
 void t3d_light_set_count(int count);
 
 /**
+ * Sets the final color exposure.
+ * This will be applied to the combined light + vertex color as a simple scaling factor.
+ * Any value above 1.0 after scaling will be clamped.
+ * This setting can be used to implement a simple form of HDR.
+ * @param exposure factor, 1.0 by default
+ */
+void t3d_light_set_exposure(uint16_t exposure);
+
+/**
  * Sets the range of the fog.
  * To disable fog, use 't3d_fog_disable' or set 'near' and 'far' to 0.
  * Note: in order for fog itself to work, make sure to setup the needed RSPQ commands.

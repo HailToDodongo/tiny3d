@@ -55,9 +55,17 @@ $(SOURCE_DIR)/rsp/rsp_tiny3d.h: $(BUILD_DIR)/rsp/rsp_tiny3d.o $(BUILD_DIR)/rsp/r
 		| grep ".data	" | grep -v emux \
 		| awk '{print "#define", "RSP_T3D_" $$5, "0x" $$1;}' \
 		>> $(SOURCE_DIR)/rsp/rsp_tiny3d.h
+	$(N64_GCCPREFIX_TRIPLET)objdump -S -t $(BUILD_DIR)/rsp/rsp_tiny3d.elf \
+		| grep ".bss	" | grep -v emux \
+		| awk '{print "#define", "RSP_T3D_BSS_" $$5, "0x" $$1;}' \
+		>> $(SOURCE_DIR)/rsp/rsp_tiny3d.h
 	$(N64_GCCPREFIX_TRIPLET)objdump -S -t $(BUILD_DIR)/rsp/rsp_tiny3d_clipping.elf \
 		| grep ".data	" | grep -v emux \
 		| awk '{print "#define", "RSP_T3D_CLIP_" $$5, "0x" $$1;}' \
+		>> $(SOURCE_DIR)/rsp/rsp_tiny3d.h
+	$(N64_GCCPREFIX_TRIPLET)objdump -S -t $(BUILD_DIR)/rsp/rsp_tiny3d_clipping.elf \
+		| grep ".bss	" | grep -v emux \
+		| awk '{print "#define", "RSP_T3D_CLIP_BSS_" $$5, "0x" $$1;}' \
 		>> $(SOURCE_DIR)/rsp/rsp_tiny3d.h
 	$(N64_GCCPREFIX_TRIPLET)objdump -S -t $(BUILD_DIR)/rsp/rsp_tiny3d.elf \
 		| grep ".text	" | grep -v emux \

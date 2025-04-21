@@ -12,7 +12,10 @@
  ***************************************/
 
 #define TRI_BUFFER_COUNT 70
-#define LIGHT_COUNT 8
+#define LIGHT_COUNT 7
+
+// with profiling enabled, manually place the data to avoid corruption
+#define RSPQ_PROFILE_MANUAL_SLOT 1
 
 // settings for RDPQ_Triangle
 #define RDPQ_TRIANGLE_CUSTOM_VTX 1
@@ -75,38 +78,11 @@ state
   alignas(8) vec16 MATRIX_PROJ[4];   // projection matrix
   alignas(8) vec16 MATRIX_MVP[4];    // view * model * projection
   alignas(8) vec16 MATRIX_MV[4];
-  alignas(8) u8 MATRIX_NORMAL[24]; // fractional normal matrix (@TODO: only needs 1.5 vec16's)
+  alignas(8) u16 MATRIX_NORMAL[3][4]; // fractional normal matrix
 
-  /**
-   * Buffer format (RDPQ_Triangle compatible):
-   *
-   *   Type |     Name  | Offset
-   * -------+-----------+--------
-   * s16[2] | Pos-XY    | 0x00
-   * s16    | Depth     | 0x04
-   * u8     | Clip-Code | 0x06
-   * u8     | Rej. Code | 0x07
-   * u8[4]  | Color     | 0x08
-   * s16[2] | UV        | 0x0C
-   * s16[3] | Clip-Pos  | 0x10  (t3d specific)
-   * s16    | W         | 0x16
-   * f16[3] | Clip-Pos  | 0x18  (t3d specific)
-   * f16    | W         | 0x1E
-   * s16.16 | InvW      | 0x20
-   * -------+-----------+-0x24---
-   */
-  u8 TRI_BUFFER[TRI_BUFFER_COUNT][TRI_SIZE];
-
-  // Temp. buffer for clipped extra vertices.
-  // This is also used as a temp. buffer for DMA'ing in new vertices.
-  // For clipping data, the format is the same as TRI_BUFFER.
-  alignas(16)
-  u8 CLIP_BUFFER_TMP[7][TRI_SIZE];
-
-  // Last buffer where final clipping triangles are stored.
-  // During clipping, vertices alternate between CLIP_BUFFER_TMP & B.
-  alignas(16)
-  u8 CLIP_BUFFER_RESULT[8][TRI_SIZE];
+  // Fog settings: index 0/1 is the scale as a s16.16, index 3 the scale as a s16 int.
+  // The third value is used as a limiter to prevent overflows.
+  s16 FOG_SCALE_OFFSET[4] = {0, 0, 32767, 0};
 
   vec16 SCREEN_SCALE_OFFSET = {
     0, 0, 0,           0, // screen size scale (.xyzw)
@@ -133,7 +109,8 @@ state
      0, 1, 0,  -1
   };
 
-  u16 UV_GEN_PARAMS[2] = {0, 0}; // user defined args. for the UV function
+  u16 RDPQ_TRI_BUFF_OFFSET = {0};
+  u16 SCREEN_UVGEN_SCALE = {0};
 
   // scales clip-space W to be 1 in the middle of near to far
   // the `0` are set at runtime to a fractional value
@@ -141,37 +118,70 @@ state
     0xFFFF, 0xFFFF, 0xFFFF, 0x0000
   };
 
+  u16 CLIP_RA = {0}; // return address for the clipping code
+  u16 UV_GEN_PARAMS[2] = {0, 0}; // user defined args. for the UV function
+  u16 COLOR_EXPOSURE = {0x80}; // factor to scale final color up or down
+  // the next value must be zero to allow a single load for the UV params
+  // since the first entry of the segment table is guaranteed to be 0, place it here
   u32 SEGMENT_TABLE[8] = {0};
 
   // Lighting
   u32 COLOR_AMBIENT[2];   // RGBA8 (duplicated) | <unused> (saved IMEM)
   alignas(4) u8 LIGHT_DIR_COLOR[LIGHT_SIZE][LIGHT_COUNT]; // RGBA8 (duplicated) | Direction packed as s8 (duplicated)
 
-  // Fog settings: index 0/1 is the scale as a s16.16, index 3 the scale as a s16 int.
-  // The third value is used as a limiter to prevent overflows.
-  s16 FOG_SCALE_OFFSET[4] = {0, 0, 32767, 0};
+  // with profiling enabled, check assembly
+  // @TODO: add RSPL support for conditional DMEM layouts
+  // u32 _RSPQ_OVL_PROFILESLOT[4] = {0,0,0,0};
 
   u32 TRI_COMMAND = {0}; // for RDPQ_Triangle
   s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
 
-  u16 RDPQ_TRI_BUFF_OFFSET = {0};
-  u16 SCREEN_UVGEN_SCALE = {0};
-  u16 VERTEX_FX_FUNC = {0}; // points top the current 'VertexFX_' function in IMEM
-  u16 CLIP_RA = {0}; // return address for the clipping code
-
   u8 FACE_CULLING = {0}; // 0=cull front, 1=cull back, 2=no-culling
   u8 FOG_STORE_OFFSET  = {VTX_ATTR_ST}; // offset (relative to current vertex) where to store fog, set to UV for no fog
   u8 ACTIVE_LIGHT_SIZE = {0}; // light count * light size
-  u8 LIGHT_TYPE_MASK = {0};
+  u8 _UNUSED_ = {0};
+
+  u16 VERTEX_FX_FUNC = {0}; // points top the current 'VertexFX_' function in IMEM
   u16 CLIP_CODE_SIZE = {0}; // size to copy
-}
 
-temp_state {
-
-  // address of the clipping code to load in RDRAM
+    // address of the clipping code to load in RDRAM
   // first byte (MSB) stores if th code is already loaded or not
   u32 CLIP_CODE_ADDR = {0};
   u32 CLIP_CODE_ORG_ADDR = {0}; // address of the original code (this overlay here)
+
+   /**
+   * Buffer format (RDPQ_Triangle compatible):
+   *
+   *   Type |     Name  | Offset
+   * -------+-----------+--------
+   * s16[2] | Pos-XY    | 0x00
+   * s16    | Depth     | 0x04
+   * u8     | Clip-Code | 0x06
+   * u8     | Rej. Code | 0x07
+   * u8[4]  | Color     | 0x08
+   * s16[2] | UV        | 0x0C
+   * s16[3] | Clip-Pos  | 0x10  (t3d specific)
+   * s16    | W         | 0x16
+   * f16[3] | Clip-Pos  | 0x18  (t3d specific)
+   * f16    | W         | 0x1E
+   * s16.16 | InvW      | 0x20
+   * -------+-----------+-0x24---
+   */
+  alignas(16)
+  u8 TRI_BUFFER[TRI_BUFFER_COUNT][TRI_SIZE];
+}
+
+temp_state {
+  // Temp. buffer for clipped extra vertices.
+  // This is also used as a temp. buffer for DMA'ing in new vertices.
+  // For clipping data, the format is the same as TRI_BUFFER.
+  alignas(16)
+  u8 CLIP_BUFFER_TMP[7][TRI_SIZE];
+
+  // Last buffer where final clipping triangles are stored.
+  // During clipping, vertices alternate between CLIP_BUFFER_TMP & B.
+  alignas(16)
+  u8 CLIP_BUFFER_RESULT[8][TRI_SIZE];
 }
 
 #include "inc/math.rspl"
@@ -186,7 +196,7 @@ function pointLight(
   vec32<$v27> vertPos, vec32<$v25> mat1, vec32<$v23> ptPos, vec32<$v21> lightVertDot,
   vec16<$v08> pos, vec16<$v07> norm,
   vec16<$v01> lightRes, vec16<$v04> color,
-  u8<$t8> mvMatrixLoaded, s32<$t7> lightSize
+  u8<$t9> mvMatrixLoaded, s32<$t7> lightSize
 )
 {
   lightSize:u16 = load(ptrLight, 14);
@@ -362,26 +372,22 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
   u16 ptrLight;
 
-  ptrLight:u8 = load(TRI_COMMAND);
   u8 ptrLightEnd = load(ACTIVE_LIGHT_SIZE);
   ptrLightEnd += LIGHT_DIR_COLOR;
 
-  vec16 uvGenArgs = 0;
-
-  if(ptrLight) {
-    ptrLightEnd = LIGHT_DIR_COLOR;
-    uvGenArgs.W = fogScaleOffset.z;
-  }
-
-  uvGenArgs.xy = load(UV_GEN_PARAMS).xy;
+  // Note: also loads COLOR_EXPOSURE into .z, and 0 into .w
+  vec16 uvGenArgs = load(UV_GEN_PARAMS).xyzw;
   uvGenArgs.XY = load(UV_GEN_PARAMS).xy;
-  uvGenArgs.w = load(SCREEN_UVGEN_SCALE).x;
+  uvGenArgs.W = load(SCREEN_UVGEN_SCALE).x;
 
   u8 fogStoreOffset = load(FOG_STORE_OFFSET);
   fogStoreOffset += ptrBuffA;
   ptrBuffA -= TRI_SIZE_2; // move one back since it increments at the start of the loop
 
   s16 fogA, fogB;
+
+  u16 vertexFxFunc;
+  u8 isUnlit = load(TRI_COMMAND);
 
   // @TODO: racing the DMA is ~40us faster, doesn't work in ares, retest later again
   dma_await();
@@ -394,9 +400,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   pos.w = load(CLIPPING_PLANES, 4).x; // loads "1"
   pos.W = load(CLIPPING_PLANES, 4).x;
 
-  u16 vertexFxFunc;
-  u8 tmp;
-
   // Process all vertices and apply transformation & lighting.
   // This always handles 2 vertices at once, most sitting in one register.
   {
@@ -405,8 +408,12 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     // Position & Normals
     vec32 posClip;
     vec16 color;
-    vec16 lightColor;
 
+    // loads 1.0 to force full light by default (aka unlit)
+    // later the ambient light is loaded over this in case lighting is enabled
+    vec16 lightColor = fogScaleOffset.z;
+
+    u8 mvMatrixLoaded = 0;
     {
       ptrBuffA += TRI_SIZE_2;
       ptrBuffB += TRI_SIZE_2;
@@ -414,23 +421,23 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
       // load & transform normals, this in not needed when no directional light is present
       // however, an if-statement + the lost ability for reordering is not worth it. (@TODO: do more tests)
-      posClip:sfract = matN0:sfract  * norm.xxxxXXXX; // (assign to dummy value)
-      posClip:sfract = matN1:sfract +* norm.yyyyYYYY;
-      norm           = matN2:sfract +* norm.zzzzZZZZ;
+      VTEMP:sfract = matN0:sfract  * norm.xxxxXXXX; // (assign to dummy value)
+      VTEMP:sfract = matN1:sfract +* norm.yyyyYYYY;
+      norm         = matN2:sfract +* norm.zzzzZZZZ;
 
       // object-space to clip-space
       mulMat4Vec8(mat0, mat1, mat2, mat3, pos, posClip);
-
-      // input vertex color
-      lightColor = load_vec_u8(COLOR_AMBIENT); // light color, accumulates directional lights
 
       ptrLight = LIGHT_DIR_COLOR;
 
       // directional
       vec16 lightDirVec  = load_vec_s8(ptrLight, 8);
       u8 isPointLight = load(ptrLight, 15); // W=0 for directional, W=scale for point lights
-      u8 mvMatrixLoaded = 0;
       s32 lightSize;
+
+      if(isUnlit)goto LIGHT_LOOP_END;
+
+      lightColor = load_vec_u8(COLOR_AMBIENT); // light color, accumulates directional lights
 
       if(ptrLight != ptrLightEnd)
       {
@@ -458,35 +465,40 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
           isPointLight =  load(ptrLight, 15);
         } while(ptrLight != ptrLightEnd)
       }
-
-      color = load_vec_u8(prt3d, 0x10);
-      if(mvMatrixLoaded) {
-        loadCurrentMVPMat(mat0, mat1, mat2, mat3);
-      }
+      LIGHT_LOOP_END:
     }
+
+    vec32 clipPlaneW = guardBandScale * posClip.wwwwWWWW;
+
+    color = load_vec_u8(prt3d, 0x10);
+    if(mvMatrixLoaded) {
+      loadCurrentMVPMat(mat0, mat1, mat2, mat3);
+    }
+
 
     // calc. clipping codes (rejection & clip-prevention)
     u32 clipCodeA, clipCodeB, rejCodesA, rejCodesB;
     {
-      vec32 clipPlaneW = guardBandScale * posClip.wwwwWWWW;
-
       u32 rejCodes = clip(posClip, posClip.wwwwWWWW); // Clip-Code for rejection (no band-guard)
       u32 clipCodes = clip(posClip, clipPlaneW); // Clip code for clipping (incl. band-guard)
 
       clipCodeB = clipCodes >> 4;
-      packClipCode(clipCodeA, clipCodes);
-      packClipCode(clipCodeB, clipCodeB);
+      clipCodeA = packClipCode(clipCodes);
+      clipCodeB = packClipCode(clipCodeB);
 
       rejCodesB = rejCodes >> 4;
-      packClipCodeInverted(rejCodesA, rejCodes);
-      packClipCodeInverted(rejCodesB, rejCodesB);
+      rejCodesA = packClipCodeInverted(rejCodes);
+      rejCodesB = packClipCodeInverted(rejCodesB);
     }
+    undef clipPlaneW;
 
-    lightColor |= uvGenArgs.W;
+    color:sfract *= lightColor:ufract;
 
     posClip *= normScaleW:ufract;
 
-    color:sfract *= lightColor:ufract;
+    color >>= 7;
+    color:sint *= uvGenArgs:sint.z;
+
     @Barrier("color-fog") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
     @Barrier("color-fog") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
 
