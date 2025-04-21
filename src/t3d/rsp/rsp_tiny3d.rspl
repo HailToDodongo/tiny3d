@@ -11,7 +11,7 @@
  * @license MIT                        *
  ***************************************/
 
-#define TRI_BUFFER_COUNT 70
+#define VERT_BUFFER_COUNT 70
 #define LIGHT_COUNT 7
 
 // with profiling enabled, manually place the data to avoid corruption
@@ -167,13 +167,13 @@ state
    * -------+-----------+-0x24---
    */
   alignas(16)
-  u8 TRI_BUFFER[TRI_BUFFER_COUNT][TRI_SIZE];
+  u8 VERT_BUFFER[VERT_BUFFER_COUNT][TRI_SIZE];
 }
 
 temp_state {
   // Temp. buffer for clipped extra vertices.
   // This is also used as a temp. buffer for DMA'ing in new vertices.
-  // For clipping data, the format is the same as TRI_BUFFER.
+  // For clipping data, the format is the same as VERT_BUFFER.
   alignas(16)
   u8 CLIP_BUFFER_TMP[7][TRI_SIZE];
 

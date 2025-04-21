@@ -1,6 +1,6 @@
 ## Auto-generated file, transpiled with RSPL
 #define RSPQ_PROFILE_MANUAL_SLOT 1
-#define TRI_BUFFER_COUNT 70
+#define VERT_BUFFER_COUNT 70
 #define LIGHT_COUNT 8
 #define RDPQ_TRIANGLE_CUSTOM_VTX 1
 #define VTX_ATTR_XY 0x00
@@ -180,7 +180,7 @@
     .align 2
     CLIP_CODE_ORG_ADDR: .word 0
     .align 3
-    TRI_BUFFER: .ds.b 2520
+    VERT_BUFFER: .ds.b 2520
     STATE_MEM_END:
   RSPQ_EndSavedState
 

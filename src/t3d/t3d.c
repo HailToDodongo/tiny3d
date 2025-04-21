@@ -130,8 +130,8 @@ void t3d_vert_load(const T3DVertPacked *vertices, uint32_t offset, uint32_t coun
   offsetDest = (offsetDest & ~0xF); // make sure it's aligned to 16 bytes, must be aligned backwards
 
   // DMEM address where the transformed vertices are stored
-  // must be within RSP_T3D_TRI_BUFFER, alignment is not required
-  uint16_t offsetInput = RSP_T3D_TRI_BUFFER & 0xFFFF;
+  // must be within RSP_T3D_VERT_BUFFER, alignment is not required
+  uint16_t offsetInput = RSP_T3D_VERT_BUFFER & 0xFFFF;
   offsetInput += offset * VERT_OUTPUT_SIZE;
 
   rspq_write(T3D_RSP_ID, T3D_CMD_VERT_LOAD,
@@ -323,9 +323,9 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
   v1 *= VERT_OUTPUT_SIZE;
   v2 *= VERT_OUTPUT_SIZE;
 
-  v0 += RSP_T3D_TRI_BUFFER & 0xFFFF;
-  v1 += RSP_T3D_TRI_BUFFER & 0xFFFF;
-  v2 += RSP_T3D_TRI_BUFFER & 0xFFFF;
+  v0 += RSP_T3D_VERT_BUFFER & 0xFFFF;
+  v1 += RSP_T3D_VERT_BUFFER & 0xFFFF;
+  v2 += RSP_T3D_VERT_BUFFER & 0xFFFF;
 
   uint32_t v12 = (v1 << 16) | v2;
   rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_DRAW,
@@ -503,7 +503,7 @@ void t3d_indexbuffer_convert(int16_t indices[], int count) {
       restartFlag |= 1 << 14;
     }
     indices[i] = (int16_t)(
-      ((idx * VERT_OUTPUT_SIZE) + (RSP_T3D_TRI_BUFFER & 0xFFFF)) | restartFlag
+      ((idx * VERT_OUTPUT_SIZE) + (RSP_T3D_VERT_BUFFER & 0xFFFF)) | restartFlag
     );
   }
 }
