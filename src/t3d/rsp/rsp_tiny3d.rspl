@@ -530,7 +530,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
       posClip *= screenSize;
 
-      color:sint = fogScaleOffset - fog:sint.zzzzZZZZ;
+      VTEMP:sint = fogScaleOffset - fog:sint.zzzzZZZZ;
   }
 
     fogB = ptrBuffB + fogStoreOffset;
@@ -539,11 +539,11 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     // if enabled this points to alpha of VTX_ATTR_RGBA, otherwise into data 2 vertex iterations later
     @Barrier("pos-cc")
     @Barrier("color-fog")
-    asm_op("sfv", color:sint.x, 0, fogA);
+    asm_op("sfv", VTEMP:sint.x, 0, fogA);
 
     @Barrier("pos-cc")
     @Barrier("color-fog")
-    asm_op("sfv", color:sint.X, 0, fogB);
+    asm_op("sfv", VTEMP:sint.X, 0, fogB);
 
     posClip:sint = screenOffset:sint +* 1;
 

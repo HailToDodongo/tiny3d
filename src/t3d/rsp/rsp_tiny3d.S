@@ -358,7 +358,7 @@ T3DCmd_VertLoad:
   andi $t5, $t5, 1799 ## L:295 | res = clipCode & 0b0000'0111'0000'0111;
   srl $t2, $t5, 5 ## L:296 | u32 tmp = res >> 5;
   vmadh $v05, $v05, $v13.v ## L:558 | posClip *= screenSize;
-  vsub $v04, $v11, $v02.h2 ## L:560 | color:sint = fogScaleOffset - fog:sint.zzzzZZZZ;
+  vsub $v29, $v11, $v02.h2 ## L:560 | VTEMP:sint = fogScaleOffset - fog:sint.zzzzZZZZ;
   ssv $v14, 14, 34, $s5 ## L:545 | store(screenSize.W, ptrBuffB, 0x20);
   nor $t5, $t5, $t2 ## L:297 | res = res ~| tmp;
   vmadh $v05, $v12, $v30.e7 ## L:575 | posClip:sint = screenOffset:sint +* 1;
@@ -366,8 +366,8 @@ T3DCmd_VertLoad:
   ssv $v13, 6, 32, $s6 ## L:544 | store(screenSize.w, ptrBuffA, 0x20);
   addiu $s4, $s4, 32 ## L:598 | prt3d += 0x20;
   vand $v07, $v17, $v08.h3 ## L:593 | norm = normMask & pos.wwwwWWWW;
-  sfv $v04.e0, 0, $fp ## Barrier: 0x3 ## L:569 | asm_op("sfv", color:sint.x, 0, fogA);
-  sfv $v04.e4, 0, $sp ## Barrier: 0x3 ## L:573 | asm_op("sfv", color:sint.X, 0, fogB);
+  sfv $v29.e0, 0, $fp ## Barrier: 0x3 ## L:569 | asm_op("sfv", VTEMP:sint.x, 0, fogA);
+  sfv $v29.e4, 0, $sp ## Barrier: 0x3 ## L:573 | asm_op("sfv", VTEMP:sint.X, 0, fogB);
   sdv $v05, 0, 0, $s6 ## Barrier: 0x2 ## L:579 | @Barrier("pos-cc") store(posClip:sint.xyzw, ptrBuffA, 0x00);
   sdv $v05, 8, 0, $s5 ## Barrier: 0x2 ## L:580 | @Barrier("pos-cc") store(posClip:sint.XYZW, ptrBuffB, 0x00);
   vmudn $v07, $v07, $v16.v ## L:594 | norm *= normShift;
