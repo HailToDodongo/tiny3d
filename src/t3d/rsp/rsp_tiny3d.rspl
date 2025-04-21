@@ -136,10 +136,9 @@ state
   u32 TRI_COMMAND = {0}; // for RDPQ_Triangle
   s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
 
+  u16 FOG_STORE_OFFSET  = {VTX_ATTR_ST}; // offset (relative to current vertex) where to store fog, set to UV for no fog
   u8 FACE_CULLING = {0}; // 0=cull front, 1=cull back, 2=no-culling
-  u8 FOG_STORE_OFFSET  = {VTX_ATTR_ST}; // offset (relative to current vertex) where to store fog, set to UV for no fog
   u8 ACTIVE_LIGHT_SIZE = {0}; // light count * light size
-  u8 _UNUSED_ = {0};
 
   u16 VERTEX_FX_FUNC = {0}; // points top the current 'VertexFX_' function in IMEM
   u16 CLIP_CODE_SIZE = {0}; // size to copy
@@ -381,7 +380,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   uvGenArgs.W = load(SCREEN_UVGEN_SCALE).x;
 
   u8 fogStoreOffset = load(FOG_STORE_OFFSET);
-  fogStoreOffset += ptrBuffA;
   ptrBuffA -= TRI_SIZE_2; // move one back since it increments at the start of the loop
 
   s16 fogA, fogB;
@@ -404,7 +402,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   // This always handles 2 vertices at once, most sitting in one register.
   {
     LOOP_START:
-    //asm("emux_trace_start");
+    // asm("emux_trace_start");
     // Position & Normals
     vec32 posClip;
     vec16 color;
@@ -436,8 +434,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       s32 lightSize;
 
       if(isUnlit)goto LIGHT_LOOP_END;
-
-      lightColor = load_vec_u8(COLOR_AMBIENT); // light color, accumulates directional lights
+      lightColor = load_vec_u8(ptrLight, -8); // light color, accumulates directional lights
 
       if(ptrLight != ptrLightEnd)
       {
@@ -471,6 +468,8 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     vec32 clipPlaneW = guardBandScale * posClip.wwwwWWWW;
 
     color = load_vec_u8(prt3d, 0x10);
+    fogA = ptrBuffA + fogStoreOffset;
+
     if(mvMatrixLoaded) {
       loadCurrentMVPMat(mat0, mat1, mat2, mat3);
     }
@@ -509,46 +508,49 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
     undef lightColor;
 
-    // now optimistically assume it's on-screen and conv. to screen-space
-    posClip.w = invert_half(posClip).w;
-    posClip.W = invert_half(posClip).W;
+    // calc. inverse W, this is stored in an unused slot in screenSize to avoid stalls
+    screenSize.w = invert_half(posClip).w;
+    screenSize.W = invert_half(posClip).W;
+
+    // backup clip-pos in case that clipping is required
+    // also store inv-W here (in place of W)
+    store(screenSize.w, ptrBuffA, VTX_ATTR_INVWi);
+    store(screenSize.W, ptrBuffB, VTX_ATTR_INVWi);
 
     // Fog
     {
       vec32 fog;
-
       // add offset, to avoid loads, int/fract are stored in the same vector
       fog:ufract = posClip + fogScaleOffset:ufract.y;
       fog:sint   = posClip + fogScaleOffset.x;
-      fog *= fogScaleOffset:sint.w;
 
-      fog:sint = fogScaleOffset - fog:sint;
+      posClip *= screenSize.wwwwWWWW; // (contains inverse W)
 
-      fogA = fog:sint.z;
-      fogB = fog:sint.Z;
-      fogA >>= 7;
-      fogB >>= 7;
-    }
+      fog:sint *= fogScaleOffset:sint.w;
 
-    // backup clip-pos in case that clipping is required
-    // also store inv-W here (in place of W)
-    store(posClip.w, ptrBuffA, VTX_ATTR_INVWi);
-    store(posClip.W, ptrBuffB, VTX_ATTR_INVWi);
+      posClip *= screenSize;
 
-    posClip *= posClip.wwwwWWWW;
-    posClip *= screenSize;
+      color:sint = fogScaleOffset - fog:sint.zzzzZZZZ;
+  }
+
+    fogB = ptrBuffB + fogStoreOffset;
+
+    // save fog here, to make this branch-less, fogStoreOffset contains the offset to save it to.
+    // if enabled this points to alpha of VTX_ATTR_RGBA, otherwise into data 2 vertex iterations later
+    @Barrier("pos-cc")
+    @Barrier("color-fog")
+    asm_op("sfv", color:sint.x, 0, fogA);
+
+    @Barrier("pos-cc")
+    @Barrier("color-fog")
+    asm_op("sfv", color:sint.X, 0, fogB);
+
     posClip:sint = screenOffset:sint +* 1;
 
     vec16 uv = load(prt3d, 0x18).xyzw;
 
     @Barrier("pos-cc") store(posClip:sint.xyzw, ptrBuffA, VTX_ATTR_XY);
     @Barrier("pos-cc") store(posClip:sint.XYZW, ptrBuffB, VTX_ATTR_XY);
-
-    // save fog here, to make this branch-less, fogStoreOffset contains the offset to save it to.
-    // if enabled this points to VTX_ATTR_RGBA, otherwise to UV which are then overwritten in vertexFxFunc()
-    fogStoreOffset += TRI_SIZE_2;
-    @Barrier("color-fog") store(fogA:u8, fogStoreOffset, -69); // store fog in alpha (3 - TRI_SIZE_2)
-    @Barrier("color-fog") store(fogB:u8, fogStoreOffset, -33); // (39 - TRI_SIZE_2)
 
     // pack the first clip-code to get rid of one save + have more SUs
     clipCodeA <<= 8;

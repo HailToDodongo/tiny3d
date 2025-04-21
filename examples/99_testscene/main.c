@@ -69,6 +69,7 @@ int main()
 
   float vertFxTime = 0;
   int vertFxFunc = T3D_VERTEX_FX_NONE;
+  uint16_t colorFactor = 0x80;
 
   for(uint64_t frame = 0;; ++frame)
   {
@@ -115,6 +116,15 @@ int main()
     }
 
     color_t fogColor = (color_t){0xFF, 0xFF, 0xFF, 0xFF};
+
+    uint16_t oldFactor = colorFactor;
+    if(joypad.btn.d_up)colorFactor += 0x1;
+    if(joypad.btn.d_down)colorFactor -= 0x1;
+    if(joypad.btn.d_left)colorFactor -= 0x40;
+    if(joypad.btn.d_right)colorFactor += 0x40;
+    if(oldFactor != colorFactor) {
+      t3d_light_set_exposure(colorFactor);
+    }
 
     if(joypad.btn.b)
     {
@@ -193,6 +203,9 @@ int main()
       t3d_debug_print_start();
       t3d_debug_printf(16, 16, "VertexFX: %ld", vertFxFunc);
     }
+
+    //t3d_debug_print_start();
+    //t3d_debug_printf(16, 16, "SCALE: %04X", colorFactor);
 
     if(displayMetrics)
     {

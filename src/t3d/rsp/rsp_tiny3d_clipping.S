@@ -169,7 +169,7 @@
     .align 2
     MATRIX_STACK_PTR: .word 0
     FACE_CULLING: .byte 0
-    FOG_STORE_OFFSET: .byte 12
+    FOG_STORE_OFFSET: .byte 3
     ACTIVE_LIGHT_SIZE: .byte 0
     _UNUSED_: .byte 0
     .align 1
