@@ -28,6 +28,7 @@ make -C examples/19_particles_tex clean
 make -C examples/20_mipmaps clean
 make -C examples/21_fresnel clean
 make -C examples/22_bigtex clean
+make -C examples/23_hdr clean
 make -C examples/99_testscene clean
 
 # Build Tiny3D
@@ -65,6 +66,7 @@ make -C examples/19_particles_tex -j4
 make -C examples/20_mipmaps -j4
 make -C examples/21_fresnel -j4
 make -C examples/22_bigtex -j4
+make -C examples/23_hdr -j4
 make -C examples/99_testscene -j4
 
 echo "Build done!"

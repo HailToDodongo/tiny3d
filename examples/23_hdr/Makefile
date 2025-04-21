@@ -37,7 +37,7 @@ filesystem/%.t3dm: assets/%.glb
 $(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
 $(BUILD_DIR)/$(PROJECT_NAME).elf: $(src:%.c=$(BUILD_DIR)/%.o)
 
-$(PROJECT_NAME).z64: N64_ROM_TITLE="Tiny3D - Testscene"
+$(PROJECT_NAME).z64: N64_ROM_TITLE="Tiny3D - HDR"
 $(PROJECT_NAME).z64: $(BUILD_DIR)/$(PROJECT_NAME).dfs
 
 clean:
