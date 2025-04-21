@@ -168,7 +168,7 @@
     .align 2
     MATRIX_STACK_PTR: .word 0
     FACE_CULLING: .byte 0
-    FOG_STORE_OFFSET: .byte 3
+    FOG_STORE_OFFSET: .byte 72
     ACTIVE_LIGHT_SIZE: .byte 0
     _UNUSED_: .byte 0
     .align 1
@@ -179,7 +179,7 @@
     CLIP_CODE_ADDR: .word 0
     .align 2
     CLIP_CODE_ORG_ADDR: .word 0
-    .align 4
+    .align 3
     TRI_BUFFER: .ds.b 2520
     STATE_MEM_END:
   RSPQ_EndSavedState

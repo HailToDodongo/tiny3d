@@ -136,7 +136,7 @@ state
   u32 TRI_COMMAND = {0}; // for RDPQ_Triangle
   s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
 
-  u16 FOG_STORE_OFFSET  = {VTX_ATTR_ST}; // offset (relative to current vertex) where to store fog, set to UV for no fog
+  u16 FOG_STORE_OFFSET  = {TRI_SIZE_2}; // offset (relative to current vertex) where to store fog, set to 72 for no fog
   u8 FACE_CULLING = {0}; // 0=cull front, 1=cull back, 2=no-culling
   u8 ACTIVE_LIGHT_SIZE = {0}; // light count * light size
 
