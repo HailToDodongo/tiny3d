@@ -162,9 +162,10 @@ void t3d_light_set_count(int count)
   t3d_dmem_set_u16((RSP_T3D_ACTIVE_LIGHT_SIZE & 0xFFF), (count * 16) << 8);
 }
 
-void t3d_light_set_exposure(uint16_t exposure)
+void t3d_light_set_exposure(float exposure)
 {
-  t3d_dmem_set_u16((RSP_T3D_COLOR_EXPOSURE & 0xFFF), exposure);
+  int16_t exp = (int16_t)(exposure * 0x80);
+  t3d_dmem_set_u16((RSP_T3D_COLOR_EXPOSURE & 0xFFF), (uint32_t)exp);
 }
 
 void t3d_light_set_ambient(const uint8_t *color)

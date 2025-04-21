@@ -403,9 +403,12 @@ void t3d_light_set_count(int count);
  * This will be applied to the combined light + vertex color as a simple scaling factor.
  * Any value above 1.0 after scaling will be clamped.
  * This setting can be used to implement a simple form of HDR.
+ *
+ * Note that negative values are allowed and will invert the color to some extend.
+ *
  * @param exposure factor, 1.0 by default
  */
-void t3d_light_set_exposure(uint16_t exposure);
+void t3d_light_set_exposure(float exposure);
 
 /**
  * Sets the range of the fog.
