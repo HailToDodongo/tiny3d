@@ -8,7 +8,7 @@ N64_CFLAGS += -std=gnu2x -O2
 
 PROJECT_NAME=t3d_23_hdr
 
-src = main.c
+src = main.c skydome.c
 assets_png = $(wildcard assets/*.png)
 assets_gltf = $(wildcard assets/*.glb)
 assets_ttf = $(wildcard assets/*.ttf)

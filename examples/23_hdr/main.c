@@ -7,6 +7,7 @@
 #include <t3d/t3dmodel.h>
 #include <t3d/t3ddebug.h>
 #include "debug_overlay.h"
+#include "skydome.h"
 
 /**
  * Example project showcasing HDR rendering.
@@ -19,7 +20,7 @@
  * Also avoiding the usual overflow in the process.
  * Once that clamped color reaches the RDP, it can be used in a special CC setup to simulate a bloom effect.
  *
- * Special thanks to https://github.com/SpookyIluha for providing this demo!
+ * Special thanks to https://github.com/SpookyIluha for providing the technique and demo!
  */
 
 surface_t* fb = NULL;
@@ -97,11 +98,27 @@ int main()
   viewport[1] = t3d_viewport_create();
   viewport[2] = t3d_viewport_create();
 
-  t3d_debug_print_init();
   sprite_t *spriteLogo = sprite_load("rom:/logo.ia8.sprite");
   T3DModel *model = t3d_model_load("rom://arcvis_baked_282.t3dm");
   rdpq_font_t* font = rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO);
   rdpq_text_register_font(1, font);
+
+  skydome_t* sky = skydome_create();
+  skydome_load_data(sky, NULL,NULL,NULL); // load default models and textures for a procedural skydome
+  skydome_load_data_lensflare(sky, NULL,NULL,NULL);
+  skydome_time_of_day(sky, 4.5 * 60 * 60); // 16:30 PM
+
+  sky->clouds.density = 0.9;
+  sky->clouds.opacity = 0.75;
+
+  sky->clouds.speed.x = -0.002f;
+  sky->clouds.speed.y = -0.001f;
+
+  sky->clouds.speedclouds.x = -0.01f;
+  sky->clouds.speedclouds.y = -0.00f;
+  sky->color.main =  RGBA32(0x23,0x66,0x00,0xff);
+  sky->color.fog =  RGBA32(0xFF,0xFF,0xFF,0xff);
+  sky->color.clouds =  RGBA32(0x85,0x89,0xB7,0xff);
 
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
   T3DMat4FP* rotMatFP = malloc_uncached(sizeof(T3DMat4FP) * 3);
@@ -113,18 +130,9 @@ int main()
     (float[3]){0,0,0}
   );
 
-  T3DObject *objSky = t3d_model_get_object(model, "_Sky");
   T3DModelState state = t3d_model_state_create();
 
   rspq_block_begin();
-    t3d_matrix_push(t3d_segment_address(1, rotMatFP));
-
-    // Draw sky without any depth first
-    rdpq_mode_zbuf(false, false);
-    rdpq_mode_antialias(AA_NONE);
-    t3d_model_draw_material(objSky->material, &state);
-    t3d_model_draw_object(objSky, NULL);
-
     t3d_matrix_set(modelMatFP, true);
 
     rdpq_sync_pipe();
@@ -164,13 +172,16 @@ int main()
 
   for(uint64_t frame = 0;; ++frame)
   {
+    uint32_t currIdx = frame % 3;
+    uint32_t nextIdx = (frame + 1) % 3;
+
     joypad_poll();
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
     if(joypad.stick_x < 10 && joypad.stick_x > -10)joypad.stick_x = 0;
     if(joypad.stick_y < 10 && joypad.stick_y > -10)joypad.stick_y = 0;
 
     float deltaTime = display_get_delta_time();
-    skyRot += deltaTime * 0.075f;
+    skyRot += deltaTime * 0.015f;
     if(skyRot > T3D_DEG_TO_RAD(360.0f)) skyRot -= T3D_DEG_TO_RAD(360.0f);
 
     {
@@ -212,15 +223,13 @@ int main()
       displayMetrics = false;
     }
 
-    uint32_t currIdx = frame % 3;
-    uint32_t nextIdx = (frame + 1) % 3;
-    t3d_viewport_set_projection(&viewport[nextIdx], T3D_DEG_TO_RAD(85.0f), 2.5f, 100.0f);
+    t3d_viewport_set_projection(&viewport[nextIdx], T3D_DEG_TO_RAD(85.0f), 2.5f, 150.0f);
     t3d_viewport_look_at(&viewport[nextIdx], &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     t3d_mat4fp_from_srt_euler(&rotMatFP[currIdx],
       (float[3]){modelScale, modelScale, modelScale},
       (float[3]){0,skyRot,0},
-      (float[3]){camPos.x, 60, camPos.z}
+      (float[3]){camPos.x, 0, camPos.z}
     );
 
     t3d_segment_address(1, (void*)(sizeof(T3DMat4FP) * currIdx));
@@ -237,15 +246,25 @@ int main()
     t3d_viewport_attach(&viewport[currIdx]);
     t3d_screen_clear_depth();
 
+    t3d_light_set_exposure(exposure);
+    t3d_matrix_push(t3d_segment_address(1, rotMatFP));
+    rdpq_sync_pipe();
+    skydome_set_viewport(sky, &viewport[nextIdx]);
+    skydome_cloud_pass(sky, display_get_delta_time() * 1000); // move the clouds with time
+    rdpq_sync_pipe();
+    // Draw sky without any depth first
+    rdpq_mode_zbuf(false, false);
+    rdpq_mode_antialias(AA_NONE);
+    rdpq_sync_pipe();
+    skydome_draw(sky); // draw the main halfsphere first with no zbuf
+    rdpq_sync_pipe();
     t3d_light_set_ambient(colorAmbient);
     t3d_light_set_count(0);
-    t3d_light_set_exposure(exposure);
-
+    rdpq_sync_pipe();
     rspq_block_run(model->userBlock);
     rdpq_sync_pipe();
     rdpq_sync_tile();
     rdpq_sync_load();
-
     //rdpq_text_printf(NULL, 1, 240, 210, "%llu", TICKS_TO_US(ticks));
     //rdpq_text_printf(NULL, 1, 260, 220, "%.2f", display_get_fps());
 
