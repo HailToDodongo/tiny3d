@@ -62,7 +62,7 @@ int main()
   vi_set_aa_mode(vi_aa_mode_t::VI_AA_MODE_RESAMPLE);
   vi_set_interlaced(false);
   vi_set_divot(false);
-  vi_set_gamma(false);
+  vi_set_gamma(vi_gamma_t::VI_GAMMA_DISABLE);
 
   SwapChain::init({
     .frameBuffers = buffers.color,
