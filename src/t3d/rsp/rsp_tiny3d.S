@@ -196,8 +196,15 @@
 OVERLAY_CODE_START:
 
 .align 3
+CLIPPING_CODE_TARGET:
+  lw $s0, %lo(CLIP_CODE_ADDR + 0)
+  lhu $t0, %lo(CLIP_CODE_SIZE + 0)
+  addiu $t2, $zero, 12
+  ori $ra, $zero, %lo(CLIPPING_CODE_TARGET)
+  sb $t0, %lo(CLIP_CODE_ADDR)($zero)
+  j DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
+  addiu $t0, $t0, -1
 T3DCmd_VertLoad:
-  CLIPPING_CODE_TARGET:
   andi $t0, $a0, 65535 ## L:366 | u32<$t0> copySize = bufferSize & 0xFFFF;
   srl $s6, $a1, 24 ## L:330 | u32 segment = addrIn >> 24;
   lw $s6, %lo(SEGMENT_TABLE)($s6) ## L:331 | segment = load(segment, SEGMENT_TABLE);
@@ -261,9 +268,12 @@ T3DCmd_VertLoad:
   ori $s3, $zero, %lo(LIGHT_DIR_COLOR) ## L:456 | ptrLight = LIGHT_DIR_COLOR;
   or $t9, $zero, $zero ## L:441 | u8 mvMatrixLoaded = 0;
   vor $v03, $v00, $v11.e2 ## L:439 | vec16 lightColor = fogScaleOffset.z;
+  OP_NORM_MAT0:
   vmulf $v29, $v20, $v07.h0 ## L:449 | VTEMP:sfract = matN0:sfract  * norm.xxxxXXXX;
   addiu $s5, $s5, 72 ## L:444 | ptrBuffB += 72;
+  OP_NORM_MAT1:
   vmacf $v29, $v19, $v07.h1 ## L:450 | VTEMP:sfract = matN1:sfract +* norm.yyyyYYYY;
+  OP_NORM_MAT2:
   vmacf $v07, $v18, $v07.h2 ## L:451 | norm         = matN2:sfract +* norm.zzzzZZZZ;
   addiu $s6, $s6, 72 ## L:443 | ptrBuffA += 72;
   lhu $k1, %lo(VERTEX_FX_FUNC + 0) ## L:445 | vertexFxFunc = load(VERTEX_FX_FUNC);
@@ -284,7 +294,7 @@ T3DCmd_VertLoad:
   vmulf $v01, $v07, $v02.v ## L:470 | vec16 lightDirScale = norm:sfract * lightDirVec:sfract;
   luv $v04, 0, 0, $s3 ## L:471 | color = load_vec_u8(ptrLight);
   bne $t8, $zero, pointLight ## L:473 | if(isPointLight) {
-  ori $ra, $zero, LABEL_T3DCmd_VertLoad_0008 ## L:946 | 
+  ori $ra, $zero, LABEL_T3DCmd_VertLoad_0008 ## L:946 |
   LABEL_T3DCmd_VertLoad_0008:
   vmulu $v29, $v04, $v01.h0 ## L:481 | VTEMP = color:ufract  * lightDirScale:ufract.xxxxXXXX;
   vmacu $v29, $v04, $v01.h1 ## L:482 | VTEMP = color:ufract +* lightDirScale:ufract.yyyyYYYY;
@@ -301,7 +311,7 @@ T3DCmd_VertLoad:
   addu $fp, $s6, $s1 ## L:498 | fogA = ptrBuffA + fogStoreOffset;
   vmadn $v02, $v00, $v00 ## L:495 | vec32 clipPlaneW = guardBandScale * posClip.wwwwWWWW;
   bne $t9, $zero, loadCurrentMVPMat ## L:500 | if(mvMatrixLoaded) {
-  ori $ra, $zero, LABEL_T3DCmd_VertLoad_0009 ## L:946 | 
+  ori $ra, $zero, LABEL_T3DCmd_VertLoad_0009 ## L:946 |
   LABEL_T3DCmd_VertLoad_0009:
   vch $v29, $v05, $v05.h3 ## L:508 | u32 rejCodes = clip(posClip, posClip.wwwwWWWW);
   vcl $v29, $v06, $v06.h3 ## L:508 | u32 rejCodes = clip(posClip, posClip.wwwwWWWW);
@@ -737,17 +747,9 @@ T3DCmd_TriDraw_End:
   sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
   RDPQ_Triangle_Clip:
   jal RDPQ_Triangle_Send_End
-  lbu $s6, %lo(CLIP_CODE_ADDR + 0)
   sh $s4, %lo(18 + RSPQ_SCRATCH_MEM)($zero)
-  bne $s6, $zero, CLIPPING_CODE_TARGET
+  j CLIPPING_CODE_TARGET
   ori $s4, $zero, %lo(CLIPPING_CODE_TARGET)
-  ori $ra, $zero, %lo(CLIPPING_CODE_TARGET)
-  lhu $t0, %lo(CLIP_CODE_SIZE + 0)
-  addiu $t2, $zero, 12
-  lw $s0, %lo(CLIP_CODE_ADDR + 0)
-  sb $t0, %lo(CLIP_CODE_ADDR)($zero)
-  j DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
-  addiu $t0, $t0, -1
 T3DCmd_TriDraw_Strip:
   addiu $t2, $zero, 12
   andi $s4, $a1, 65535
