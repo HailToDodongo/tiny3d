@@ -46,6 +46,24 @@ namespace
   }
 }
 
+uint64_t hashVertex(const VertexT3D &vT3D, uint32_t boneIndex)
+{
+  uint64_t h = 0xcbf29ce484222325ULL;
+  auto mix = [&](uint64_t v) {
+    h = (h ^ v) * 0x100000001b3ULL;
+  };
+
+  mix((uint64_t)vT3D.pos[0]);
+  mix((uint64_t)vT3D.pos[1] << 4);
+  mix((uint64_t)vT3D.pos[2] << 6);
+  mix((uint64_t)vT3D.norm);
+  mix((uint64_t)vT3D.rgba << 12);
+  mix((uint64_t)vT3D.s << 14);
+  mix((uint64_t)vT3D.t << 16);
+  mix(boneIndex);
+  return h;
+}
+
 void convertVertex(
   float modelScale, float texSizeX, float texSizeY, const VertexNorm &v, VertexT3D &vT3D,
   const Mat4 &mat, const std::vector<Mat4> &matrices, bool uvAdjust
@@ -106,16 +124,7 @@ void convertVertex(
     vT3D.t -= 16.0f;
   }
 
-  // Generate hash for faster lookup later in the optimizer
-  vT3D.hash = ((uint64_t)(uint16_t)vT3D.pos[0] << 48)
-            | ((uint64_t)(uint16_t)vT3D.pos[1] << 32)
-            | ((uint64_t)(uint16_t)vT3D.pos[2] << 16)
-            | ((uint64_t)vT3D.norm << 0);
-  vT3D.hash ^= ((uint64_t)vT3D.rgba) << 5;
-  vT3D.hash ^= ((uint64_t)(uint16_t)vT3D.s << 16)
-             | ((uint64_t)(uint16_t)vT3D.t << 0);
-  vT3D.hash ^= ((v.boneIndex*5) << 16) | (v.boneIndex << 24);
-
+  vT3D.hash = hashVertex(vT3D, v.boneIndex);
   vT3D.boneIndex = v.boneIndex;
 }
 
