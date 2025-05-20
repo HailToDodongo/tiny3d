@@ -27,7 +27,7 @@ function VertexFX_Spherical(
   uvOffsetFactor = uvOffsetFactor < screenOffset;
   uv:sfract = normal * uvGenArgs;
 
-  uvOffsetFactor *= uvGenArgs.w; // undo screen-space conversion into a normalized factor
+  uvOffsetFactor *= uvGenArgs.W; // undo screen-space conversion into a normalized factor
   uvOffsetFactor:sfract *= normal.zzzzZZZZ; // the less aligned to the camera, the less offset
   uvOffsetFactor:sfract *= uvGenArgs.x; // scale down to texture size
 
