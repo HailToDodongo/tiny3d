@@ -180,25 +180,26 @@ int main()
         //rdpq_set_prim_color({0xFF, 0xFF, 0xFF, 0xFF});
     //rdpq_tex_blit(&surfHDR, 0, 0, nullptr);
     // @TODO: ucode here
-/*
+
+    // blur
+    auto surfBlur = fbBlur.blur(surfHDR);
+
+
     rspq_wait();
     auto t = get_ticks();
 
     rspq_highpri_begin();
-    RspFX::hdrBlit(surfHDR.buffer, fb->buffer, hdrFactor);
+    RspFX::hdrBlit(surfHDR.buffer, fb->buffer, surfBlur.buffer, hdrFactor);
     rspq_highpri_end();
     rspq_flush();
     rspq_highpri_sync();
     t = get_ticks() - t;
     debugf("Time: %lldus\n", TICKS_TO_US(t));
-*/
-
-    // blur
-    auto surfBlur = fbBlur.blur(surfHDR);
 
     rdpq_set_color_image(fb);
     // Debug: scale up blur again
-    {
+    /*{
+
       rdpq_set_mode_standard();
       rdpq_mode_combiner(RDPQ_COMBINER_TEX);
       rdpq_mode_blender(0);
@@ -209,7 +210,7 @@ int main()
       param.scale_x = 4.0f;
       param.scale_y = 4.0f;
       rdpq_tex_blit(&surfBlur, 0, 0, &param);
-    }
+    }*/
 
     rdpq_text_printf(NULL, 1, 260, 220, "%.2f", display_get_fps());
     rdpq_text_printf(NULL, 1, 16, 220, "F: %.2f", hdrFactor);

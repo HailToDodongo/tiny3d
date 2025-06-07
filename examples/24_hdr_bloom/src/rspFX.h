@@ -9,6 +9,6 @@
 namespace RspFX
 {
   void init();
-  void hdrBlit(void* rgba32In, void *rgba16Out, float factor);
+  void hdrBlit(void* rgba32In, void *rgba16Out, void* rgba32BloomIn, float factor);
   void blur(void* rgba32In, void* rgba32Out, float brightness);
 }

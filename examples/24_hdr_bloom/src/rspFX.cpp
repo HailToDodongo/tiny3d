@@ -18,6 +18,9 @@ extern "C" {
   inline void rspq_write_3(uint32_t rspID, uint32_t cmd, uint32_t a, uint32_t b, uint32_t c) {
     rspq_write(rspID, cmd, a, b, c);
   }
+  inline void rspq_write_4(uint32_t rspID, uint32_t cmd, uint32_t a, uint32_t b, uint32_t c, uint32_t d) {
+    rspq_write(rspID, cmd, a, b, c, d);
+  }
 }
 
 namespace {
@@ -31,12 +34,13 @@ void RspFX::init()
   }
 }
 
-void RspFX::hdrBlit(void* rgba32In, void *rgba16Out, float factor)
+void RspFX::hdrBlit(void* rgba32In, void *rgba16Out, void* rgba32BloomIn, float factor)
 {
   uint32_t factorInt = (uint32_t)(factor * 64) & 0xFFFF;
-  rspq_write_3(rspIdFX, 0,
+  rspq_write_4(rspIdFX, 0,
      (uint32_t)rgba32In & 0xFFFFFF,
      (uint32_t)rgba16Out & 0xFFFFFF,
+     (uint32_t)rgba32BloomIn & 0xFFFFFF,
      factorInt
   );
 }
