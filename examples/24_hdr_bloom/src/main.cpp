@@ -4,6 +4,7 @@
 #include <t3d/t3dmodel.h>
 #include <t3d/t3ddebug.h>
 
+#include "fbBlur.h"
 #include "rspFX.h"
 
 /**
@@ -27,6 +28,7 @@ int main()
   rdpq_init();
 
   RspFX::init();
+  FbBlur fbBlur{};
 
   joypad_init();
   t3d_init((T3DInitParams){});
@@ -174,11 +176,11 @@ int main()
       }
     }
 
-    rdpq_set_color_image(fb);
 
-    //rdpq_set_prim_color({0xFF, 0xFF, 0xFF, 0xFF});
+        //rdpq_set_prim_color({0xFF, 0xFF, 0xFF, 0xFF});
     //rdpq_tex_blit(&surfHDR, 0, 0, nullptr);
     // @TODO: ucode here
+/*
     rspq_wait();
     auto t = get_ticks();
 
@@ -186,18 +188,36 @@ int main()
     RspFX::hdrBlit(surfHDR.buffer, fb->buffer, hdrFactor);
     rspq_highpri_end();
     rspq_flush();
-    //rspq_wait();
     rspq_highpri_sync();
     t = get_ticks() - t;
     debugf("Time: %lldus\n", TICKS_TO_US(t));
+*/
+
+    // blur
+    auto surfBlur = fbBlur.blur(surfHDR);
+
+    rdpq_set_color_image(fb);
+    // Debug: scale up blur again
+    {
+      rdpq_set_mode_standard();
+      rdpq_mode_combiner(RDPQ_COMBINER_TEX);
+      rdpq_mode_blender(0);
+      rdpq_mode_antialias(AA_NONE);
+      rdpq_mode_filter(FILTER_POINT);
+
+      rdpq_blitparms_t param{};
+      param.scale_x = 4.0f;
+      param.scale_y = 4.0f;
+      rdpq_tex_blit(&surfBlur, 0, 0, &param);
+    }
 
     rdpq_text_printf(NULL, 1, 260, 220, "%.2f", display_get_fps());
-    rdpq_text_printf(NULL, 1, 16, 16, "F: %.2f", hdrFactor);
+    rdpq_text_printf(NULL, 1, 16, 220, "F: %.2f", hdrFactor);
     //rdpq_text_printf(NULL, 1, 16, 24, "Bias: %.2f", exposure_bias);
     //rdpq_text_printf(NULL, 1, 16, 32, "Avg. Bright.: %.2f", average_brightness);
 
-    rdpq_set_mode_fill({0xFF, 0xFF, 0xFF, 0xFF});
-    rdpq_fill_rectangle(8, 8, 16, 16);
+    //rdpq_set_mode_fill({0xFF, 0xFF, 0xFF, 0xFF});
+    //rdpq_fill_rectangle(8, 8, 16, 16);
 
     rdpq_detach_show();
 

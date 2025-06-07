@@ -1,0 +1,247 @@
+include "rsp_queue.inc"
+
+#define SCREEN_WIDTH 320
+#define SCREEN_HEIGHT 240
+#define BUFF_SIZE_RGBA16 (SCREEN_WIDTH * SCREEN_HEIGHT * 2)
+#define BUFF_SIZE_RGBA32 (SCREEN_WIDTH * SCREEN_HEIGHT * 4)
+
+state
+{
+}
+
+data
+{
+}
+
+bss {
+  u32 BUFF_IN_A[SCREEN_WIDTH];
+  u32 BUFF_IN_B[SCREEN_WIDTH];
+  vec16 TEMP_COLOR;
+}
+
+// DMA from RDRAM into DMEM
+macro dmaInAsync(u32 addrRDRAM, u32 addrDMEM, u32 size)
+{
+  @Barrier("DMA") set_dma_addr_rsp(addrDMEM);
+  @Barrier("DMA") set_dma_addr_rdram(addrRDRAM);
+  @Barrier("DMA") set_dma_read(size);
+}
+
+// DMA from DMEM into RDRAM
+macro dmaOutAsync(u32 addrRDRAM, u32 addrDMEM, u32 size)
+{
+  @Barrier("DMA") set_dma_addr_rsp(addrDMEM);
+  @Barrier("DMA") set_dma_addr_rdram(addrRDRAM);
+  @Barrier("DMA") set_dma_write(size);
+}
+
+ macro dmaAwait()
+ {
+   loop {
+    RA = get_dma_busy();
+    // DELAY SLOT
+  } while(RA != 0)
+ }
+
+macro packRGBA16(vec16 out, vec16 in)
+{
+  in >>= 10;
+  out = in * 2;
+  out = VCONST_G +* in.yyyyYYYY;
+  out = VCONST_R +* in.xxxxXXXX;
+}
+
+command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u16 factor)
+{
+  vec16 colFactor;
+  colFactor.w = factor;
+
+  vec16 VCONST_R = 1 << 11;
+  vec16 VCONST_G = 1 << 6;
+
+  dma_await();
+
+  u32 ptrInEnd = ptrIn + BUFF_SIZE_RGBA32;
+  u16 buffDMEM = BUFF_IN_A;
+
+  loop {
+    u32 dmaSize = (SCREEN_WIDTH * 4) - 1;
+    u32 ptrDMEM = buffDMEM;
+
+    dmaInAsync(ptrIn, ptrDMEM, dmaSize);
+
+    ptrIn += SCREEN_WIDTH * 4;
+
+    u32 dmemOut = BUFF_IN_B;
+    u32 dmemIn = ptrDMEM;
+    u32 dmemInEnd;
+
+    loop {
+      RA = get_dma_busy();
+      // DELAY SLOT
+      dmemInEnd = dmemIn + SCREEN_WIDTH*4;
+    } while(RA != 0)
+
+    loop {
+      vec16 pixel0 = load_vec_u8(dmemIn, 0);
+      vec16 pixel1 = load_vec_u8(dmemIn, 8);
+      vec16 pixel2 = load_vec_u8(dmemIn, 16);
+      vec16 pixel3 = load_vec_u8(dmemIn, 24);
+
+      pixel1 >>= 6;
+      pixel2 >>= 6;
+      pixel3 >>= 6;
+      pixel0 >>= 6;
+
+      pixel0:sint *= colFactor.w;
+      pixel1:sint *= colFactor.w;
+      pixel2:sint *= colFactor.w;
+      pixel3:sint *= colFactor.w;
+
+      vec16 pixelOut0 = packRGBA16(pixel0);
+      vec16 pixelOut1 = packRGBA16(pixel1);
+      vec16 pixelOut2 = packRGBA16(pixel2);
+      vec16 pixelOut3 = packRGBA16(pixel3);
+
+      store(pixelOut0.z, dmemOut, 0);
+      store(pixelOut0.Z, dmemOut, 2);
+      store(pixelOut1.z, dmemOut, 4);
+      store(pixelOut1.Z, dmemOut, 6);
+      store(pixelOut2.z, dmemOut, 8);
+      store(pixelOut2.Z, dmemOut, 10);
+      store(pixelOut3.z, dmemOut, 12);
+      store(pixelOut3.Z, dmemOut, 14);
+
+      dmemIn += 32;
+      dmemOut += 16;
+    } while(dmemIn != dmemInEnd)
+
+    u32 dmaSize = (SCREEN_WIDTH * 2) - 1;
+    ptrDMEM = dmemOut - SCREEN_WIDTH * 2;
+    dmaOutAsync(ptrOut, ptrDMEM, dmaSize);
+
+    ptrOut += (SCREEN_WIDTH * 2);
+  } while(ptrIn != ptrInEnd)
+}
+
+#define BLUR_WIDTH 80
+#define BLUR_HEIGHT 60
+#define BLUR_STRIDE (BLUR_WIDTH * 4)
+
+macro loadNextImageLine(u32 ptrRDRAMIn, u16 dmaSize)
+{
+  u16 dmemInRow = dmemInOffset + BUFF_IN_A;
+  dmaInAsync(ptrRDRAMIn, dmemInRow, dmaSize);
+  dmemInOffset += BLUR_STRIDE;
+  ptrRDRAMIn += BLUR_STRIDE;
+  if(dmemInOffset == dmemInOffsetEnd) {
+    dmemInOffset = 0;
+  }
+}
+
+macro sum4x3(
+  vec16 sum, vec16 factor,
+  vec16 pixel00, vec16 pixel10, vec16 pixel20,
+  vec16 pixel01, vec16 pixel11, vec16 pixel21
+)
+{
+  sum:ufract = pixel00:ufract *  factor:ufract.x;
+  sum:ufract = pixel10:ufract +* factor:ufract.x;
+  sum:ufract = pixel20:ufract +* factor:ufract.x;
+
+  sum:ufract = pixel01:ufract +* factor:ufract.x;
+  sum:ufract = pixel11:ufract +* factor:ufract.x;
+  sum:ufract = pixel21:ufract +* factor:ufract.x;
+}
+
+command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
+{
+  u32 ptrRDRAMInEnd = ptrRDRAMIn + (BLUR_STRIDE * BLUR_HEIGHT);
+
+  u16 dmaSize = (BLUR_WIDTH * 4) - 1;
+  u16 dmemInOffset = 0;
+  u16 dmemInOffsetEnd = BLUR_STRIDE * 3;
+
+  vec16 factor;
+  factor.x = brightness;
+
+  u16 dmemInA = BUFF_IN_A;
+  u32 dmemOutStart = dmemInA + 2048;
+
+  dmaAwait();
+  loadNextImageLine(ptrRDRAMIn, dmaSize);
+  loadNextImageLine(ptrRDRAMIn, dmaSize);
+  dmaAwait();
+  loadNextImageLine(ptrRDRAMIn, dmaSize);
+
+  loop {
+    dmemInA = BUFF_IN_A;
+    u16 dmemInC = dmemInA + BLUR_STRIDE*2;
+
+    u32 dmemOutCurr = dmemOutStart;
+    u32 dmemOutEnd;
+
+    dmaAwait();
+
+    vec16 pixelA_00 = load_vec_u8(dmemInA, 0);
+    vec16 pixelA_10 = load_vec_u8(dmemInA, 320);
+    vec16 pixelA_20 = load_vec_u8(dmemInC, 0);
+
+    vec16 pixelA_01 = load_vec_u8(dmemInA, 8);
+    vec16 pixelA_11 = load_vec_u8(dmemInA, 328);
+    vec16 pixelA_21 = load_vec_u8(dmemInC, 8);
+
+    loop {
+      u16 dmemInB = dmemInA + BLUR_STRIDE*1;
+
+      vec16 pixelB_01 = load_vec_u8(dmemInA, 16);
+      vec16 pixelB_11 = load_vec_u8(dmemInB, 16);
+      vec16 pixelB_21 = load_vec_u8(dmemInC, 16);
+
+      vec16 pixelC_01 = load_vec_u8(dmemInA, 24);
+      vec16 pixelC_11 = load_vec_u8(dmemInB, 24);
+      vec16 pixelC_21 = load_vec_u8(dmemInC, 24);
+
+      vec16 pixelD_01 = load_vec_u8(dmemInA, 32);
+      vec16 pixelD_11 = load_vec_u8(dmemInB, 32);
+      vec16 pixelD_21 = load_vec_u8(dmemInC, 32);
+
+      vec16 pixelE_01 = load_vec_u8(dmemInA, 40);
+      vec16 pixelE_11 = load_vec_u8(dmemInB, 40);
+      vec16 pixelE_21 = load_vec_u8(dmemInC, 40);
+
+      vec16 sum0 = sum4x3(factor, pixelA_00, pixelA_10, pixelA_20, pixelA_01, pixelA_11, pixelA_21);
+      vec16 sum1 = sum4x3(factor, pixelA_01, pixelA_11, pixelA_21, pixelB_01, pixelB_11, pixelB_21);
+      vec16 sum2 = sum4x3(factor, pixelB_01, pixelB_11, pixelB_21, pixelC_01, pixelC_11, pixelC_21);
+      vec16 sum3 = sum4x3(factor, pixelC_01, pixelC_11, pixelC_21, pixelD_01, pixelD_11, pixelD_21);
+      vec16 sum4 = sum4x3(factor, pixelD_01, pixelD_11, pixelD_21, pixelE_01, pixelE_11, pixelE_21);
+
+      store_vec_u8(sum0, dmemOutCurr, 0);
+      store_vec_u8(sum1, dmemOutCurr, 8);
+      store_vec_u8(sum2, dmemOutCurr, 16);
+      store_vec_u8(sum3, dmemOutCurr, 24);
+      store_vec_u8(sum4, dmemOutCurr, 32);
+
+      dmemInA += 40;
+      dmemInB += 40;
+      dmemInC += 40;
+
+      pixelA_00 = load_vec_u8(dmemInA, 0);
+      pixelA_10 = load_vec_u8(dmemInB, 0);
+      pixelA_20 = load_vec_u8(dmemInC, 0);
+
+      pixelA_01 = load_vec_u8(dmemInA, 8);
+      pixelA_11 = load_vec_u8(dmemInB, 8);
+      pixelA_21 = load_vec_u8(dmemInC, 8);
+
+      dmemOutCurr += 40;
+      dmemOutEnd = dmemOutStart + BLUR_STRIDE;
+
+    } while(dmemOutCurr != dmemOutEnd)
+
+    dmaOutAsync(ptrRDRAMOut, dmemOutStart, dmaSize);
+    loadNextImageLine(ptrRDRAMIn, dmaSize);
+
+    ptrRDRAMOut += BLUR_WIDTH * 4;
+  } while(ptrRDRAMIn != ptrRDRAMInEnd)
+}

@@ -8,7 +8,8 @@ N64_CFLAGS += -std=gnu2x -O2
 
 PROJECT_NAME=t3d_24_hdr_bloom
 
-src = main.cpp rspFX.cpp
+src = $(wildcard src/*.cpp)
+
 assets_png = $(wildcard assets/*.png)
 assets_gltf = $(wildcard assets/*.glb)
 assets_ttf = $(wildcard assets/*.ttf)
@@ -35,7 +36,7 @@ filesystem/%.t3dm: assets/%.glb
 	$(T3D_GLTF_TO_3D) "$<" $@
 
 $(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
-$(BUILD_DIR)/$(PROJECT_NAME).elf: $(src:%.cpp=$(BUILD_DIR)/%.o) $(BUILD_DIR)/rsp_fx.o
+$(BUILD_DIR)/$(PROJECT_NAME).elf: $(src:%.cpp=$(BUILD_DIR)/%.o) $(BUILD_DIR)/src/rsp_fx.o
 
 $(PROJECT_NAME).z64: N64_ROM_TITLE="Tiny3D - HDR Bloom"
 $(PROJECT_NAME).z64: $(BUILD_DIR)/$(PROJECT_NAME).dfs
