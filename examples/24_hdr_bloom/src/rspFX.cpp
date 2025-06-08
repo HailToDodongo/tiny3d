@@ -45,6 +45,14 @@ void RspFX::hdrBlit(void* rgba32In, void *rgba16Out, void* rgba32BloomIn, float 
   );
 }
 
+void RspFX::downscale(void* rgba32In, void* rgba32Out)
+{
+  rspq_write_2(rspIdFX, 2,
+     (uint32_t)rgba32In & 0xFFFFFF,
+     (uint32_t)rgba32Out & 0xFFFFFF
+  );
+}
+
 void RspFX::blur(void* rgba32In, void* rgba32Out, float brightness)
 {
   int32_t s = (int32_t)(brightness * (1 << 12));

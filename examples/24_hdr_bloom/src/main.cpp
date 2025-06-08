@@ -198,8 +198,8 @@ int main()
 
     rdpq_set_color_image(fb);
     // Debug: scale up blur again
-    /*{
-
+    if(!held.z)
+    {
       rdpq_set_mode_standard();
       rdpq_mode_combiner(RDPQ_COMBINER_TEX);
       rdpq_mode_blender(0);
@@ -210,7 +210,7 @@ int main()
       param.scale_x = 4.0f;
       param.scale_y = 4.0f;
       rdpq_tex_blit(&surfBlur, 0, 0, &param);
-    }*/
+    }
 
     rdpq_text_printf(NULL, 1, 260, 220, "%.2f", display_get_fps());
     rdpq_text_printf(NULL, 1, 16, 220, "F: %.2f", hdrFactor);

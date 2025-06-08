@@ -2,6 +2,7 @@ include "rsp_queue.inc"
 
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
+#define SCREEN_STRIDE (SCREEN_WIDTH * 4)
 #define BUFF_SIZE_RGBA16 (SCREEN_WIDTH * SCREEN_HEIGHT * 2)
 #define BUFF_SIZE_RGBA32 (SCREEN_WIDTH * SCREEN_HEIGHT * 4)
 
@@ -23,6 +24,7 @@ bss {
 
   alignas(8)
   u32 BUFF_BLOOM[BLUR_WIDTH];
+  u32 BUFF_BLOOM_B[BLUR_WIDTH];
 }
 
 // DMA from RDRAM into DMEM
@@ -71,10 +73,23 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
   u16 buffDMEM = BUFF_IN_A;
   u8 bloomPhase = 0;
   //ptrBloom -= 8;
-  ptrBloom += BLUR_STRIDE;
+  //ptrBloom += BLUR_STRIDE;
+
+  vec16 bloomFactorA = 0;
+  bloomFactorA:sfract.X = 0.25;
+  bloomFactorA:sfract.Y = 0.25;
+  bloomFactorA:sfract.Z = 0.25;
+
+  vec16 bloomFactorB;
+  bloomFactorB:sfract.x = 0.5;
+  bloomFactorB:sfract.y = 0.5;
+  bloomFactorB:sfract.z = 0.5;
+  bloomFactorB:sfract.X = 0.75;
+  bloomFactorB:sfract.Y = 0.75;
+  bloomFactorB:sfract.Z = 0.75;
 
   loop {
-    u32 dmaSize = (SCREEN_WIDTH * 4) - 1;
+    u32 dmaSize = SCREEN_STRIDE - 1;
     u32 ptrDMEM = buffDMEM;
 
     dmaInAsync(ptrIn, ptrDMEM, dmaSize);
@@ -93,17 +108,16 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
     }
     bloomPhase -= 1;
 
-    ptrIn += SCREEN_WIDTH * 4;
+    ptrIn += SCREEN_STRIDE;
 
     u32 dmemOut = BUFF_IN_B;
     u32 dmemIn = ptrDMEM;
     u32 dmemInEnd;
 
-    vec16 bloomFactor;
-    bloomFactor:sfract.x = 0.25;
-    bloomFactor:sfract.y = 0.50;
-    bloomFactor:sfract.z = 0.75;
-    bloomFactor.w = 0x7FFF;
+    bloomFactorA.W = 0;
+    if(bloomPhase == 2)bloomFactorA:sfract.W = 0.25;
+    if(bloomPhase == 1)bloomFactorA:sfract.W = 0.50;
+    if(bloomPhase == 0)bloomFactorA:sfract.W = 0.75;
 
     loop {
       RA = get_dma_busy();
@@ -112,88 +126,77 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
     } while(RA != 0)
 
     loop {
-      vec16 bloom0 = load_vec_u8(dmemBloom, 0);
+      vec16 bloom0, bloom1, bloom2, bloom3;
+
+      bloom0 = load_vec_u8(dmemBloom, 0);
       vec16 bloom0Next = load_vec_u8(dmemBloom, 320);
-      vec16 diffNext = bloom0Next - bloom0;
+      vec16 diffY = bloom0Next - bloom0;
 
-      // @TODO: branch-less
+      // interpolate vertically
       bloom0:sint = bloom0:sint * 1;
-      if(bloomPhase == 2) {
-        bloom0:sfract = diffNext:sfract +* bloomFactor:sfract.x;
-      }
-      if(bloomPhase == 1) {
-        bloom0:sfract = diffNext:sfract +* bloomFactor:sfract.y;
-      }
-      if(bloomPhase == 0) {
-        bloom0:sfract = diffNext:sfract +* bloomFactor:sfract.z;
-      }
+      bloom0:sfract = diffY:sfract +* bloomFactorA:sfract.W;
 
-      bloom0.XYZW = bloom0.xyzw;
-      dmemBloom += 8;
-      // @TODO:
-      vec16 bloom4 = 0;
+      // bloom0 now contains 2 pixels in xyzw and XYZW, so viewing the register as two halves: [A, B]
+      // in order to do horizontal interpolation we have to LERP 3 values in between A and B (X0, X1, X2)
+      // and organize the data so that that span across 2 registers to be added onto the color value later on
+      // So we need to transform [A,B] into [A, X0] [X1, X2], B gets thrown away since it is the next starting pixel
+      @Barrier("tmp") store(bloom0, RSPQ_SCRATCH_MEM);
+      @Barrier("tmp") bloom0.XYZW = load(RSPQ_SCRATCH_MEM).xyzw;
+      @Barrier("tmp") bloom3.xyzw = load(RSPQ_SCRATCH_MEM).XYZW;
+      @Barrier("tmp") bloom3.XYZW = load(RSPQ_SCRATCH_MEM).XYZW;
 
-      vec16 bloom1, bloom2, bloom3;
+      vec16 diffX = bloom3 - bloom0;
+      dmemBloom += 4;
 
-      bloom1:sfract = bloom0:sfract * 1;
-      bloom1:sfract = bloom4:sfract +* bloomFactor:sfract.x;
+      bloom0:sint = bloom0:sint * 1;
+      bloom0:sfract = diffX:sfract +* bloomFactorA:sfract;
 
-      bloom2:sfract = bloom0:sfract * 1;
-      bloom2:sfract = bloom4:sfract +* bloomFactor:sfract.y;
-
-      bloom3:sfract = bloom0:sfract * 1;
-      bloom3:sfract = bloom4:sfract +* bloomFactor:sfract.z;
-
-      { // DEBUG:
-        bloom1 = bloom0;
-        bloom2 = bloom0;
-        bloom3 = bloom0;
-      }
+      bloom1:sint = bloom0:sint * 1;
+      bloom1:sfract = diffX:sfract +* bloomFactorB:sfract;
 
       vec16 pixel0 = load_vec_u8(dmemIn, 0);
       vec16 pixel1 = load_vec_u8(dmemIn, 8);
-      vec16 pixel2 = load_vec_u8(dmemIn, 16);
-      vec16 pixel3 = load_vec_u8(dmemIn, 24);
+      //vec16 pixel2 = load_vec_u8(dmemIn, 16);
+      //vec16 pixel3 = load_vec_u8(dmemIn, 24);
 
       pixel0:sint += bloom0:sint;
       pixel1:sint += bloom1:sint;
-      pixel2:sint += bloom2:sint;
-      pixel3:sint += bloom3:sint;
+      //pixel2:sint += bloom2:sint;
+      //pixel3:sint += bloom3:sint;
 
       { // DEBUG:
-        pixel0:sint = bloom0:sint;
-        pixel1:sint = bloom1:sint;
-        pixel2:sint = bloom2:sint;
-        pixel3:sint = bloom3:sint;
+        //pixel0:sint = bloom0:sint;
+        //pixel1:sint = bloom1:sint;
+        //pixel2:sint = bloom2:sint;
+        //pixel3:sint = bloom3:sint;
       }
 
-      pixel1 >>= 6;
-      pixel2 >>= 6;
-      pixel3 >>= 6;
       pixel0 >>= 6;
+      pixel1 >>= 6;
+      //pixel2 >>= 6;
+      //pixel3 >>= 6;
 
       pixel0:sint *= colFactor.w;
       pixel1:sint *= colFactor.w;
-      pixel2:sint *= colFactor.w;
-      pixel3:sint *= colFactor.w;
-
+      //pixel2:sint *= colFactor.w;
+      //pixel3:sint *= colFactor.w;
 
       vec16 pixelOut0 = packRGBA16(pixel0);
       vec16 pixelOut1 = packRGBA16(pixel1);
-      vec16 pixelOut2 = packRGBA16(pixel2);
-      vec16 pixelOut3 = packRGBA16(pixel3);
+      //vec16 pixelOut2 = packRGBA16(pixel2);
+      //vec16 pixelOut3 = packRGBA16(pixel3);
 
       store(pixelOut0.z, dmemOut, 0);
       store(pixelOut0.Z, dmemOut, 2);
       store(pixelOut1.z, dmemOut, 4);
       store(pixelOut1.Z, dmemOut, 6);
-      store(pixelOut2.z, dmemOut, 8);
+      /*store(pixelOut2.z, dmemOut, 8);
       store(pixelOut2.Z, dmemOut, 10);
       store(pixelOut3.z, dmemOut, 12);
-      store(pixelOut3.Z, dmemOut, 14);
+      store(pixelOut3.Z, dmemOut, 14);*/
 
-      dmemIn += 32;
-      dmemOut += 16;
+      dmemIn += 16;
+      dmemOut += 8;
     } while(dmemIn != dmemInEnd)
 
     u32 dmaSize = (SCREEN_WIDTH * 2) - 1;
@@ -232,7 +235,7 @@ macro sum4x3(
 
 command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
 {
-  u32 ptrRDRAMInEnd = ptrRDRAMIn + (BLUR_STRIDE * BLUR_HEIGHT);
+  u32 ptrRDRAMInEnd = ptrRDRAMIn + (BLUR_STRIDE * (BLUR_HEIGHT+2));
 
   u16 dmaSize = (BLUR_WIDTH * 4) - 1;
   u16 dmemInOffset = 0;
@@ -246,16 +249,72 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
   u32 dmemOutStart = dmemInA + 2048;
 
   dmaAwait();
-  loadNextImageLine(ptrRDRAMIn, dmaSize);
-  loadNextImageLine(ptrRDRAMIn, dmaSize);
 
-  ptrRDRAMOut -= BLUR_WIDTH * 4;
+  ptrRDRAMIn += BLUR_STRIDE;
+  dmaInAsync(ptrRDRAMIn, dmemInA, dmaSize);
+  dmemInA += BLUR_STRIDE;
 
+  dmaInAsync(ptrRDRAMIn, dmemInA, dmaSize);
+  dmemInA += BLUR_STRIDE;
   dmaAwait();
-  loadNextImageLine(ptrRDRAMIn, dmaSize);
+  dmaInAsync(ptrRDRAMIn, dmemInA, dmaSize);
+  dmemInA -= BLUR_STRIDE * 2;
+
+  ptrRDRAMIn += BLUR_STRIDE*2;
+  dmaAwait();
+
+  /*{
+    vec16 c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10,
+          c11, c12, c13, c14, c15, c16, c17, c18, c19;
+    c0 = load(dmemInA, 0);
+    c1 = load(dmemInA, 16);
+    c2 = load(dmemInA, 32);
+    c3 = load(dmemInA, 48);
+    c4 = load(dmemInA, 64);
+    c5 = load(dmemInA, 80);
+    c6 = load(dmemInA, 96);
+    c7 = load(dmemInA, 112);
+    c8 = load(dmemInA, 128);
+    c9 = load(dmemInA, 144);
+    c10 = load(dmemInA, 160);
+    c11 = load(dmemInA, 176);
+    c12 = load(dmemInA, 192);
+    c13 = load(dmemInA, 208);
+    c14 = load(dmemInA, 224);
+    c15 = load(dmemInA, 240);
+    c16 = load(dmemInA, 256);
+    c17 = load(dmemInA, 272);
+    c18 = load(dmemInA, 288);
+    c19 = load(dmemInA, 304);
+    AA:
+    u16 tmpB = dmemInA + BLUR_STRIDE;
+    u16 tmpC = dmemInA + BLUR_STRIDE;
+    store(c0, tmpB, 0);  store(c0, tmpC, 0);
+    store(c1, tmpB, 16);  store(c1, tmpC, 16);
+    store(c2, tmpB, 32);  store(c2, tmpC, 32);
+    store(c3, tmpB, 48);  store(c3, tmpC, 48);
+    store(c4, tmpB, 64);  store(c4, tmpC, 64);
+    store(c5, tmpB, 80);  store(c5, tmpC, 80);
+    store(c6, tmpB, 96);  store(c6, tmpC, 96);
+    store(c7, tmpB, 112);  store(c7, tmpC, 112);
+    store(c8, tmpB, 128);  store(c8, tmpC, 128);
+    store(c9, tmpB, 144);  store(c9, tmpC, 144);
+    store(c10, tmpB, 160);  store(c10, tmpC, 160);
+    store(c11, tmpB, 176);  store(c11, tmpC, 176);
+    store(c12, tmpB, 192);  store(c12, tmpC, 192);
+    store(c13, tmpB, 208);  store(c13, tmpC, 208);
+    store(c14, tmpB, 224);  store(c14, tmpC, 224);
+    store(c15, tmpB, 240);  store(c15, tmpC, 240);
+    store(c16, tmpB, 256);  store(c16, tmpC, 256);
+    store(c17, tmpB, 272);  store(c17, tmpC, 272);
+    store(c18, tmpB, 288);  store(c18, tmpC, 288);
+    store(c19, tmpB, 304);  store(c19, tmpC, 304);
+  }*/
 
   loop {
     dmemInA = BUFF_IN_A;
+    dmemInA -= 4;
+
     u16 dmemInC = dmemInA + BLUR_STRIDE*2;
 
     u32 dmemOutCurr, dmemOutEnd;
@@ -329,6 +388,7 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
       sum6:ufract = sum6:ufract * sum6:ufract;
       sum7:ufract = sum7:ufract * sum7:ufract;
 */
+
       store_vec_u8(sum0, dmemOutCurr, -64);
       store_vec_u8(sum1, dmemOutCurr, -56);
       store_vec_u8(sum2, dmemOutCurr, -48);
@@ -358,4 +418,144 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
     loadNextImageLine(ptrRDRAMIn, dmaSize);
 
   } while(ptrRDRAMIn != ptrRDRAMInEnd)
+}
+
+macro sum4x2_X(
+  vec16 a, vec16 b, vec16 c, vec16 d
+)
+{
+  a:sfract = a:sfract * sumFactor:sfract.x;
+  a:sfract = b:sfract +* sumFactor:sfract.x;
+  a:sfract = c:sfract +* sumFactor:sfract.x;
+  a:sfract = d:sfract +* sumFactor:sfract.x;
+}
+
+macro sum4x2_Y_Mem(vec16 res, vec16 a)
+{
+  res.xyzw = a.XYZW;
+  res:sint = res:sint + a:sint;
+}
+
+command<2> Cmd_Downscale(u32 ptrRDRAMIn, u32 prtRDRAMOut)
+{
+  ptrRDRAMIn += SCREEN_STRIDE;
+  u32 ptrRDRAMInEnd = ptrRDRAMIn + BUFF_SIZE_RGBA32;
+
+  prtRDRAMOut -= BLUR_STRIDE;
+
+  u16 dmaSizeIn = (
+    (SCREEN_STRIDE << 20) // skip
+    | (1 << 12) // rows
+    | (SCREEN_STRIDE - 1) // size
+  );
+  u16 dmaSizeOut = BLUR_STRIDE - 1;
+
+  vec16 sumFactor;
+  sumFactor:sfract.x = 0.125;
+
+  u16 dmemOutA = BUFF_BLOOM;
+  u16 dmemOutB = BUFF_BLOOM_B;
+  u16 dmemOut;
+
+  loop {
+    u16 dmemInA, dmemInB;
+    u16 dmemOutEnd;
+
+    loop {
+      RA = get_dma_busy();
+      dmemInA = BUFF_IN_A;
+      dmemInB = BUFF_IN_B;
+    } while(RA != 0)
+
+    // Load next source-image lines, while we do a 4-to-1 scale
+    // we skip every second line and only LERP two later one
+    dmaInAsync(ptrRDRAMIn, dmemInA, dmaSizeIn);
+    ptrRDRAMIn += SCREEN_STRIDE * 4;
+
+    loop {
+      RA = get_dma_busy();
+
+      dmemOut = dmemOutA;
+      dmemOutEnd = dmemOut + BLUR_STRIDE;
+    } while(RA != 0)
+
+    dmaOutAsync(prtRDRAMOut, dmemOutB, dmaSizeOut);
+    swap(dmemOutA, dmemOutB);
+
+    vec16 resA, resB;
+    vec16 p0_AB, p0_CD, p0_EF, p0_GH;
+    vec16 p1_AB, p1_CD, p1_EF, p1_GH;
+    vec16 p2_AB, p2_CD, p2_EF, p2_GH;
+    vec16 p3_AB, p3_CD, p3_EF, p3_GH;
+
+    loop {
+      resA:sint = p0_AB:sint + p1_AB:sint;
+      resB:sint = p2_AB:sint + p3_AB:sint;
+
+      store_vec_u8(resA, dmemOut, -16);
+      store_vec_u8(resB, dmemOut, -8);
+
+      /**
+       * This Loads 4x2 Pixels like so:
+       * [A] [B] [C] [D]
+       * [E] [F] [G] [H]
+       */
+      p0_AB = load_vec_u8(dmemInA, 0);
+      p0_CD = load_vec_u8(dmemInA, 8);
+      p0_EF = load_vec_u8(dmemInB, 0);
+      p0_GH = load_vec_u8(dmemInB, 8);
+
+      p1_AB = load_vec_u8(dmemInA, 16);
+      p1_CD = load_vec_u8(dmemInA, 24);
+      p1_EF = load_vec_u8(dmemInB, 16);
+      p1_GH = load_vec_u8(dmemInB, 24);
+
+      p2_AB = load_vec_u8(dmemInA, 32);
+      p2_CD = load_vec_u8(dmemInA, 40);
+      p2_EF = load_vec_u8(dmemInB, 32);
+      p2_GH = load_vec_u8(dmemInB, 40);
+
+      p3_AB = load_vec_u8(dmemInA, 48);
+      p3_CD = load_vec_u8(dmemInA, 56);
+      p3_EF = load_vec_u8(dmemInB, 48);
+      p3_GH = load_vec_u8(dmemInB, 56);
+
+     /**
+      * take average in groups of 2 pixels at once:
+      * [A] [B] [C] [D]
+      * [E] [F] [G] [H] -> [ACEG] [BDFH]
+      */
+      sum4x2_X(p0_AB, p0_CD, p0_EF, p0_GH);
+      sum4x2_X(p1_AB, p1_CD, p1_EF, p1_GH);
+      sum4x2_X(p2_AB, p2_CD, p2_EF, p2_GH);
+      sum4x2_X(p3_AB, p3_CD, p3_EF, p3_GH);
+
+      @Barrier("tmp0") store(p0_AB.XYZW, dmemInA, 0);
+      @Barrier("tmp0") p0_AB.X = p1_AB.x;
+      @Barrier("tmp0") p0_AB.Y = p1_AB.y;
+      @Barrier("tmp0") p0_AB.Z = p1_AB.z;
+      @Barrier("tmp0") p1_AB.xyzw = load(dmemInA, 0).xyzw;
+
+      @Barrier("tmp1") store(p2_AB.XYZW, dmemInA, 8);
+      @Barrier("tmp1") p2_AB.X = p3_AB.x;
+      @Barrier("tmp1") p2_AB.Y = p3_AB.y;
+      @Barrier("tmp1") p2_AB.Z = p3_AB.z;
+      @Barrier("tmp1") p3_AB.xyzw = load(dmemInA, 8).xyzw;
+
+      dmemOut += 16;
+      dmemInA += 64;
+      dmemInB += 64;
+      prtRDRAMOut += 16;
+
+    } while(dmemOut != dmemOutEnd)
+
+    resA:sint = p0_AB:sint + p1_AB:sint;
+    resB:sint = p2_AB:sint + p3_AB:sint;
+
+    store_vec_u8(resA, dmemOut, -16);
+    store_vec_u8(resB, dmemOut, -8);
+
+  } while(ptrRDRAMIn != ptrRDRAMInEnd)
+
+  dmaOutAsync(prtRDRAMOut, dmemOutB, dmaSizeOut);
 }
