@@ -64,16 +64,16 @@ int main()
     (float[3]){0,0,0}
   );
 
-  T3DObject *objSky = t3d_model_get_object(model, "Scene");
   T3DModelState modelState = t3d_model_state_create();
+  auto it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
 
   rspq_block_begin();
     t3d_matrix_push(modelMatFP);
 
-    rdpq_mode_zbuf(true, true);
-    rdpq_mode_antialias(AA_NONE);
-    t3d_model_draw_material(objSky->material, &modelState);
-    t3d_model_draw_object(objSky, NULL);
+    while(t3d_model_iter_next(&it)) {
+      t3d_model_draw_material(it.object->material, &modelState);
+      t3d_model_draw_object(it.object, NULL);
+    }
 
     t3d_matrix_pop(1);
   model->userBlock = rspq_block_end();
@@ -86,11 +86,18 @@ int main()
   float camRotY = 0.24f;
 
   uint8_t colorAmbient[4] = {0x1f, 0x1f, 0x1f, 0xFF};
-  uint8_t colorDir[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+  uint8_t colorDir[4] = {0x1F, 0x1F, 0x1F, 0xFF};
   T3DVec3 lightDirVec{0.0f, 1.0f, 0.0f};
+
+  uint8_t lightPointColor[4] = {0xFF, 0x77, 0xFF, 0xFF};
+  T3DVec3 lightPointPos = {{4.0f, 10.0f, 0.0f}};
+
+  uint8_t lightPointColor2[4] = {0x77, 0x77, 0xFF, 0xFF};
+  T3DVec3 lightPointPos2 = {{4.0f, 9.0f, 0.0f}};
 
   uint32_t frameIdx = 0;
   bool showMenu = true;
+  float lightAngle = 0.0f;
 
   for(uint64_t frame = 0;; ++frame)
   {
@@ -100,24 +107,16 @@ int main()
     auto held = joypad_get_buttons_held(JOYPAD_PORT_1);
     if(joypad.stick_x < 10 && joypad.stick_x > -10)joypad.stick_x = 0;
     if(joypad.stick_y < 10 && joypad.stick_y > -10)joypad.stick_y = 0;
-
     if(pressed.start)showMenu = !showMenu;
-/*
-
-    if(held.c_left)conf.hdrFactor -= 0.1f;
-    if(held.c_right)conf.hdrFactor += 0.1f;
-    if(conf.hdrFactor < 0)conf.hdrFactor = 0;
-
-    if(held.d_down)conf.blurBrightness -= 0.01f;
-    if(held.d_up)conf.blurBrightness += 0.01f;
-    conf.blurBrightness = fmaxf(0.0f, fminf(4.0f, conf.blurBrightness));
-
-    if(pressed.c_up)conf.blurSteps++;
-    if(pressed.c_down)conf.blurSteps--;
-    if(conf.blurSteps < 0)conf.blurSteps = 0;
-    */
 
     float deltaTime = display_get_delta_time();
+
+    lightAngle += deltaTime * 1.5f;
+    lightPointPos.x = fm_cosf(lightAngle) * 40.0f;
+    lightPointPos.z = fm_sinf(lightAngle) * 40.0f;
+
+    lightPointPos2.x = fm_cosf(lightAngle * -1.2f) * 35.0f;
+    lightPointPos2.z = fm_sinf(lightAngle * -1.2f) * 35.0f;
 
     {
       float camSpeed = deltaTime * 0.3f;
@@ -170,11 +169,13 @@ int main()
 
     t3d_viewport_attach(&viewport[currIdx]);
     t3d_screen_clear_depth();
-    t3d_screen_clear_color({0x22, 0x22, 0x30, 0xFF});
+    t3d_screen_clear_color({0x0F, 0x0F, 0x0F, 0xFF});
 
     t3d_light_set_ambient(colorAmbient);
-    t3d_light_set_directional(0, colorDir, lightDirVec); // optional directional light, can be disabled
-    t3d_light_set_count(1);
+    //t3d_light_set_directional(0, colorDir, lightDirVec); // optional directional light, can be disabled
+    t3d_light_set_point(0, lightPointColor, lightPointPos, 0.09f, true); // optional point light, can be disabled
+    t3d_light_set_point(1, lightPointColor2, lightPointPos2, 0.07f, true); // optional point light, can be disabled
+    t3d_light_set_count(2);
 
     rspq_block_run(model->userBlock);
 

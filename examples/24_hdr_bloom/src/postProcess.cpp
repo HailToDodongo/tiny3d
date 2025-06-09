@@ -61,6 +61,12 @@ surface_t& PostProcess::hdrBloom(surface_t& dst, const PostProcessConf &conf)
   surface_t *input = &surfBlurBSafe;
   surface_t *output = &surfBlurASafe;
 
+  int blurSteps = conf.blurSteps;
+  if(blurSteps > 0 && conf.blurBrightness <= 0.0f) {
+    blurSteps = 1;
+  }
+
+
   { // First Pass, downscale image 4:1 with interpolation
     TimedHighPrio p{"RSP Scale"};
     RspFX::downscale(surfHDRSafe.buffer, output->buffer);
@@ -68,11 +74,11 @@ surface_t& PostProcess::hdrBloom(surface_t& dst, const PostProcessConf &conf)
 
   { // Now blur the smaller image N amount of times by ping-ponging the buffers
     TimedHighPrio p{"RSP Blur"};
-    for(int i=0; i<conf.blurSteps; ++i) {
+    for(int i=0; i<blurSteps; ++i) {
       std::swap(input, output);
       RspFX::blur(
         input->buffer, output->buffer,
-        (i == conf.blurSteps-1) ? conf.blurBrightness : 1.0f
+        (i == blurSteps-1) ? conf.blurBrightness : 1.0f
       );
     }
   }
