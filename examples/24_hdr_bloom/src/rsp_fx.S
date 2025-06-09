@@ -118,39 +118,39 @@ Cmd_HDRBloom:
   vxor $v28, $v00, $v31.e4                           ## L:60   |      ^ | vec16 VCONST_R = 1 << 11;
   jal DMAWaitIdle                                    ## L:63   |      ^ | dma_await();
   vxor $v27, $v00, $v30.e1                           ## L:61   |     *3 | vec16 VCONST_G = 1 << 6;
-  lui $at, 0x04                                      ## L:65   |      4 | u32 ptrInEnd = ptrIn + (320 * 240 * 4);
-  vxor $v25, $v00, $v00.e0                           ## L:72   |      ^ | vec16 bloomFactorA = 0;
-  vxor $v26, $v00, $v00.e0                           ## L:71   |      5 | vec16 bloomFactorY = 0;
-  ori $at, $at, 0xB000                               ## L:65   |      ^ | u32 ptrInEnd = ptrIn + (320 * 240 * 4);
+  vxor $v25, $v00, $v00.e0                           ## L:72   |      4 | vec16 bloomFactorA = 0;
+  lui $at, 0x04                                      ## L:65   |      ^ | u32 ptrInEnd = ptrIn + (320 * 240 * 4);
+  ori $at, $at, 0xB000                               ## L:65   |      5 | u32 ptrInEnd = ptrIn + (320 * 240 * 4);
   addu $s7, $a0, $at                                 ## L:65   |      6 | u32 ptrInEnd = ptrIn + (320 * 240 * 4);
   addiu $at, $zero, 8192                             ## L:73   |      7 | bloomFactorA:sfract.X = 0.25;
   mtc2 $at, $v25.e4                                  ## L:73   |      8 | bloomFactorA:sfract.X = 0.25;
   addiu $at, $zero, 16384                            ## L:80   |      9 | bloomFactorB:sfract.x = 0.5;
   mtc2 $at, $v24.e0                                  ## L:80   |    *11 | bloomFactorB:sfract.x = 0.5;
-  addiu $at, $zero, 24576                            ## L:83   |     12 | bloomFactorB:sfract.X = 0.75;
-  mtc2 $a3, $v25.e3                                  ## L:77   |   **15 | bloomFactorA.w = factor;
-  vmov $v24.e2, $v24.e0                              ## L:82   |      ^ | bloomFactorB:sfract.z = bloomFactorB:sfract.x;
-  mtc2 $at, $v24.e4                                  ## L:83   |     16 | bloomFactorB:sfract.X = 0.75;
-  vmov $v24.e1, $v24.e0                              ## L:81   |  ***20 | bloomFactorB:sfract.y = bloomFactorB:sfract.x;
-  or $s5, $zero, $zero                               ## L:67   |      ^ | u8 bloomPhase = 0;
-  vmov $v25.e5, $v25.e4                              ## L:74   |     21 | bloomFactorA:sfract.Y = bloomFactorA:sfract.X;
-  vmov $v24.e5, $v24.e4                              ## L:84   |   **24 | bloomFactorB:sfract.Y = bloomFactorB:sfract.X;
-  ori $s6, $zero, %lo(BUFF_IN_A)                     ## L:66   |      ^ | u16 buffDMEM = BUFF_IN_A;
-  vmov $v25.e6, $v25.e4                              ## L:75   |     25 | bloomFactorA:sfract.Z = bloomFactorA:sfract.X;
+  vxor $v26, $v00, $v00.e0                           ## L:71   |      ^ | vec16 bloomFactorY = 0;
+  vmov $v25.e6, $v25.e4                              ## L:75   |     12 | bloomFactorA:sfract.Z = bloomFactorA:sfract.X;
+  vmov $v24.e2, $v24.e0                              ## L:82   |   **15 | bloomFactorB:sfract.z = bloomFactorB:sfract.x;
+  mtc2 $a3, $v25.e3                                  ## L:77   |      ^ | bloomFactorA.w = factor;
+  ori $s6, $zero, %lo(BUFF_IN_A)                     ## L:66   |     16 | u16 buffDMEM = BUFF_IN_A;
+  addiu $at, $zero, 24576                            ## L:83   |     17 | bloomFactorB:sfract.X = 0.75;
+  or $s5, $zero, $zero                               ## L:67   |    *19 | u8 bloomPhase = 0;
+  vmov $v24.e1, $v24.e0                              ## L:81   |      ^ | bloomFactorB:sfract.y = bloomFactorB:sfract.x;
+  mtc2 $at, $v24.e4                                  ## L:83   |     20 | bloomFactorB:sfract.X = 0.75;
+  vmov $v24.e5, $v24.e4                              ## L:84   |  ***24 | bloomFactorB:sfract.Y = bloomFactorB:sfract.X;
+  vmov $v25.e5, $v25.e4                              ## L:74   |     25 | bloomFactorA:sfract.Y = bloomFactorA:sfract.X;
   vmov $v24.e6, $v24.e4                              ## L:85   |   **28 | bloomFactorB:sfract.Z = bloomFactorB:sfract.X;
   LABEL_Cmd_HDRBloom_0001:
-  ori $s2, $zero, %lo(BUFF_BLOOM)                    ## L:93   |      ^ | u16 dmemBloom = BUFF_BLOOM;
-  or $s3, $zero, $s6                                 ## L:89   |     29 | u32 ptrDMEM = buffDMEM;
-  mtc0 $s3, COP0_DMA_SPADDR                          ## L:30   |     30 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
-  mtc0 $a0, COP0_DMA_RAMADDR                         ## L:31   |     31 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
-  addiu $s4, $zero, 1279                             ## L:88   |     32 | u32 dmaSize = (320 * 4) - 1;
+  or $s3, $zero, $s6                                 ## L:89   |      ^ | u32 ptrDMEM = buffDMEM;
+  mtc0 $s3, COP0_DMA_SPADDR                          ## L:30   |     29 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
+  addiu $s4, $zero, 1279                             ## L:88   |     30 | u32 dmaSize = (320 * 4) - 1;
+  ori $s2, $zero, %lo(BUFF_BLOOM)                    ## L:93   |     31 | u16 dmemBloom = BUFF_BLOOM;
+  mtc0 $a0, COP0_DMA_RAMADDR                         ## L:31   |     32 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
   addiu $s1, $zero, 640                              ## L:94   |     33 | u16 bloomDmaSize = (80 * 4)*2;
   bne $s5, $zero, LABEL_Cmd_HDRBloom_0003            ## L:96   |     34 | if(bloomPhase == 0) {
   mtc0 $s4, COP0_DMA_READ                            ## L:32   |    *36 | @Barrier("DMA") set_dma_read(size); ## Barrier: 0x1
   LABEL_Cmd_HDRBloom_0004:
-  addiu $s5, $zero, 4                                ## L:99   |     37 | bloomPhase = 4;
-  mfc0 $ra, COP0_DMA_BUSY                            ## L:98   |     38 | RA = get_dma_busy();
-  bne $ra, $zero, LABEL_Cmd_HDRBloom_0004            ## L:100  |   **41 | bloomFactorY = VZERO - 0x2000;
+  mfc0 $ra, COP0_DMA_BUSY                            ## L:98   |    *38 | RA = get_dma_busy();
+  addiu $s5, $zero, 4                                ## L:99   |     39 | bloomPhase = 4;
+  bne $ra, $zero, LABEL_Cmd_HDRBloom_0004            ## L:100  |    *41 | bloomFactorY = VZERO - 0x2000;
   vsubc $v26, $v00, $v31.e2                          ## L:100  |    *43 | bloomFactorY = VZERO - 0x2000;
   LABEL_Cmd_HDRBloom_0005:
   mtc0 $s2, COP0_DMA_SPADDR                          ## L:30   |     44 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
@@ -159,9 +159,9 @@ Cmd_HDRBloom:
   mtc0 $s1, COP0_DMA_READ                            ## L:32   |    *48 | @Barrier("DMA") set_dma_read(size); ## Barrier: 0x1
   LABEL_Cmd_HDRBloom_0003:
   vaddc $v26, $v26, $v31.e2                          ## L:115  |      ^ | bloomFactorY += 0x2000;
-  addiu $a0, $a0, 1280                               ## L:108  |     49 | ptrIn += (320 * 4);
-  ori $s0, $zero, %lo(SAFE_SPACE_3)                  ## L:110  |     50 | u16 tmpMem = SAFE_SPACE_3;
-  addiu $s5, $s5, 65535                              ## L:106  |     51 | bloomPhase -= 1;
+  ori $s0, $zero, %lo(SAFE_SPACE_3)                  ## L:110  |     49 | u16 tmpMem = SAFE_SPACE_3;
+  addiu $s5, $s5, 65535                              ## L:106  |     50 | bloomPhase -= 1;
+  addiu $a0, $a0, 1280                               ## L:108  |     51 | ptrIn += (320 * 4);
   LABEL_Cmd_HDRBloom_0006:
   mfc0 $ra, COP0_DMA_BUSY                            ## L:118  |     52 | RA = get_dma_busy();
   or $fp, $zero, $s3                                 ## L:120  |     53 | dmemIn = ptrDMEM;
@@ -169,99 +169,107 @@ Cmd_HDRBloom:
   bne $ra, $zero, LABEL_Cmd_HDRBloom_0006            ## L:121  |     55 | dmemInEnd = dmemIn + 320*4;
   addiu $k1, $fp, 1280                               ## L:121  |    *57 | dmemInEnd = dmemIn + 320*4;
   LABEL_Cmd_HDRBloom_0007:
-  luv $v19, 0, 320, $s2                              ## L:128  |     58 | bloom0Next = load_vec_u8(dmemBloom, 320);
-  luv $v23, 0, 0, $s2                                ## L:127  |     59 | bloom0 = load_vec_u8(dmemBloom, 0);
-  addiu $s2, $s2, 4                                  ## L:130  |     60 | dmemBloom += 4;
-  luv $v21, 0, 0, $s2                                ## L:132  |     61 | bloom2 = load_vec_u8(dmemBloom, 0);
-  luv $v18, 0, 320, $s2                              ## L:133  |     62 | bloom2Next = load_vec_u8(dmemBloom, 320);
-  luv $v15, 0, 0, $fp                                ## L:138  |     63 | vec16 pixel0 = load_vec_u8(dmemIn, 0);
-  vsubc $v17, $v19, $v23.v                           ## L:135  |      ^ | vec16 diffY_A = bloom0Next - bloom0;
-  vsubc $v16, $v18, $v21.v                           ## L:136  |   **66 | vec16 diffY_B = bloom2Next - bloom2;
+  luv $v19, 0, 320, $s2                              ## L:130  |     58 | bloom0Next = load_vec_u8(dmemBloom, 320);
+  luv $v23, 0, 0, $s2                                ## L:129  |     59 | bloom0 = load_vec_u8(dmemBloom, 0);
+  addiu $s2, $s2, 4                                  ## L:132  |     60 | dmemBloom += 4;
+  luv $v18, 0, 320, $s2                              ## L:135  |     61 | bloom2Next = load_vec_u8(dmemBloom, 320);
+  luv $v21, 0, 0, $s2                                ## L:134  |     62 | bloom2 = load_vec_u8(dmemBloom, 0);
+  luv $v11, 0, 0, $fp                                ## L:140  |     63 | vec16 pixel0 = load_vec_u8(dmemIn, 0);
+  vsubc $v13, $v19, $v23.v                           ## L:137  |      ^ | vec16 diffY_A = bloom0Next - bloom0;
+  vsubc $v12, $v18, $v21.v                           ## L:138  |   **66 | vec16 diffY_B = bloom2Next - bloom2;
   LABEL_Cmd_HDRBloom_0008:
-  vmudh $v23, $v23, $v30.e7                          ## L:148  |     67 | bloom0:sint = bloom0:sint * 1;
-  luv $v14, 0, 8, $fp                                ## L:141  |      ^ | vec16 pixel1 = load_vec_u8(dmemIn, 8);
-  luv $v12, 0, 24, $fp                               ## L:143  |     68 | vec16 pixel3 = load_vec_u8(dmemIn, 24);
-  vmacf $v23, $v17, $v26.v                           ## L:149  |      ^ | bloom0:sfract = diffY_A:sfract +* bloomFactorY:sfract;
-  luv $v13, 0, 16, $fp                               ## L:142  |     69 | vec16 pixel2 = load_vec_u8(dmemIn, 16);
-  vmudm $v15, $v15, $v31.e5                          ## L:151  |      ^ | pixel0 >>= 6;
-  vmudh $v21, $v21, $v30.e7                          ## L:153  |     70 | bloom2:sint = bloom2:sint * 1;
-  vmacf $v21, $v16, $v26.v                           ## L:154  |     71 | bloom2:sfract = diffY_B:sfract +* bloomFactorY:sfract;
-  addiu $s2, $s2, 4                                  ## L:145  |      ^ | dmemBloom += 4;
-  sqv $v23, 0, 0, $s0                                ## L:161  |     72 | @Barrier("tmp_0") store(bloom0, tmpMem, 0); ## Barrier: 0x4
-  vor $v19, $v00, $v23                               ## L:160  |      ^ | @Barrier("tmp_1") bloom0Next = bloom0; ## Barrier: 0x2
-  vmudh $v15, $v15, $v25.e3                          ## L:176  |     73 | pixel0:sint *= bloomFactorA.w;
-  ldv $v23, 8, 0, $s0                                ## L:162  |      ^ | @Barrier("tmp_1") @Barrier("tmp_0") bloom0.XYZW = load(tmpMem, 0).xyzw; ## Barrier: 0x8
-  vmudm $v14, $v14, $v31.e5                          ## L:165  |     74 | pixel1 >>= 6;
-  ldv $v19, 0, 8, $s0                                ## L:163  |      ^ | @Barrier("tmp_0") bloom0Next.xyzw = load(tmpMem, 0).XYZW; ## Barrier: 0x4
-  vmudm $v13, $v13, $v31.e5                          ## L:166  |     75 | pixel2 >>= 6;
-  vor $v18, $v00, $v21                               ## L:169  |    *77 | @Barrier("tmp_3") bloom2Next = bloom2; ## Barrier: 0x10
-  sqv $v21, 0, 16, $s0                               ## L:170  |      ^ | @Barrier("tmp_2") store(bloom2, tmpMem, 16); ## Barrier: 0x20
-  ldv $v18, 0, 24, $s0                               ## L:172  |     78 | @Barrier("tmp_2") bloom2Next.xyzw = load(tmpMem, 16).XYZW; ## Barrier: 0x20
-  vsubc $v11, $v19, $v23.v                           ## L:174  |      ^ | vec16 diffX_A = bloom0Next - bloom0;
-  ldv $v21, 8, 16, $s0                               ## L:171  |     79 | @Barrier("tmp_3") @Barrier("tmp_2") bloom2.XYZW = load(tmpMem, 16).xyzw; ## Barrier: 0x40
-  vmudm $v12, $v12, $v31.e5                          ## L:167  |      ^ | pixel3 >>= 6;
-  vmudh $v14, $v14, $v25.e3                          ## L:177  |     80 | pixel1:sint *= bloomFactorA.w;
-  luv $v19, 0, 320, $s2                              ## L:221  |      ^ | bloom0Next = load_vec_u8(dmemBloom, 320);
-  vmudh $v22, $v23, $v30.e7                          ## L:179  |     81 | bloom1:sint = bloom0:sint * 1;
-  vmacf $v22, $v11, $v24.v                           ## L:180  |     82 | bloom1:sfract = diffX_A:sfract +* bloomFactorB:sfract;
-  vsubc $v10, $v18, $v21.v                           ## L:182  |     83 | vec16 diffX_B = bloom2Next - bloom2;
-  vmudh $v23, $v23, $v30.e7                          ## L:184  |     84 | bloom0:sint = bloom0:sint * 1;
-  vmacf $v23, $v11, $v25.v                           ## L:185  |     85 | bloom0:sfract = diffX_A:sfract +* bloomFactorA:sfract;
-  vmudh $v20, $v21, $v30.e7                          ## L:187  |     86 | bloom3:sint = bloom2:sint * 1;
-  vmacf $v20, $v10, $v24.v                           ## L:188  |     87 | bloom3:sfract = diffX_B:sfract +* bloomFactorB:sfract;
-  vmudh $v21, $v21, $v30.e7                          ## L:190  |     88 | bloom2:sint = bloom2:sint * 1;
-  vmacf $v21, $v10, $v25.v                           ## L:191  |     89 | bloom2:sfract = diffX_B:sfract +* bloomFactorA:sfract;
-  addiu $fp, $fp, 32                                 ## L:231  |      ^ | dmemIn += 32;
-  vmudh $v13, $v13, $v25.e3                          ## L:193  |     90 | pixel2:sint *= bloomFactorA.w;
-  vmudh $v12, $v12, $v25.e3                          ## L:194  |     91 | pixel3:sint *= bloomFactorA.w;
-  vadd $v15, $v15, $v23.v                            ## L:196  |     92 | pixel0:sint += bloom0:sint;
-  luv $v23, 0, 0, $s2                                ## L:220  |      ^ | bloom0 = load_vec_u8(dmemBloom, 0);
-  vadd $v14, $v14, $v22.v                            ## L:197  |     93 | pixel1:sint += bloom1:sint;
-  addiu $s2, $s2, 4                                  ## L:223  |      ^ | dmemBloom += 4;
-  vadd $v13, $v13, $v21.v                            ## L:198  |     94 | pixel2:sint += bloom2:sint;
-  luv $v21, 0, 0, $s2                                ## L:225  |      ^ | bloom2 = load_vec_u8(dmemBloom, 0);
-  vadd $v12, $v12, $v20.v                            ## L:199  |     95 | pixel3:sint += bloom3:sint;
-  vmudm $v15, $v15, $v30.e1                          ## L:201  |     96 | pixel0 >>= 10;
-  vmudm $v14, $v14, $v30.e1                          ## L:202  |     97 | pixel1 >>= 10;
-  vmudm $v13, $v13, $v30.e1                          ## L:203  |     98 | pixel2 >>= 10;
-  vmudm $v12, $v12, $v30.e1                          ## L:204  |     99 | pixel3 >>= 10;
-  vmudn $v09, $v15, $v30.e6                          ## L:53   |    100 | out = in * 2;
-  luv $v18, 0, 320, $s2                              ## L:226  |      ^ | bloom2Next = load_vec_u8(dmemBloom, 320);
-  vmadn $v09, $v27, $v15.h1                          ## L:54   |    101 | out = VCONST_G +* in.yyyyYYYY;
-  vmadn $v09, $v28, $v15.h0                          ## L:55   |    102 | out = VCONST_R +* in.xxxxXXXX;
-  vmudn $v08, $v14, $v30.e6                          ## L:53   |    103 | out = in * 2;
-  luv $v15, 0, 0, $fp                                ## L:234  |      ^ | pixel0 = load_vec_u8(dmemIn, 0);
-  vmadn $v08, $v27, $v14.h1                          ## L:54   |    104 | out = VCONST_G +* in.yyyyYYYY;
-  vmadn $v08, $v28, $v14.h0                          ## L:55   |    105 | out = VCONST_R +* in.xxxxXXXX;
-  vmudn $v07, $v13, $v30.e6                          ## L:53   |    106 | out = in * 2;
-  vmadn $v07, $v27, $v13.h1                          ## L:54   |    107 | out = VCONST_G +* in.yyyyYYYY;
-  vmadn $v07, $v28, $v13.h0                          ## L:55   |    108 | out = VCONST_R +* in.xxxxXXXX;
-  vmudn $v06, $v12, $v30.e6                          ## L:53   |    109 | out = in * 2;
-  ssv $v08, 4, 4, $sp                                ## L:213  |      ^ | store(pixelOut1.z, dmemOut, 4);
-  vmadn $v06, $v27, $v12.h1                          ## L:54   |    110 | out = VCONST_G +* in.yyyyYYYY;
-  ssv $v09, 12, 2, $sp                               ## L:212  |      ^ | store(pixelOut0.Z, dmemOut, 2);
-  ssv $v09, 4, 0, $sp                                ## L:211  |    111 | store(pixelOut0.z, dmemOut, 0);
-  vmadn $v06, $v28, $v12.h0                          ## L:55   |      ^ | out = VCONST_R +* in.xxxxXXXX;
-  ssv $v07, 4, 8, $sp                                ## L:215  |    112 | store(pixelOut2.z, dmemOut, 8);
-  ssv $v07, 12, 10, $sp                              ## L:216  |    113 | store(pixelOut2.Z, dmemOut, 10);
-  ssv $v08, 12, 6, $sp                               ## L:214  |    114 | store(pixelOut1.Z, dmemOut, 6);
-  ssv $v06, 12, 14, $sp                              ## L:218  |    115 | store(pixelOut3.Z, dmemOut, 14);
-  ssv $v06, 4, 12, $sp                               ## L:217  |    116 | store(pixelOut3.z, dmemOut, 12);
-  vsubc $v17, $v19, $v23.v                           ## L:228  |      ^ | diffY_A = bloom0Next - bloom0;
-  vsubc $v16, $v18, $v21.v                           ## L:229  |    117 | diffY_B = bloom2Next - bloom2;
-  bne $fp, $k1, LABEL_Cmd_HDRBloom_0008              ## L:234  |      ^ | pixel0 = load_vec_u8(dmemIn, 0);
-  addiu $sp, $sp, 16                                 ## L:232  |   *119 | dmemOut += 16;
+  vmudh $v23, $v23, $v30.e7                          ## L:159  |     67 | bloom0:sint = bloom0:sint * 1;
+  luv $v09, 0, 16, $fp                               ## L:144  |      ^ | vec16 pixel2 = load_vec_u8(dmemIn, 16);
+  vmacf $v23, $v13, $v26.v                           ## L:160  |     68 | bloom0:sfract = diffY_A:sfract +* bloomFactorY:sfract;
+  vmudm $v11, $v11, $v31.e5                          ## L:162  |     69 | pixel0 >>= 6;
+  luv $v08, 0, 24, $fp                               ## L:145  |      ^ | vec16 pixel3 = load_vec_u8(dmemIn, 24);
+  ssv $v16, 12, -10, $sp                             ## L:150  |     70 | store(pixelOut1.Z, dmemOut, -10);
+  vmudh $v21, $v21, $v30.e7                          ## L:164  |      ^ | bloom2:sint = bloom2:sint * 1;
+  luv $v10, 0, 8, $fp                                ## L:143  |     71 | vec16 pixel1 = load_vec_u8(dmemIn, 8);
+  vmacf $v21, $v12, $v26.v                           ## L:165  |      ^ | bloom2:sfract = diffY_B:sfract +* bloomFactorY:sfract;
+  vor $v19, $v00, $v23                               ## L:171  |     72 | @Barrier("tmp_1") bloom0Next = bloom0; ## Barrier: 0x2
+  sqv $v23, 0, 0, $s0                                ## L:172  |      ^ | @Barrier("tmp_0") store(bloom0, tmpMem, 0); ## Barrier: 0x4
+  ldv $v19, 0, 8, $s0                                ## L:174  |     73 | @Barrier("tmp_0") bloom0Next.xyzw = load(tmpMem, 0).XYZW; ## Barrier: 0x4
+  vmudm $v08, $v08, $v31.e5                          ## L:178  |      ^ | pixel3 >>= 6;
+  vmudm $v09, $v09, $v31.e5                          ## L:177  |     74 | pixel2 >>= 6;
+  ldv $v23, 8, 0, $s0                                ## L:173  |      ^ | @Barrier("tmp_1") @Barrier("tmp_0") bloom0.XYZW = load(tmpMem, 0).xyzw; ## Barrier: 0x8
+  addiu $fp, $fp, 32                                 ## L:233  |     75 | dmemIn += 32;
+  vmudm $v10, $v10, $v31.e5                          ## L:176  |      ^ | pixel1 >>= 6;
+  addiu $s2, $s2, 4                                  ## L:156  |     76 | dmemBloom += 4;
+  vmudh $v11, $v11, $v25.e3                          ## L:187  |      ^ | pixel0:sint *= bloomFactorA.w;
+  vor $v18, $v00, $v21                               ## L:180  |     77 | @Barrier("tmp_3") bloom2Next = bloom2; ## Barrier: 0x10
+  sqv $v21, 0, 16, $s0                               ## L:181  |      ^ | @Barrier("tmp_2") store(bloom2, tmpMem, 16); ## Barrier: 0x20
+  ldv $v21, 8, 16, $s0                               ## L:182  |     78 | @Barrier("tmp_3") @Barrier("tmp_2") bloom2.XYZW = load(tmpMem, 16).xyzw; ## Barrier: 0x40
+  vsubc $v07, $v19, $v23.v                           ## L:185  |      ^ | vec16 diffX_A = bloom0Next - bloom0;
+  vmudh $v10, $v10, $v25.e3                          ## L:188  |     79 | pixel1:sint *= bloomFactorA.w;
+  ldv $v18, 0, 24, $s0                               ## L:183  |      ^ | @Barrier("tmp_2") bloom2Next.xyzw = load(tmpMem, 16).XYZW; ## Barrier: 0x20
+  luv $v19, 0, 320, $s2                              ## L:223  |     80 | bloom0Next = load_vec_u8(dmemBloom, 320);
+  vmudh $v22, $v23, $v30.e7                          ## L:190  |      ^ | bloom1:sint = bloom0:sint * 1;
+  vmacf $v22, $v07, $v24.v                           ## L:191  |    *82 | bloom1:sfract = diffX_A:sfract +* bloomFactorB:sfract;
+  vsubc $v06, $v18, $v21.v                           ## L:193  |     83 | vec16 diffX_B = bloom2Next - bloom2;
+  vmudh $v23, $v23, $v30.e7                          ## L:195  |     84 | bloom0:sint = bloom0:sint * 1;
+  ssv $v17, 12, -14, $sp                             ## L:148  |      ^ | store(pixelOut0.Z, dmemOut, -14);
+  ssv $v15, 12, -6, $sp                              ## L:152  |     85 | store(pixelOut2.Z, dmemOut, -6);
+  vmacf $v23, $v07, $v25.v                           ## L:196  |      ^ | bloom0:sfract = diffX_A:sfract +* bloomFactorA:sfract;
+  ssv $v14, 12, -2, $sp                              ## L:154  |     86 | store(pixelOut3.Z, dmemOut, -2);
+  vmudh $v20, $v21, $v30.e7                          ## L:198  |      ^ | bloom3:sint = bloom2:sint * 1;
+  vmacf $v20, $v06, $v24.v                           ## L:199  |     87 | bloom3:sfract = diffX_B:sfract +* bloomFactorB:sfract;
+  vmudh $v21, $v21, $v30.e7                          ## L:201  |     88 | bloom2:sint = bloom2:sint * 1;
+  vmacf $v21, $v06, $v25.v                           ## L:202  |     89 | bloom2:sfract = diffX_B:sfract +* bloomFactorA:sfract;
+  vmudh $v09, $v09, $v25.e3                          ## L:204  |     90 | pixel2:sint *= bloomFactorA.w;
+  vadd $v11, $v11, $v23.v                            ## L:207  |     91 | pixel0:sint += bloom0:sint;
+  vmudh $v08, $v08, $v25.e3                          ## L:205  |     92 | pixel3:sint *= bloomFactorA.w;
+  luv $v23, 0, 0, $s2                                ## L:222  |      ^ | bloom0 = load_vec_u8(dmemBloom, 0);
+  vadd $v10, $v10, $v22.v                            ## L:208  |     93 | pixel1:sint += bloom1:sint;
+  addiu $s2, $s2, 4                                  ## L:225  |      ^ | dmemBloom += 4;
+  vadd $v09, $v09, $v21.v                            ## L:209  |     94 | pixel2:sint += bloom2:sint;
+  vadd $v08, $v08, $v20.v                            ## L:210  |    *96 | pixel3:sint += bloom3:sint;
+  vmudm $v09, $v09, $v30.e1                          ## L:214  |    *98 | pixel2 >>= 10;
+  vmudm $v10, $v10, $v30.e1                          ## L:213  |     99 | pixel1 >>= 10;
+  vmudm $v11, $v11, $v30.e1                          ## L:212  |    100 | pixel0 >>= 10;
+  ssv $v15, 4, -8, $sp                               ## L:151  |      ^ | store(pixelOut2.z, dmemOut, -8);
+  ssv $v14, 4, -4, $sp                               ## L:153  |    101 | store(pixelOut3.z, dmemOut, -4);
+  vmudm $v08, $v08, $v30.e1                          ## L:215  |      ^ | pixel3 >>= 10;
+  vmudn $v15, $v09, $v30.e6                          ## L:53   |    102 | out = in * 2;
+  vmadn $v15, $v27, $v09.h1                          ## L:54   |    103 | out = VCONST_G +* in.yyyyYYYY;
+  vmadn $v15, $v28, $v09.h0                          ## L:55   |    104 | out = VCONST_R +* in.xxxxXXXX;
+  ssv $v16, 4, -12, $sp                              ## L:149  |      ^ | store(pixelOut1.z, dmemOut, -12);
+  vmudn $v14, $v08, $v30.e6                          ## L:53   |    105 | out = in * 2;
+  vmadn $v14, $v27, $v08.h1                          ## L:54   |    106 | out = VCONST_G +* in.yyyyYYYY;
+  ssv $v17, 4, -16, $sp                              ## L:147  |      ^ | store(pixelOut0.z, dmemOut, -16);
+  vmadn $v14, $v28, $v08.h0                          ## L:55   |    107 | out = VCONST_R +* in.xxxxXXXX;
+  luv $v21, 0, 0, $s2                                ## L:227  |      ^ | bloom2 = load_vec_u8(dmemBloom, 0);
+  luv $v18, 0, 320, $s2                              ## L:228  |    108 | bloom2Next = load_vec_u8(dmemBloom, 320);
+  vmudn $v17, $v11, $v30.e6                          ## L:53   |      ^ | out = in * 2;
+  vmadn $v17, $v27, $v11.h1                          ## L:54   |    109 | out = VCONST_G +* in.yyyyYYYY;
+  vmadn $v17, $v28, $v11.h0                          ## L:55   |    110 | out = VCONST_R +* in.xxxxXXXX;
+  luv $v11, 0, 0, $fp                                ## L:236  |      ^ | pixel0 = load_vec_u8(dmemIn, 0);
+  vmudn $v16, $v10, $v30.e6                          ## L:53   |    111 | out = in * 2;
+  vmadn $v16, $v27, $v10.h1                          ## L:54   |    112 | out = VCONST_G +* in.yyyyYYYY;
+  vmadn $v16, $v28, $v10.h0                          ## L:55   |    113 | out = VCONST_R +* in.xxxxXXXX;
+  addiu $sp, $sp, 16                                 ## L:234  |      ^ | dmemOut += 16;
+  vsubc $v12, $v18, $v21.v                           ## L:231  |    114 | diffY_B = bloom2Next - bloom2;
+  bne $fp, $k1, LABEL_Cmd_HDRBloom_0008              ## L:236  |      ^ | pixel0 = load_vec_u8(dmemIn, 0);
+  vsubc $v13, $v19, $v23.v                           ## L:230  |   *116 | diffY_A = bloom0Next - bloom0;
   LABEL_Cmd_HDRBloom_0009:
-  addiu $s3, $sp, 64896                              ## L:239  |    120 | ptrDMEM = dmemOut - 320 * 2;
-  addiu $k0, $zero, 639                              ## L:238  |    121 | u32 dmaSize = (320 * 2) - 1;
-  mtc0 $s3, COP0_DMA_SPADDR                          ## L:38   |    122 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
-  mtc0 $a1, COP0_DMA_RAMADDR                         ## L:39   |    123 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
-  addiu $a1, $a1, 640                                ## L:242  |    124 | ptrOut += (320 * 2);
-  bne $a0, $s7, LABEL_Cmd_HDRBloom_0001              ## L:242  |    125 | ptrOut += (320 * 2);
-  mtc0 $k0, COP0_DMA_WRITE                           ## L:40   |   *127 | @Barrier("DMA") set_dma_write(size); ## Barrier: 0x1
+  addiu $s3, $sp, 64896                              ## L:250  |    117 | ptrDMEM = dmemOut - 320 * 2;
+  mtc0 $s3, COP0_DMA_SPADDR                          ## L:38   |    118 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
+  ssv $v15, 12, -6, $sp                              ## L:245  |    119 | store(pixelOut2.Z, dmemOut, -6);
+  addiu $k0, $zero, 639                              ## L:249  |    120 | u32 dmaSize = (320 * 2) - 1;
+  ssv $v14, 4, -4, $sp                               ## L:246  |    121 | store(pixelOut3.z, dmemOut, -4);
+  mtc0 $a1, COP0_DMA_RAMADDR                         ## L:39   |    122 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
+  ssv $v17, 12, -14, $sp                             ## L:241  |    123 | store(pixelOut0.Z, dmemOut, -14);
+  addiu $a1, $a1, 640                                ## L:253  |    124 | ptrOut += (320 * 2);
+  ssv $v15, 4, -8, $sp                               ## L:244  |    125 | store(pixelOut2.z, dmemOut, -8);
+  ssv $v14, 12, -2, $sp                              ## L:247  |    126 | store(pixelOut3.Z, dmemOut, -2);
+  ssv $v16, 4, -12, $sp                              ## L:242  |    127 | store(pixelOut1.z, dmemOut, -12);
+  ssv $v16, 12, -10, $sp                             ## L:243  |    128 | store(pixelOut1.Z, dmemOut, -10);
+  ssv $v17, 4, -16, $sp                              ## L:240  |    129 | store(pixelOut0.z, dmemOut, -16);
+  bne $a0, $s7, LABEL_Cmd_HDRBloom_0001              ## L:253  |    130 | ptrOut += (320 * 2);
+  mtc0 $k0, COP0_DMA_WRITE                           ## L:40   |   *132 | @Barrier("DMA") set_dma_write(size); ## Barrier: 0x1
   LABEL_Cmd_HDRBloom_0002:
-  j RSPQ_Loop                                        ## L:243  |    128 | } while(ptrIn != ptrInEnd)
-  nop                                                ## L:243  |   *130 | } while(ptrIn != ptrInEnd)
+  j RSPQ_Loop                                        ## L:254  |    133 | } while(ptrIn != ptrInEnd)
+  nop                                                ## L:254  |   *135 | } while(ptrIn != ptrInEnd)
 Cmd_Blur:
   addiu $s3, $zero, 1056                             ## L:252  |      ^ | u16 dmemInOffsetEnd = (80 * 4 + 32) * 3;
   ori $s2, $zero, %lo(BUFF_IN_A)                     ## L:258  |      2 | u16 dmemInA = BUFF_IN_A;

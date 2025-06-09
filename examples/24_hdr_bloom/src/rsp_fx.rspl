@@ -124,6 +124,8 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
     vec16 bloom0, bloom1, bloom2, bloom3;
     vec16 bloom0Next, bloom2Next;
 
+    vec16 pixelOut0, pixelOut1, pixelOut2, pixelOut3;
+
     bloom0 = load_vec_u8(dmemBloom, 0);
     bloom0Next = load_vec_u8(dmemBloom, 320);
 
@@ -141,6 +143,15 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       vec16 pixel1 = load_vec_u8(dmemIn, 8);
       vec16 pixel2 = load_vec_u8(dmemIn, 16);
       vec16 pixel3 = load_vec_u8(dmemIn, 24);
+
+      store(pixelOut0.z, dmemOut, -16);
+      store(pixelOut0.Z, dmemOut, -14);
+      store(pixelOut1.z, dmemOut, -12);
+      store(pixelOut1.Z, dmemOut, -10);
+      store(pixelOut2.z, dmemOut, -8);
+      store(pixelOut2.Z, dmemOut, -6);
+      store(pixelOut3.z, dmemOut, -4);
+      store(pixelOut3.Z, dmemOut, -2);
 
       dmemBloom += 4;
 
@@ -203,19 +214,10 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       pixel2 >>= 10;
       pixel3 >>= 10;
 
-      vec16 pixelOut0 = packRGBA16(pixel0);
-      vec16 pixelOut1 = packRGBA16(pixel1);
-      vec16 pixelOut2 = packRGBA16(pixel2);
-      vec16 pixelOut3 = packRGBA16(pixel3);
-
-      store(pixelOut0.z, dmemOut, 0);
-      store(pixelOut0.Z, dmemOut, 2);
-      store(pixelOut1.z, dmemOut, 4);
-      store(pixelOut1.Z, dmemOut, 6);
-      store(pixelOut2.z, dmemOut, 8);
-      store(pixelOut2.Z, dmemOut, 10);
-      store(pixelOut3.z, dmemOut, 12);
-      store(pixelOut3.Z, dmemOut, 14);
+      pixelOut2 = packRGBA16(pixel2);
+      pixelOut3 = packRGBA16(pixel3);
+      pixelOut0 = packRGBA16(pixel0);
+      pixelOut1 = packRGBA16(pixel1);
 
       bloom0 = load_vec_u8(dmemBloom, 0);
       bloom0Next = load_vec_u8(dmemBloom, 320);
@@ -234,6 +236,15 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       pixel0 = load_vec_u8(dmemIn, 0);
 
     } while(dmemIn != dmemInEnd)
+
+    store(pixelOut0.z, dmemOut, -16);
+    store(pixelOut0.Z, dmemOut, -14);
+    store(pixelOut1.z, dmemOut, -12);
+    store(pixelOut1.Z, dmemOut, -10);
+    store(pixelOut2.z, dmemOut, -8);
+    store(pixelOut2.Z, dmemOut, -6);
+    store(pixelOut3.z, dmemOut, -4);
+    store(pixelOut3.Z, dmemOut, -2);
 
     u32 dmaSize = (SCREEN_WIDTH * 2) - 1;
     ptrDMEM = dmemOut - SCREEN_WIDTH * 2;
