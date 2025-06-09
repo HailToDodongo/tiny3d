@@ -107,7 +107,7 @@ int main()
 
     if(held.d_down)conf.blurBrightness -= 0.01f;
     if(held.d_up)conf.blurBrightness += 0.01f;
-    conf.blurBrightness = fmaxf(0.0f, fminf(2.0f, conf.blurBrightness));
+    conf.blurBrightness = fmaxf(0.0f, fminf(4.0f, conf.blurBrightness));
 
     if(pressed.c_up)conf.blurSteps++;
     if(pressed.c_down)conf.blurSteps--;
@@ -156,13 +156,12 @@ int main()
 
     fb = display_get();
     rdpq_attach(fb, display_get_zbuf());
-    //postProc[(frameIdx+2) % BUFF_COUNT].attachHDR();
-    postProc[frameIdx].attachHDR();
+    postProc[(frameIdx+2) % BUFF_COUNT].attachHDR();
+    //postProc[frameIdx].attachHDR();
 
     t3d_frame_start();
-    rdpq_mode_antialias(AA_REDUCED);
+    rdpq_mode_antialias(AA_NONE);
     rdpq_mode_dithering(DITHER_NONE_NONE);
-
 
     t3d_viewport_attach(&viewport[currIdx]);
     t3d_screen_clear_depth();

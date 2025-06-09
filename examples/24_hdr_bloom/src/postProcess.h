@@ -15,9 +15,14 @@ class PostProcess
 {
   private:
     surface_t surfHDR{};
-    rspq_block_t *blendBlock{};
     surface_t surfBlurA{};
     surface_t surfBlurB{};
+
+    // subsection of the above to allow OOB access in the ucode
+    surface_t surfHDRSafe{};
+    surface_t surfBlurASafe{};
+    surface_t surfBlurBSafe{};
+
 
   public:
     PostProcess();

@@ -254,21 +254,6 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
   } while(ptrIn != ptrInEnd)
 }
 
-macro loadNextImageLine(u32 ptrRDRAMIn, u16 dmaSize)
-{
-  lastLoadedDmemIn = dmemInOffset + BUFF_IN_A;
-  dmaInAsync(ptrRDRAMIn, lastLoadedDmemIn, dmaSize);
-  dmemInOffset += BLUR_STRIDE_PADDED;
-
-  if(ptrRDRAMIn != ptrRDRAMInEnd) {
-    ptrRDRAMIn += BLUR_STRIDE;
-  }
-
-  if(dmemInOffset == dmemInOffsetEnd) {
-    dmemInOffset = 0;
-  }
-}
-
 macro sum4x3(
   vec16 sum, vec16 factor,
   vec16 pixel00, vec16 pixel10, vec16 pixel20,
@@ -432,8 +417,28 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
 
     } while(dmemOutCurr != dmemOutEnd)
 
+    // Write out current blurred data
     dmaOutAsync(ptrRDRAMOut, dmemOutStart, dmaSize);
-    loadNextImageLine(ptrRDRAMIn, dmaSize);
+
+    /*loop {
+      RA = get_dma_busy();
+
+    } while(RA != 0)*/
+
+    lastLoadedDmemIn = dmemInOffset + BUFF_IN_A;
+
+    // Load in next source image line
+    dmaInAsync(ptrRDRAMIn, lastLoadedDmemIn, dmaSize);
+    dmemInOffset += BLUR_STRIDE_PADDED;
+
+    if(ptrRDRAMIn != ptrRDRAMInEnd) {
+      ptrRDRAMIn += BLUR_STRIDE;
+    }
+
+    if(dmemInOffset == dmemInOffsetEnd) {
+      dmemInOffset = 0;
+    }
+
     rowsLeft -= 1;
 
   } while(rowsLeft != 0)
