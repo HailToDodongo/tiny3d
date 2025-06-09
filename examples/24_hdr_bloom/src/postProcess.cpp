@@ -1,5 +1,5 @@
 #include "postProcess.h"
-#include "rspFX.h"
+#include "rsp/rspFX.h"
 #include <utility>
 
 #define MEASURE_PERF 0
@@ -61,9 +61,6 @@ surface_t& PostProcess::hdrBloom(surface_t& dst, const PostProcessConf &conf)
   surface_t *input = &surfBlurBSafe;
   surface_t *output = &surfBlurASafe;
 
-  //rdpq_fence();
-  //rspq_wait();
-
   { // First Pass, downscale image 4:1 with interpolation
     TimedHighPrio p{"RSP Scale"};
     RspFX::downscale(surfHDRSafe.buffer, output->buffer);
@@ -73,7 +70,10 @@ surface_t& PostProcess::hdrBloom(surface_t& dst, const PostProcessConf &conf)
     TimedHighPrio p{"RSP Blur"};
     for(int i=0; i<conf.blurSteps; ++i) {
       std::swap(input, output);
-      RspFX::blur(input->buffer, output->buffer, conf.blurBrightness);
+      RspFX::blur(
+        input->buffer, output->buffer,
+        (i == conf.blurSteps-1) ? conf.blurBrightness : 1.0f
+      );
     }
   }
 

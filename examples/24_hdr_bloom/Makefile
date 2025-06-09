@@ -8,7 +8,7 @@ N64_CFLAGS += -std=gnu2x -O2
 
 PROJECT_NAME=t3d_24_hdr_bloom
 
-src = $(wildcard src/*.cpp)
+src = $(wildcard src/*.cpp) $(wildcard src/render/*.cpp) $(wildcard src/rsp/*.cpp)
 
 assets_png = $(wildcard assets/*.png)
 assets_gltf = $(wildcard assets/*.glb)
@@ -23,7 +23,7 @@ all: $(PROJECT_NAME).z64
 filesystem/%.sprite: assets/%.png
 	@mkdir -p $(dir $@)
 	@echo "    [SPRITE] $@"
-	$(N64_MKSPRITE) $(MKSPRITE_FLAGS) --texparms 0,-1,inf,1 -o filesystem "$<"
+	$(N64_MKSPRITE) $(MKSPRITE_FLAGS) -o filesystem "$<"
 
 filesystem/%.font64: assets/%.ttf
 	@mkdir -p $(dir $@)
@@ -36,7 +36,7 @@ filesystem/%.t3dm: assets/%.glb
 	$(T3D_GLTF_TO_3D) "$<" $@
 
 $(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
-$(BUILD_DIR)/$(PROJECT_NAME).elf: $(src:%.cpp=$(BUILD_DIR)/%.o) $(BUILD_DIR)/src/rsp_fx.o
+$(BUILD_DIR)/$(PROJECT_NAME).elf: $(src:%.cpp=$(BUILD_DIR)/%.o) $(BUILD_DIR)/src/rsp/rsp_fx.o
 
 $(PROJECT_NAME).z64: N64_ROM_TITLE="Tiny3D - HDR Bloom"
 $(PROJECT_NAME).z64: $(BUILD_DIR)/$(PROJECT_NAME).dfs

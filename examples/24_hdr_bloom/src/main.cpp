@@ -1,18 +1,30 @@
+/**
+* @copyright 2025 - Max Bebök
+* @license MIT
+*/
 #include <libdragon.h>
+#include "main.h"
 
 #include <t3d/t3d.h>
 #include <t3d/t3dmodel.h>
 #include <t3d/t3ddebug.h>
 
+#include "debugMenu.h"
 #include "postProcess.h"
-#include "rspFX.h"
-
-/**
- *
- */
+#include "render/debugDraw.h"
+#include "rsp/rspFX.h"
 
 namespace {
   constexpr int BUFF_COUNT = 3;
+
+  State state{
+    .ppConf = {
+      .blurSteps = 1,
+      .blurBrightness = 1.0f,
+      .hdrFactor = 2.0f,
+     },
+    .showOffscreen = false,
+  };
 }
 
 surface_t* fb = NULL;
@@ -22,16 +34,16 @@ int main()
 {
 	debug_init_isviewer();
 	debug_init_usblog();
-	asset_init_compression(2);
+	//asset_init_compression(2);
 
   dfs_init(DFS_DEFAULT_LOCATION);
-
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, BUFF_COUNT, GAMMA_NONE, FILTERS_RESAMPLE);
 
   rdpq_init();
 
   RspFX::init();
   PostProcess postProc[BUFF_COUNT]{};
+  Debug::init();
 
   joypad_init();
   t3d_init((T3DInitParams){});
@@ -40,12 +52,7 @@ int main()
     viewport[i] = t3d_viewport_create();
   }
 
-  t3d_debug_print_init();
-
   T3DModel *model = t3d_model_load("rom://scene.t3dm");
-  rdpq_font_t* font = rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO);
-  rdpq_text_register_font(1, font);
-
   auto gradTest = sprite_load("rom:/gradTest.rgba16.sprite");
 
   T3DMat4FP* modelMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
@@ -58,14 +65,14 @@ int main()
   );
 
   T3DObject *objSky = t3d_model_get_object(model, "Scene");
-  T3DModelState state = t3d_model_state_create();
+  T3DModelState modelState = t3d_model_state_create();
 
   rspq_block_begin();
     t3d_matrix_push(modelMatFP);
 
     rdpq_mode_zbuf(true, true);
     rdpq_mode_antialias(AA_NONE);
-    t3d_model_draw_material(objSky->material, &state);
+    t3d_model_draw_material(objSky->material, &modelState);
     t3d_model_draw_object(objSky, NULL);
 
     t3d_matrix_pop(1);
@@ -83,13 +90,7 @@ int main()
   T3DVec3 lightDirVec{0.0f, 1.0f, 0.0f};
 
   uint32_t frameIdx = 0;
-
-  PostProcessConf conf{
-      .blurSteps = 1,
-      .blurBrightness = 1.0f,
-      .hdrFactor = 2.0f,
-  };
-  bool showGradient = true;
+  bool showMenu = true;
 
   for(uint64_t frame = 0;; ++frame)
   {
@@ -100,7 +101,9 @@ int main()
     if(joypad.stick_x < 10 && joypad.stick_x > -10)joypad.stick_x = 0;
     if(joypad.stick_y < 10 && joypad.stick_y > -10)joypad.stick_y = 0;
 
-    if(pressed.start)showGradient = !showGradient;
+    if(pressed.start)showMenu = !showMenu;
+/*
+
     if(held.c_left)conf.hdrFactor -= 0.1f;
     if(held.c_right)conf.hdrFactor += 0.1f;
     if(conf.hdrFactor < 0)conf.hdrFactor = 0;
@@ -112,6 +115,7 @@ int main()
     if(pressed.c_up)conf.blurSteps++;
     if(pressed.c_down)conf.blurSteps--;
     if(conf.blurSteps < 0)conf.blurSteps = 0;
+    */
 
     float deltaTime = display_get_delta_time();
 
@@ -162,6 +166,7 @@ int main()
     t3d_frame_start();
     rdpq_mode_antialias(AA_NONE);
     rdpq_mode_dithering(DITHER_NONE_NONE);
+    rdpq_set_prim_color({0xFF, 0xFF, 0xFF, 0xFF});
 
     t3d_viewport_attach(&viewport[currIdx]);
     t3d_screen_clear_depth();
@@ -172,32 +177,18 @@ int main()
     t3d_light_set_count(1);
 
     rspq_block_run(model->userBlock);
+
+    auto surfBlur = postProc[frameIdx].hdrBloom(*fb, state.ppConf);
+
     rdpq_sync_pipe();
-    rdpq_sync_tile();
-    rdpq_sync_load();
-
-    rdpq_set_mode_standard();
-    rdpq_mode_combiner(RDPQ_COMBINER_TEX_FLAT);
-    rdpq_blitparms_s p{};
-    p.scale_x = 8.0;
-    p.scale_y = 2.0;
-
-    if(showGradient)
-    {
-      constexpr int slices = 12;
-      for(int i=0; i<=slices; ++i) {
-        uint8_t prim = 0xFF - (i * (0xFF / slices));
-        rdpq_set_prim_color({prim, prim, prim, prim});
-        rdpq_sprite_blit(gradTest, 32, 0 + i*16, &p);
-      }
-    }
-
-    auto surfBlur = postProc[frameIdx].hdrBloom(*fb, conf);
     rdpq_set_color_image(fb);
 
-    // Debug: scale up blur again
-    if(!held.z)
+    // Debug: show last offscreen buffer (downscaled and/or blur)
+    if(state.showOffscreen)
     {
+      rdpq_sync_tile();
+      rdpq_sync_load();
+
       rdpq_set_mode_standard();
       rdpq_mode_combiner(RDPQ_COMBINER_TEX);
       rdpq_mode_blender(0);
@@ -210,11 +201,18 @@ int main()
       rdpq_tex_blit(&surfBlur, 0, 0, &param);
     }
 
-    rdpq_text_printf(NULL, 1, 260, 220, "%.2f", display_get_fps());
-    rdpq_text_printf(NULL, 1, 16, 220, "F: %.2f", conf.hdrFactor);
-    rdpq_text_printf(NULL, 1, 16, 220-16, "Blurs: %d", conf.blurSteps);
-    rdpq_text_printf(NULL, 1, 16, 220-32, "BlurB: %.2f", conf.blurBrightness);
+    Debug::printStart();
+    if(showMenu) {
+      DebugMenu::draw(state);
+    } else {
+      Debug::printf(20, 20, "%.2f", display_get_fps());
+    }
 
+    /*Debug::printf(260, 220, "%.2f", display_get_fps());
+    Debug::printf(16, 220, "F: %.2f", state.ppConf.hdrFactor);
+    Debug::printf(16, 220-16, "Blurs: %d", state.ppConf.blurSteps);
+    Debug::printf(16, 220-32, "BlurB: %.2f", state.ppConf.blurBrightness);
+*/
     rdpq_detach_show();
 
     frameIdx = (frameIdx+1) % BUFF_COUNT;
