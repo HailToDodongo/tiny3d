@@ -9,22 +9,19 @@ include "rsp_queue.inc"
 #define BLUR_WIDTH 80
 #define BLUR_HEIGHT 60
 #define BLUR_STRIDE (BLUR_WIDTH * 4)
-
-state
-{
-}
-
-data
-{
-}
+#define BLUR_STRIDE_PADDED (BLUR_WIDTH * 4 + 32)
 
 bss {
   u32 BUFF_IN_A[SCREEN_WIDTH];
   u32 BUFF_IN_B[SCREEN_WIDTH];
 
   alignas(8)
+  vec16 SAFE_SPACE_0;
   u32 BUFF_BLOOM[BLUR_WIDTH];
+  vec16 SAFE_SPACE_1;
+  vec16 SAFE_SPACE_2;
   u32 BUFF_BLOOM_B[BLUR_WIDTH];
+  vec16 SAFE_SPACE_3;
 }
 
 // DMA from RDRAM into DMEM
@@ -53,7 +50,6 @@ macro dmaOutAsync(u32 addrRDRAM, u32 addrDMEM, u32 size)
 
 macro packRGBA16(vec16 out, vec16 in)
 {
-  in >>= 10;
   out = in * 2;
   out = VCONST_G +* in.yyyyYYYY;
   out = VCONST_R +* in.xxxxXXXX;
@@ -61,9 +57,6 @@ macro packRGBA16(vec16 out, vec16 in)
 
 command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
 {
-  vec16 colFactor;
-  colFactor.w = factor;
-
   vec16 VCONST_R = 1 << 11;
   vec16 VCONST_G = 1 << 6;
 
@@ -75,18 +68,21 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
   //ptrBloom -= 8;
   //ptrBloom += BLUR_STRIDE;
 
+  vec16 bloomFactorY = 0;
   vec16 bloomFactorA = 0;
   bloomFactorA:sfract.X = 0.25;
-  bloomFactorA:sfract.Y = 0.25;
-  bloomFactorA:sfract.Z = 0.25;
+  bloomFactorA:sfract.Y = bloomFactorA:sfract.X;
+  bloomFactorA:sfract.Z = bloomFactorA:sfract.X;
+
+  bloomFactorA.w = factor;
 
   vec16 bloomFactorB;
   bloomFactorB:sfract.x = 0.5;
-  bloomFactorB:sfract.y = 0.5;
-  bloomFactorB:sfract.z = 0.5;
+  bloomFactorB:sfract.y = bloomFactorB:sfract.x;
+  bloomFactorB:sfract.z = bloomFactorB:sfract.x;
   bloomFactorB:sfract.X = 0.75;
-  bloomFactorB:sfract.Y = 0.75;
-  bloomFactorB:sfract.Z = 0.75;
+  bloomFactorB:sfract.Y = bloomFactorB:sfract.X;
+  bloomFactorB:sfract.Z = bloomFactorB:sfract.X;
 
   loop {
     u32 dmaSize = SCREEN_STRIDE - 1;
@@ -101,6 +97,7 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       loop {
         RA = get_dma_busy();
         bloomPhase = 4; // DELAY SLOT
+        bloomFactorY = VZERO - 0x2000;
       } while(RA != 0)
 
       dmaInAsync(ptrBloom, dmemBloom, bloomDmaSize);
@@ -110,93 +107,132 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
 
     ptrIn += SCREEN_STRIDE;
 
-    u32 dmemOut = BUFF_IN_B;
-    u32 dmemIn = ptrDMEM;
+    u16 tmpMem = SAFE_SPACE_3;
+
+    u32 dmemIn, dmemOut;
     u32 dmemInEnd;
 
-    bloomFactorA.W = 0;
-    if(bloomPhase == 2)bloomFactorA:sfract.W = 0.25;
-    if(bloomPhase == 1)bloomFactorA:sfract.W = 0.50;
-    if(bloomPhase == 0)bloomFactorA:sfract.W = 0.75;
+    bloomFactorY += 0x2000;
 
     loop {
       RA = get_dma_busy();
-      // DELAY SLOT
+      dmemOut = BUFF_IN_B;
+      dmemIn = ptrDMEM;
       dmemInEnd = dmemIn + SCREEN_WIDTH*4;
     } while(RA != 0)
 
-    loop {
-      vec16 bloom0, bloom1, bloom2, bloom3;
+    vec16 bloom0, bloom1, bloom2, bloom3;
+    vec16 bloom0Next, bloom2Next;
 
-      bloom0 = load_vec_u8(dmemBloom, 0);
-      vec16 bloom0Next = load_vec_u8(dmemBloom, 320);
-      vec16 diffY = bloom0Next - bloom0;
+    bloom0 = load_vec_u8(dmemBloom, 0);
+    bloom0Next = load_vec_u8(dmemBloom, 320);
+
+    dmemBloom += 4;
+
+    bloom2 = load_vec_u8(dmemBloom, 0);
+    bloom2Next = load_vec_u8(dmemBloom, 320);
+
+    vec16 diffY_A = bloom0Next - bloom0;
+    vec16 diffY_B = bloom2Next - bloom2;
+
+    vec16 pixel0 = load_vec_u8(dmemIn, 0);
+
+    loop {
+      vec16 pixel1 = load_vec_u8(dmemIn, 8);
+      vec16 pixel2 = load_vec_u8(dmemIn, 16);
+      vec16 pixel3 = load_vec_u8(dmemIn, 24);
+
+      dmemBloom += 4;
 
       // interpolate vertically
       bloom0:sint = bloom0:sint * 1;
-      bloom0:sfract = diffY:sfract +* bloomFactorA:sfract.W;
+      bloom0:sfract = diffY_A:sfract +* bloomFactorY:sfract;
+
+      pixel0 >>= 6;
+
+      bloom2:sint = bloom2:sint * 1;
+      bloom2:sfract = diffY_B:sfract +* bloomFactorY:sfract;
 
       // bloom0 now contains 2 pixels in xyzw and XYZW, so viewing the register as two halves: [A, B]
       // in order to do horizontal interpolation we have to LERP 3 values in between A and B (X0, X1, X2)
       // and organize the data so that that span across 2 registers to be added onto the color value later on
       // So we need to transform [A,B] into [A, X0] [X1, X2], B gets thrown away since it is the next starting pixel
-      @Barrier("tmp") store(bloom0, RSPQ_SCRATCH_MEM);
-      @Barrier("tmp") bloom0.XYZW = load(RSPQ_SCRATCH_MEM).xyzw;
-      @Barrier("tmp") bloom3.xyzw = load(RSPQ_SCRATCH_MEM).XYZW;
-      @Barrier("tmp") bloom3.XYZW = load(RSPQ_SCRATCH_MEM).XYZW;
+      @Barrier("tmp_1") bloom0Next = bloom0;
+      @Barrier("tmp_0") store(bloom0, tmpMem, 0);
+      @Barrier("tmp_1") @Barrier("tmp_0") bloom0.XYZW = load(tmpMem, 0).xyzw;
+      @Barrier("tmp_0") bloom0Next.xyzw = load(tmpMem, 0).XYZW;
 
-      vec16 diffX = bloom3 - bloom0;
-      dmemBloom += 4;
+      pixel1 >>= 6;
+      pixel2 >>= 6;
+      pixel3 >>= 6;
 
-      bloom0:sint = bloom0:sint * 1;
-      bloom0:sfract = diffX:sfract +* bloomFactorA:sfract;
+      @Barrier("tmp_3") bloom2Next = bloom2; // bloom2Next is the next pixel in the row, so it is the one that will be added to the color
+      @Barrier("tmp_2") store(bloom2, tmpMem, 16);
+      @Barrier("tmp_3") @Barrier("tmp_2") bloom2.XYZW = load(tmpMem, 16).xyzw;
+      @Barrier("tmp_2") bloom2Next.xyzw = load(tmpMem, 16).XYZW;
+
+      vec16 diffX_A = bloom0Next - bloom0;
+
+      pixel0:sint *= bloomFactorA.w;
+      pixel1:sint *= bloomFactorA.w;
 
       bloom1:sint = bloom0:sint * 1;
-      bloom1:sfract = diffX:sfract +* bloomFactorB:sfract;
+      bloom1:sfract = diffX_A:sfract +* bloomFactorB:sfract;
 
-      vec16 pixel0 = load_vec_u8(dmemIn, 0);
-      vec16 pixel1 = load_vec_u8(dmemIn, 8);
-      //vec16 pixel2 = load_vec_u8(dmemIn, 16);
-      //vec16 pixel3 = load_vec_u8(dmemIn, 24);
+      vec16 diffX_B = bloom2Next - bloom2;
+
+      bloom0:sint = bloom0:sint * 1;
+      bloom0:sfract = diffX_A:sfract +* bloomFactorA:sfract;
+
+      bloom3:sint = bloom2:sint * 1;
+      bloom3:sfract = diffX_B:sfract +* bloomFactorB:sfract;
+
+      bloom2:sint = bloom2:sint * 1;
+      bloom2:sfract = diffX_B:sfract +* bloomFactorA:sfract;
+
+      pixel2:sint *= bloomFactorA.w;
+      pixel3:sint *= bloomFactorA.w;
 
       pixel0:sint += bloom0:sint;
       pixel1:sint += bloom1:sint;
-      //pixel2:sint += bloom2:sint;
-      //pixel3:sint += bloom3:sint;
+      pixel2:sint += bloom2:sint;
+      pixel3:sint += bloom3:sint;
 
-      { // DEBUG:
-        //pixel0:sint = bloom0:sint;
-        //pixel1:sint = bloom1:sint;
-        //pixel2:sint = bloom2:sint;
-        //pixel3:sint = bloom3:sint;
-      }
-
-      pixel0 >>= 6;
-      pixel1 >>= 6;
-      //pixel2 >>= 6;
-      //pixel3 >>= 6;
-
-      pixel0:sint *= colFactor.w;
-      pixel1:sint *= colFactor.w;
-      //pixel2:sint *= colFactor.w;
-      //pixel3:sint *= colFactor.w;
+      pixel0 >>= 10;
+      pixel1 >>= 10;
+      pixel2 >>= 10;
+      pixel3 >>= 10;
 
       vec16 pixelOut0 = packRGBA16(pixel0);
       vec16 pixelOut1 = packRGBA16(pixel1);
-      //vec16 pixelOut2 = packRGBA16(pixel2);
-      //vec16 pixelOut3 = packRGBA16(pixel3);
+      vec16 pixelOut2 = packRGBA16(pixel2);
+      vec16 pixelOut3 = packRGBA16(pixel3);
 
       store(pixelOut0.z, dmemOut, 0);
       store(pixelOut0.Z, dmemOut, 2);
       store(pixelOut1.z, dmemOut, 4);
       store(pixelOut1.Z, dmemOut, 6);
-      /*store(pixelOut2.z, dmemOut, 8);
+      store(pixelOut2.z, dmemOut, 8);
       store(pixelOut2.Z, dmemOut, 10);
       store(pixelOut3.z, dmemOut, 12);
-      store(pixelOut3.Z, dmemOut, 14);*/
+      store(pixelOut3.Z, dmemOut, 14);
 
-      dmemIn += 16;
-      dmemOut += 8;
+      bloom0 = load_vec_u8(dmemBloom, 0);
+      bloom0Next = load_vec_u8(dmemBloom, 320);
+
+      dmemBloom += 4;
+
+      bloom2 = load_vec_u8(dmemBloom, 0);
+      bloom2Next = load_vec_u8(dmemBloom, 320);
+
+      diffY_A = bloom0Next - bloom0;
+      diffY_B = bloom2Next - bloom2;
+
+      dmemIn += 32;
+      dmemOut += 16;
+
+      pixel0 = load_vec_u8(dmemIn, 0);
+
     } while(dmemIn != dmemInEnd)
 
     u32 dmaSize = (SCREEN_WIDTH * 2) - 1;
@@ -209,10 +245,14 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
 
 macro loadNextImageLine(u32 ptrRDRAMIn, u16 dmaSize)
 {
-  u16 dmemInRow = dmemInOffset + BUFF_IN_A;
-  dmaInAsync(ptrRDRAMIn, dmemInRow, dmaSize);
-  dmemInOffset += BLUR_STRIDE;
-  ptrRDRAMIn += BLUR_STRIDE;
+  lastLoadedDmemIn = dmemInOffset + BUFF_IN_A;
+  dmaInAsync(ptrRDRAMIn, lastLoadedDmemIn, dmaSize);
+  dmemInOffset += BLUR_STRIDE_PADDED;
+
+  if(ptrRDRAMIn != ptrRDRAMInEnd) {
+    ptrRDRAMIn += BLUR_STRIDE;
+  }
+
   if(dmemInOffset == dmemInOffsetEnd) {
     dmemInOffset = 0;
   }
@@ -235,87 +275,56 @@ macro sum4x3(
 
 command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
 {
-  u32 ptrRDRAMInEnd = ptrRDRAMIn + (BLUR_STRIDE * (BLUR_HEIGHT+2));
+  u32 ptrRDRAMInEnd = ptrRDRAMIn + (BLUR_STRIDE * (BLUR_HEIGHT - 1));
+  u32 rowsLeft = BLUR_HEIGHT;
 
   u16 dmaSize = (BLUR_WIDTH * 4) - 1;
   u16 dmemInOffset = 0;
-  u16 dmemInOffsetEnd = BLUR_STRIDE * 3;
+  u16 dmemInOffsetEnd = BLUR_STRIDE_PADDED * 3;
 
   // @TODO: use proper kernel(?) | uses 2 register(?)
   vec16 factor;
   factor.x = brightness;
 
   u16 dmemInA = BUFF_IN_A;
-  u32 dmemOutStart = dmemInA + 2048;
+  u32 dmemOutStart = dmemInA + (BLUR_STRIDE_PADDED*3);
+
+  u16 lastLoadedDmemIn = dmemInA;
 
   dmaAwait();
+
+  // Preload the first 3 lines, since we clamp this is two times the first one
+  // and lastly the second row
+  dmaInAsync(ptrRDRAMIn, dmemInA, dmaSize);
+  dmemInA += BLUR_STRIDE_PADDED;
+  dmaInAsync(ptrRDRAMIn, dmemInA, dmaSize);
+  dmemInA += BLUR_STRIDE_PADDED;
 
   ptrRDRAMIn += BLUR_STRIDE;
-  dmaInAsync(ptrRDRAMIn, dmemInA, dmaSize);
-  dmemInA += BLUR_STRIDE;
-
-  dmaInAsync(ptrRDRAMIn, dmemInA, dmaSize);
-  dmemInA += BLUR_STRIDE;
-  dmaAwait();
-  dmaInAsync(ptrRDRAMIn, dmemInA, dmaSize);
-  dmemInA -= BLUR_STRIDE * 2;
-
-  ptrRDRAMIn += BLUR_STRIDE*2;
   dmaAwait();
 
-  /*{
-    vec16 c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10,
-          c11, c12, c13, c14, c15, c16, c17, c18, c19;
-    c0 = load(dmemInA, 0);
-    c1 = load(dmemInA, 16);
-    c2 = load(dmemInA, 32);
-    c3 = load(dmemInA, 48);
-    c4 = load(dmemInA, 64);
-    c5 = load(dmemInA, 80);
-    c6 = load(dmemInA, 96);
-    c7 = load(dmemInA, 112);
-    c8 = load(dmemInA, 128);
-    c9 = load(dmemInA, 144);
-    c10 = load(dmemInA, 160);
-    c11 = load(dmemInA, 176);
-    c12 = load(dmemInA, 192);
-    c13 = load(dmemInA, 208);
-    c14 = load(dmemInA, 224);
-    c15 = load(dmemInA, 240);
-    c16 = load(dmemInA, 256);
-    c17 = load(dmemInA, 272);
-    c18 = load(dmemInA, 288);
-    c19 = load(dmemInA, 304);
-    AA:
-    u16 tmpB = dmemInA + BLUR_STRIDE;
-    u16 tmpC = dmemInA + BLUR_STRIDE;
-    store(c0, tmpB, 0);  store(c0, tmpC, 0);
-    store(c1, tmpB, 16);  store(c1, tmpC, 16);
-    store(c2, tmpB, 32);  store(c2, tmpC, 32);
-    store(c3, tmpB, 48);  store(c3, tmpC, 48);
-    store(c4, tmpB, 64);  store(c4, tmpC, 64);
-    store(c5, tmpB, 80);  store(c5, tmpC, 80);
-    store(c6, tmpB, 96);  store(c6, tmpC, 96);
-    store(c7, tmpB, 112);  store(c7, tmpC, 112);
-    store(c8, tmpB, 128);  store(c8, tmpC, 128);
-    store(c9, tmpB, 144);  store(c9, tmpC, 144);
-    store(c10, tmpB, 160);  store(c10, tmpC, 160);
-    store(c11, tmpB, 176);  store(c11, tmpC, 176);
-    store(c12, tmpB, 192);  store(c12, tmpC, 192);
-    store(c13, tmpB, 208);  store(c13, tmpC, 208);
-    store(c14, tmpB, 224);  store(c14, tmpC, 224);
-    store(c15, tmpB, 240);  store(c15, tmpC, 240);
-    store(c16, tmpB, 256);  store(c16, tmpC, 256);
-    store(c17, tmpB, 272);  store(c17, tmpC, 272);
-    store(c18, tmpB, 288);  store(c18, tmpC, 288);
-    store(c19, tmpB, 304);  store(c19, tmpC, 304);
-  }*/
+  dmaInAsync(ptrRDRAMIn, dmemInA, dmaSize);
+  ptrRDRAMIn += BLUR_STRIDE;
+  dmaAwait();
+
+  // dupe the last pixel of all 3 rows, to safely sample OOB
+  u32 tmp1 = load(dmemInA, 316);
+  store(tmp1, dmemInA, 320);
+
+  dmemInA -= BLUR_STRIDE_PADDED;
+  u32 tmp2 = load(dmemInA, 316);
+  store(tmp2, dmemInA, 320);
+
+  // last pixel is handled in the loop each iteration
+
+  undef tmp1;
+  undef tmp2;
 
   loop {
     dmemInA = BUFF_IN_A;
     dmemInA -= 4;
 
-    u16 dmemInC = dmemInA + BLUR_STRIDE*2;
+    u16 dmemInC = dmemInA + BLUR_STRIDE_PADDED*2;
 
     u32 dmemOutCurr, dmemOutEnd;
 
@@ -324,15 +333,23 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
       dmemOutCurr = dmemOutStart; // DELAY SLOT
     } while(RA != 0)
 
-    vec16 pixelA_00 = load_vec_u8(dmemInA, 0);
-    vec16 pixelA_10 = load_vec_u8(dmemInA, 320);
-    vec16 pixelA_20 = load_vec_u8(dmemInC, 0);
+    // pre-load the first pixels
+    // Note that the offsets here are adjusted to the right to no sample OOB
+    // the next time this is loaded in the loop the offset it correct
+    vec16 pixelA_00 = load_vec_u8(dmemInA, 8);
+    vec16 pixelA_10 = load_vec_u8(dmemInA, 360);
+    vec16 pixelA_20 = load_vec_u8(dmemInC, 8);
 
     vec16 pixelA_01 = load_vec_u8(dmemInA, 8);
-    vec16 pixelA_11 = load_vec_u8(dmemInA, 328);
+    vec16 pixelA_11 = load_vec_u8(dmemInA, 360);
+
+    { // dupe the last pixel one beyond to safely sample OOB
+      u32 tmp1 = load(lastLoadedDmemIn, 316);
+      store(tmp1, lastLoadedDmemIn, 320);
+    }
 
     loop {
-      u16 dmemInB = dmemInA + BLUR_STRIDE*1;
+      u16 dmemInB = dmemInA + BLUR_STRIDE_PADDED;
 
       vec16 pixelA_21 = load_vec_u8(dmemInC, 8);
 
@@ -378,16 +395,6 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
       vec16 sum7 = sum4x3(factor, pixelG_01, pixelG_11, pixelG_21, pixelH_01, pixelH_11, pixelH_21);
 
       dmemOutCurr += 64;
-/*
-      sum0:ufract = sum0:ufract * sum0:ufract;
-      sum1:ufract = sum1:ufract * sum1:ufract;
-      sum2:ufract = sum2:ufract * sum2:ufract;
-      sum3:ufract = sum3:ufract * sum3:ufract;
-      sum4:ufract = sum4:ufract * sum4:ufract;
-      sum5:ufract = sum5:ufract * sum5:ufract;
-      sum6:ufract = sum6:ufract * sum6:ufract;
-      sum7:ufract = sum7:ufract * sum7:ufract;
-*/
 
       store_vec_u8(sum0, dmemOutCurr, -64);
       store_vec_u8(sum1, dmemOutCurr, -56);
@@ -416,8 +423,9 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
 
     dmaOutAsync(ptrRDRAMOut, dmemOutStart, dmaSize);
     loadNextImageLine(ptrRDRAMIn, dmaSize);
+    rowsLeft -= 1;
 
-  } while(ptrRDRAMIn != ptrRDRAMInEnd)
+  } while(rowsLeft != 0)
 }
 
 macro sum4x2_X(
@@ -438,7 +446,7 @@ macro sum4x2_Y_Mem(vec16 res, vec16 a)
 
 command<2> Cmd_Downscale(u32 ptrRDRAMIn, u32 prtRDRAMOut)
 {
-  ptrRDRAMIn += SCREEN_STRIDE;
+  //ptrRDRAMIn += SCREEN_STRIDE;
   u32 ptrRDRAMInEnd = ptrRDRAMIn + BUFF_SIZE_RGBA32;
 
   prtRDRAMOut -= BLUR_STRIDE;
@@ -481,6 +489,18 @@ command<2> Cmd_Downscale(u32 ptrRDRAMIn, u32 prtRDRAMOut)
 
     dmaOutAsync(prtRDRAMOut, dmemOutB, dmaSizeOut);
     swap(dmemOutA, dmemOutB);
+
+    // dupe last pixel
+    {
+      dmemInA += 1280;
+      dmemInB += 1280;
+
+      vec16 a = load(dmemInA, -32);
+      store(a, dmemInA, -16);
+
+      dmemInA -= 1280;
+      dmemInB -= 1280;
+    }
 
     vec16 resA, resB;
     vec16 p0_AB, p0_CD, p0_EF, p0_GH;

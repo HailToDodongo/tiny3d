@@ -24,6 +24,8 @@ extern "C" {
 }
 
 namespace {
+  constexpr uint32_t BLUR_STRIDE = 80*4;
+
   uint32_t rspIdFX{0};
 }
 
@@ -55,10 +57,10 @@ void RspFX::downscale(void* rgba32In, void* rgba32Out)
 
 void RspFX::blur(void* rgba32In, void* rgba32Out, float brightness)
 {
-  int32_t s = (int32_t)(brightness * (1 << 12));
+  constexpr float quantFactor = (1 << 12) * 1.35f;
   rspq_write_3(rspIdFX, 1,
     (uint32_t)rgba32In & 0xFFFFFF,
-    (uint32_t)rgba32Out & 0xFFFFFF,
-    s
+    ((uint32_t)rgba32Out - BLUR_STRIDE) & 0xFFFFFF,
+    (int32_t)(brightness * quantFactor) & 0xFFFF
   );
 }

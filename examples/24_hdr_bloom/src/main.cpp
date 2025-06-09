@@ -4,12 +4,16 @@
 #include <t3d/t3dmodel.h>
 #include <t3d/t3ddebug.h>
 
-#include "fbBlur.h"
+#include "postProcess.h"
 #include "rspFX.h"
 
 /**
  *
  */
+
+namespace {
+  constexpr int BUFF_COUNT = 3;
+}
 
 surface_t* fb = NULL;
 
@@ -22,20 +26,19 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE);
-  auto surfHDR = surface_alloc(FMT_RGBA32, 320, 240);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, BUFF_COUNT, GAMMA_NONE, FILTERS_RESAMPLE);
 
   rdpq_init();
 
   RspFX::init();
-  FbBlur fbBlur{};
+  PostProcess postProc[BUFF_COUNT]{};
 
   joypad_init();
   t3d_init((T3DInitParams){});
-  T3DViewport viewport[3];
-  viewport[0] = t3d_viewport_create();
-  viewport[1] = t3d_viewport_create();
-  viewport[2] = t3d_viewport_create();
+  T3DViewport viewport[BUFF_COUNT];
+  for(int i = 0; i < BUFF_COUNT; ++i) {
+    viewport[i] = t3d_viewport_create();
+  }
 
   t3d_debug_print_init();
 
@@ -79,8 +82,14 @@ int main()
   uint8_t colorDir[4] = {0xFF, 0xFF, 0xFF, 0xFF};
   T3DVec3 lightDirVec{0.0f, 1.0f, 0.0f};
 
+  uint32_t frameIdx = 0;
+
+  PostProcessConf conf{
+      .blurSteps = 1,
+      .blurBrightness = 1.0f,
+      .hdrFactor = 2.0f,
+  };
   bool showGradient = true;
-  float hdrFactor = 2;
 
   for(uint64_t frame = 0;; ++frame)
   {
@@ -92,9 +101,17 @@ int main()
     if(joypad.stick_y < 10 && joypad.stick_y > -10)joypad.stick_y = 0;
 
     if(pressed.start)showGradient = !showGradient;
-    if(held.c_left)hdrFactor -= 0.1f;
-    if(held.c_right)hdrFactor += 0.1f;
-    if(hdrFactor < 0)hdrFactor = 0;
+    if(held.c_left)conf.hdrFactor -= 0.1f;
+    if(held.c_right)conf.hdrFactor += 0.1f;
+    if(conf.hdrFactor < 0)conf.hdrFactor = 0;
+
+    if(held.d_down)conf.blurBrightness -= 0.01f;
+    if(held.d_up)conf.blurBrightness += 0.01f;
+    conf.blurBrightness = fmaxf(0.0f, fminf(2.0f, conf.blurBrightness));
+
+    if(pressed.c_up)conf.blurSteps++;
+    if(pressed.c_down)conf.blurSteps--;
+    if(conf.blurSteps < 0)conf.blurSteps = 0;
 
     float deltaTime = display_get_delta_time();
 
@@ -139,8 +156,8 @@ int main()
 
     fb = display_get();
     rdpq_attach(fb, display_get_zbuf());
-
-    rdpq_set_color_image(&surfHDR);
+    //postProc[(frameIdx+2) % BUFF_COUNT].attachHDR();
+    postProc[frameIdx].attachHDR();
 
     t3d_frame_start();
     rdpq_mode_antialias(AA_REDUCED);
@@ -172,31 +189,13 @@ int main()
       for(int i=0; i<=slices; ++i) {
         uint8_t prim = 0xFF - (i * (0xFF / slices));
         rdpq_set_prim_color({prim, prim, prim, prim});
-        rdpq_sprite_blit(gradTest, 32, 16 + i*16, &p);
+        rdpq_sprite_blit(gradTest, 32, 0 + i*16, &p);
       }
     }
 
-
-        //rdpq_set_prim_color({0xFF, 0xFF, 0xFF, 0xFF});
-    //rdpq_tex_blit(&surfHDR, 0, 0, nullptr);
-    // @TODO: ucode here
-
-    // blur
-    auto surfBlur = fbBlur.blur(surfHDR);
-
-
-    rspq_wait();
-    auto t = get_ticks();
-
-    rspq_highpri_begin();
-    RspFX::hdrBlit(surfHDR.buffer, fb->buffer, surfBlur.buffer, hdrFactor);
-    rspq_highpri_end();
-    rspq_flush();
-    rspq_highpri_sync();
-    t = get_ticks() - t;
-    debugf("Time: %lldus\n", TICKS_TO_US(t));
-
+    auto surfBlur = postProc[frameIdx].hdrBloom(*fb, conf);
     rdpq_set_color_image(fb);
+
     // Debug: scale up blur again
     if(!held.z)
     {
@@ -213,14 +212,12 @@ int main()
     }
 
     rdpq_text_printf(NULL, 1, 260, 220, "%.2f", display_get_fps());
-    rdpq_text_printf(NULL, 1, 16, 220, "F: %.2f", hdrFactor);
-    //rdpq_text_printf(NULL, 1, 16, 24, "Bias: %.2f", exposure_bias);
-    //rdpq_text_printf(NULL, 1, 16, 32, "Avg. Bright.: %.2f", average_brightness);
-
-    //rdpq_set_mode_fill({0xFF, 0xFF, 0xFF, 0xFF});
-    //rdpq_fill_rectangle(8, 8, 16, 16);
+    rdpq_text_printf(NULL, 1, 16, 220, "F: %.2f", conf.hdrFactor);
+    rdpq_text_printf(NULL, 1, 16, 220-16, "Blurs: %d", conf.blurSteps);
+    rdpq_text_printf(NULL, 1, 16, 220-32, "BlurB: %.2f", conf.blurBrightness);
 
     rdpq_detach_show();
 
+    frameIdx = (frameIdx+1) % BUFF_COUNT;
   }
 }
