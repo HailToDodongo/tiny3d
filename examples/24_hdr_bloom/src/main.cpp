@@ -19,9 +19,9 @@ namespace {
 
   State state{
     .ppConf = {
-      .blurSteps = 1,
+      .blurSteps = 5,
       .blurBrightness = 1.0f,
-      .hdrFactor = 2.0f,
+      .hdrFactor = 1.5f,
      },
     .showOffscreen = false,
   };
@@ -85,7 +85,7 @@ int main()
   float camRotX = -1.14f;
   float camRotY = 0.24f;
 
-  uint8_t colorAmbient[4] = {0x1f, 0x1f, 0x1f, 0xFF};
+  uint8_t colorAmbient[4] = {0x19, 0x19, 0x19, 0xFF};
   uint8_t colorDir[4] = {0x1F, 0x1F, 0x1F, 0xFF};
   T3DVec3 lightDirVec{0.0f, 1.0f, 0.0f};
 
@@ -119,8 +119,8 @@ int main()
     lightPointPos2.z = fm_sinf(lightAngle * -1.2f) * 35.0f;
 
     {
-      float camSpeed = deltaTime * 0.3f;
-      float camRotSpeed = deltaTime * 0.01f;
+      float camSpeed = deltaTime * 0.5f;
+      float camRotSpeed = deltaTime * 0.015f;
 
       camDir.v[0] = fm_cosf(camRotX) * fm_cosf(camRotY);
       camDir.v[1] = fm_sinf(camRotY);
@@ -173,8 +173,8 @@ int main()
 
     t3d_light_set_ambient(colorAmbient);
     //t3d_light_set_directional(0, colorDir, lightDirVec); // optional directional light, can be disabled
-    t3d_light_set_point(0, lightPointColor, lightPointPos, 0.09f, true); // optional point light, can be disabled
-    t3d_light_set_point(1, lightPointColor2, lightPointPos2, 0.07f, true); // optional point light, can be disabled
+    t3d_light_set_point(0, lightPointColor, lightPointPos, 0.09f, false); // optional point light, can be disabled
+    t3d_light_set_point(1, lightPointColor2, lightPointPos2, 0.07f, false); // optional point light, can be disabled
     t3d_light_set_count(2);
 
     rspq_block_run(model->userBlock);
