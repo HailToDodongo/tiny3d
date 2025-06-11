@@ -36,11 +36,11 @@ PostProcess::PostProcess()
   assertf(display_get_width() == SCREEN_WIDTH, "Ucode can only handle 320x240 resolution");
   assertf(display_get_height() == SCREEN_HEIGHT, "Ucode can only handle 320x240 resolution");
 
-  surfHDR = surface_alloc(FMT_RGBA32, display_get_width(), display_get_height() + 2);
+  surfHDR = surface_alloc(FMT_RGBA32, display_get_width(), display_get_height() + 4);
   surfBlurA = surface_alloc(FMT_RGBA32, surfHDR.width / SCALE_FACTOR, surfHDR.height / SCALE_FACTOR + 4);
   surfBlurB = surface_alloc(FMT_RGBA32, surfHDR.width / SCALE_FACTOR, surfHDR.height / SCALE_FACTOR + 4);
 
-  surfHDRSafe = surface_make_sub(&surfHDR, 0, 1, surfHDR.width, surfHDR.height-1);
+  surfHDRSafe = surface_make_sub(&surfHDR, 0, 2, surfHDR.width, surfHDR.height-2);
   surfBlurASafe = surface_make_sub(&surfBlurA, 0, 2, surfBlurA.width, surfBlurA.height-2);
   surfBlurBSafe = surface_make_sub(&surfBlurB, 0, 2, surfBlurB.width, surfBlurB.height-2);
 }
@@ -61,15 +61,17 @@ surface_t& PostProcess::hdrBloom(surface_t& dst, const PostProcessConf &conf)
   surface_t *input = &surfBlurBSafe;
   surface_t *output = &surfBlurASafe;
 
+  float bloomFactor = conf.hdrFactor * 0.5f * conf.blurBrightness;
+
   int blurSteps = conf.blurSteps;
-  if(blurSteps > 0 && conf.blurBrightness <= 0.0f) {
+  if(blurSteps > 0 && bloomFactor <= 0.0f) {
     blurSteps = 1;
   }
 
 
   { // First Pass, downscale image 4:1 with interpolation
     TimedHighPrio p{"RSP Scale"};
-    RspFX::downscale(surfHDRSafe.buffer, output->buffer);
+    RspFX::downscale(surfHDRSafe.buffer, output->buffer, conf.bloomThreshold);
   }
 
   { // Now blur the smaller image N amount of times by ping-ponging the buffers
@@ -78,7 +80,7 @@ surface_t& PostProcess::hdrBloom(surface_t& dst, const PostProcessConf &conf)
       std::swap(input, output);
       RspFX::blur(
         input->buffer, output->buffer,
-        (i == blurSteps-1) ? conf.blurBrightness : 1.0f
+        (i == blurSteps-1) ? bloomFactor : 1.0f
       );
     }
   }

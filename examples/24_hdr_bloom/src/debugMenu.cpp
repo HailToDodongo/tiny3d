@@ -9,7 +9,7 @@
 namespace
 {
   int menuSel = 0;
-  constexpr int maxMenuSel = 3;
+  constexpr int maxMenuSel = 4;
 
   template<typename T>
   constexpr T clamp(T val, T min, T max)
@@ -48,6 +48,7 @@ void DebugMenu::draw(State &state)
     switch(menuSel) {
       case 2: state.ppConf.blurBrightness = clamp(state.ppConf.blurBrightness + heldDir*0.01f, 0.0f, 8.0f); break;
       case 3: state.ppConf.hdrFactor = clamp(state.ppConf.hdrFactor + heldDir*0.04f, 0.0f, 8.0f); break;
+      case 4: state.ppConf.bloomThreshold = clamp(state.ppConf.bloomThreshold + heldDir*(1.0f/256.0f), 0.0f, 1.0f); break;
     }
   }
 
@@ -61,6 +62,7 @@ void DebugMenu::draw(State &state)
   Debug::printf(posX + 8, posY, "Blurs: %d", state.ppConf.blurSteps);         posY += 8;
   Debug::printf(posX + 8, posY, "Bloom: %.2f", state.ppConf.blurBrightness); posY += 8;
   Debug::printf(posX + 8, posY, "Expos: %.2f", state.ppConf.hdrFactor);     posY += 8;
+  Debug::printf(posX + 8, posY, "Thres: %.2f", state.ppConf.bloomThreshold); posY += 8;
 
   Debug::print(posX, posYStart + menuSel * 8, ">");
 }

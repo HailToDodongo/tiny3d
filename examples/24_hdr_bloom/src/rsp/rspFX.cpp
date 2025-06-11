@@ -47,11 +47,12 @@ void RspFX::hdrBlit(void* rgba32In, void *rgba16Out, void* rgba32BloomIn, float 
   );
 }
 
-void RspFX::downscale(void* rgba32In, void* rgba32Out)
+void RspFX::downscale(void* rgba32In, void* rgba32Out, float threshold)
 {
-  rspq_write_2(rspIdFX, 2,
+  rspq_write_3(rspIdFX, 2,
      (uint32_t)rgba32In & 0xFFFFFF,
-     (uint32_t)rgba32Out & 0xFFFFFF
+     (uint32_t)rgba32Out & 0xFFFFFF,
+     (uint32_t)(threshold * 0x7FFF) & 0xFFFF
   );
 }
 

@@ -9,6 +9,7 @@ struct PostProcessConf {
   int blurSteps{};
   float blurBrightness{};
   float hdrFactor{};
+  float bloomThreshold{};
 };
 
 class PostProcess

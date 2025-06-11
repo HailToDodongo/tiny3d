@@ -214,6 +214,16 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       pixel2 >>= 10;
       pixel3 >>= 10;
 
+      // @TODO: encode shifter to left by default instead?
+/*
+      //print(pixel0);
+      pixel0 >>= 10;
+      //print(pixel0);
+      pixelOut0 = pixel0 * 2;
+      pixelOut0 = VCONST_G +* pixel0.yyyyYYYY;
+      pixelOut0 = VCONST_R +* pixel0.xxxxXXXX;
+      //print(pixelOut0);
+*/
       pixelOut2 = packRGBA16(pixel2);
       pixelOut3 = packRGBA16(pixel3);
       pixelOut0 = packRGBA16(pixel0);
@@ -241,10 +251,7 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
     store(pixelOut0.Z, dmemOut, -14);
     store(pixelOut1.z, dmemOut, -12);
     store(pixelOut1.Z, dmemOut, -10);
-    store(pixelOut2.z, dmemOut, -8);
-    store(pixelOut2.Z, dmemOut, -6);
-    store(pixelOut3.z, dmemOut, -4);
-    store(pixelOut3.Z, dmemOut, -2);
+    store(VZERO.xy, dmemOut, -8);
 
     u32 dmaSize = (SCREEN_WIDTH * 2) - 1;
     ptrDMEM = dmemOut - SCREEN_WIDTH * 2;
@@ -320,13 +327,15 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
     dmemInA = BUFF_IN_A;
     dmemInA -= 4;
 
-    u16 dmemInC = dmemInA + BLUR_STRIDE_PADDED*2;
+    u16 dmemInC = dmemInA + BLUR_STRIDE_PADDED*2 - 4;
 
     u32 dmemOutCurr, dmemOutEnd;
+    u16 dmemInBOffset;
 
     loop {
       RA = get_dma_busy();
       dmemOutCurr = dmemOutStart; // DELAY SLOT
+      dmemInBOffset = BLUR_STRIDE_PADDED;
     } while(RA != 0)
 
     // pre-load the first pixels
@@ -345,7 +354,8 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
     }
 
     loop {
-      u16 dmemInB = dmemInA + BLUR_STRIDE_PADDED;
+      u16 dmemInB = dmemInA + dmemInBOffset;
+      dmemInBOffset ^= 4;
 
       vec16 pixelA_21 = load_vec_u8(dmemInC, 8);
 
@@ -383,12 +393,16 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
       vec16 pixelG_11 = load_vec_u8(dmemInB, 56);
       vec16 pixelG_21 = load_vec_u8(dmemInC, 56);
 
-      vec16 pixelH_01 = load_vec_u8(dmemInA, 64);
-      vec16 pixelH_11 = load_vec_u8(dmemInB, 64);
-      vec16 pixelH_21 = load_vec_u8(dmemInC, 64);
+      pixelA_00 = load_vec_u8(dmemInA, 64); // in this iteration also "pixelH_01"
+      pixelA_10 = load_vec_u8(dmemInB, 64);
+      pixelA_20 = load_vec_u8(dmemInC, 64);
+
+      dmemInA += 64;
+      dmemInB += 64;
+      dmemInC += 64;
 
       vec16 sum6 = sum4x3(factor, pixelF_01, pixelF_11, pixelF_21, pixelG_01, pixelG_11, pixelG_21);
-      vec16 sum7 = sum4x3(factor, pixelG_01, pixelG_11, pixelG_21, pixelH_01, pixelH_11, pixelH_21);
+      vec16 sum7 = sum4x3(factor, pixelG_01, pixelG_11, pixelG_21, pixelA_00, pixelA_10, pixelA_20);
 
       dmemOutCurr += 64;
 
@@ -401,14 +415,6 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
       store_vec_u8(sum6, dmemOutCurr, -16);
       store_vec_u8(sum7, dmemOutCurr, -8);
 
-      dmemInA += 64;
-      dmemInB += 64;
-      dmemInC += 64;
-
-      pixelA_00 = load_vec_u8(dmemInA, 0);
-      pixelA_10 = load_vec_u8(dmemInB, 0);
-      pixelA_20 = load_vec_u8(dmemInC, 0);
-
       pixelA_01 = load_vec_u8(dmemInA, 8);
       pixelA_11 = load_vec_u8(dmemInB, 8);
 
@@ -420,12 +426,10 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
     // Write out current blurred data
     dmaOutAsync(ptrRDRAMOut, dmemOutStart, dmaSize);
 
-    /*loop {
+    loop {
       RA = get_dma_busy();
-
-    } while(RA != 0)*/
-
-    lastLoadedDmemIn = dmemInOffset + BUFF_IN_A;
+      lastLoadedDmemIn = dmemInOffset + BUFF_IN_A;
+    } while(RA != 0)
 
     // Load in next source image line
     dmaInAsync(ptrRDRAMIn, lastLoadedDmemIn, dmaSize);
@@ -460,7 +464,7 @@ macro sum4x2_Y_Mem(vec16 res, vec16 a)
   res:sint = res:sint + a:sint;
 }
 
-command<2> Cmd_Downscale(u32 ptrRDRAMIn, u32 prtRDRAMOut)
+command<2> Cmd_Downscale(u32 ptrRDRAMIn, u32 prtRDRAMOut, u16 threshold)
 {
   //ptrRDRAMIn += SCREEN_STRIDE;
   u32 ptrRDRAMInEnd = ptrRDRAMIn + BUFF_SIZE_RGBA32;
@@ -476,6 +480,8 @@ command<2> Cmd_Downscale(u32 ptrRDRAMIn, u32 prtRDRAMOut)
 
   vec16 sumFactor;
   sumFactor:sfract.x = 0.125;
+
+  sumFactor.y = threshold;
 
   u16 dmemOutA = BUFF_BLOOM;
   u16 dmemOutB = BUFF_BLOOM_B;
@@ -527,6 +533,10 @@ command<2> Cmd_Downscale(u32 ptrRDRAMIn, u32 prtRDRAMOut)
     loop {
       resA:sint = p0_AB:sint + p1_AB:sint;
       resB:sint = p2_AB:sint + p3_AB:sint;
+
+      // threshold for color, used to clamp bloom before blurring
+      resA = resA < sumFactor.y ? VZERO : resA;
+      resB = resB < sumFactor.y ? VZERO : resB;
 
       store_vec_u8(resA, dmemOut, -16);
       store_vec_u8(resB, dmemOut, -8);
@@ -587,6 +597,9 @@ command<2> Cmd_Downscale(u32 ptrRDRAMIn, u32 prtRDRAMOut)
 
     resA:sint = p0_AB:sint + p1_AB:sint;
     resB:sint = p2_AB:sint + p3_AB:sint;
+
+    resA = resA < sumFactor.y ? VZERO : resA;
+    resB = resB < sumFactor.y ? VZERO : resB;
 
     store_vec_u8(resA, dmemOut, -16);
     store_vec_u8(resB, dmemOut, -8);
