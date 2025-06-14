@@ -8,7 +8,7 @@ N64_CFLAGS += -std=gnu2x -O2
 
 PROJECT_NAME=t3d_24_hdr_bloom
 
-src = $(wildcard src/*.cpp) $(wildcard src/render/*.cpp) $(wildcard src/rsp/*.cpp)
+src = $(wildcard src/*.cpp) $(wildcard src/render/*.cpp) $(wildcard src/rsp/*.cpp) $(wildcard src/scenes/*.cpp)
 
 assets_png = $(wildcard assets/*.png)
 assets_gltf = $(wildcard assets/*.glb)

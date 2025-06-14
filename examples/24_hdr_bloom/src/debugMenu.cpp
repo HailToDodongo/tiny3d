@@ -9,7 +9,7 @@
 namespace
 {
   int menuSel = 0;
-  constexpr int maxMenuSel = 4;
+  constexpr int maxMenuSel = 5;
 
   template<typename T>
   constexpr T clamp(T val, T min, T max)
@@ -42,6 +42,7 @@ void DebugMenu::draw(State &state)
     switch(menuSel) {
       case 0: state.showOffscreen = !state.showOffscreen; break;
       case 1: state.ppConf.blurSteps = clamp(state.ppConf.blurSteps + selDir, 0, 50); break;
+      case 5: state.ppConf.scalingUseRDP = !state.ppConf.scalingUseRDP; break;
     }
   }
   if(heldDir != 0) {
@@ -63,6 +64,7 @@ void DebugMenu::draw(State &state)
   Debug::printf(posX + 8, posY, "Bloom: %.2f", state.ppConf.blurBrightness); posY += 8;
   Debug::printf(posX + 8, posY, "Expos: %.2f", state.ppConf.hdrFactor);     posY += 8;
   Debug::printf(posX + 8, posY, "Thres: %.2f", state.ppConf.bloomThreshold); posY += 8;
+  Debug::printf(posX + 8, posY, "Scale: %s", state.ppConf.scalingUseRDP ? "RDP" : "RSP"); posY += 8;
 
   Debug::print(posX, posYStart + menuSel * 8, ">");
 }

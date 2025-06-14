@@ -47,21 +47,26 @@ void RspFX::hdrBlit(void* rgba32In, void *rgba16Out, void* rgba32BloomIn, float 
   );
 }
 
-void RspFX::downscale(void* rgba32In, void* rgba32Out, float threshold)
+void RspFX::downscale(void* rgba32In, void* rgba32Out)
 {
-  rspq_write_3(rspIdFX, 2,
+  rspq_write_2(rspIdFX, 2,
      (uint32_t)rgba32In & 0xFFFFFF,
-     (uint32_t)rgba32Out & 0xFFFFFF,
-     (uint32_t)(threshold * 0x7FFF) & 0xFFFF
+     (uint32_t)rgba32Out & 0xFFFFFF
   );
 }
 
-void RspFX::blur(void* rgba32In, void* rgba32Out, float brightness)
+void RspFX::blur(void* rgba32In, void* rgba32Out, float brightness, float threshold)
 {
   constexpr float quantFactor = (1 << 12) * 1.35f;
+
+  uint32_t factors = (uint32_t)(threshold * 0x7FFF) & 0xFFFF;
+  factors <<= 16;
+  factors |= (uint32_t)(brightness * quantFactor) & 0xFFFF;
+
   rspq_write_3(rspIdFX, 1,
     (uint32_t)rgba32In & 0xFFFFFF,
     ((uint32_t)rgba32Out - BLUR_STRIDE) & 0xFFFFFF,
-    (int32_t)(brightness * quantFactor) & 0xFFFF
+    factors
+
   );
 }

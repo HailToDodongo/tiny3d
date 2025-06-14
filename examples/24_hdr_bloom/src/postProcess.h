@@ -6,10 +6,11 @@
 #include <libdragon.h>
 
 struct PostProcessConf {
-  int blurSteps{};
-  float blurBrightness{};
-  float hdrFactor{};
-  float bloomThreshold{};
+  int blurSteps{}; // how often to blur the low-res image
+  float blurBrightness{}; // brightness of the blur aka bloom
+  float hdrFactor{}; // HDR exposure factor, 1.0 to get standard color range
+  float bloomThreshold{}; // threshold to ignore pixels before blurring
+  bool scalingUseRDP{}; // if true, use RDP for initial downscaling
 };
 
 class PostProcess
@@ -23,12 +24,17 @@ class PostProcess
     surface_t surfHDRSafe{};
     surface_t surfBlurASafe{};
     surface_t surfBlurBSafe{};
+    rspq_block_t *blockRDPScale{nullptr};
 
+    PostProcessConf conf{};
 
   public:
     PostProcess();
     ~PostProcess();
 
-    void attachHDR();
-    surface_t &hdrBloom(surface_t& dst, const PostProcessConf &conf);
+    void setConf(const PostProcessConf &config) { conf = config; }
+
+    void beginFrame();
+    void endFrame();
+    surface_t &applyEffects(surface_t& dst);
 };

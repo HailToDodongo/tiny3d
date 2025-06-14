@@ -60,8 +60,6 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
   vec16 VCONST_R = 1 << 11;
   vec16 VCONST_G = 1 << 6;
 
-  dma_await();
-
   u32 ptrInEnd = ptrIn + BUFF_SIZE_RGBA32;
   u16 buffDMEM = BUFF_IN_A;
   u8 bloomPhase = 0;
@@ -83,6 +81,8 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
   bloomFactorB:sfract.X = 0.75;
   bloomFactorB:sfract.Y = bloomFactorB:sfract.X;
   bloomFactorB:sfract.Z = bloomFactorB:sfract.X;
+
+  dma_await();
 
   loop {
     u32 dmaSize = SCREEN_STRIDE - 1;
@@ -118,7 +118,7 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       RA = get_dma_busy();
       dmemOut = BUFF_IN_B;
       dmemIn = ptrDMEM;
-      dmemInEnd = dmemIn + SCREEN_WIDTH*4;
+      dmemInEnd = ptrDMEM + SCREEN_WIDTH*4;
     } while(RA != 0)
 
     vec16 bloom0, bloom1, bloom2, bloom3;
@@ -184,50 +184,35 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
 
       vec16 diffX_A = bloom0Next - bloom0;
 
-      pixel0:sint *= bloomFactorA.w;
-      pixel1:sint *= bloomFactorA.w;
-
       bloom1:sint = bloom0:sint * 1;
       bloom1:sfract = diffX_A:sfract +* bloomFactorB:sfract;
+      pixel1:sint = pixel1:sint +* bloomFactorA:sint.w;
 
       vec16 diffX_B = bloom2Next - bloom2;
 
       bloom0:sint = bloom0:sint * 1;
       bloom0:sfract = diffX_A:sfract +* bloomFactorA:sfract;
+      pixel0:sint = pixel0:sint +* bloomFactorA:sint.w;
 
       bloom3:sint = bloom2:sint * 1;
       bloom3:sfract = diffX_B:sfract +* bloomFactorB:sfract;
+      pixel3:sint = pixel3:sint +* bloomFactorA:sint.w;
+
+      pixel0 >>>= 10;
 
       bloom2:sint = bloom2:sint * 1;
       bloom2:sfract = diffX_B:sfract +* bloomFactorA:sfract;
+      pixel2:sint = pixel2:sint +* bloomFactorA:sint.w;
 
-      pixel2:sint *= bloomFactorA.w;
-      pixel3:sint *= bloomFactorA.w;
+      pixel1 >>>= 10;
 
-      pixel0:sint += bloom0:sint;
-      pixel1:sint += bloom1:sint;
-      pixel2:sint += bloom2:sint;
-      pixel3:sint += bloom3:sint;
+      pixelOut0 = packRGBA16(pixel0);
+      pixel2 >>>= 10;
+      pixel3 >>>= 10;
 
-      pixel0 >>= 10;
-      pixel1 >>= 10;
-      pixel2 >>= 10;
-      pixel3 >>= 10;
-
-      // @TODO: encode shifter to left by default instead?
-/*
-      //print(pixel0);
-      pixel0 >>= 10;
-      //print(pixel0);
-      pixelOut0 = pixel0 * 2;
-      pixelOut0 = VCONST_G +* pixel0.yyyyYYYY;
-      pixelOut0 = VCONST_R +* pixel0.xxxxXXXX;
-      //print(pixelOut0);
-*/
+      pixelOut1 = packRGBA16(pixel1);
       pixelOut2 = packRGBA16(pixel2);
       pixelOut3 = packRGBA16(pixel3);
-      pixelOut0 = packRGBA16(pixel0);
-      pixelOut1 = packRGBA16(pixel1);
 
       bloom0 = load_vec_u8(dmemBloom, 0);
       bloom0Next = load_vec_u8(dmemBloom, 320);
@@ -276,7 +261,12 @@ macro sum4x3(
   sum:ufract = pixel21:ufract +* factor:ufract.x;
 }
 
-command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
+macro clampBrightness(vec16 pixel)
+{
+  pixel = pixel < factor.y ? VZERO : pixel;
+}
+
+command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
 {
   u32 ptrRDRAMInEnd = ptrRDRAMIn + (BLUR_STRIDE * (BLUR_HEIGHT - 1));
   u32 rowsLeft = BLUR_HEIGHT;
@@ -287,22 +277,29 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
 
   // @TODO: use proper kernel(?) | uses 2 register(?)
   vec16 factor;
-  factor.x = brightness;
+  factor.x = thresholdBrightness;
+  thresholdBrightness >>= 16;
+  factor.y = thresholdBrightness;
 
-  u16 dmemInA = BUFF_IN_A;
-  u32 dmemOutStart = dmemInA + (BLUR_STRIDE_PADDED*3);
+  u16 dmemInA;
+  u32 dmemOutStart;
+  u16 lastLoadedDmemIn;
 
-  u16 lastLoadedDmemIn = dmemInA;
-
-  dmaAwait();
+  loop { // DMA Await
+    RA = get_dma_busy();
+    dmemInA = BUFF_IN_A;
+    dmemOutStart = dmemInA + (BLUR_STRIDE_PADDED*3);
+    lastLoadedDmemIn = dmemInA;
+  } while(RA != 0)
 
   // Preload the first 3 lines, since we clamp this is two times the first one
   // and lastly the second row
   dmaInAsync(ptrRDRAMIn, dmemInA, dmaSize);
   dmemInA += BLUR_STRIDE_PADDED;
+  dmaAwait();
+
   dmaInAsync(ptrRDRAMIn, dmemInA, dmaSize);
   dmemInA += BLUR_STRIDE_PADDED;
-
   ptrRDRAMIn += BLUR_STRIDE;
   dmaAwait();
 
@@ -322,12 +319,12 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
 
   undef tmp1;
   undef tmp2;
+  // the first threshold check needs to process 3 lines
+  u16 thresholdStride = BLUR_STRIDE * 3;
 
   loop {
     dmemInA = BUFF_IN_A;
     dmemInA -= 4;
-
-    u16 dmemInC = dmemInA + BLUR_STRIDE_PADDED*2 - 4;
 
     u32 dmemOutCurr, dmemOutEnd;
     u16 dmemInBOffset;
@@ -338,11 +335,56 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
       dmemInBOffset = BLUR_STRIDE_PADDED;
     } while(RA != 0)
 
+    u16 dmemInC = dmemInA + BLUR_STRIDE_PADDED*2 - 4;
+
+    if(thresholdBrightness)
+    {
+      u16 ptrClamp = lastLoadedDmemIn;
+      u16 ptrClampEnd = lastLoadedDmemIn + thresholdStride;
+      loop {
+        thresholdStride = BLUR_STRIDE; // reset to 1 line per newly processed line
+        vec16 p0 = load_vec_u8(ptrClamp, 0);
+        vec16 p1 = load_vec_u8(ptrClamp, 8);
+        vec16 p2 = load_vec_u8(ptrClamp, 16);
+        vec16 p3 = load_vec_u8(ptrClamp, 24);
+        vec16 p4 = load_vec_u8(ptrClamp, 32);
+        vec16 p5 = load_vec_u8(ptrClamp, 40);
+        vec16 p6 = load_vec_u8(ptrClamp, 48);
+        vec16 p7 = load_vec_u8(ptrClamp, 56);
+        vec16 p8 = load_vec_u8(ptrClamp, 64);
+        vec16 p9 = load_vec_u8(ptrClamp, 72);
+
+        clampBrightness(p0);
+        clampBrightness(p1);
+        clampBrightness(p2);
+        clampBrightness(p3);
+        clampBrightness(p4);
+        clampBrightness(p5);
+        clampBrightness(p6);
+        clampBrightness(p7);
+        clampBrightness(p8);
+        clampBrightness(p9);
+
+        store_vec_u8(p0, ptrClamp, 0);
+        store_vec_u8(p1, ptrClamp, 8);
+        store_vec_u8(p2, ptrClamp, 16);
+        store_vec_u8(p3, ptrClamp, 24);
+        store_vec_u8(p4, ptrClamp, 32);
+        store_vec_u8(p5, ptrClamp, 40);
+        store_vec_u8(p6, ptrClamp, 48);
+        store_vec_u8(p7, ptrClamp, 56);
+        store_vec_u8(p8, ptrClamp, 64);
+        store_vec_u8(p9, ptrClamp, 72);
+
+        ptrClamp += 80;
+      } while(ptrClamp != ptrClampEnd)
+    }
+
     // pre-load the first pixels
     // Note that the offsets here are adjusted to the right to no sample OOB
     // the next time this is loaded in the loop the offset it correct
     vec16 pixelA_00 = load_vec_u8(dmemInA, 8);
-    vec16 pixelA_10 = load_vec_u8(dmemInA, 360);
+    vec16 pixelA_10 = 0;//load_vec_u8(dmemInA, 360);
     vec16 pixelA_20 = load_vec_u8(dmemInC, 8);
 
     vec16 pixelA_01 = load_vec_u8(dmemInA, 8);
@@ -425,11 +467,14 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
 
     // Write out current blurred data
     dmaOutAsync(ptrRDRAMOut, dmemOutStart, dmaSize);
+    rowsLeft -= 1;
 
     loop {
       RA = get_dma_busy();
       lastLoadedDmemIn = dmemInOffset + BUFF_IN_A;
     } while(RA != 0)
+
+    if(rowsLeft == 0)exit;
 
     // Load in next source image line
     dmaInAsync(ptrRDRAMIn, lastLoadedDmemIn, dmaSize);
@@ -442,10 +487,7 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 brightness)
     if(dmemInOffset == dmemInOffsetEnd) {
       dmemInOffset = 0;
     }
-
-    rowsLeft -= 1;
-
-  } while(rowsLeft != 0)
+  }
 }
 
 macro sum4x2_X(
@@ -464,7 +506,7 @@ macro sum4x2_Y_Mem(vec16 res, vec16 a)
   res:sint = res:sint + a:sint;
 }
 
-command<2> Cmd_Downscale(u32 ptrRDRAMIn, u32 prtRDRAMOut, u16 threshold)
+command<2> Cmd_Downscale(u32 ptrRDRAMIn, u32 prtRDRAMOut)
 {
   //ptrRDRAMIn += SCREEN_STRIDE;
   u32 ptrRDRAMInEnd = ptrRDRAMIn + BUFF_SIZE_RGBA32;
@@ -480,8 +522,6 @@ command<2> Cmd_Downscale(u32 ptrRDRAMIn, u32 prtRDRAMOut, u16 threshold)
 
   vec16 sumFactor;
   sumFactor:sfract.x = 0.125;
-
-  sumFactor.y = threshold;
 
   u16 dmemOutA = BUFF_BLOOM;
   u16 dmemOutB = BUFF_BLOOM_B;
@@ -597,9 +637,6 @@ command<2> Cmd_Downscale(u32 ptrRDRAMIn, u32 prtRDRAMOut, u16 threshold)
 
     resA:sint = p0_AB:sint + p1_AB:sint;
     resB:sint = p2_AB:sint + p3_AB:sint;
-
-    resA = resA < sumFactor.y ? VZERO : resA;
-    resB = resB < sumFactor.y ? VZERO : resB;
 
     store_vec_u8(resA, dmemOut, -16);
     store_vec_u8(resB, dmemOut, -8);

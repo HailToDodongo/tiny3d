@@ -36,27 +36,82 @@ PostProcess::PostProcess()
   assertf(display_get_width() == SCREEN_WIDTH, "Ucode can only handle 320x240 resolution");
   assertf(display_get_height() == SCREEN_HEIGHT, "Ucode can only handle 320x240 resolution");
 
-  surfHDR = surface_alloc(FMT_RGBA32, display_get_width(), display_get_height() + 4);
-  surfBlurA = surface_alloc(FMT_RGBA32, surfHDR.width / SCALE_FACTOR, surfHDR.height / SCALE_FACTOR + 4);
-  surfBlurB = surface_alloc(FMT_RGBA32, surfHDR.width / SCALE_FACTOR, surfHDR.height / SCALE_FACTOR + 4);
+  int sizeLowX = display_get_width() / SCALE_FACTOR;
+  int sizeLowY = display_get_height() / SCALE_FACTOR;
 
-  surfHDRSafe = surface_make_sub(&surfHDR, 0, 2, surfHDR.width, surfHDR.height-2);
-  surfBlurASafe = surface_make_sub(&surfBlurA, 0, 2, surfBlurA.width, surfBlurA.height-2);
-  surfBlurBSafe = surface_make_sub(&surfBlurB, 0, 2, surfBlurB.width, surfBlurB.height-2);
+  surfHDR = surface_alloc(FMT_RGBA32, display_get_width(), display_get_height() + 4);
+  surfBlurA = surface_alloc(FMT_RGBA32, sizeLowX, sizeLowY + 4);
+  surfBlurB = surface_alloc(FMT_RGBA32, sizeLowX, sizeLowY + 4);
+
+  surfHDRSafe = surface_make_sub(&surfHDR, 0, 2, surfHDR.width, display_get_height());
+  surfBlurASafe = surface_make_sub(&surfBlurA, 0, 2, surfBlurA.width, sizeLowY);
+  surfBlurBSafe = surface_make_sub(&surfBlurB, 0, 2, surfBlurB.width, sizeLowY);
 }
 
 PostProcess::~PostProcess()
 {
-  surface_free(&surfBlurA);
   surface_free(&surfBlurB);
+  surface_free(&surfBlurA);
+  surface_free(&surfHDR);
+  if(blockRDPScale)rspq_block_free(blockRDPScale);
 }
 
-void PostProcess::attachHDR()
+void PostProcess::beginFrame()
 {
-  rdpq_set_color_image(&surfHDR);
+  rdpq_set_color_image(&surfHDRSafe);
 }
 
-surface_t& PostProcess::hdrBloom(surface_t& dst, const PostProcessConf &conf)
+void PostProcess::endFrame()
+{
+  if(!conf.scalingUseRDP)return;
+
+  if(!blockRDPScale)
+  {
+    rspq_block_begin();
+    rdpq_sync_pipe();
+    rdpq_sync_load();
+    rdpq_set_mode_standard();
+
+    rdpq_mode_begin();
+      rdpq_mode_filter(FILTER_MEDIAN);
+      rdpq_mode_antialias(AA_NONE);
+      rdpq_mode_dithering(DITHER_NONE_NONE);
+      rdpq_mode_blender(0);
+
+      rdpq_mode_combiner(RDPQ_COMBINER2(
+        (TEX0,TEX1,PRIM_ALPHA,TEX1), (0,0,0,1),
+        (0,0,0,COMBINED),            (0,0,0,1)
+      ));
+    rdpq_mode_end();
+
+    rdpq_texparms_t texParam0{};
+    texParam0.s.scale_log = -2;
+    texParam0.s.translate = 1.5f;
+    texParam0.t.translate = 0.5f;
+    auto texParam1 = texParam0;
+    texParam1.s.translate += 2.0f;
+
+    rdpq_set_prim_color({0,0,0, 0x100/2});
+    rdpq_set_color_image(&surfBlurASafe);
+    for(int y=0; y<surfBlurASafe.height; ++y)
+    {
+      auto surfSub = surface_make_sub(&surfHDRSafe, 0, y*4, surfHDRSafe.width, 2);
+      surfSub.stride *= 2; // load every other line
+
+      rdpq_tex_multi_begin();
+        rdpq_tex_upload(TILE0, &surfSub, &texParam0);
+        rdpq_tex_reuse(TILE1, &texParam1);
+      rdpq_tex_multi_end();
+
+      rdpq_texture_rectangle(TILE0, 0, y, surfBlurASafe.width, y+1, 1, 1);
+    }
+    blockRDPScale = rspq_block_end();
+  }
+
+  rspq_block_run(blockRDPScale);
+}
+
+surface_t& PostProcess::applyEffects(surface_t &dst)
 {
   surface_t *input = &surfBlurBSafe;
   surface_t *output = &surfBlurASafe;
@@ -68,10 +123,10 @@ surface_t& PostProcess::hdrBloom(surface_t& dst, const PostProcessConf &conf)
     blurSteps = 1;
   }
 
-
+  if(!conf.scalingUseRDP)
   { // First Pass, downscale image 4:1 with interpolation
     TimedHighPrio p{"RSP Scale"};
-    RspFX::downscale(surfHDRSafe.buffer, output->buffer, conf.bloomThreshold);
+    RspFX::downscale(surfHDRSafe.buffer, output->buffer);
   }
 
   { // Now blur the smaller image N amount of times by ping-ponging the buffers
@@ -80,7 +135,8 @@ surface_t& PostProcess::hdrBloom(surface_t& dst, const PostProcessConf &conf)
       std::swap(input, output);
       RspFX::blur(
         input->buffer, output->buffer,
-        (i == blurSteps-1) ? bloomFactor : 1.0f
+        (i == blurSteps-1) ? bloomFactor : 1.0f,
+        (i == 0) ? conf.bloomThreshold : 0.0f
       );
     }
   }
