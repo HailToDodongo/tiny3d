@@ -10,4 +10,5 @@ struct State
 {
   PostProcessConf ppConf{};
   bool showOffscreen{};
+  bool autoExposure{};
 };

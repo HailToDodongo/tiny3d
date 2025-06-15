@@ -27,6 +27,7 @@ class PostProcess
     rspq_block_t *blockRDPScale{nullptr};
 
     PostProcessConf conf{};
+    float relBrightness{0.0f};
 
   public:
     PostProcess();
@@ -37,4 +38,6 @@ class PostProcess
     void beginFrame();
     void endFrame();
     surface_t &applyEffects(surface_t& dst);
+
+    float getBrightness() const { return relBrightness; }
 };

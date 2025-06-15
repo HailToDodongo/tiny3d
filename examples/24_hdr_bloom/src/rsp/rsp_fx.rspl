@@ -79,10 +79,15 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
   bloomFactorB:sfract.y = bloomFactorB:sfract.x;
   bloomFactorB:sfract.z = bloomFactorB:sfract.x;
   bloomFactorB:sfract.X = 0.75;
-  bloomFactorB:sfract.Y = bloomFactorB:sfract.X;
-  bloomFactorB:sfract.Z = bloomFactorB:sfract.X;
 
-  dma_await();
+  s32 sumRGB;
+
+  loop {
+    RA = get_dma_busy();
+    bloomFactorB:sfract.Y = bloomFactorB:sfract.X;
+    bloomFactorB:sfract.Z = bloomFactorB:sfract.X;
+    sumRGB = 0;
+  } while(RA != 0)
 
   loop {
     u32 dmaSize = SCREEN_STRIDE - 1;
@@ -204,11 +209,27 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       bloom2:sfract = diffX_B:sfract +* bloomFactorA:sfract;
       pixel2:sint = pixel2:sint +* bloomFactorA:sint.w;
 
+      // accumulate RGB sum of 2 pixels for the average image brightness
+      // we do this in SUs here, since there are a lot of VUs to fill from RGBA16 conversion
+      {
+        s16 tmp0, tmp1, tmp2, tmp3, tmp4, tmp5;
+        @Barrier("colSum") store(pixel1.xyzw, RSPQ_SCRATCH_MEM, 0);
+        @Barrier("colSum") store(pixel3.xyzw, RSPQ_SCRATCH_MEM, 8);
+        @Barrier("colSum") tmp0 = load(RSPQ_SCRATCH_MEM, 0);
+        @Barrier("colSum") tmp1 = load(RSPQ_SCRATCH_MEM, 2);
+        @Barrier("colSum") tmp2 = load(RSPQ_SCRATCH_MEM, 4);
+        @Barrier("colSum") tmp3 = load(RSPQ_SCRATCH_MEM, 8);
+        @Barrier("colSum") tmp4 = load(RSPQ_SCRATCH_MEM, 10);
+        @Barrier("colSum") tmp5 = load(RSPQ_SCRATCH_MEM, 12);
+        sumRGB += tmp0 + tmp1 + tmp2 + tmp3 + tmp4 + tmp5;
+      }
+
       pixel1 >>>= 10;
 
       pixelOut0 = packRGBA16(pixel0);
       pixel2 >>>= 10;
       pixel3 >>>= 10;
+
 
       pixelOut1 = packRGBA16(pixel1);
       pixelOut2 = packRGBA16(pixel2);
@@ -244,6 +265,11 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
 
     ptrOut += (SCREEN_WIDTH * 2);
   } while(ptrIn != ptrInEnd)
+
+  // DMA back the final intensity into the bloom buffer
+  store(sumRGB, buffDMEM, 0);
+  u16 dmaSize = 8 - 1;
+  dmaOutAsync(ptrIn, buffDMEM, dmaSize);
 }
 
 macro sum4x3(

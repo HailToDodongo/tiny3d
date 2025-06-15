@@ -8,7 +8,8 @@ N64_CFLAGS += -std=gnu2x -O2
 
 PROJECT_NAME=t3d_24_hdr_bloom
 
-src = $(wildcard src/*.cpp) $(wildcard src/render/*.cpp) $(wildcard src/rsp/*.cpp) $(wildcard src/scenes/*.cpp)
+src = $(wildcard src/*.cpp) $(wildcard src/render/*.cpp) $(wildcard src/rsp/*.cpp)
+src += $(wildcard src/scenes/*.cpp) $(wildcard src/camera/*.cpp)
 
 assets_png = $(wildcard assets/*.png)
 assets_gltf = $(wildcard assets/*.glb)
@@ -48,7 +49,7 @@ clean:
 build_lib:
 	rm -rf $(BUILD_DIR) *.z64
 	make -C $(T3D_INST)
-	make all
+	make all -j4
 
 sc64:
 	make

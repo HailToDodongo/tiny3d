@@ -2,7 +2,7 @@
 #include "rsp/rspFX.h"
 #include <utility>
 
-#define MEASURE_PERF 0
+#define MEASURE_PERF 1
 
 namespace {
   constexpr int SCREEN_WIDTH = 320;
@@ -19,7 +19,7 @@ namespace {
       #endif
     }
 
-    ~TimedHighPrio(){
+    ~TimedHighPrio() {
       #if MEASURE_PERF
         rspq_highpri_end();
         rspq_flush();
@@ -113,6 +113,10 @@ void PostProcess::endFrame()
 
 surface_t& PostProcess::applyEffects(surface_t &dst)
 {
+  #ifdef MEASURE_PERF
+    rspq_wait();
+  #endif
+
   surface_t *input = &surfBlurBSafe;
   surface_t *output = &surfBlurASafe;
 
@@ -145,6 +149,10 @@ surface_t& PostProcess::applyEffects(surface_t &dst)
     TimedHighPrio p{"RSP Bloom"};
     RspFX::hdrBlit(surfHDRSafe.buffer, dst.buffer, output->buffer, conf.hdrFactor);
   }
+
+  // Read back image brightness, this is not synced here since we can live with a delay
+  uint32_t *imgBrightness = (uint32_t*)(((char*)surfHDRSafe.buffer) + surfHDRSafe.stride * (surfHDRSafe.height));
+  relBrightness = (double)(*imgBrightness >> 16) / (double)0x707E;
 
   return *output;
 }
