@@ -67,25 +67,26 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
   //ptrBloom += BLUR_STRIDE;
 
   vec16 bloomFactorY = 0;
+
   vec16 bloomFactorA = 0;
   bloomFactorA:sfract.X = 0.25;
-  bloomFactorA:sfract.Y = bloomFactorA:sfract.X;
-  bloomFactorA:sfract.Z = bloomFactorA:sfract.X;
+  bloomFactorA.Y = bloomFactorA.X;
+  bloomFactorA.Z = bloomFactorA.X;
 
   bloomFactorA.w = factor;
 
   vec16 bloomFactorB;
   bloomFactorB:sfract.x = 0.5;
-  bloomFactorB:sfract.y = bloomFactorB:sfract.x;
-  bloomFactorB:sfract.z = bloomFactorB:sfract.x;
+  bloomFactorB.y = bloomFactorB.x;
+  bloomFactorB.z = bloomFactorB.x;
   bloomFactorB:sfract.X = 0.75;
 
   s32 sumRGB;
 
   loop {
     RA = get_dma_busy();
-    bloomFactorB:sfract.Y = bloomFactorB:sfract.X;
-    bloomFactorB:sfract.Z = bloomFactorB:sfract.X;
+    bloomFactorB.Y = bloomFactorB.X;
+    bloomFactorB.Z = bloomFactorB.X;
     sumRGB = 0;
   } while(RA != 0)
 
@@ -134,10 +135,10 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
     bloom0 = load_vec_u8(dmemBloom, 0);
     bloom0Next = load_vec_u8(dmemBloom, 320);
 
-    dmemBloom += 4;
+    bloom2 = load_vec_u8(dmemBloom, 8);
+    bloom2Next = load_vec_u8(dmemBloom, 328);
 
-    bloom2 = load_vec_u8(dmemBloom, 0);
-    bloom2Next = load_vec_u8(dmemBloom, 320);
+    dmemBloom += 8;
 
     vec16 diffY_A = bloom0Next - bloom0;
     vec16 diffY_B = bloom2Next - bloom2;
@@ -158,8 +159,6 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       store(pixelOut3.z, dmemOut, -4);
       store(pixelOut3.Z, dmemOut, -2);
 
-      dmemBloom += 4;
-
       // interpolate vertically
       bloom0:sint = bloom0:sint * 1;
       bloom0:sfract = diffY_A:sfract +* bloomFactorY:sfract;
@@ -173,21 +172,24 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       // in order to do horizontal interpolation we have to LERP 3 values in between A and B (X0, X1, X2)
       // and organize the data so that that span across 2 registers to be added onto the color value later on
       // So we need to transform [A,B] into [A, X0] [X1, X2], B gets thrown away since it is the next starting pixel
-      @Barrier("tmp_1") bloom0Next = bloom0;
-      @Barrier("tmp_0") store(bloom0, tmpMem, 0);
-      @Barrier("tmp_1") @Barrier("tmp_0") bloom0.XYZW = load(tmpMem, 0).xyzw;
-      @Barrier("tmp_0") bloom0Next.xyzw = load(tmpMem, 0).XYZW;
+      @Barrier("tmp_0") store(bloom0.xyzw, tmpMem, 0);
+      @Barrier("tmp_1") store(bloom0.XYZW, tmpMem, 16);
+      @Barrier("tmp_1") store(bloom0.XYZW, tmpMem, 24);
+      @Barrier("tmp_2") store(bloom2.xyzw, tmpMem, 32);
+
+      bloom2Next = bloom2;
+
+      @Barrier("tmp_0") bloom0.XYZW = load(tmpMem, 0).xyzw;
+      @Barrier("tmp_1") bloom2 = load(tmpMem, 16);
+      @Barrier("tmp_2") bloom2Next.XYZW = load(tmpMem, 32).xyzw;
 
       pixel1 >>= 6;
       pixel2 >>= 6;
       pixel3 >>= 6;
 
-      @Barrier("tmp_3") bloom2Next = bloom2; // bloom2Next is the next pixel in the row, so it is the one that will be added to the color
-      @Barrier("tmp_2") store(bloom2, tmpMem, 16);
-      @Barrier("tmp_3") @Barrier("tmp_2") bloom2.XYZW = load(tmpMem, 16).xyzw;
-      @Barrier("tmp_2") bloom2Next.xyzw = load(tmpMem, 16).XYZW;
+      //pixel0 = 0; pixel1 = 0; pixel2 = 0; pixel3 = 0;
 
-      vec16 diffX_A = bloom0Next - bloom0;
+      vec16 diffX_A = bloom2 - bloom0;
 
       bloom1:sint = bloom0:sint * 1;
       bloom1:sfract = diffX_A:sfract +* bloomFactorB:sfract;
@@ -230,7 +232,6 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       pixel2 >>>= 10;
       pixel3 >>>= 10;
 
-
       pixelOut1 = packRGBA16(pixel1);
       pixelOut2 = packRGBA16(pixel2);
       pixelOut3 = packRGBA16(pixel3);
@@ -238,12 +239,12 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       bloom0 = load_vec_u8(dmemBloom, 0);
       bloom0Next = load_vec_u8(dmemBloom, 320);
 
-      dmemBloom += 4;
+      bloom2 = load_vec_u8(dmemBloom, 8);
+      bloom2Next = load_vec_u8(dmemBloom, 328);
 
-      bloom2 = load_vec_u8(dmemBloom, 0);
-      bloom2Next = load_vec_u8(dmemBloom, 320);
+      dmemBloom += 8;
 
-      diffY_A = bloom0Next - bloom0;
+      diffY_A = diffY_B;
       diffY_B = bloom2Next - bloom2;
 
       dmemIn += 32;

@@ -2,33 +2,14 @@
 #include "rsp/rspFX.h"
 #include <utility>
 
-#define MEASURE_PERF 1
-
 namespace {
+  constexpr bool MEASURE_PERF = true;
+
   constexpr int SCREEN_WIDTH = 320;
   constexpr int SCREEN_HEIGHT = 240;
   constexpr int SCALE_FACTOR = 4;
 
-  struct TimedHighPrio {
-    const char* name{};
-    uint64_t t{};
-
-    TimedHighPrio(const char* name): name{name}, t(get_ticks()) {
-      #if MEASURE_PERF
-        rspq_highpri_begin();
-      #endif
-    }
-
-    ~TimedHighPrio() {
-      #if MEASURE_PERF
-        rspq_highpri_end();
-        rspq_flush();
-        rspq_highpri_sync();
-        t = get_ticks() - t;
-        debugf("%s: %.4fms\n", name, (double)TICKS_TO_US(t) / 1000.0f);
-      #endif
-    }
-  };
+  uint64_t t{};
 }
 
 PostProcess::PostProcess()
@@ -113,9 +94,11 @@ void PostProcess::endFrame()
 
 surface_t& PostProcess::applyEffects(surface_t &dst)
 {
-  #ifdef MEASURE_PERF
+  if constexpr (MEASURE_PERF) {
     rspq_wait();
-  #endif
+    rspq_highpri_begin();
+    t = get_ticks();
+  }
 
   surface_t *input = &surfBlurBSafe;
   surface_t *output = &surfBlurASafe;
@@ -127,32 +110,35 @@ surface_t& PostProcess::applyEffects(surface_t &dst)
     blurSteps = 1;
   }
 
-  if(!conf.scalingUseRDP)
-  { // First Pass, downscale image 4:1 with interpolation
-    TimedHighPrio p{"RSP Scale"};
+  // First Pass, downscale image 4:1 with interpolation
+  if(!conf.scalingUseRDP) {
     RspFX::downscale(surfHDRSafe.buffer, output->buffer);
   }
 
-  { // Now blur the smaller image N amount of times by ping-ponging the buffers
-    TimedHighPrio p{"RSP Blur"};
-    for(int i=0; i<blurSteps; ++i) {
-      std::swap(input, output);
-      RspFX::blur(
-        input->buffer, output->buffer,
-        (i == blurSteps-1) ? bloomFactor : 1.0f,
-        (i == 0) ? conf.bloomThreshold : 0.0f
-      );
-    }
+  // Now blur the smaller image N amount of times by ping-ponging the buffers
+  for(int i=0; i<blurSteps; ++i) {
+    std::swap(input, output);
+    RspFX::blur(
+      input->buffer, output->buffer,
+      (i == blurSteps-1) ? bloomFactor : 1.0f,
+      (i == 0) ? conf.bloomThreshold : 0.0f
+    );
   }
 
-  { // Combine original image and blurred image in a combined HDR+Bloom pass
-    TimedHighPrio p{"RSP Bloom"};
-    RspFX::hdrBlit(surfHDRSafe.buffer, dst.buffer, output->buffer, conf.hdrFactor);
-  }
+  // Combine original image and blurred image in a combined HDR+Bloom pass
+  RspFX::hdrBlit(surfHDRSafe.buffer, dst.buffer, output->buffer, conf.hdrFactor);
 
   // Read back image brightness, this is not synced here since we can live with a delay
   uint32_t *imgBrightness = (uint32_t*)(((char*)surfHDRSafe.buffer) + surfHDRSafe.stride * (surfHDRSafe.height));
   relBrightness = (double)(*imgBrightness >> 16) / (double)0x707E;
+
+  if constexpr (MEASURE_PERF) {
+    rspq_highpri_end();
+    rspq_flush();
+    rspq_highpri_sync();
+    t = get_ticks() - t;
+    debugf("RSP-FX: %.4fms\n", (double)TICKS_TO_US(t) / 1000.0f);
+  }
 
   return *output;
 }
