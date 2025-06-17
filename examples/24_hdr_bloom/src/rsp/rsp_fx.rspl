@@ -381,27 +381,30 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
   u16 thresholdStride = BLUR_STRIDE * 3;
 
   loop {
-    dmemInA = BUFF_IN_A;
-    dmemInA -= 4;
-
     u32 dmemOutCurr, dmemOutEnd;
     u16 dmemInBOffset;
 
     loop {
       RA = get_dma_busy();
+      dmemInA = BUFF_IN_A;
+      dmemInA -= 4;
+
       dmemOutCurr = dmemOutStart; // DELAY SLOT
       dmemInBOffset = BLUR_STRIDE_PADDED;
     } while(RA != 0)
 
     u16 dmemInC = dmemInA + BLUR_STRIDE_PADDED*2 - 4;
 
-    if(thresholdBrightness)
-    {
+     if(thresholdBrightness)
+     {
       vec16 tmp;
       u16 ptrClamp = lastLoadedDmemIn;
-      u16 ptrClampEnd = lastLoadedDmemIn + thresholdStride;
+      u16 ptrClampEnd; // = lastLoadedDmemIn + thresholdStride;
+
       loop {
         thresholdStride = BLUR_STRIDE; // reset to 1 line per newly processed line
+        ptrClampEnd = lastLoadedDmemIn + thresholdStride;
+
         vec16 p0 = load_vec_u8(ptrClamp, 0);
         vec16 p1 = load_vec_u8(ptrClamp, 8);
         vec16 p2 = load_vec_u8(ptrClamp, 16);
@@ -461,6 +464,7 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
     tmpB:ufract = pixelA_20:ufract +* VTEMP:ufract.x;
 
     ptrRDRAMOut += BLUR_STRIDE;
+    dmemOutEnd = dmemOutStart + BLUR_STRIDE;
 
     loop {
       u16 dmemInB = dmemInA + dmemInBOffset;
@@ -528,8 +532,6 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
 
       pixelA_01 = load_vec_u8(dmemInA, 8);
       pixelA_11 = load_vec_u8(dmemInB, 8);
-
-      dmemOutEnd = dmemOutStart + BLUR_STRIDE;
 
     } while(dmemOutCurr != dmemOutEnd)
 
