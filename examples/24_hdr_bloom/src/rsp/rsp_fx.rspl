@@ -12,6 +12,8 @@ include "rsp_queue.inc"
 #define BLUR_STRIDE_PADDED (BLUR_WIDTH * 4 + 32)
 
 bss {
+  extern vec16 RSPQ_SCRATCH_MEM;
+
   u32 BUFF_IN_A[SCREEN_WIDTH];
   u32 BUFF_IN_B[SCREEN_WIDTH];
 
@@ -48,23 +50,14 @@ macro dmaOutAsync(u32 addrRDRAM, u32 addrDMEM, u32 size)
   } while(RA != 0)
  }
 
-macro packRGBA16(vec16 out, vec16 in)
-{
-  out = in * 2;
-  out = VCONST_G +* in.yyyyYYYY;
-  out = VCONST_R +* in.xxxxXXXX;
-}
-
 command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
 {
-  vec16 VCONST_R = 1 << 11;
-  vec16 VCONST_G = 1 << 6;
+  vec16 VCONST_RGB;
+  VCONST_RGB.x = 0b0'11111'00000'00000;
 
   u32 ptrInEnd = ptrIn + BUFF_SIZE_RGBA32;
   u16 buffDMEM = BUFF_IN_A;
   u8 bloomPhase = 0;
-  //ptrBloom -= 8;
-  //ptrBloom += BLUR_STRIDE;
 
   vec16 bloomFactorY = 0;
 
@@ -97,13 +90,14 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
     dmaInAsync(ptrIn, ptrDMEM, dmaSize);
 
     u16 dmemBloom = BUFF_BLOOM;
-    u16 bloomDmaSize = BLUR_STRIDE*2;
 
     if(bloomPhase == 0) {
+      u16 bloomDmaSize;
       loop {
         RA = get_dma_busy();
         bloomPhase = 4; // DELAY SLOT
         bloomFactorY = VZERO - 0x2000;
+        bloomDmaSize = BLUR_STRIDE*2;
       } while(RA != 0)
 
       dmaInAsync(ptrBloom, dmemBloom, bloomDmaSize);
@@ -130,7 +124,12 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
     vec16 bloom0, bloom1, bloom2, bloom3;
     vec16 bloom0Next, bloom2Next;
 
-    vec16 pixelOut0, pixelOut1, pixelOut2, pixelOut3;
+    u16 tmpMemA = RSPQ_SCRATCH_MEM;
+    u16 tmpMemB = tmpMemA + 1;
+    u16 tmpMemC = tmpMemA + 2;
+
+    vec16 pixelOut;
+    vec16 pixelR, pixelG, pixelB;
 
     bloom0 = load_vec_u8(dmemBloom, 0);
     bloom0Next = load_vec_u8(dmemBloom, 320);
@@ -150,14 +149,11 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       vec16 pixel2 = load_vec_u8(dmemIn, 16);
       vec16 pixel3 = load_vec_u8(dmemIn, 24);
 
-      store(pixelOut0.z, dmemOut, -16);
-      store(pixelOut0.Z, dmemOut, -14);
-      store(pixelOut1.z, dmemOut, -12);
-      store(pixelOut1.Z, dmemOut, -10);
-      store(pixelOut2.z, dmemOut, -8);
-      store(pixelOut2.Z, dmemOut, -6);
-      store(pixelOut3.z, dmemOut, -4);
-      store(pixelOut3.Z, dmemOut, -2);
+      pixelOut = pixelR:uint * 2;
+      asm_op("vmadl", pixelOut, pixelG, VSHIFT8.w);
+      asm_op("vmadl", pixelOut, pixelB, VSHIFT.x);
+
+      store(pixelOut, dmemOut, -16);
 
       // interpolate vertically
       bloom0:sint = bloom0:sint * 1;
@@ -172,16 +168,15 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       // in order to do horizontal interpolation we have to LERP 3 values in between A and B (X0, X1, X2)
       // and organize the data so that that span across 2 registers to be added onto the color value later on
       // So we need to transform [A,B] into [A, X0] [X1, X2], B gets thrown away since it is the next starting pixel
-      @Barrier("tmp_0") store(bloom0.xyzw, tmpMem, 0);
-      @Barrier("tmp_1") store(bloom0.XYZW, tmpMem, 16);
-      @Barrier("tmp_1") store(bloom0.XYZW, tmpMem, 24);
-      @Barrier("tmp_2") store(bloom2.xyzw, tmpMem, 32);
+      @Barrier("tmp_0") store(bloom0, tmpMem, 0);
+      @Barrier("tmp_2") store(bloom2.xyzw, tmpMem, 24);
 
-      bloom2Next = bloom2;
+      @Barrier("tmp_2") bloom2Next = bloom2;
+      @Barrier("tmp_0") bloom2 = bloom0;
 
       @Barrier("tmp_0") bloom0.XYZW = load(tmpMem, 0).xyzw;
-      @Barrier("tmp_1") bloom2 = load(tmpMem, 16);
-      @Barrier("tmp_2") bloom2Next.XYZW = load(tmpMem, 32).xyzw;
+      @Barrier("tmp_0") bloom2.xyzw = load(tmpMem, 8).xyzw;
+      @Barrier("tmp_2") bloom2Next.XYZW = load(tmpMem, 24).xyzw;
 
       pixel1 >>= 6;
       pixel2 >>= 6;
@@ -205,8 +200,6 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       bloom3:sfract = diffX_B:sfract +* bloomFactorB:sfract;
       pixel3:sint = pixel3:sint +* bloomFactorA:sint.w;
 
-      pixel0 >>>= 10;
-
       bloom2:sint = bloom2:sint * 1;
       bloom2:sfract = diffX_B:sfract +* bloomFactorA:sfract;
       pixel2:sint = pixel2:sint +* bloomFactorA:sint.w;
@@ -214,31 +207,56 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       // accumulate RGB sum of 2 pixels for the average image brightness
       // we do this in SUs here, since there are a lot of VUs to fill from RGBA16 conversion
       {
-        s16 tmp0, tmp1, tmp2, tmp3, tmp4, tmp5;
-        @Barrier("colSum") store(pixel1.xyzw, RSPQ_SCRATCH_MEM, 0);
-        @Barrier("colSum") store(pixel3.xyzw, RSPQ_SCRATCH_MEM, 8);
-        @Barrier("colSum") tmp0 = load(RSPQ_SCRATCH_MEM, 0);
-        @Barrier("colSum") tmp1 = load(RSPQ_SCRATCH_MEM, 2);
-        @Barrier("colSum") tmp2 = load(RSPQ_SCRATCH_MEM, 4);
-        @Barrier("colSum") tmp3 = load(RSPQ_SCRATCH_MEM, 8);
-        @Barrier("colSum") tmp4 = load(RSPQ_SCRATCH_MEM, 10);
-        @Barrier("colSum") tmp5 = load(RSPQ_SCRATCH_MEM, 12);
-        sumRGB += tmp0 + tmp1 + tmp2 + tmp3 + tmp4 + tmp5;
+        u8 tmp0, tmp1, tmp2, tmp3, tmp4, tmp5;
+        tmp0 = load(RSPQ_SCRATCH_MEM, 0);
+        tmp1 = load(RSPQ_SCRATCH_MEM, 1);
+        tmp2 = load(RSPQ_SCRATCH_MEM, 2);
+        tmp3 = load(RSPQ_SCRATCH_MEM, 4);
+        tmp4 = load(RSPQ_SCRATCH_MEM, 5);
+        tmp5 = load(RSPQ_SCRATCH_MEM, 6);
+        tmp0 += tmp1;
+        tmp2 += tmp3;
+        tmp4 += tmp5;
+        sumRGB += tmp0 + tmp2 + tmp4;
+      }
+      {
+          // Store as [RGBA RGBA RGBA RGBA]
+          @Barrier("rgba16") store_vec_u8(pixel0, tmpMemA, 0);
+          @Barrier("rgba16") store_vec_u8(pixel1, tmpMemA, 8);
+          @Barrier("rgba16") store_vec_u8(pixel2, tmpMemA, 16);
+          @Barrier("rgba16") store_vec_u8(pixel3, tmpMemA, 24);
+
+          // Now load each component into a vector
+          // "lfv" will load every 4th byte, starting from tmpMem
+          // So [R0 R1 ... R6 R7] [G0 G1 ... G6 G7] [B0 B1 ... B6 B7]
+          @Barrier("rgba16")
+          asm_op("lfv", pixelR, 0,  0, tmpMemA);
+          @Barrier("rgba16")
+          asm_op("lfv", pixelR, 8, 16, tmpMemA);
+          pixelR &= VCONST_RGB.x;
+
+          @Barrier("rgba16")
+          asm_op("lfv", pixelG, 0,  0, tmpMemB);
+          @Barrier("rgba16")
+          asm_op("lfv", pixelG, 8, 16, tmpMemB);
+          pixelG &= VCONST_RGB.x;
+
+          pixelB.x = pixel0.z;
+          pixelB.y = pixel0.Z;
+          pixelB.z = pixel1.z;
+          pixelB.w = pixel1.Z;
+          pixelB.X = pixel2.z;
+          pixelB.Y = pixel2.Z;
+          pixelB.Z = pixel3.z;
+          pixelB.W = pixel3.Z;
+          //@Barrier("rgba16")
+          //asm_op("lfv", pixelB, 0,  0, tmpMemC);
+          //@Barrier("rgba16")
+          //asm_op("lfv", pixelB, 8, 16, tmpMemC);
+          // Note: pixelB needs no mask as it only flows into the unused alpha channel
       }
 
-      pixel1 >>>= 10;
-
-      pixelOut0 = packRGBA16(pixel0);
-      pixel2 >>>= 10;
-      pixel3 >>>= 10;
-
-      pixelOut1 = packRGBA16(pixel1);
-      pixelOut2 = packRGBA16(pixel2);
-      pixelOut3 = packRGBA16(pixel3);
-
       bloom0 = load_vec_u8(dmemBloom, 0);
-      bloom0Next = load_vec_u8(dmemBloom, 320);
-
       bloom2 = load_vec_u8(dmemBloom, 8);
       bloom2Next = load_vec_u8(dmemBloom, 328);
 
@@ -254,10 +272,11 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
 
     } while(dmemIn != dmemInEnd)
 
-    store(pixelOut0.z, dmemOut, -16);
-    store(pixelOut0.Z, dmemOut, -14);
-    store(pixelOut1.z, dmemOut, -12);
-    store(pixelOut1.Z, dmemOut, -10);
+    pixelOut = pixelR:uint * 2;
+    asm_op("vmadl", pixelOut, pixelG, VSHIFT8.w);
+    asm_op("vmadl", pixelOut, pixelB, VSHIFT.x);
+
+    store(pixelOut.xyzw, dmemOut, -16);
     store(VZERO.xy, dmemOut, -8);
 
     u32 dmaSize = (SCREEN_WIDTH * 2) - 1;

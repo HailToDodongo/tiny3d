@@ -26,6 +26,10 @@ extern "C" {
 namespace {
   constexpr uint32_t BLUR_STRIDE = 80*4;
 
+  constexpr uint32_t CMD_HDR_BLIT   = 0x00;
+  constexpr uint32_t CMD_BLUR       = 0x01;
+  constexpr uint32_t CMD_DOWN_SCALE = 0x02;
+
   uint32_t rspIdFX{0};
 }
 
@@ -39,7 +43,7 @@ void RspFX::init()
 void RspFX::hdrBlit(void* rgba32In, void *rgba16Out, void* rgba32BloomIn, float factor)
 {
   uint32_t factorInt = (uint32_t)(factor * 64) & 0xFFFF;
-  rspq_write_4(rspIdFX, 0,
+  rspq_write_4(rspIdFX, CMD_HDR_BLIT,
      (uint32_t)rgba32In & 0xFFFFFF,
      (uint32_t)rgba16Out & 0xFFFFFF,
      (uint32_t)rgba32BloomIn & 0xFFFFFF,
@@ -49,7 +53,7 @@ void RspFX::hdrBlit(void* rgba32In, void *rgba16Out, void* rgba32BloomIn, float 
 
 void RspFX::downscale(void* rgba32In, void* rgba32Out)
 {
-  rspq_write_2(rspIdFX, 2,
+  rspq_write_2(rspIdFX, CMD_DOWN_SCALE,
      (uint32_t)rgba32In & 0xFFFFFF,
      (uint32_t)rgba32Out & 0xFFFFFF
   );
@@ -63,10 +67,9 @@ void RspFX::blur(void* rgba32In, void* rgba32Out, float brightness, float thresh
   factors <<= 16;
   factors |= (uint32_t)(brightness * quantFactor) & 0xFFFF;
 
-  rspq_write_3(rspIdFX, 1,
+  rspq_write_3(rspIdFX, CMD_BLUR,
     (uint32_t)rgba32In & 0xFFFFFF,
     ((uint32_t)rgba32Out - BLUR_STRIDE) & 0xFFFFFF,
     factors
-
   );
 }

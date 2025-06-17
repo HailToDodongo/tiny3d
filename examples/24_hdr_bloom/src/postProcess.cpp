@@ -130,7 +130,7 @@ surface_t& PostProcess::applyEffects(surface_t &dst)
 
   // Read back image brightness, this is not synced here since we can live with a delay
   uint32_t *imgBrightness = (uint32_t*)(((char*)surfHDRSafe.buffer) + surfHDRSafe.stride * (surfHDRSafe.height));
-  relBrightness = (double)(*imgBrightness >> 16) / (double)0x707E;
+  relBrightness = (double)(*imgBrightness >> 8) / (double)0xD9F3;
 
   if constexpr (MEASURE_PERF) {
     rspq_highpri_end();
