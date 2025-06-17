@@ -103,11 +103,9 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       dmaInAsync(ptrBloom, dmemBloom, bloomDmaSize);
       ptrBloom += BLUR_STRIDE;
     }
+
     bloomPhase -= 1;
-
     ptrIn += SCREEN_STRIDE;
-
-    u16 tmpMem = SAFE_SPACE_3;
 
     u32 dmemIn, dmemOut;
     u32 dmemInEnd;
@@ -149,15 +147,17 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       vec16 pixel2 = load_vec_u8(dmemIn, 16);
       vec16 pixel3 = load_vec_u8(dmemIn, 24);
 
+      // finish conversion to RGBA16
+      // values are already masked, so just shift and accumulate
       pixelOut = pixelR:uint * 2;
       asm_op("vmadl", pixelOut, pixelG, VSHIFT8.w);
       asm_op("vmadl", pixelOut, pixelB, VSHIFT.x);
 
-      store(pixelOut, dmemOut, -16);
-
-      // interpolate vertically
+      // interpolate bloom vertically
       bloom0:sint = bloom0:sint * 1;
       bloom0:sfract = diffY_A:sfract +* bloomFactorY:sfract;
+
+      store(pixelOut, dmemOut, -16);
 
       pixel0 >>= 6;
 
@@ -168,15 +168,15 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       // in order to do horizontal interpolation we have to LERP 3 values in between A and B (X0, X1, X2)
       // and organize the data so that that span across 2 registers to be added onto the color value later on
       // So we need to transform [A,B] into [A, X0] [X1, X2], B gets thrown away since it is the next starting pixel
-      @Barrier("tmp_0") store(bloom0, tmpMem, 0);
-      @Barrier("tmp_2") store(bloom2.xyzw, tmpMem, 24);
+      @Barrier("tmp_0") store(bloom0, RSPQ_SCRATCH_MEM, 0);
+      @Barrier("tmp_2") store(bloom2.xyzw, RSPQ_SCRATCH_MEM, 24);
 
       @Barrier("tmp_2") bloom2Next = bloom2;
       @Barrier("tmp_0") bloom2 = bloom0;
 
-      @Barrier("tmp_0") bloom0.XYZW = load(tmpMem, 0).xyzw;
-      @Barrier("tmp_0") bloom2.xyzw = load(tmpMem, 8).xyzw;
-      @Barrier("tmp_2") bloom2Next.XYZW = load(tmpMem, 24).xyzw;
+      @Barrier("tmp_0") bloom0.XYZW = load(RSPQ_SCRATCH_MEM, 0).xyzw;
+      @Barrier("tmp_0") bloom2.xyzw = load(RSPQ_SCRATCH_MEM, 8).xyzw;
+      @Barrier("tmp_2") bloom2Next.XYZW = load(RSPQ_SCRATCH_MEM, 24).xyzw;
 
       pixel1 >>= 6;
       pixel2 >>= 6;
@@ -208,16 +208,13 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       // we do this in SUs here, since there are a lot of VUs to fill from RGBA16 conversion
       {
         u8 tmp0, tmp1, tmp2, tmp3, tmp4, tmp5;
-        tmp0 = load(RSPQ_SCRATCH_MEM, 0);
-        tmp1 = load(RSPQ_SCRATCH_MEM, 1);
-        tmp2 = load(RSPQ_SCRATCH_MEM, 2);
-        tmp3 = load(RSPQ_SCRATCH_MEM, 4);
-        tmp4 = load(RSPQ_SCRATCH_MEM, 5);
-        tmp5 = load(RSPQ_SCRATCH_MEM, 6);
-        tmp0 += tmp1;
-        tmp2 += tmp3;
-        tmp4 += tmp5;
-        sumRGB += tmp0 + tmp2 + tmp4;
+        tmp0 = load(tmpMemA, 8);
+        tmp1 = load(tmpMemA, 9);
+        tmp2 = load(tmpMemA, 10);
+        tmp3 = load(tmpMemA, 24);
+        tmp4 = load(tmpMemA, 25);
+        tmp5 = load(tmpMemA, 26);
+        sumRGB += tmp0 + tmp1 + tmp2 + tmp3 + tmp4 + tmp5;
       }
       {
           // Store as [RGBA RGBA RGBA RGBA]
