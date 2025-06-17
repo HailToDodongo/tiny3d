@@ -292,24 +292,38 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
   dmaOutAsync(ptrIn, buffDMEM, dmaSize);
 }
 
-macro sum4x3(
+macro sum4x3_chainStart(
   vec16 sum, vec16 factor,
   vec16 pixel00, vec16 pixel10, vec16 pixel20,
-  vec16 pixel01, vec16 pixel11, vec16 pixel21
+  vec16 pixel01, vec16 pixel11, vec16 pixel21,
+  vec16 tempOut
 )
 {
-  sum:ufract = pixel00:ufract *  factor:ufract.x;
+  sum:ufract = pixel01:ufract  * factor:ufract.x;
+  sum:ufract = pixel11:ufract +* factor:ufract.x;
+  tempOut:ufract = pixel21:ufract +* factor:ufract.x;
+
+  sum:ufract = pixel00:ufract +* factor:ufract.x;
   sum:ufract = pixel10:ufract +* factor:ufract.x;
   sum:ufract = pixel20:ufract +* factor:ufract.x;
+}
 
-  sum:ufract = pixel01:ufract +* factor:ufract.x;
+macro sum4x3_chain(
+  vec16 sum, vec16 factor,
+  vec16 pixel01, vec16 pixel11, vec16 pixel21,
+  vec16 tempIn, vec16 tempOut
+)
+{
+  sum:ufract = pixel01:ufract  * factor:ufract.x;
   sum:ufract = pixel11:ufract +* factor:ufract.x;
-  sum:ufract = pixel21:ufract +* factor:ufract.x;
+  tempOut:ufract = pixel21:ufract +* factor:ufract.x;
+  sum:sint = tempIn:sint +* 1;
 }
 
 macro clampBrightness(vec16 pixel)
 {
-  pixel = pixel < factor.y ? VZERO : pixel;
+  tmp = pixel < VTEMP.y;
+  pixel = select(VZERO, pixel);
 }
 
 command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
@@ -321,11 +335,9 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
   u16 dmemInOffset = 0;
   u16 dmemInOffsetEnd = BLUR_STRIDE_PADDED * 3;
 
-  // @TODO: use proper kernel(?) | uses 2 register(?)
-  vec16 factor;
-  factor.x = thresholdBrightness;
+  VTEMP.x = thresholdBrightness;
   thresholdBrightness >>= 16;
-  factor.y = thresholdBrightness;
+  VTEMP.y = thresholdBrightness;
 
   u16 dmemInA;
   u32 dmemOutStart;
@@ -385,6 +397,7 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
 
     if(thresholdBrightness)
     {
+      vec16 tmp;
       u16 ptrClamp = lastLoadedDmemIn;
       u16 ptrClampEnd = lastLoadedDmemIn + thresholdStride;
       loop {
@@ -441,15 +454,19 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
       store(tmp1, lastLoadedDmemIn, 320);
     }
 
+    vec16 tmpA, tmpB;
+
+    tmpA:ufract = pixelA_00:ufract  * VTEMP:ufract.x;
+    tmpA:ufract = pixelA_10:ufract +* VTEMP:ufract.x;
+    tmpB:ufract = pixelA_20:ufract +* VTEMP:ufract.x;
+
+    ptrRDRAMOut += BLUR_STRIDE;
+
     loop {
       u16 dmemInB = dmemInA + dmemInBOffset;
       dmemInBOffset ^= 4;
 
       vec16 pixelA_21 = load_vec_u8(dmemInC, 8);
-
-      vec16 pixelB_01 = load_vec_u8(dmemInA, 16);
-      vec16 pixelB_11 = load_vec_u8(dmemInB, 16);
-      vec16 pixelB_21 = load_vec_u8(dmemInC, 16);
 
       vec16 pixelF_01 = load_vec_u8(dmemInA, 48);
       vec16 pixelF_11 = load_vec_u8(dmemInB, 48);
@@ -457,6 +474,10 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
 
       vec16 sum0, sum1, sum2, sum3, sum4, sum5;
       {
+        vec16 pixelB_01 = load_vec_u8(dmemInA, 16);
+        vec16 pixelB_11 = load_vec_u8(dmemInB, 16);
+        vec16 pixelB_21 = load_vec_u8(dmemInC, 16);
+
         vec16 pixelC_01 = load_vec_u8(dmemInA, 24);
         vec16 pixelC_11 = load_vec_u8(dmemInB, 24);
         vec16 pixelC_21 = load_vec_u8(dmemInC, 24);
@@ -467,14 +488,17 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
 
         vec16 pixelE_01 = load_vec_u8(dmemInA, 40);
         vec16 pixelE_11 = load_vec_u8(dmemInB, 40);
+
+        sum0 = sum4x3_chain(VTEMP, pixelA_01, pixelA_11, pixelA_21, tmpB, tmpA);
+        sum1 = sum4x3_chain(VTEMP, pixelB_01, pixelB_11, pixelB_21, tmpA, tmpB);
+        sum2 = sum4x3_chain(VTEMP, pixelC_01, pixelC_11, pixelC_21, tmpB, tmpA);
+
+        undef pixelB_21;
         vec16 pixelE_21 = load_vec_u8(dmemInC, 40);
 
-        sum0 = sum4x3(factor, pixelA_00, pixelA_10, pixelA_20, pixelA_01, pixelA_11, pixelA_21);
-        sum1 = sum4x3(factor, pixelA_01, pixelA_11, pixelA_21, pixelB_01, pixelB_11, pixelB_21);
-        sum2 = sum4x3(factor, pixelB_01, pixelB_11, pixelB_21, pixelC_01, pixelC_11, pixelC_21);
-        sum3 = sum4x3(factor, pixelC_01, pixelC_11, pixelC_21, pixelD_01, pixelD_11, pixelD_21);
-        sum4 = sum4x3(factor, pixelD_01, pixelD_11, pixelD_21, pixelE_01, pixelE_11, pixelE_21);
-        sum5 = sum4x3(factor, pixelE_01, pixelE_11, pixelE_21, pixelF_01, pixelF_11, pixelF_21);
+        sum3 = sum4x3_chain(VTEMP, pixelD_01, pixelD_11, pixelD_21, tmpA, tmpB);
+        sum4 = sum4x3_chain(VTEMP, pixelE_01, pixelE_11, pixelE_21, tmpB, tmpA);
+        sum5 = sum4x3_chain(VTEMP, pixelF_01, pixelF_11, pixelF_21, tmpA, tmpB);
       }
 
       vec16 pixelG_01 = load_vec_u8(dmemInA, 56);
@@ -485,13 +509,12 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
       pixelA_10 = load_vec_u8(dmemInB, 64);
       pixelA_20 = load_vec_u8(dmemInC, 64);
 
+      vec16 sum6 = sum4x3_chain(VTEMP, pixelG_01, pixelG_11, pixelG_21, tmpB, tmpA);
+      vec16 sum7 = sum4x3_chain(VTEMP, pixelA_00, pixelA_10, pixelA_20, tmpA, tmpB);
+
       dmemInA += 64;
       dmemInB += 64;
       dmemInC += 64;
-
-      vec16 sum6 = sum4x3(factor, pixelF_01, pixelF_11, pixelF_21, pixelG_01, pixelG_11, pixelG_21);
-      vec16 sum7 = sum4x3(factor, pixelG_01, pixelG_11, pixelG_21, pixelA_00, pixelA_10, pixelA_20);
-
       dmemOutCurr += 64;
 
       store_vec_u8(sum0, dmemOutCurr, -64);
@@ -507,7 +530,6 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
       pixelA_11 = load_vec_u8(dmemInB, 8);
 
       dmemOutEnd = dmemOutStart + BLUR_STRIDE;
-      ptrRDRAMOut += 64;
 
     } while(dmemOutCurr != dmemOutEnd)
 

@@ -281,236 +281,224 @@ Cmd_HDRBloom:
   j RSPQ_Loop                                        ## L:43   |    128 | }
   mtc0 $s3, COP0_DMA_WRITE                           ## L:42   |   *130 | @Barrier("DMA") set_dma_write(size); ## Barrier: 0x1
 Cmd_Blur:
-  addiu $s5, $zero, 319                              ## L:300  |      ^ | u16 dmaSize = (80 * 4) - 1;
-  mtc2 $a2, $v28.e0                                  ## L:306  |      2 | factor.x = thresholdBrightness;
-  addiu $s6, $zero, 60                               ## L:298  |      3 | u32 rowsLeft = 60;
-  or $s4, $zero, $zero                               ## L:301  |      4 | u16 dmemInOffset = 0;
-  addiu $s3, $zero, 1056                             ## L:302  |      5 | u16 dmemInOffsetEnd = (80 * 4 + 32) * 3;
-  addiu $s7, $a0, 18880                              ## L:297  |      6 | u32 ptrRDRAMInEnd = ptrRDRAMIn + ((80 * 4) * (60 - 1));
-  srl $a2, $a2, 16                                   ## L:307  |      7 | thresholdBrightness >>= 16;
-  mtc2 $a2, $v28.e1                                  ## L:308  |      8 | factor.y = thresholdBrightness;
+  addiu $s5, $zero, 319                              ## L:349  |      ^ | u16 dmaSize = (80 * 4) - 1;
+  addiu $s6, $zero, 60                               ## L:347  |      2 | u32 rowsLeft = 60;
+  or $s4, $zero, $zero                               ## L:350  |      3 | u16 dmemInOffset = 0;
+  mtc2 $a2, $v29.e0                                  ## L:353  |      4 | VTEMP.x = thresholdBrightness;
+  addiu $s3, $zero, 1056                             ## L:351  |      5 | u16 dmemInOffsetEnd = (80 * 4 + 32) * 3;
+  srl $a2, $a2, 16                                   ## L:354  |      6 | thresholdBrightness >>= 16;
+  addiu $s7, $a0, 18880                              ## L:346  |      7 | u32 ptrRDRAMInEnd = ptrRDRAMIn + ((80 * 4) * (60 - 1));
+  mtc2 $a2, $v29.e1                                  ## L:355  |      8 | VTEMP.y = thresholdBrightness;
   LABEL_Cmd_Blur_000C:
-  mfc0 $ra, COP0_DMA_BUSY                            ## L:315  |      9 | RA = get_dma_busy();
-  ori $s2, $zero, %lo(BUFF_IN_A)                     ## L:316  |     10 | dmemInA = BUFF_IN_A;
-  or $s0, $zero, $s2                                 ## L:318  |     11 | lastLoadedDmemIn = dmemInA;
-  bne $ra, $zero, LABEL_Cmd_Blur_000C                ## L:318  |     12 | lastLoadedDmemIn = dmemInA;
-  addiu $s1, $s2, 1056                               ## L:317  |    *14 | dmemOutStart = dmemInA + ((80 * 4 + 32)*3);
+  mfc0 $ra, COP0_DMA_BUSY                            ## L:362  |      9 | RA = get_dma_busy();
+  ori $s2, $zero, %lo(BUFF_IN_A)                     ## L:363  |     10 | dmemInA = BUFF_IN_A;
+  or $s0, $zero, $s2                                 ## L:365  |     11 | lastLoadedDmemIn = dmemInA;
+  bne $ra, $zero, LABEL_Cmd_Blur_000C                ## L:365  |     12 | lastLoadedDmemIn = dmemInA;
+  addiu $s1, $s2, 1056                               ## L:364  |    *14 | dmemOutStart = dmemInA + ((80 * 4 + 32)*3);
   LABEL_Cmd_Blur_000D:
-  mtc0 $s2, COP0_DMA_SPADDR                          ## L:30   |     15 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
-  mtc0 $a0, COP0_DMA_RAMADDR                         ## L:31   |     16 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
-  addiu $s2, $s2, 352                                ## L:324  |     17 | dmemInA += (80 * 4 + 32);
-  mtc0 $s5, COP0_DMA_READ                            ## L:32   |    *19 | @Barrier("DMA") set_dma_read(size); ## Barrier: 0x1
+  mtc0 $s2, COP0_DMA_SPADDR                          ## L:32   |     15 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
+  mtc0 $a0, COP0_DMA_RAMADDR                         ## L:33   |     16 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
+  addiu $s2, $s2, 352                                ## L:371  |     17 | dmemInA += (80 * 4 + 32);
+  mtc0 $s5, COP0_DMA_READ                            ## L:34   |    *19 | @Barrier("DMA") set_dma_read(size); ## Barrier: 0x1
   LABEL_Cmd_Blur_000E:
-  mfc0 $ra, COP0_DMA_BUSY                            ## L:46   |     20 | RA = get_dma_busy();
-  bne $ra, $zero, LABEL_Cmd_Blur_000E                ## L:46   |   **23 | RA = get_dma_busy();
-  nop                                                ## L:46   |    *25 | RA = get_dma_busy();
+  mfc0 $ra, COP0_DMA_BUSY                            ## L:48   |     20 | RA = get_dma_busy();
+  bne $ra, $zero, LABEL_Cmd_Blur_000E                ## L:48   |   **23 | RA = get_dma_busy();
+  nop                                                ## L:48   |    *25 | RA = get_dma_busy();
   LABEL_Cmd_Blur_000F:
-  mtc0 $s2, COP0_DMA_SPADDR                          ## L:30   |     26 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
-  mtc0 $a0, COP0_DMA_RAMADDR                         ## L:31   |     27 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
-  addiu $a0, $a0, 320                                ## L:329  |     28 | ptrRDRAMIn += (80 * 4);
-  addiu $s2, $s2, 352                                ## L:328  |     29 | dmemInA += (80 * 4 + 32);
-  mtc0 $s5, COP0_DMA_READ                            ## L:32   |     30 | @Barrier("DMA") set_dma_read(size); ## Barrier: 0x1
+  mtc0 $s2, COP0_DMA_SPADDR                          ## L:32   |     26 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
+  mtc0 $a0, COP0_DMA_RAMADDR                         ## L:33   |     27 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
+  addiu $a0, $a0, 320                                ## L:376  |     28 | ptrRDRAMIn += (80 * 4);
+  addiu $s2, $s2, 352                                ## L:375  |     29 | dmemInA += (80 * 4 + 32);
+  mtc0 $s5, COP0_DMA_READ                            ## L:34   |     30 | @Barrier("DMA") set_dma_read(size); ## Barrier: 0x1
   LABEL_Cmd_Blur_0010:
-  mfc0 $ra, COP0_DMA_BUSY                            ## L:46   |     31 | RA = get_dma_busy();
-  bne $ra, $zero, LABEL_Cmd_Blur_0010                ## L:46   |   **34 | RA = get_dma_busy();
-  nop                                                ## L:46   |    *36 | RA = get_dma_busy();
+  mfc0 $ra, COP0_DMA_BUSY                            ## L:48   |     31 | RA = get_dma_busy();
+  bne $ra, $zero, LABEL_Cmd_Blur_0010                ## L:48   |   **34 | RA = get_dma_busy();
+  nop                                                ## L:48   |    *36 | RA = get_dma_busy();
   LABEL_Cmd_Blur_0011:
-  mtc0 $s2, COP0_DMA_SPADDR                          ## L:30   |     37 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
-  mtc0 $a0, COP0_DMA_RAMADDR                         ## L:31   |     38 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
-  addiu $a0, $a0, 320                                ## L:333  |     39 | ptrRDRAMIn += (80 * 4);
-  mtc0 $s5, COP0_DMA_READ                            ## L:32   |    *41 | @Barrier("DMA") set_dma_read(size); ## Barrier: 0x1
+  mtc0 $s2, COP0_DMA_SPADDR                          ## L:32   |     37 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
+  mtc0 $a0, COP0_DMA_RAMADDR                         ## L:33   |     38 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
+  addiu $a0, $a0, 320                                ## L:380  |     39 | ptrRDRAMIn += (80 * 4);
+  mtc0 $s5, COP0_DMA_READ                            ## L:34   |    *41 | @Barrier("DMA") set_dma_read(size); ## Barrier: 0x1
   LABEL_Cmd_Blur_0012:
-  mfc0 $ra, COP0_DMA_BUSY                            ## L:46   |     42 | RA = get_dma_busy();
-  bne $ra, $zero, LABEL_Cmd_Blur_0012                ## L:46   |   **45 | RA = get_dma_busy();
-  nop                                                ## L:46   |    *47 | RA = get_dma_busy();
+  mfc0 $ra, COP0_DMA_BUSY                            ## L:48   |     42 | RA = get_dma_busy();
+  bne $ra, $zero, LABEL_Cmd_Blur_0012                ## L:48   |   **45 | RA = get_dma_busy();
+  nop                                                ## L:48   |    *47 | RA = get_dma_busy();
   LABEL_Cmd_Blur_0013:
-  lw $fp, 316($s2)                                   ## L:337  |     48 | u32 tmp1 = load(dmemInA, 316);
-  sw $fp, 320($s2)                                   ## L:338  |   **51 | store(tmp1, dmemInA, 320);
-  addiu $s2, $s2, 65184                              ## L:340  |     52 | dmemInA -= (80 * 4 + 32);
-  lw $sp, 316($s2)                                   ## L:341  |     53 | u32 tmp2 = load(dmemInA, 316);
-  addiu $fp, $zero, 960                              ## L:349  |     54 | u16 thresholdStride = (80 * 4) * 3;
-  sw $sp, 320($s2)                                   ## L:342  |    *56 | store(tmp2, dmemInA, 320);
+  lw $fp, 316($s2)                                   ## L:384  |     48 | u32 tmp1 = load(dmemInA, 316);
+  sw $fp, 320($s2)                                   ## L:385  |   **51 | store(tmp1, dmemInA, 320);
+  addiu $s2, $s2, 65184                              ## L:387  |     52 | dmemInA -= (80 * 4 + 32);
+  lw $sp, 316($s2)                                   ## L:388  |     53 | u32 tmp2 = load(dmemInA, 316);
+  addiu $fp, $zero, 960                              ## L:396  |     54 | u16 thresholdStride = (80 * 4) * 3;
+  sw $sp, 320($s2)                                   ## L:389  |    *56 | store(tmp2, dmemInA, 320);
   LABEL_Cmd_Blur_0014:
-  ori $s2, $zero, %lo(BUFF_IN_A)                     ## L:352  |     57 | dmemInA = BUFF_IN_A;
-  addiu $s2, $s2, 65532                              ## L:353  |     58 | dmemInA -= 4;
+  ori $s2, $zero, %lo(BUFF_IN_A)                     ## L:399  |     57 | dmemInA = BUFF_IN_A;
+  addiu $s2, $s2, 65532                              ## L:400  |     58 | dmemInA -= 4;
   LABEL_Cmd_Blur_0016:
-  mfc0 $ra, COP0_DMA_BUSY                            ## L:359  |     59 | RA = get_dma_busy();
-  or $sp, $zero, $s1                                 ## L:360  |     60 | dmemOutCurr = dmemOutStart;
-  bne $ra, $zero, LABEL_Cmd_Blur_0016                ## L:361  |    *62 | dmemInBOffset = (80 * 4 + 32);
-  addiu $k0, $zero, 352                              ## L:361  |    *64 | dmemInBOffset = (80 * 4 + 32);
+  mfc0 $ra, COP0_DMA_BUSY                            ## L:406  |     59 | RA = get_dma_busy();
+  addiu $k0, $zero, 352                              ## L:408  |     60 | dmemInBOffset = (80 * 4 + 32);
+  or $sp, $zero, $s1                                 ## L:407  |     61 | dmemOutCurr = dmemOutStart;
+  bne $ra, $zero, LABEL_Cmd_Blur_0016                ## L:408  |     62 | dmemInBOffset = (80 * 4 + 32);
+  nop                                                ## L:408  |    *64 | dmemInBOffset = (80 * 4 + 32);
   LABEL_Cmd_Blur_0017:
-  beq $a2, $zero, LABEL_Cmd_Blur_0018                ## L:366  |     65 | if(thresholdBrightness)
-  addiu $t9, $s2, 700                                ## L:364  |    *67 | u16 dmemInC = dmemInA + (80 * 4 + 32)*2 - 4;
-  or $t8, $zero, $s0                                 ## L:368  |     68 | u16 ptrClamp = lastLoadedDmemIn;
-  addu $t7, $s0, $fp                                 ## L:369  |     69 | u16 ptrClampEnd = lastLoadedDmemIn + thresholdStride;
+  beq $a2, $zero, LABEL_Cmd_Blur_0018                ## L:413  |     65 | if(thresholdBrightness)
+  addiu $t9, $s2, 700                                ## L:411  |    *67 | u16 dmemInC = dmemInA + (80 * 4 + 32)*2 - 4;
+  addu $t7, $s0, $fp                                 ## L:417  |     68 | u16 ptrClampEnd = lastLoadedDmemIn + thresholdStride;
+  or $t8, $zero, $s0                                 ## L:416  |     69 | u16 ptrClamp = lastLoadedDmemIn;
   LABEL_Cmd_Blur_0019:
-  luv $v27, 0, 0, $t8                                ## L:372  |     70 | vec16 p0 = load_vec_u8(ptrClamp, 0);
-  luv $v25, 0, 16, $t8                               ## L:374  |     71 | vec16 p2 = load_vec_u8(ptrClamp, 16);
-  luv $v26, 0, 8, $t8                                ## L:373  |     72 | vec16 p1 = load_vec_u8(ptrClamp, 8);
-  luv $v21, 0, 48, $t8                               ## L:378  |     73 | vec16 p6 = load_vec_u8(ptrClamp, 48);
-  luv $v24, 0, 24, $t8                               ## L:375  |     74 | vec16 p3 = load_vec_u8(ptrClamp, 24);
-  vlt $v29, $v27, $v28.e1                            ## L:292  |      ^ | pixel = pixel < factor.y ? VZERO : pixel;
-  luv $v22, 0, 40, $t8                               ## L:377  |     75 | vec16 p5 = load_vec_u8(ptrClamp, 40);
-  vmrg $v27, $v00, $v27                              ## L:292  |      ^ | pixel = pixel < factor.y ? VZERO : pixel;
-  luv $v19, 0, 64, $t8                               ## L:380  |     76 | vec16 p8 = load_vec_u8(ptrClamp, 64);
-  vlt $v29, $v26, $v28.e1                            ## L:292  |      ^ | pixel = pixel < factor.y ? VZERO : pixel;
-  luv $v23, 0, 32, $t8                               ## L:376  |     77 | vec16 p4 = load_vec_u8(ptrClamp, 32);
-  vmrg $v26, $v00, $v26                              ## L:292  |      ^ | pixel = pixel < factor.y ? VZERO : pixel;
-  vlt $v29, $v25, $v28.e1                            ## L:292  |     78 | pixel = pixel < factor.y ? VZERO : pixel;
-  vmrg $v25, $v00, $v25                              ## L:292  |     79 | pixel = pixel < factor.y ? VZERO : pixel;
-  luv $v20, 0, 56, $t8                               ## L:379  |      ^ | vec16 p7 = load_vec_u8(ptrClamp, 56);
-  suv $v27, 0, 0, $t8                                ## L:394  |     80 | store_vec_u8(p0, ptrClamp, 0);
-  vlt $v29, $v24, $v28.e1                            ## L:292  |      ^ | pixel = pixel < factor.y ? VZERO : pixel;
-  vmrg $v24, $v00, $v24                              ## L:292  |     81 | pixel = pixel < factor.y ? VZERO : pixel;
-  vlt $v29, $v23, $v28.e1                            ## L:292  |     82 | pixel = pixel < factor.y ? VZERO : pixel;
-  vmrg $v23, $v00, $v23                              ## L:292  |     83 | pixel = pixel < factor.y ? VZERO : pixel;
-  suv $v26, 0, 8, $t8                                ## L:395  |      ^ | store_vec_u8(p1, ptrClamp, 8);
-  vlt $v29, $v22, $v28.e1                            ## L:292  |     84 | pixel = pixel < factor.y ? VZERO : pixel;
-  vmrg $v22, $v00, $v22                              ## L:292  |     85 | pixel = pixel < factor.y ? VZERO : pixel;
-  suv $v25, 0, 16, $t8                               ## L:396  |      ^ | store_vec_u8(p2, ptrClamp, 16);
-  vlt $v29, $v21, $v28.e1                            ## L:292  |     86 | pixel = pixel < factor.y ? VZERO : pixel;
-  luv $v18, 0, 72, $t8                               ## L:381  |      ^ | vec16 p9 = load_vec_u8(ptrClamp, 72);
-  vmrg $v21, $v00, $v21                              ## L:292  |     87 | pixel = pixel < factor.y ? VZERO : pixel;
-  vlt $v29, $v20, $v28.e1                            ## L:292  |     88 | pixel = pixel < factor.y ? VZERO : pixel;
-  vmrg $v20, $v00, $v20                              ## L:292  |     89 | pixel = pixel < factor.y ? VZERO : pixel;
-  suv $v23, 0, 32, $t8                               ## L:398  |      ^ | store_vec_u8(p4, ptrClamp, 32);
-  vlt $v29, $v19, $v28.e1                            ## L:292  |     90 | pixel = pixel < factor.y ? VZERO : pixel;
-  suv $v24, 0, 24, $t8                               ## L:397  |      ^ | store_vec_u8(p3, ptrClamp, 24);
-  suv $v21, 0, 48, $t8                               ## L:400  |     91 | store_vec_u8(p6, ptrClamp, 48);
-  vmrg $v19, $v00, $v19                              ## L:292  |      ^ | pixel = pixel < factor.y ? VZERO : pixel;
-  vlt $v29, $v18, $v28.e1                            ## L:292  |     92 | pixel = pixel < factor.y ? VZERO : pixel;
-  vmrg $v18, $v00, $v18                              ## L:292  |     93 | pixel = pixel < factor.y ? VZERO : pixel;
-  addiu $fp, $zero, 320                              ## L:371  |      ^ | thresholdStride = (80 * 4);
-  suv $v20, 0, 56, $t8                               ## L:401  |     94 | store_vec_u8(p7, ptrClamp, 56);
-  suv $v19, 0, 64, $t8                               ## L:402  |     95 | store_vec_u8(p8, ptrClamp, 64);
-  suv $v22, 0, 40, $t8                               ## L:399  |     96 | store_vec_u8(p5, ptrClamp, 40);
-  suv $v18, 0, 72, $t8                               ## L:403  |     97 | store_vec_u8(p9, ptrClamp, 72);
-  addiu $t8, $t8, 80                                 ## L:405  |     98 | ptrClamp += 80;
-  bne $t8, $t7, LABEL_Cmd_Blur_0019                  ## L:405  |     99 | ptrClamp += 80;
-  nop                                                ## L:405  |   *101 | ptrClamp += 80;
+  luv $v27, 0, 0, $t8                                ## L:420  |     70 | vec16 p0 = load_vec_u8(ptrClamp, 0);
+  luv $v26, 0, 8, $t8                                ## L:421  |     71 | vec16 p1 = load_vec_u8(ptrClamp, 8);
+  luv $v24, 0, 24, $t8                               ## L:423  |     72 | vec16 p3 = load_vec_u8(ptrClamp, 24);
+  luv $v25, 0, 16, $t8                               ## L:422  |     73 | vec16 p2 = load_vec_u8(ptrClamp, 16);
+  luv $v22, 0, 40, $t8                               ## L:425  |     74 | vec16 p5 = load_vec_u8(ptrClamp, 40);
+  vlt $v28, $v27, $v29.e1                            ## L:340  |      ^ | tmp = pixel < VTEMP.y;
+  luv $v21, 0, 48, $t8                               ## L:426  |     75 | vec16 p6 = load_vec_u8(ptrClamp, 48);
+  vmrg $v27, $v00, $v27                              ## L:341  |      ^ | pixel = select(VZERO, pixel);
+  vlt $v28, $v26, $v29.e1                            ## L:340  |     76 | tmp = pixel < VTEMP.y;
+  luv $v23, 0, 32, $t8                               ## L:424  |      ^ | vec16 p4 = load_vec_u8(ptrClamp, 32);
+  luv $v20, 0, 56, $t8                               ## L:427  |     77 | vec16 p7 = load_vec_u8(ptrClamp, 56);
+  vmrg $v26, $v00, $v26                              ## L:341  |      ^ | pixel = select(VZERO, pixel);
+  vlt $v28, $v25, $v29.e1                            ## L:340  |     78 | tmp = pixel < VTEMP.y;
+  vmrg $v25, $v00, $v25                              ## L:341  |     79 | pixel = select(VZERO, pixel);
+  luv $v19, 0, 64, $t8                               ## L:428  |      ^ | vec16 p8 = load_vec_u8(ptrClamp, 64);
+  vlt $v28, $v24, $v29.e1                            ## L:340  |     80 | tmp = pixel < VTEMP.y;
+  suv $v27, 0, 0, $t8                                ## L:442  |      ^ | store_vec_u8(p0, ptrClamp, 0);
+  vmrg $v24, $v00, $v24                              ## L:341  |     81 | pixel = select(VZERO, pixel);
+  luv $v18, 0, 72, $t8                               ## L:429  |      ^ | vec16 p9 = load_vec_u8(ptrClamp, 72);
+  vlt $v28, $v23, $v29.e1                            ## L:340  |     82 | tmp = pixel < VTEMP.y;
+  addiu $fp, $zero, 320                              ## L:419  |      ^ | thresholdStride = (80 * 4);
+  vmrg $v23, $v00, $v23                              ## L:341  |     83 | pixel = select(VZERO, pixel);
+  vlt $v28, $v22, $v29.e1                            ## L:340  |     84 | tmp = pixel < VTEMP.y;
+  vmrg $v22, $v00, $v22                              ## L:341  |     85 | pixel = select(VZERO, pixel);
+  suv $v24, 0, 24, $t8                               ## L:445  |      ^ | store_vec_u8(p3, ptrClamp, 24);
+  vlt $v28, $v21, $v29.e1                            ## L:340  |     86 | tmp = pixel < VTEMP.y;
+  vmrg $v21, $v00, $v21                              ## L:341  |     87 | pixel = select(VZERO, pixel);
+  suv $v23, 0, 32, $t8                               ## L:446  |      ^ | store_vec_u8(p4, ptrClamp, 32);
+  vlt $v28, $v20, $v29.e1                            ## L:340  |     88 | tmp = pixel < VTEMP.y;
+  vmrg $v20, $v00, $v20                              ## L:341  |     89 | pixel = select(VZERO, pixel);
+  suv $v25, 0, 16, $t8                               ## L:444  |      ^ | store_vec_u8(p2, ptrClamp, 16);
+  vlt $v28, $v19, $v29.e1                            ## L:340  |     90 | tmp = pixel < VTEMP.y;
+  suv $v22, 0, 40, $t8                               ## L:447  |      ^ | store_vec_u8(p5, ptrClamp, 40);
+  suv $v26, 0, 8, $t8                                ## L:443  |     91 | store_vec_u8(p1, ptrClamp, 8);
+  vmrg $v19, $v00, $v19                              ## L:341  |      ^ | pixel = select(VZERO, pixel);
+  suv $v21, 0, 48, $t8                               ## L:448  |     92 | store_vec_u8(p6, ptrClamp, 48);
+  vlt $v28, $v18, $v29.e1                            ## L:340  |      ^ | tmp = pixel < VTEMP.y;
+  vmrg $v18, $v00, $v18                              ## L:341  |     93 | pixel = select(VZERO, pixel);
+  suv $v20, 0, 56, $t8                               ## L:449  |      ^ | store_vec_u8(p7, ptrClamp, 56);
+  suv $v19, 0, 64, $t8                               ## L:450  |    *95 | store_vec_u8(p8, ptrClamp, 64);
+  suv $v18, 0, 72, $t8                               ## L:451  |    *97 | store_vec_u8(p9, ptrClamp, 72);
+  addiu $t8, $t8, 80                                 ## L:453  |     98 | ptrClamp += 80;
+  bne $t8, $t7, LABEL_Cmd_Blur_0019                  ## L:453  |     99 | ptrClamp += 80;
+  nop                                                ## L:453  |   *101 | ptrClamp += 80;
   LABEL_Cmd_Blur_0018:
-  vxor $v26, $v00, $v00.e0                           ## L:413  |    102 | vec16 pixelA_10 = 0;
-  lw $t8, 316($s0)                                   ## L:420  |      ^ | u32 tmp1 = load(lastLoadedDmemIn, 316);
-  luv $v23, 0, 360, $s2                              ## L:417  |    103 | vec16 pixelA_11 = load_vec_u8(dmemInA, 360);
-  luv $v24, 0, 8, $s2                                ## L:416  |    104 | vec16 pixelA_01 = load_vec_u8(dmemInA, 8);
-  luv $v27, 0, 8, $s2                                ## L:412  |    105 | vec16 pixelA_00 = load_vec_u8(dmemInA, 8);
-  luv $v25, 0, 8, $t9                                ## L:414  |    106 | vec16 pixelA_20 = load_vec_u8(dmemInC, 8);
-  sw $t8, 320($s0)                                   ## L:421  |  **109 | store(tmp1, lastLoadedDmemIn, 320);
+  luv $v28, 0, 8, $s2                                ## L:460  |    102 | vec16 pixelA_00 = load_vec_u8(dmemInA, 8);
+  vxor $v27, $v00, $v00.e0                           ## L:461  |      ^ | vec16 pixelA_10 = 0;
+  lw $t8, 316($s0)                                   ## L:468  |    103 | u32 tmp1 = load(lastLoadedDmemIn, 316);
+  luv $v26, 0, 8, $t9                                ## L:462  |    104 | vec16 pixelA_20 = load_vec_u8(dmemInC, 8);
+  luv $v25, 0, 8, $s2                                ## L:464  |    105 | vec16 pixelA_01 = load_vec_u8(dmemInA, 8);
+  addiu $a1, $a1, 320                                ## L:478  |    106 | ptrRDRAMOut += (80 * 4);
+  vmulu $v23, $v28, $v29.e0                          ## L:474  |      ^ | tmpA:ufract = pixelA_00:ufract  * VTEMP:ufract.x;
+  vmacu $v23, $v27, $v29.e0                          ## L:475  |    107 | tmpA:ufract = pixelA_10:ufract +* VTEMP:ufract.x;
+  luv $v24, 0, 360, $s2                              ## L:465  |      ^ | vec16 pixelA_11 = load_vec_u8(dmemInA, 360);
+  sw $t8, 320($s0)                                   ## L:469  |    108 | store(tmp1, lastLoadedDmemIn, 320);
+  vmacu $v22, $v26, $v29.e0                          ## L:476  |      ^ | tmpB:ufract = pixelA_20:ufract +* VTEMP:ufract.x;
   LABEL_Cmd_Blur_001B:
-  vmulu $v15, $v27, $v28.e0                          ## L:281  |      ^ | sum:ufract = pixel00:ufract *  factor:ufract.x;
-  luv $v22, 0, 8, $t9                                ## L:428  |    110 | vec16 pixelA_21 = load_vec_u8(dmemInC, 8);
-  vmacu $v15, $v26, $v28.e0                          ## L:282  |      ^ | sum:ufract = pixel10:ufract +* factor:ufract.x;
-  vmacu $v15, $v25, $v28.e0                          ## L:283  |    111 | sum:ufract = pixel20:ufract +* factor:ufract.x;
-  luv $v21, 0, 16, $s2                               ## L:430  |      ^ | vec16 pixelB_01 = load_vec_u8(dmemInA, 16);
-  vmacu $v15, $v24, $v28.e0                          ## L:285  |    112 | sum:ufract = pixel01:ufract +* factor:ufract.x;
-  luv $v19, 0, 16, $t9                               ## L:432  |      ^ | vec16 pixelB_21 = load_vec_u8(dmemInC, 16);
-  addu $t8, $s2, $k0                                 ## L:425  |    113 | u16 dmemInB = dmemInA + dmemInBOffset;
-  vmacu $v15, $v23, $v28.e0                          ## L:286  |      ^ | sum:ufract = pixel11:ufract +* factor:ufract.x;
-  luv $v07, 0, 24, $t9                               ## L:442  |    114 | vec16 pixelC_21 = load_vec_u8(dmemInC, 24);
-  vmacu $v15, $v22, $v28.e0                          ## L:287  |      ^ | sum:ufract = pixel21:ufract +* factor:ufract.x;
-  luv $v20, 0, 16, $t8                               ## L:431  |    115 | vec16 pixelB_11 = load_vec_u8(dmemInB, 16);
-  vmulu $v14, $v24, $v28.e0                          ## L:281  |      ^ | sum:ufract = pixel00:ufract *  factor:ufract.x;
-  vmacu $v14, $v23, $v28.e0                          ## L:282  |    116 | sum:ufract = pixel10:ufract +* factor:ufract.x;
-  luv $v09, 0, 24, $s2                               ## L:440  |      ^ | vec16 pixelC_01 = load_vec_u8(dmemInA, 24);
-  vmacu $v14, $v22, $v28.e0                          ## L:283  |    117 | sum:ufract = pixel20:ufract +* factor:ufract.x;
-  luv $v05, 0, 32, $t8                               ## L:445  |      ^ | vec16 pixelD_11 = load_vec_u8(dmemInB, 32);
-  vmacu $v14, $v21, $v28.e0                          ## L:285  |    118 | sum:ufract = pixel01:ufract +* factor:ufract.x;
-  vmacu $v14, $v20, $v28.e0                          ## L:286  |    119 | sum:ufract = pixel11:ufract +* factor:ufract.x;
-  luv $v03, 0, 40, $s2                               ## L:448  |      ^ | vec16 pixelE_01 = load_vec_u8(dmemInA, 40);
-  addiu $sp, $sp, 64                                 ## L:475  |    120 | dmemOutCurr += 64;
-  vmacu $v14, $v19, $v28.e0                          ## L:287  |      ^ | sum:ufract = pixel21:ufract +* factor:ufract.x;
-  luv $v08, 0, 24, $t8                               ## L:441  |    121 | vec16 pixelC_11 = load_vec_u8(dmemInB, 24);
-  vmulu $v13, $v21, $v28.e0                          ## L:281  |      ^ | sum:ufract = pixel00:ufract *  factor:ufract.x;
-  luv $v06, 0, 32, $s2                               ## L:444  |    122 | vec16 pixelD_01 = load_vec_u8(dmemInA, 32);
-  vmacu $v13, $v20, $v28.e0                          ## L:282  |      ^ | sum:ufract = pixel10:ufract +* factor:ufract.x;
-  luv $v04, 0, 32, $t9                               ## L:446  |    123 | vec16 pixelD_21 = load_vec_u8(dmemInC, 32);
-  vmacu $v13, $v19, $v28.e0                          ## L:283  |      ^ | sum:ufract = pixel20:ufract +* factor:ufract.x;
-  vmacu $v13, $v09, $v28.e0                          ## L:285  |    124 | sum:ufract = pixel01:ufract +* factor:ufract.x;
-  luv $v27, 0, 64, $s2                               ## L:464  |      ^ | pixelA_00 = load_vec_u8(dmemInA, 64);
-  luv $v01, 0, 40, $t9                               ## L:450  |    125 | vec16 pixelE_21 = load_vec_u8(dmemInC, 40);
-  vmacu $v13, $v08, $v28.e0                          ## L:286  |      ^ | sum:ufract = pixel11:ufract +* factor:ufract.x;
-  luv $v17, 0, 48, $t8                               ## L:435  |    126 | vec16 pixelF_11 = load_vec_u8(dmemInB, 48);
-  vmacu $v13, $v07, $v28.e0                          ## L:287  |      ^ | sum:ufract = pixel21:ufract +* factor:ufract.x;
-  luv $v26, 0, 64, $t8                               ## L:465  |    127 | pixelA_10 = load_vec_u8(dmemInB, 64);
-  vmulu $v12, $v09, $v28.e0                          ## L:281  |      ^ | sum:ufract = pixel00:ufract *  factor:ufract.x;
-  luv $v09, 0, 56, $s2                               ## L:460  |    128 | vec16 pixelG_01 = load_vec_u8(dmemInA, 56);
-  vmacu $v12, $v08, $v28.e0                          ## L:282  |      ^ | sum:ufract = pixel10:ufract +* factor:ufract.x;
-  vmacu $v12, $v07, $v28.e0                          ## L:283  |    129 | sum:ufract = pixel20:ufract +* factor:ufract.x;
-  luv $v02, 0, 40, $t8                               ## L:449  |      ^ | vec16 pixelE_11 = load_vec_u8(dmemInB, 40);
-  luv $v08, 0, 56, $t8                               ## L:461  |    130 | vec16 pixelG_11 = load_vec_u8(dmemInB, 56);
-  vmacu $v12, $v06, $v28.e0                          ## L:285  |      ^ | sum:ufract = pixel01:ufract +* factor:ufract.x;
-  vmacu $v12, $v05, $v28.e0                          ## L:286  |    131 | sum:ufract = pixel11:ufract +* factor:ufract.x;
-  luv $v18, 0, 48, $s2                               ## L:434  |      ^ | vec16 pixelF_01 = load_vec_u8(dmemInA, 48);
-  vmacu $v12, $v04, $v28.e0                          ## L:287  |    132 | sum:ufract = pixel21:ufract +* factor:ufract.x;
-  vmulu $v11, $v06, $v28.e0                          ## L:281  |    133 | sum:ufract = pixel00:ufract *  factor:ufract.x;
-  luv $v16, 0, 48, $t9                               ## L:436  |      ^ | vec16 pixelF_21 = load_vec_u8(dmemInC, 48);
-  addiu $s2, $s2, 64                                 ## L:468  |    134 | dmemInA += 64;
-  vmacu $v11, $v05, $v28.e0                          ## L:282  |      ^ | sum:ufract = pixel10:ufract +* factor:ufract.x;
-  luv $v07, 0, 56, $t9                               ## L:462  |    135 | vec16 pixelG_21 = load_vec_u8(dmemInC, 56);
-  vmacu $v11, $v04, $v28.e0                          ## L:283  |      ^ | sum:ufract = pixel20:ufract +* factor:ufract.x;
-  suv $v12, 0, -40, $sp                              ## L:480  |    136 | store_vec_u8(sum3, dmemOutCurr, -40);
-  vmacu $v11, $v03, $v28.e0                          ## L:285  |      ^ | sum:ufract = pixel01:ufract +* factor:ufract.x;
-  luv $v24, 0, 8, $s2                                ## L:486  |    137 | pixelA_01 = load_vec_u8(dmemInA, 8);
-  vmacu $v11, $v02, $v28.e0                          ## L:286  |      ^ | sum:ufract = pixel11:ufract +* factor:ufract.x;
-  suv $v13, 0, -48, $sp                              ## L:479  |    138 | store_vec_u8(sum2, dmemOutCurr, -48);
-  vmacu $v11, $v01, $v28.e0                          ## L:287  |      ^ | sum:ufract = pixel21:ufract +* factor:ufract.x;
-  xori $k0, $k0, 4                                   ## L:426  |    139 | dmemInBOffset ^= 4;
-  vmulu $v10, $v03, $v28.e0                          ## L:281  |      ^ | sum:ufract = pixel00:ufract *  factor:ufract.x;
-  vmacu $v10, $v02, $v28.e0                          ## L:282  |    140 | sum:ufract = pixel10:ufract +* factor:ufract.x;
-  vmacu $v10, $v01, $v28.e0                          ## L:283  |    141 | sum:ufract = pixel20:ufract +* factor:ufract.x;
-  suv $v14, 0, -56, $sp                              ## L:478  |      ^ | store_vec_u8(sum1, dmemOutCurr, -56);
-  vmacu $v10, $v18, $v28.e0                          ## L:285  |    142 | sum:ufract = pixel01:ufract +* factor:ufract.x;
-  luv $v25, 0, 64, $t9                               ## L:466  |      ^ | pixelA_20 = load_vec_u8(dmemInC, 64);
-  vmacu $v10, $v17, $v28.e0                          ## L:286  |    143 | sum:ufract = pixel11:ufract +* factor:ufract.x;
-  suv $v15, 0, -64, $sp                              ## L:477  |      ^ | store_vec_u8(sum0, dmemOutCurr, -64);
-  vmacu $v10, $v16, $v28.e0                          ## L:287  |    144 | sum:ufract = pixel21:ufract +* factor:ufract.x;
-  vmulu $v06, $v18, $v28.e0                          ## L:281  |    145 | sum:ufract = pixel00:ufract *  factor:ufract.x;
-  vmacu $v06, $v17, $v28.e0                          ## L:282  |    146 | sum:ufract = pixel10:ufract +* factor:ufract.x;
-  addiu $t9, $t9, 64                                 ## L:470  |      ^ | dmemInC += 64;
-  vmacu $v06, $v16, $v28.e0                          ## L:283  |    147 | sum:ufract = pixel20:ufract +* factor:ufract.x;
-  addiu $k1, $s1, 320                                ## L:489  |      ^ | dmemOutEnd = dmemOutStart + (80 * 4);
-  vmacu $v06, $v09, $v28.e0                          ## L:285  |    148 | sum:ufract = pixel01:ufract +* factor:ufract.x;
-  suv $v10, 0, -24, $sp                              ## L:482  |      ^ | store_vec_u8(sum5, dmemOutCurr, -24);
-  vmacu $v06, $v08, $v28.e0                          ## L:286  |    149 | sum:ufract = pixel11:ufract +* factor:ufract.x;
-  vmacu $v06, $v07, $v28.e0                          ## L:287  |    150 | sum:ufract = pixel21:ufract +* factor:ufract.x;
-  vmulu $v05, $v09, $v28.e0                          ## L:281  |    151 | sum:ufract = pixel00:ufract *  factor:ufract.x;
-  addiu $t8, $t8, 64                                 ## L:469  |      ^ | dmemInB += 64;
-  vmacu $v05, $v08, $v28.e0                          ## L:282  |    152 | sum:ufract = pixel10:ufract +* factor:ufract.x;
-  suv $v11, 0, -32, $sp                              ## L:481  |      ^ | store_vec_u8(sum4, dmemOutCurr, -32);
-  vmacu $v05, $v07, $v28.e0                          ## L:283  |    153 | sum:ufract = pixel20:ufract +* factor:ufract.x;
-  vmacu $v05, $v27, $v28.e0                          ## L:285  |    154 | sum:ufract = pixel01:ufract +* factor:ufract.x;
-  addiu $a1, $a1, 64                                 ## L:490  |      ^ | ptrRDRAMOut += 64;
-  vmacu $v05, $v26, $v28.e0                          ## L:286  |    155 | sum:ufract = pixel11:ufract +* factor:ufract.x;
-  luv $v23, 0, 8, $t8                                ## L:487  |      ^ | pixelA_11 = load_vec_u8(dmemInB, 8);
-  suv $v06, 0, -16, $sp                              ## L:483  |    156 | store_vec_u8(sum6, dmemOutCurr, -16);
-  vmacu $v05, $v25, $v28.e0                          ## L:287  |      ^ | sum:ufract = pixel21:ufract +* factor:ufract.x;
-  bne $sp, $k1, LABEL_Cmd_Blur_001B                  ## L:490  |    157 | ptrRDRAMOut += 64;
-  suv $v05, 0, -8, $sp                               ## L:484  | ***161 | store_vec_u8(sum7, dmemOutCurr, -8);
+  luv $v21, 0, 8, $t9                                ## L:484  |    109 | vec16 pixelA_21 = load_vec_u8(dmemInC, 8);
+  luv $v11, 0, 16, $s2                               ## L:492  |    110 | vec16 pixelB_01 = load_vec_u8(dmemInA, 16);
+  addu $t8, $s2, $k0                                 ## L:481  |    111 | u16 dmemInB = dmemInA + dmemInBOffset;
+  vmulu $v17, $v25, $v29.e0                          ## L:332  |      ^ | sum:ufract = pixel01:ufract  * factor:ufract.x;
+  luv $v10, 0, 16, $t8                               ## L:493  |    112 | vec16 pixelB_11 = load_vec_u8(dmemInB, 16);
+  vmacu $v17, $v24, $v29.e0                          ## L:333  |      ^ | sum:ufract = pixel11:ufract +* factor:ufract.x;
+  luv $v09, 0, 16, $t9                               ## L:494  |    113 | vec16 pixelB_21 = load_vec_u8(dmemInC, 16);
+  vmacu $v23, $v21, $v29.e0                          ## L:334  |      ^ | tempOut:ufract = pixel21:ufract +* factor:ufract.x;
+  luv $v08, 0, 24, $s2                               ## L:496  |    114 | vec16 pixelC_01 = load_vec_u8(dmemInA, 24);
+  vmadh $v17, $v22, $v30.e7                          ## L:335  |      ^ | sum:sint = tempIn:sint +* 1;
+  luv $v07, 0, 24, $t8                               ## L:497  |    115 | vec16 pixelC_11 = load_vec_u8(dmemInB, 24);
+  vmulu $v16, $v11, $v29.e0                          ## L:332  |      ^ | sum:ufract = pixel01:ufract  * factor:ufract.x;
+  vmacu $v16, $v10, $v29.e0                          ## L:333  |    116 | sum:ufract = pixel11:ufract +* factor:ufract.x;
+  luv $v05, 0, 32, $s2                               ## L:500  |      ^ | vec16 pixelD_01 = load_vec_u8(dmemInA, 32);
+  luv $v06, 0, 24, $t9                               ## L:498  |    117 | vec16 pixelC_21 = load_vec_u8(dmemInC, 24);
+  vmacu $v22, $v09, $v29.e0                          ## L:334  |      ^ | tempOut:ufract = pixel21:ufract +* factor:ufract.x;
+  luv $v04, 0, 32, $t8                               ## L:501  |    118 | vec16 pixelD_11 = load_vec_u8(dmemInB, 32);
+  vmadh $v16, $v23, $v30.e7                          ## L:335  |      ^ | sum:sint = tempIn:sint +* 1;
+  luv $v01, 0, 40, $t8                               ## L:505  |    119 | vec16 pixelE_11 = load_vec_u8(dmemInB, 40);
+  vmulu $v15, $v08, $v29.e0                          ## L:332  |      ^ | sum:ufract = pixel01:ufract  * factor:ufract.x;
+  luv $v03, 0, 32, $t9                               ## L:502  |    120 | vec16 pixelD_21 = load_vec_u8(dmemInC, 32);
+  vmacu $v15, $v07, $v29.e0                          ## L:333  |      ^ | sum:ufract = pixel11:ufract +* factor:ufract.x;
+  vmacu $v23, $v06, $v29.e0                          ## L:334  |    121 | tempOut:ufract = pixel21:ufract +* factor:ufract.x;
+  luv $v02, 0, 40, $s2                               ## L:504  |      ^ | vec16 pixelE_01 = load_vec_u8(dmemInA, 40);
+  vmadh $v15, $v22, $v30.e7                          ## L:335  |    122 | sum:sint = tempIn:sint +* 1;
+  luv $v19, 0, 48, $t8                               ## L:487  |      ^ | vec16 pixelF_11 = load_vec_u8(dmemInB, 48);
+  vmulu $v14, $v05, $v29.e0                          ## L:332  |    123 | sum:ufract = pixel01:ufract  * factor:ufract.x;
+  luv $v11, 0, 56, $s2                               ## L:519  |      ^ | vec16 pixelG_01 = load_vec_u8(dmemInA, 56);
+  vmacu $v14, $v04, $v29.e0                          ## L:333  |    124 | sum:ufract = pixel11:ufract +* factor:ufract.x;
+  luv $v09, 0, 40, $t9                               ## L:512  |      ^ | vec16 pixelE_21 = load_vec_u8(dmemInC, 40);
+  vmacu $v22, $v03, $v29.e0                          ## L:334  |    125 | tempOut:ufract = pixel21:ufract +* factor:ufract.x;
+  luv $v10, 0, 56, $t8                               ## L:520  |      ^ | vec16 pixelG_11 = load_vec_u8(dmemInB, 56);
+  luv $v28, 0, 64, $s2                               ## L:523  |    126 | pixelA_00 = load_vec_u8(dmemInA, 64);
+  vmadh $v14, $v23, $v30.e7                          ## L:335  |      ^ | sum:sint = tempIn:sint +* 1;
+  luv $v20, 0, 48, $s2                               ## L:486  |    127 | vec16 pixelF_01 = load_vec_u8(dmemInA, 48);
+  vmulu $v13, $v02, $v29.e0                          ## L:332  |      ^ | sum:ufract = pixel01:ufract  * factor:ufract.x;
+  luv $v18, 0, 48, $t9                               ## L:488  |    128 | vec16 pixelF_21 = load_vec_u8(dmemInC, 48);
+  vmacu $v13, $v01, $v29.e0                          ## L:333  |      ^ | sum:ufract = pixel11:ufract +* factor:ufract.x;
+  luv $v27, 0, 64, $t8                               ## L:524  |    129 | pixelA_10 = load_vec_u8(dmemInB, 64);
+  vmacu $v23, $v09, $v29.e0                          ## L:334  |      ^ | tempOut:ufract = pixel21:ufract +* factor:ufract.x;
+  vmadh $v13, $v22, $v30.e7                          ## L:335  |    130 | sum:sint = tempIn:sint +* 1;
+  luv $v26, 0, 64, $t9                               ## L:525  |      ^ | pixelA_20 = load_vec_u8(dmemInC, 64);
+  vmulu $v12, $v20, $v29.e0                          ## L:332  |    131 | sum:ufract = pixel01:ufract  * factor:ufract.x;
+  addiu $sp, $sp, 64                                 ## L:533  |      ^ | dmemOutCurr += 64;
+  luv $v09, 0, 56, $t9                               ## L:521  |    132 | vec16 pixelG_21 = load_vec_u8(dmemInC, 56);
+  vmacu $v12, $v19, $v29.e0                          ## L:333  |      ^ | sum:ufract = pixel11:ufract +* factor:ufract.x;
+  addiu $s2, $s2, 64                                 ## L:530  |    133 | dmemInA += 64;
+  vmacu $v22, $v18, $v29.e0                          ## L:334  |      ^ | tempOut:ufract = pixel21:ufract +* factor:ufract.x;
+  vmadh $v12, $v23, $v30.e7                          ## L:335  |    134 | sum:sint = tempIn:sint +* 1;
+  addiu $k1, $s1, 320                                ## L:547  |      ^ | dmemOutEnd = dmemOutStart + (80 * 4);
+  vmulu $v08, $v11, $v29.e0                          ## L:332  |    135 | sum:ufract = pixel01:ufract  * factor:ufract.x;
+  suv $v16, 0, -56, $sp                              ## L:536  |      ^ | store_vec_u8(sum1, dmemOutCurr, -56);
+  luv $v25, 0, 8, $s2                                ## L:544  |    136 | pixelA_01 = load_vec_u8(dmemInA, 8);
+  vmacu $v08, $v10, $v29.e0                          ## L:333  |      ^ | sum:ufract = pixel11:ufract +* factor:ufract.x;
+  addiu $t8, $t8, 64                                 ## L:531  |    137 | dmemInB += 64;
+  vmacu $v23, $v09, $v29.e0                          ## L:334  |      ^ | tempOut:ufract = pixel21:ufract +* factor:ufract.x;
+  vmadh $v08, $v22, $v30.e7                          ## L:335  |    138 | sum:sint = tempIn:sint +* 1;
+  addiu $t9, $t9, 64                                 ## L:532  |      ^ | dmemInC += 64;
+  vmulu $v07, $v28, $v29.e0                          ## L:332  |    139 | sum:ufract = pixel01:ufract  * factor:ufract.x;
+  suv $v12, 0, -24, $sp                              ## L:540  |      ^ | store_vec_u8(sum5, dmemOutCurr, -24);
+  suv $v17, 0, -64, $sp                              ## L:535  |    140 | store_vec_u8(sum0, dmemOutCurr, -64);
+  vmacu $v07, $v27, $v29.e0                          ## L:333  |      ^ | sum:ufract = pixel11:ufract +* factor:ufract.x;
+  suv $v14, 0, -40, $sp                              ## L:538  |    141 | store_vec_u8(sum3, dmemOutCurr, -40);
+  vmacu $v22, $v26, $v29.e0                          ## L:334  |      ^ | tempOut:ufract = pixel21:ufract +* factor:ufract.x;
+  vmadh $v07, $v23, $v30.e7                          ## L:335  |    142 | sum:sint = tempIn:sint +* 1;
+  luv $v24, 0, 8, $t8                                ## L:545  |      ^ | pixelA_11 = load_vec_u8(dmemInB, 8);
+  suv $v15, 0, -48, $sp                              ## L:537  |    143 | store_vec_u8(sum2, dmemOutCurr, -48);
+  xori $k0, $k0, 4                                   ## L:482  |    144 | dmemInBOffset ^= 4;
+  suv $v08, 0, -16, $sp                              ## L:541  |    145 | store_vec_u8(sum6, dmemOutCurr, -16);
+  suv $v07, 0, -8, $sp                               ## L:542  |    146 | store_vec_u8(sum7, dmemOutCurr, -8);
+  bne $sp, $k1, LABEL_Cmd_Blur_001B                  ## L:547  |    147 | dmemOutEnd = dmemOutStart + (80 * 4);
+  suv $v13, 0, -32, $sp                              ## L:539  |   *149 | store_vec_u8(sum4, dmemOutCurr, -32);
   LABEL_Cmd_Blur_001C:
-  mtc0 $s1, COP0_DMA_SPADDR                          ## L:38   |    162 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
-  mtc0 $a1, COP0_DMA_RAMADDR                         ## L:39   |    163 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
-  addiu $s6, $s6, 65535                              ## L:496  |    164 | rowsLeft -= 1;
-  mtc0 $s5, COP0_DMA_WRITE                           ## L:40   |   *166 | @Barrier("DMA") set_dma_write(size); ## Barrier: 0x1
+  addiu $s6, $s6, 65535                              ## L:553  |    150 | rowsLeft -= 1;
+  mtc0 $s1, COP0_DMA_SPADDR                          ## L:40   |    151 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
+  mtc0 $a1, COP0_DMA_RAMADDR                         ## L:41   |    152 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
+  mtc0 $s5, COP0_DMA_WRITE                           ## L:42   |  **155 | @Barrier("DMA") set_dma_write(size); ## Barrier: 0x1
   LABEL_Cmd_Blur_001D:
-  mfc0 $ra, COP0_DMA_BUSY                            ## L:499  |    167 | RA = get_dma_busy();
-  bne $ra, $zero, LABEL_Cmd_Blur_001D                ## L:500  |  **170 | lastLoadedDmemIn = dmemInOffset + BUFF_IN_A;
-  addiu $s0, $s4, %lo(BUFF_IN_A)                     ## L:500  |   *172 | lastLoadedDmemIn = dmemInOffset + BUFF_IN_A;
+  mfc0 $ra, COP0_DMA_BUSY                            ## L:556  |    156 | RA = get_dma_busy();
+  bne $ra, $zero, LABEL_Cmd_Blur_001D                ## L:557  |  **159 | lastLoadedDmemIn = dmemInOffset + BUFF_IN_A;
+  addiu $s0, $s4, %lo(BUFF_IN_A)                     ## L:557  |   *161 | lastLoadedDmemIn = dmemInOffset + BUFF_IN_A;
   LABEL_Cmd_Blur_001E:
-  beq $s6, $zero, RSPQ_Loop                          ## L:503  |    173 | if(rowsLeft == 0)exit;
-  nop                                                ## L:503  |   *175 | if(rowsLeft == 0)exit;
-  mtc0 $s0, COP0_DMA_SPADDR                          ## L:30   |    176 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
-  mtc0 $a0, COP0_DMA_RAMADDR                         ## L:31   |    177 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
-  addiu $s4, $s4, 352                                ## L:507  |    178 | dmemInOffset += (80 * 4 + 32);
-  beq $a0, $s7, LABEL_Cmd_Blur_0020                  ## L:509  |    179 | if(ptrRDRAMIn != ptrRDRAMInEnd) {
-  mtc0 $s5, COP0_DMA_READ                            ## L:32   |   *181 | @Barrier("DMA") set_dma_read(size); ## Barrier: 0x1
-  addiu $a0, $a0, 320                                ## L:510  |    182 | ptrRDRAMIn += (80 * 4);
+  beq $s6, $zero, RSPQ_Loop                          ## L:560  |    162 | if(rowsLeft == 0)exit;
+  nop                                                ## L:560  |   *164 | if(rowsLeft == 0)exit;
+  mtc0 $s0, COP0_DMA_SPADDR                          ## L:32   |    165 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
+  mtc0 $a0, COP0_DMA_RAMADDR                         ## L:33   |    166 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
+  addiu $s4, $s4, 352                                ## L:564  |    167 | dmemInOffset += (80 * 4 + 32);
+  beq $a0, $s7, LABEL_Cmd_Blur_0020                  ## L:566  |    168 | if(ptrRDRAMIn != ptrRDRAMInEnd) {
+  mtc0 $s5, COP0_DMA_READ                            ## L:34   |   *170 | @Barrier("DMA") set_dma_read(size); ## Barrier: 0x1
+  addiu $a0, $a0, 320                                ## L:567  |    171 | ptrRDRAMIn += (80 * 4);
   LABEL_Cmd_Blur_0020:
-  bne $s4, $s3, LABEL_Cmd_Blur_0014                  ## L:513  |    183 | if(dmemInOffset == dmemInOffsetEnd) {
-  nop                                                ## L:513  |   *185 | if(dmemInOffset == dmemInOffsetEnd) {
-  or $s4, $zero, $zero                               ## L:514  |    186 | dmemInOffset = 0;
+  bne $s4, $s3, LABEL_Cmd_Blur_0014                  ## L:570  |    172 | if(dmemInOffset == dmemInOffsetEnd) {
+  nop                                                ## L:570  |   *174 | if(dmemInOffset == dmemInOffsetEnd) {
+  or $s4, $zero, $zero                               ## L:571  |    175 | dmemInOffset = 0;
   LABEL_Cmd_Blur_0021:
-  j LABEL_Cmd_Blur_0014                              ## L:514  |    187 | dmemInOffset = 0;
-  nop                                                ## L:514  |   *189 | dmemInOffset = 0;
+  j LABEL_Cmd_Blur_0014                              ## L:571  |    176 | dmemInOffset = 0;
+  nop                                                ## L:571  |   *178 | dmemInOffset = 0;
 Cmd_Downscale:
   addiu $a1, $a1, 65216                              ## L:541  |      ^ | prtRDRAMOut -= (80 * 4);
   lui $at, 0x04                                      ## L:539  |      2 | u32 ptrRDRAMInEnd = ptrRDRAMIn + (320 * 240 * 4);
