@@ -85,7 +85,7 @@ SceneMain::~SceneMain()
 
 void SceneMain::update(float deltaTime)
 {
-t3d_mat4fp_set_pos(skyMatFP, camera.pos);
+  t3d_mat4fp_set_pos(skyMatFP, camera.pos);
   flyCam.update(deltaTime);
 
 
@@ -101,12 +101,14 @@ void SceneMain::draw(float deltaTime)
 {
   camera.attach();
   t3d_screen_clear_depth();
+  rdpq_clear({0xA, 0xA, 0xA, 0xFF});
   rdpq_set_env_color({0xFF, 0xAA, 0xEE, 0xAA});
+
 
   t3d_light_set_ambient(colorAmbient);
 
   t3d_matrix_push(skyMatFP);
-  rspq_block_run(skyObj->userBlock);
+  //rspq_block_run(skyObj->userBlock);
 
   t3d_matrix_set(mapMatFP, true);
 

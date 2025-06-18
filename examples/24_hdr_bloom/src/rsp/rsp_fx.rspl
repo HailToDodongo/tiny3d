@@ -50,15 +50,32 @@ macro dmaOutAsync(u32 addrRDRAM, u32 addrDMEM, u32 size)
   } while(RA != 0)
  }
 
-command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
+macro pixelApplyHDR(vec16 pixel)
 {
-  vec16 VCONST_RGB;
+  asm_op("vmudm", VTEMP, pixel, bloomFactorA.W);
+  asm_op("vmadh", pixel, pixel, bloomFactorA.w);
+}
+
+/**
+ * Combines the HDR image input (320x240, RGBA32), with a 4:1 bloom buffer (80x60, RGBA32),
+ * and outputs it into to the final buffer shown by VI (320x240, RGBA16).
+ * The input color is also mapped from HDR to a standard range.
+ *
+ * @param ptrIn 320x240 RGBA32 image
+ * @param ptrOut 320x240 RGBA16 output buffer
+ * @param ptrBloom 80x60 RGBA32 blurred bloom buffer
+ * @param factor s16.16 factor for exposure, mapping HDR to standard range.
+ */
+command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u32 factor)
+{
+  vec16 VCONST_RGB; // mask to only keep 5 bits from a fraction, used for RGBA16 conversion
   VCONST_RGB.x = 0b0'11111'00000'00000;
 
   u32 ptrInEnd = ptrIn + BUFF_SIZE_RGBA32;
   u16 buffDMEM = BUFF_IN_A;
-  u8 bloomPhase = 0;
 
+  // 0-3, which row are we on in the interpolated bloom buffer
+  u8 bloomPhase = 0;
   vec16 bloomFactorY = 0;
 
   vec16 bloomFactorA = 0;
@@ -66,23 +83,19 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
   bloomFactorA.Y = bloomFactorA.X;
   bloomFactorA.Z = bloomFactorA.X;
 
-  bloomFactorA.w = factor;
-
-  vec16 bloomFactorB;
-  bloomFactorB:sfract.x = 0.5;
-  bloomFactorB.y = bloomFactorB.x;
-  bloomFactorB.z = bloomFactorB.x;
-  bloomFactorB:sfract.X = 0.75;
-
+  u16 factorU16 = factor >> 16;
   s32 sumRGB;
 
+  // wait for all pending DMAs to finish
   loop {
     RA = get_dma_busy();
-    bloomFactorB.Y = bloomFactorB.X;
-    bloomFactorB.Z = bloomFactorB.X;
     sumRGB = 0;
+    bloomFactorA.w = factorU16;
+    bloomFactorA.W = factor:u16;
   } while(RA != 0)
 
+  // Now go line by line through the input image
+  // The bloom buffer needs to only lod every 4 lines, since it is lower res
   loop {
     u32 dmaSize = SCREEN_STRIDE - 1;
     u32 ptrDMEM = buffDMEM;
@@ -91,11 +104,14 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
 
     u16 dmemBloom = BUFF_BLOOM;
 
+    // first line of a new 4-line group, fetch next 2 bloom lines
+    // this will re-fetch the current second line as the first one
+    // but requires less logic later on
     if(bloomPhase == 0) {
       u16 bloomDmaSize;
       loop {
         RA = get_dma_busy();
-        bloomPhase = 4; // DELAY SLOT
+        bloomPhase = 4;
         bloomFactorY = VZERO - 0x2000;
         bloomDmaSize = BLUR_STRIDE*2;
       } while(RA != 0)
@@ -141,14 +157,16 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
     vec16 diffY_B = bloom2Next - bloom2;
 
     vec16 pixel0 = load_vec_u8(dmemIn, 0);
+    pixelApplyHDR(pixel0);
+
 
     loop {
       vec16 pixel1 = load_vec_u8(dmemIn, 8);
       vec16 pixel2 = load_vec_u8(dmemIn, 16);
       vec16 pixel3 = load_vec_u8(dmemIn, 24);
 
-      // finish conversion to RGBA16
-      // values are already masked, so just shift and accumulate
+      // finish conversion to RGBA16, values are already masked, so just shift and accumulate.
+      // the final result is a vector where each lane holds a RGBA16 value in order
       pixelOut = pixelR:uint * 2;
       asm_op("vmadl", pixelOut, pixelG, VSHIFT8.w);
       asm_op("vmadl", pixelOut, pixelB, VSHIFT.x);
@@ -157,12 +175,13 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       bloom0:sint = bloom0:sint * 1;
       bloom0:sfract = diffY_A:sfract +* bloomFactorY:sfract;
 
+      // final output of HDR-adjusted color + Bloom
       store(pixelOut, dmemOut, -16);
-
-      pixel0 >>= 6;
 
       bloom2:sint = bloom2:sint * 1;
       bloom2:sfract = diffY_B:sfract +* bloomFactorY:sfract;
+
+      pixelApplyHDR(pixel1);
 
       // bloom0 now contains 2 pixels in xyzw and XYZW, so viewing the register as two halves: [A, B]
       // in order to do horizontal interpolation we have to LERP 3 values in between A and B (X0, X1, X2)
@@ -178,34 +197,37 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
       @Barrier("tmp_0") bloom2.xyzw = load(RSPQ_SCRATCH_MEM, 8).xyzw;
       @Barrier("tmp_2") bloom2Next.XYZW = load(RSPQ_SCRATCH_MEM, 24).xyzw;
 
-      pixel1 >>= 6;
-      pixel2 >>= 6;
-      pixel3 >>= 6;
+      pixelApplyHDR(pixel2);
 
+      // Debug Bloom:
       //pixel0 = 0; pixel1 = 0; pixel2 = 0; pixel3 = 0;
 
       vec16 diffX_A = bloom2 - bloom0;
+      pixelApplyHDR(pixel3);
 
+      vec16 diffX_A_first, diffX_B_first;
+      // Now add the interpolated differences onto the first bloom pixel
+      // this will create the final interpolated value.
+      // Since we start a MAC sequence with it, add the HDR-adjusted FB color on top too
       bloom1:sint = bloom0:sint * 1;
-      bloom1:sfract = diffX_A:sfract +* bloomFactorB:sfract;
-      pixel1:sint = pixel1:sint +* bloomFactorA:sint.w;
+      diffX_A_first:sfract = diffX_A:sfract +* bloomFactorA:sfract; // -> *0.00 and 0.25
+      bloom1:sfract = diffX_A:sfract +* 0x4000; // add again by 0.5 -> *0.50 and *0.75
+      pixel1:sint = pixel1:sint +* 1;
 
       vec16 diffX_B = bloom2Next - bloom2;
 
-      bloom0:sint = bloom0:sint * 1;
-      bloom0:sfract = diffX_A:sfract +* bloomFactorA:sfract;
-      pixel0:sint = pixel0:sint +* bloomFactorA:sint.w;
+      // now take the captured "bloom + diff*X" from  diffX_A_first
+      pixel0:sint = diffX_A_first:sint + pixel0:sint;
 
       bloom3:sint = bloom2:sint * 1;
-      bloom3:sfract = diffX_B:sfract +* bloomFactorB:sfract;
-      pixel3:sint = pixel3:sint +* bloomFactorA:sint.w;
+      diffX_B_first:sfract = diffX_B:sfract +* bloomFactorA:sfract;
+      bloom3:sfract = diffX_B:sfract +* 0x4000; // add again by 0.5 -> *0.50 and *0.75
+      pixel3:sint = pixel3:sint +* 1;
 
-      bloom2:sint = bloom2:sint * 1;
-      bloom2:sfract = diffX_B:sfract +* bloomFactorA:sfract;
-      pixel2:sint = pixel2:sint +* bloomFactorA:sint.w;
+      pixel2:sint = diffX_B_first:sint + pixel2:sint;
 
       // accumulate RGB sum of 2 pixels for the average image brightness
-      // we do this in SUs here, since there are a lot of VUs to fill from RGBA16 conversion
+      // we do this in SUs here, since there are a lot of VUs to fill
       {
         u8 tmp0, tmp1, tmp2, tmp3, tmp4, tmp5;
         tmp0 = load(tmpMemA, 8);
@@ -217,11 +239,14 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
         sumRGB += tmp0 + tmp1 + tmp2 + tmp3 + tmp4 + tmp5;
       }
       {
-          // Store as [RGBA RGBA RGBA RGBA]
+          // Store as [RGBA RGBA RGBA RGBA  RGBA RGBA RGBA RGBA]
           @Barrier("rgba16") store_vec_u8(pixel0, tmpMemA, 0);
           @Barrier("rgba16") store_vec_u8(pixel1, tmpMemA, 8);
           @Barrier("rgba16") store_vec_u8(pixel2, tmpMemA, 16);
           @Barrier("rgba16") store_vec_u8(pixel3, tmpMemA, 24);
+
+          pixel0 = load_vec_u8(dmemIn, 32);
+          pixelApplyHDR(pixel0);
 
           // Now load each component into a vector
           // "lfv" will load every 4th byte, starting from tmpMem
@@ -238,18 +263,10 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
           asm_op("lfv", pixelG, 8, 16, tmpMemB);
           pixelG &= VCONST_RGB.x;
 
-          pixelB.x = pixel0.z;
-          pixelB.y = pixel0.Z;
-          pixelB.z = pixel1.z;
-          pixelB.w = pixel1.Z;
-          pixelB.X = pixel2.z;
-          pixelB.Y = pixel2.Z;
-          pixelB.Z = pixel3.z;
-          pixelB.W = pixel3.Z;
-          //@Barrier("rgba16")
-          //asm_op("lfv", pixelB, 0,  0, tmpMemC);
-          //@Barrier("rgba16")
-          //asm_op("lfv", pixelB, 8, 16, tmpMemC);
+          @Barrier("rgba16")
+          asm_op("lfv", pixelB, 0,  0, tmpMemC);
+          @Barrier("rgba16")
+          asm_op("lfv", pixelB, 8, 16, tmpMemC);
           // Note: pixelB needs no mask as it only flows into the unused alpha channel
       }
 
@@ -264,8 +281,6 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
 
       dmemIn += 32;
       dmemOut += 16;
-
-      pixel0 = load_vec_u8(dmemIn, 0);
 
     } while(dmemIn != dmemInEnd)
 
@@ -289,6 +304,16 @@ command<0> Cmd_HDRBloom(u32 ptrIn, u32 ptrOut, u32 ptrBloom, u16 factor)
   dmaOutAsync(ptrIn, buffDMEM, dmaSize);
 }
 
+/**
+ * Starts a chain of multiple kernel MAC sequences.
+ * Each kernel can re-use part of the multiplication from the last one.
+ * This intermediate result is stored in tempOut, whereas the final one is in sum.
+ *
+ * @param sum
+ * @param factor
+ * @param pixel00...pixel21
+ * @param tempOut
+ */
 macro sum4x3_chainStart(
   vec16 sum, vec16 factor,
   vec16 pixel00, vec16 pixel10, vec16 pixel20,
@@ -305,6 +330,16 @@ macro sum4x3_chainStart(
   sum:ufract = pixel20:ufract +* factor:ufract.x;
 }
 
+/**
+ * Continues a chain of multiple kernel MACs started by sum4x3_chainStart.
+ * This is the same function, except it takes in the last intermediate result too.
+ *
+ * @param sum final result of the kernel
+ * @param factor
+ * @param pixel01...pixel21
+ * @param tempIn last first half of the kernel
+ * @param tempOut next intermediate result of the kernel
+ */
 macro sum4x3_chain(
   vec16 sum, vec16 factor,
   vec16 pixel01, vec16 pixel11, vec16 pixel21,
@@ -317,12 +352,19 @@ macro sum4x3_chain(
   sum:sint = tempIn:sint +* 1;
 }
 
+// clamps the brightness, this is used to implement a bloom-threshold
 macro clampBrightness(vec16 pixel)
 {
   tmp = pixel < VTEMP.y;
   pixel = select(VZERO, pixel);
 }
 
+/**
+ * Blurs a given image with a basic 4x3 box-blur
+ * @param ptrRDRAMIn input 80x60 RGBA32 image
+ * @param ptrRDRAMOut output 80x60 RGBA32 image
+ * @param thresholdBrightness threshold as fractional
+ */
 command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
 {
   u32 ptrRDRAMInEnd = ptrRDRAMIn + (BLUR_STRIDE * (BLUR_HEIGHT - 1));

@@ -3,7 +3,7 @@
 #include <utility>
 
 namespace {
-  constexpr bool MEASURE_PERF = true;
+  constexpr bool MEASURE_PERF = false;
 
   constexpr int SCREEN_WIDTH = 320;
   constexpr int SCREEN_HEIGHT = 240;
@@ -130,14 +130,16 @@ surface_t& PostProcess::applyEffects(surface_t &dst)
 
   // Read back image brightness, this is not synced here since we can live with a delay
   uint32_t *imgBrightness = (uint32_t*)(((char*)surfHDRSafe.buffer) + surfHDRSafe.stride * (surfHDRSafe.height));
-  relBrightness = (double)(*imgBrightness >> 8) / (double)0xD9F3;
+  //debugf("imgBrightness: %08lX\n", *imgBrightness);
+  relBrightness = (float)(*imgBrightness >> 8) / (float)0x94BA;
 
   if constexpr (MEASURE_PERF) {
     rspq_highpri_end();
     rspq_flush();
     rspq_highpri_sync();
     t = get_ticks() - t;
-    debugf("RSP-FX: %.4fms\n", (double)TICKS_TO_US(t) / 1000.0f);
+    double ticksMS = (double)t / (double)TICKS_PER_SECOND * 1000.0f;
+    debugf("RSP-FX: %.4fms (%.4f)\n", ticksMS, ticksMS - 9.636);
   }
 
   return *output;

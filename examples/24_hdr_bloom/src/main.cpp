@@ -97,11 +97,16 @@ int main()
       for(auto b : lastBrightness)avg += b;
       avg /= lastBrightness.size();
 
-      float adjust = 0.75f * deltaTime;
-      if(avg > 0.55f) {
+      float delta = 0.05f;
+      float target = 0.2f;
+      if(avg > (target+delta)) {
+        auto diff = avg - (target+delta);
+        float adjust = (0.8f) * deltaTime;
         state.ppConf.hdrFactor = fmaxf(state.ppConf.hdrFactor-adjust, 0.0f);
       }
-      if(avg < 0.45f) {
+      if(avg < (target-delta)) {
+        auto diff = (target+delta) - avg;
+        float adjust = (0.8f) * deltaTime;
         state.ppConf.hdrFactor = fmin(state.ppConf.hdrFactor+adjust, 8.0f);
       }
     }

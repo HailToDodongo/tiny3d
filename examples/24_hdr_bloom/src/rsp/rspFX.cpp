@@ -42,7 +42,7 @@ void RspFX::init()
 
 void RspFX::hdrBlit(void* rgba32In, void *rgba16Out, void* rgba32BloomIn, float factor)
 {
-  uint32_t factorInt = (uint32_t)(factor * 64) & 0xFFFF;
+  uint32_t factorInt = (uint32_t)(factor * 0xFFFF);
   rspq_write_4(rspIdFX, CMD_HDR_BLIT,
      (uint32_t)rgba32In & 0xFFFFFF,
      (uint32_t)rgba16Out & 0xFFFFFF,

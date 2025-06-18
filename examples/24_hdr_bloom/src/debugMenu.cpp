@@ -9,7 +9,7 @@
 namespace
 {
   int menuSel = 0;
-  constexpr int maxMenuSel = 5;
+  constexpr int maxMenuSel = 6;
 
   template<typename T>
   constexpr T clamp(T val, T min, T max)
@@ -43,12 +43,13 @@ void DebugMenu::draw(State &state)
       case 0: state.showOffscreen = !state.showOffscreen; break;
       case 1: state.ppConf.blurSteps = clamp(state.ppConf.blurSteps + selDir, 0, 50); break;
       case 5: state.ppConf.scalingUseRDP = !state.ppConf.scalingUseRDP; break;
+      case 6: state.autoExposure = !state.autoExposure; break;
     }
   }
   if(heldDir != 0) {
     switch(menuSel) {
       case 2: state.ppConf.blurBrightness = clamp(state.ppConf.blurBrightness + heldDir*0.01f, 0.0f, 8.0f); break;
-      case 3: state.ppConf.hdrFactor = clamp(state.ppConf.hdrFactor + heldDir*0.04f, 0.0f, 8.0f); break;
+      case 3: state.ppConf.hdrFactor = clamp(state.ppConf.hdrFactor + heldDir*0.03f, 0.0f, 16.0f); break;
       case 4: state.ppConf.bloomThreshold = clamp(state.ppConf.bloomThreshold + heldDir*(1.0f/256.0f), 0.0f, 1.0f); break;
     }
   }
@@ -65,6 +66,7 @@ void DebugMenu::draw(State &state)
   Debug::printf(posX + 8, posY, "Expos: %.2f", state.ppConf.hdrFactor);     posY += 8;
   Debug::printf(posX + 8, posY, "Thres: %.2f", state.ppConf.bloomThreshold); posY += 8;
   Debug::printf(posX + 8, posY, "Scale: %s", state.ppConf.scalingUseRDP ? "RDP" : "RSP"); posY += 8;
+  Debug::printf(posX + 8, posY, "Auto : %c", state.autoExposure ? '1' : '-'); posY += 8;
 
   Debug::print(posX, posYStart + menuSel * 8, ">");
 }
