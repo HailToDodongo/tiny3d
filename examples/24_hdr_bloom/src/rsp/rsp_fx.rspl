@@ -385,7 +385,7 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
   loop { // DMA Await
     RA = get_dma_busy();
     dmemInA = BUFF_IN_A;
-    dmemOutStart = dmemInA + (BLUR_STRIDE_PADDED*3);
+    dmemOutStart = dmemInA + (BLUR_STRIDE_PADDED*3) + 16;
     lastLoadedDmemIn = dmemInA;
   } while(RA != 0)
 
@@ -419,6 +419,21 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
   // the first threshold check needs to process 3 lines
   u16 thresholdStride = BLUR_STRIDE * 3;
 
+  vec16 maskR = 0;
+  maskR.x = 1;
+  vec16 maskG = 0;
+  maskG.y = 1;
+  vec16 maskB = 0;
+  maskB.z = 1;
+
+  vec16 maskR1 = 0;
+  maskR1.X = 1;
+  vec16 maskG1 = 0;
+  maskG1.Y = 1;
+  vec16 maskB1 = 0;
+  maskB1.Z = 1;
+
+
   loop {
     u32 dmemOutCurr, dmemOutEnd;
     u16 dmemInBOffset;
@@ -426,16 +441,19 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
     loop {
       RA = get_dma_busy();
       dmemInA = BUFF_IN_A;
-      dmemInA -= 4;
+      dmemInA += 4;
 
       dmemOutCurr = dmemOutStart; // DELAY SLOT
       dmemInBOffset = BLUR_STRIDE_PADDED;
     } while(RA != 0)
 
-    u16 dmemInC = dmemInA + BLUR_STRIDE_PADDED*2 - 4;
+    u16 dmemInC = dmemInA + BLUR_STRIDE_PADDED*2;
 
-     if(thresholdBrightness)
-     {
+    vec16 sumA, sumB, sumC;
+    sumA = 0;
+
+    if(thresholdBrightness)
+    {
       vec16 tmp;
       u16 ptrClamp = lastLoadedDmemIn;
       u16 ptrClampEnd; // = lastLoadedDmemIn + thresholdStride;
@@ -481,15 +499,6 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
       } while(ptrClamp != ptrClampEnd)
     }
 
-    // pre-load the first pixels
-    // Note that the offsets here are adjusted to the right to no sample OOB
-    // the next time this is loaded in the loop the offset it correct
-    vec16 pixelA_00 = load_vec_u8(dmemInA, 8);
-    vec16 pixelA_10 = 0;//load_vec_u8(dmemInA, 360);
-    vec16 pixelA_20 = load_vec_u8(dmemInC, 8);
-
-    vec16 pixelA_01 = load_vec_u8(dmemInA, 8);
-    vec16 pixelA_11 = load_vec_u8(dmemInA, 360);
 
     { // dupe the last pixel one beyond to safely sample OOB
       u32 tmp1 = load(lastLoadedDmemIn, 316);
@@ -498,81 +507,83 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
 
     vec16 tmpA, tmpB;
 
-    tmpA:ufract = pixelA_00:ufract  * VTEMP:ufract.x;
-    tmpA:ufract = pixelA_10:ufract +* VTEMP:ufract.x;
-    tmpB:ufract = pixelA_20:ufract +* VTEMP:ufract.x;
-
     ptrRDRAMOut += BLUR_STRIDE;
     dmemOutEnd = dmemOutStart + BLUR_STRIDE;
 
+    vec16 res0, res1;
+
+    vec16 pixel_y0_x0  = load_vec_u8(dmemInA, 0);
+    vec16 pixel_y0_x2  = load_vec_u8(dmemInA, 8);
+
+    vec16 pixel_y1_x0 = load_vec_u8(dmemInA, 360);
+    vec16 pixel_y1_x2 = load_vec_u8(dmemInA, 368);
+
+    vec16 pixel_y2_x0 = load_vec_u8(dmemInC, 0);
+    vec16 pixel_y2_x2 = load_vec_u8(dmemInC, 8);
+
+
     loop {
-      u16 dmemInB = dmemInA + dmemInBOffset;
-      dmemInBOffset ^= 4;
+      u16 temp = RSPQ_SCRATCH_MEM;
+      store_vec_u8(res0, dmemOutCurr, -16);
+      store_vec_u8(res1, dmemOutCurr, -8);
 
-      vec16 pixelA_21 = load_vec_u8(dmemInC, 8);
+      // Now apply a basic 3x3 kernel, by doing a weighted sum.
+      // since we (have to) load 4 pixel horizontally, we can do 2 output pixels at once.
+      // Where the two kernels overlap by 2 pixel in the middle.
 
-      vec16 pixelF_01 = load_vec_u8(dmemInA, 48);
-      vec16 pixelF_11 = load_vec_u8(dmemInB, 48);
-      vec16 pixelF_21 = load_vec_u8(dmemInC, 48);
+      sumC:ufract = pixel_y0_x2:ufract  * VTEMP:ufract.x;
+      sumC:ufract = pixel_y1_x2:ufract +* VTEMP:ufract.x;
+      sumC:ufract = pixel_y2_x2:ufract +* VTEMP:ufract.x;
 
-      vec16 sum0, sum1, sum2, sum3, sum4, sum5;
-      {
-        vec16 pixelB_01 = load_vec_u8(dmemInA, 16);
-        vec16 pixelB_11 = load_vec_u8(dmemInB, 16);
-        vec16 pixelB_21 = load_vec_u8(dmemInC, 16);
+      @Barrier("group2") store(sumC.xyzw, temp, 8);
 
-        vec16 pixelC_01 = load_vec_u8(dmemInA, 24);
-        vec16 pixelC_11 = load_vec_u8(dmemInB, 24);
-        vec16 pixelC_21 = load_vec_u8(dmemInC, 24);
+      // first sum all horizontally
+      sumB:ufract = pixel_y0_x0:ufract  * VTEMP:ufract.x;
+      sumB:ufract = pixel_y1_x0:ufract +* VTEMP:ufract.x;
+      sumB:ufract = pixel_y2_x0:ufract +* VTEMP:ufract.x;
 
-        vec16 pixelD_01 = load_vec_u8(dmemInA, 32);
-        vec16 pixelD_11 = load_vec_u8(dmemInB, 32);
-        vec16 pixelD_21 = load_vec_u8(dmemInC, 32);
+      @Barrier("group2") store(sumB.XYZW, temp, 0);
 
-        vec16 pixelE_01 = load_vec_u8(dmemInA, 40);
-        vec16 pixelE_11 = load_vec_u8(dmemInB, 40);
+      // Now perform 2 final sums, once for the left-most 3 pixel, one for the right-most 3 pixel.
+      // So with: sumA = [0,1] sumB = [2,3] sumC = [4,5]
+      // We want: res = [avg(0,1,2), avg(1,2,3), avg(2,3,4), avg(3,4,5)]
+      res0:sint = maskR:sint +* sumA:sint.X;
+      res0:sint = maskG:sint +* sumA:sint.Y;
+      res0:sint = maskB:sint +* sumA:sint.Z;
 
-        sum0 = sum4x3_chain(VTEMP, pixelA_01, pixelA_11, pixelA_21, tmpB, tmpA);
-        sum1 = sum4x3_chain(VTEMP, pixelB_01, pixelB_11, pixelB_21, tmpA, tmpB);
-        sum2 = sum4x3_chain(VTEMP, pixelC_01, pixelC_11, pixelC_21, tmpB, tmpA);
+      res0:sint = maskR1:sint +* sumB:sint.x;
+      res0:sint = maskG1:sint +* sumB:sint.y;
+      res0:sint = maskB1:sint +* sumB:sint.z;
 
-        undef pixelB_21;
-        vec16 pixelE_21 = load_vec_u8(dmemInC, 40);
+      res0:sint = sumA:sint +* 1;
 
-        sum3 = sum4x3_chain(VTEMP, pixelD_01, pixelD_11, pixelD_21, tmpA, tmpB);
-        sum4 = sum4x3_chain(VTEMP, pixelE_01, pixelE_11, pixelE_21, tmpB, tmpA);
-        sum5 = sum4x3_chain(VTEMP, pixelF_01, pixelF_11, pixelF_21, tmpA, tmpB);
-      }
+      vec16 group2;
+      @Barrier("group2") group2 = load(temp, 0);
 
-      vec16 pixelG_01 = load_vec_u8(dmemInA, 56);
-      vec16 pixelG_11 = load_vec_u8(dmemInB, 56);
-      vec16 pixelG_21 = load_vec_u8(dmemInC, 56);
+      res1:sint = sumB:sint * 1;
+      res1:sint = sumC:sint +* 1;
+      res1:sint = group2:sint +* 1;
 
-      pixelA_00 = load_vec_u8(dmemInA, 64); // in this iteration also "pixelH_01"
-      pixelA_10 = load_vec_u8(dmemInB, 64);
-      pixelA_20 = load_vec_u8(dmemInC, 64);
+      sumA = sumC;
 
-      vec16 sum6 = sum4x3_chain(VTEMP, pixelG_01, pixelG_11, pixelG_21, tmpB, tmpA);
-      vec16 sum7 = sum4x3_chain(VTEMP, pixelA_00, pixelA_10, pixelA_20, tmpA, tmpB);
+      dmemInA += 16;
+      dmemInC += 16;
 
-      dmemInA += 64;
-      dmemInB += 64;
-      dmemInC += 64;
-      dmemOutCurr += 64;
+      // Load 4 pixels horizontally, 3 pixels vertically
+      pixel_y0_x0 = load_vec_u8(dmemInA, 0); // 2 pixel each
+      pixel_y0_x2 = load_vec_u8(dmemInA, 8);
 
-      store_vec_u8(sum0, dmemOutCurr, -64);
-      store_vec_u8(sum1, dmemOutCurr, -56);
-      store_vec_u8(sum2, dmemOutCurr, -48);
-      store_vec_u8(sum3, dmemOutCurr, -40);
-      store_vec_u8(sum4, dmemOutCurr, -32);
-      store_vec_u8(sum5, dmemOutCurr, -24);
-      store_vec_u8(sum6, dmemOutCurr, -16);
-      store_vec_u8(sum7, dmemOutCurr, -8);
+      pixel_y1_x0 = load_vec_u8(dmemInA, 352);
+      pixel_y1_x2 = load_vec_u8(dmemInA, 360);
 
-      pixelA_01 = load_vec_u8(dmemInA, 8);
-      pixelA_11 = load_vec_u8(dmemInB, 8);
+      pixel_y2_x0 = load_vec_u8(dmemInC, 0);
+      pixel_y2_x2 = load_vec_u8(dmemInC, 8);
 
+      dmemOutCurr += 16;
     } while(dmemOutCurr != dmemOutEnd)
+
+    store_vec_u8(res0, dmemOutCurr, -16);
+    store_vec_u8(res1, dmemOutCurr, -8);
 
     // Write out current blurred data
     dmaOutAsync(ptrRDRAMOut, dmemOutStart, dmaSize);
