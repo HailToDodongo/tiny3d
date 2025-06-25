@@ -419,20 +419,15 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
   // the first threshold check needs to process 3 lines
   u16 thresholdStride = BLUR_STRIDE * 3;
 
-  vec16 maskR = 0;
-  maskR.x = 1;
-  vec16 maskG = 0;
-  maskG.y = 1;
-  vec16 maskB = 0;
-  maskB.z = 1;
+  vec16 maskR = 0; maskR.x = 1;
+  vec16 maskG = 0; maskG.y = 1;
+  vec16 maskB = 0; maskB.z = 1;
 
-  vec16 maskR1 = 0;
-  maskR1.X = 1;
-  vec16 maskG1 = 0;
-  maskG1.Y = 1;
-  vec16 maskB1 = 0;
-  maskB1.Z = 1;
+  vec16 maskR1 = 0; maskR1.X = 1;
+  vec16 maskG1 = 0; maskG1.Y = 1;
+  vec16 maskB1 = 0; maskB1.Z = 1;
 
+  u16 temp = RSPQ_SCRATCH_MEM;
 
   loop {
     u32 dmemOutCurr, dmemOutEnd;
@@ -515,15 +510,13 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
     vec16 pixel_y0_x0  = load_vec_u8(dmemInA, 0);
     vec16 pixel_y0_x2  = load_vec_u8(dmemInA, 8);
 
-    vec16 pixel_y1_x0 = load_vec_u8(dmemInA, 360);
-    vec16 pixel_y1_x2 = load_vec_u8(dmemInA, 368);
+    vec16 pixel_y1_x0 = load_vec_u8(dmemInA, 352);
+    vec16 pixel_y1_x2 = load_vec_u8(dmemInA, 360);
 
     vec16 pixel_y2_x0 = load_vec_u8(dmemInC, 0);
     vec16 pixel_y2_x2 = load_vec_u8(dmemInC, 8);
 
-
     loop {
-      u16 temp = RSPQ_SCRATCH_MEM;
       store_vec_u8(res0, dmemOutCurr, -16);
       store_vec_u8(res1, dmemOutCurr, -8);
 
@@ -560,11 +553,9 @@ command<1> Cmd_Blur(u32 ptrRDRAMIn, u32 ptrRDRAMOut, u16 thresholdBrightness)
       vec16 group2;
       @Barrier("group2") group2 = load(temp, 0);
 
-      res1:sint = sumB:sint * 1;
-      res1:sint = sumC:sint +* 1;
+      sumA:sint = sumC:sint * 1; // sumC is sumA in the next iteration, as the kernels overlap
+      res1:sint = sumB:sint +* 1;
       res1:sint = group2:sint +* 1;
-
-      sumA = sumC;
 
       dmemInA += 16;
       dmemInC += 16;
