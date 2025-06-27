@@ -11,5 +11,9 @@ struct FlyCam
   float camRotX{};
   float camRotY{};
 
+  T3DVec3 camPos{};
+  float camRotXCurr{};
+  float camRotYCurr{};
+
   void update(float deltaTime);
 };

@@ -17,7 +17,6 @@ class SceneMain : public Scene
     T3DMat4FP* skyMatFP{};
     float lightAngle{};
 
-    Camera camera{};
     FlyCam flyCam{camera};
 
   public:

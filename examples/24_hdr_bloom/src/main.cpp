@@ -8,30 +8,34 @@
 #include <rspq_profile.h>
 
 #include <t3d/t3d.h>
-#include <t3d/t3dmodel.h>
+#include <t3d/tpx.h>
 
 #include "main.h"
 #include "debugMenu.h"
+#include "memory/matrixManager.h"
 #include "postProcess.h"
 #include "render/debugDraw.h"
 #include "rsp/rspFX.h"
 #include "scenes/scene.h"
+
 #include "scenes/sceneMain.h"
+#include "scenes/sceneParticle.h"
+
+constinit State state{
+  .ppConf = {
+    .blurSteps = 1,
+    .blurBrightness = 1.0f,
+    .hdrFactor = 1.5f,
+    .bloomThreshold = 0.2f,
+    .scalingUseRDP = true,
+   },
+  .showOffscreen = true,
+  .autoExposure = false,
+  .activeScene = nullptr
+};
 
 namespace {
   constexpr int BUFF_COUNT = 3;
-
-  State state{
-    .ppConf = {
-      .blurSteps = 4,
-      .blurBrightness = 1.0f,
-      .hdrFactor = 1.5f,
-      .bloomThreshold = 0.2f,
-      .scalingUseRDP = true,
-     },
-    .showOffscreen = false,
-    .autoExposure = false,
-  };
 
   T3DVec3 camPos = {{-35.0, 21.0, 40.0}};
   T3DVec3 camTarget = {{0,0,0}};
@@ -65,9 +69,12 @@ int main()
 
   joypad_init();
   t3d_init((T3DInitParams){});
+  tpx_init((TPXInitParams){});
+
   t3d_fog_set_enabled(false);
 
-  Scene *scene = new SceneMain();
+  MatrixManager::reset();
+  Scene *scene = new SceneParticle();
 
   uint32_t frameIdx = 0;
   bool showMenu = true;

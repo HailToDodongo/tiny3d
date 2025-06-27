@@ -139,7 +139,7 @@ surface_t& PostProcess::applyEffects(surface_t &dst)
     rspq_highpri_sync();
     t = get_ticks() - t;
     double ticksMS = (double)t / (double)TICKS_PER_SECOND * 1000.0f;
-    debugf("RSP-FX: %.4fms (%.4f)\n", ticksMS, ticksMS - 9.636);
+    debugf("RSP-FX: %.4fms (%.4f)\n", ticksMS, ticksMS - 8.748);
   }
 
   return *output;

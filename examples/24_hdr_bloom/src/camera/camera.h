@@ -37,6 +37,12 @@ struct Camera
     pos += dir;
   }
 
-  [[nodiscard]] const T3DVec3 &getTarget() const { return target; }
-  [[nodiscard]] const T3DVec3 &getPos() const { return pos; }
+  [[nodiscard]] const fm_vec3_t &getTarget() const { return target; }
+  [[nodiscard]] const fm_vec3_t &getPos() const { return pos; }
+
+  [[nodiscard]] fm_vec3_t getDirection() const {
+    auto dir = target - pos;
+    t3d_vec3_norm(&dir);
+    return dir;
+  }
 };

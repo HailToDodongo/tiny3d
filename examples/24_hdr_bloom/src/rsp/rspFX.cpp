@@ -61,7 +61,7 @@ void RspFX::downscale(void* rgba32In, void* rgba32Out)
 
 void RspFX::blur(void* rgba32In, void* rgba32Out, float brightness, float threshold)
 {
-  constexpr float quantFactor = (1 << 12) * 1.35f;
+  constexpr float quantFactor = (1 << 12) * 0.99f;
 
   uint32_t factors = (uint32_t)(threshold * 0x7FFF) & 0xFFFF;
   factors <<= 16;

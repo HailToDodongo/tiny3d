@@ -4,12 +4,13 @@ T3D_INST=$(shell realpath ../..)
 include $(N64_INST)/include/n64.mk
 include $(T3D_INST)/t3d.mk
 
-N64_CFLAGS += -std=gnu2x -O2
+ N64_CXXFLAGS += -std=gnu++20 -Os -fno-exceptions
 
 PROJECT_NAME=t3d_24_hdr_bloom
 
 src = $(wildcard src/*.cpp) $(wildcard src/render/*.cpp) $(wildcard src/rsp/*.cpp)
-src += $(wildcard src/scenes/*.cpp) $(wildcard src/camera/*.cpp)
+src += $(wildcard src/scenes/*.cpp) $(wildcard src/camera/*.cpp) $(wildcard src/actors/*.cpp)
+src += $(wildcard src/memory/*.cpp)
 
 assets_png = $(wildcard assets/*.png)
 assets_gltf = $(wildcard assets/*.glb)
