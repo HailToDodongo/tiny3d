@@ -35,6 +35,4 @@ void FlyCam::update(float deltaTime)
   t3d_vec3_lerp(cam.pos, cam.pos, camPos, 0.1f);
   auto actualTarget = cam.pos + camDir;
   cam.target = actualTarget;
-
-  cam.update(deltaTime);
 }

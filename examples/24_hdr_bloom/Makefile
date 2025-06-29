@@ -12,11 +12,11 @@ src = $(wildcard src/*.cpp) $(wildcard src/render/*.cpp) $(wildcard src/rsp/*.cp
 src += $(wildcard src/scenes/*.cpp) $(wildcard src/camera/*.cpp) $(wildcard src/actors/*.cpp)
 src += $(wildcard src/memory/*.cpp)
 
-assets_png = $(wildcard assets/*.png)
+assets_png = $(wildcard assets/*.png) $(wildcard assets/env/*.png)
 assets_gltf = $(wildcard assets/*.glb)
 assets_ttf = $(wildcard assets/*.ttf)
 
-assets_conv = $(addprefix filesystem/,$(notdir $(assets_png:%.png=%.sprite))) \
+assets_conv = $(patsubst assets/%,filesystem/%,$(assets_png:%.png=%.sprite)) \
 			  $(addprefix filesystem/,$(notdir $(assets_ttf:%.ttf=%.font64))) \
 			  $(addprefix filesystem/,$(notdir $(assets_gltf:%.glb=%.t3dm)))
 
@@ -25,7 +25,7 @@ all: $(PROJECT_NAME).z64
 filesystem/%.sprite: assets/%.png
 	@mkdir -p $(dir $@)
 	@echo "    [SPRITE] $@"
-	$(N64_MKSPRITE) $(MKSPRITE_FLAGS) -o filesystem "$<"
+	$(N64_MKSPRITE) $(MKSPRITE_FLAGS) -o $(dir $@) "$<"
 
 filesystem/%.font64: assets/%.ttf
 	@mkdir -p $(dir $@)

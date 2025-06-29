@@ -27,8 +27,8 @@ SceneMain::SceneMain()
   camera.fov = T3D_DEG_TO_RAD(85.0f);
   camera.near = 2.5f;
   camera.far = 100.0f;
-  camera.setPos({-35.0, 21.0, 40.0});
-  camera.setTarget({0,0,0});
+  camera.pos = {-35.0, 21.0, 40.0};
+  camera.target = {0,0,0};
   flyCam.camRotX = -2.0f;
 
   mapModel = t3d_model_load("rom://scene.t3dm");
@@ -86,11 +86,10 @@ SceneMain::~SceneMain()
   free_uncached(skyMatFP);
 }
 
-void SceneMain::update(float deltaTime)
+void SceneMain::updateScene(float deltaTime)
 {
   t3d_mat4fp_set_pos(skyMatFP, camera.pos);
   flyCam.update(deltaTime);
-
 
   lightAngle += deltaTime * 1.5f;
   lightPointPos.x = fm_cosf(lightAngle) * 40.0f;
@@ -100,9 +99,8 @@ void SceneMain::update(float deltaTime)
   lightPointPos2.z = fm_sinf(lightAngle * -1.2f) * 35.0f;
 }
 
-void SceneMain::draw(float deltaTime)
+void SceneMain::draw3D(float deltaTime)
 {
-  camera.attach();
   t3d_screen_clear_depth();
   rdpq_clear({0xA, 0xA, 0xA, 0xFF});
   rdpq_set_env_color({0xFF, 0xAA, 0xEE, 0xAA});

@@ -24,14 +24,6 @@ struct Camera
   void update(float deltaTime);
   void attach();
 
-  void setPos(T3DVec3 newPos) {
-    pos = newPos;
-  }
-
-  void setTarget(T3DVec3 newPos) {
-    target = newPos;
-  }
-
   void move(T3DVec3 dir) {
     target += dir;
     pos += dir;

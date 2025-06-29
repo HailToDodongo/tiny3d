@@ -5,11 +5,13 @@
 #include "debugMenu.h"
 #include <libdragon.h>
 #include "render/debugDraw.h"
+#include <vector>
 
 namespace
 {
-  int menuSel = 0;
-  constexpr int maxMenuSel = 6;
+  constinit int menuSel{};
+  constinit int maxMenuSel{};
+  int idxCustom{};
 
   template<typename T>
   constexpr T clamp(T val, T min, T max)
@@ -18,6 +20,32 @@ namespace
     if(val > max) return max;
     return val;
   }
+
+  std::vector<DebugMenu::Entry> entries{};
+  std::vector<bool*> changedFlags{};
+}
+
+void DebugMenu::reset()
+{
+  entries.clear();
+  changedFlags.clear();
+
+  entries.push_back({"Debug", EntryType::BOOL, &state.showOffscreen});
+  entries.push_back({"Blurs", EntryType::INT, &state.ppConf.blurSteps, 0, 50});
+  entries.push_back({"Bloom", EntryType::FLOAT, &state.ppConf.blurBrightness, 0.0f, 8.0f, 0.01f});
+  entries.push_back({"Expos", EntryType::FLOAT, &state.ppConf.hdrFactor, 0.0f, 16.0f, 0.03f});
+  entries.push_back({"Thres", EntryType::FLOAT, &state.ppConf.bloomThreshold, 0.0f, 1.0f, 1.0f/256.0f});
+  entries.push_back({"RDP-S", EntryType::BOOL, &state.ppConf.scalingUseRDP});
+  entries.push_back({"Auto ", EntryType::BOOL, &state.autoExposure});
+  menuSel = 0;
+  idxCustom = entries.size();
+}
+
+void DebugMenu::addEntry(const Entry& entry, bool *changedFlag) {
+  entries.push_back(entry);
+  changedFlags.resize(entries.size());
+  changedFlags[entries.size()-1] = changedFlag;
+  menuSel = entries.size()-1;
 }
 
 void DebugMenu::draw(State &state)
@@ -25,6 +53,7 @@ void DebugMenu::draw(State &state)
   auto btn = joypad_get_buttons_pressed(JOYPAD_PORT_1);
   auto held = joypad_get_buttons_held(JOYPAD_PORT_1);
 
+  maxMenuSel = entries.size()-1;
   if(btn.d_up || btn.c_up)menuSel--;
   if(btn.d_down || btn.c_down)menuSel++;
   if(menuSel < 0)menuSel = maxMenuSel;
@@ -38,35 +67,60 @@ void DebugMenu::draw(State &state)
   if(held.d_right || held.c_right)heldDir = 1;
   if(held.d_left || held.c_left)heldDir = -1;
 
-  if(selDir != 0) {
-    switch(menuSel) {
-      case 0: state.showOffscreen = !state.showOffscreen; break;
-      case 1: state.ppConf.blurSteps = clamp(state.ppConf.blurSteps + selDir, 0, 50); break;
-      case 5: state.ppConf.scalingUseRDP = !state.ppConf.scalingUseRDP; break;
-      case 6: state.autoExposure = !state.autoExposure; break;
-    }
-  }
-  if(heldDir != 0) {
-    switch(menuSel) {
-      case 2: state.ppConf.blurBrightness = clamp(state.ppConf.blurBrightness + heldDir*0.01f, 0.0f, 8.0f); break;
-      case 3: state.ppConf.hdrFactor = clamp(state.ppConf.hdrFactor + heldDir*0.03f, 0.0f, 16.0f); break;
-      case 4: state.ppConf.bloomThreshold = clamp(state.ppConf.bloomThreshold + heldDir*(1.0f/256.0f), 0.0f, 1.0f); break;
-    }
+  Entry &curr = entries[menuSel];
+  switch(curr.type) {
+    case EntryType::INT:
+      if(selDir != 0) {
+        int *value = (int*)curr.value;
+        *value = clamp(*value + selDir, (int)curr.min, (int)curr.max);
+        if(changedFlags[menuSel])*changedFlags[menuSel] = true;
+      }
+      break;
+    case EntryType::FLOAT:
+      if(heldDir != 0) {
+        float *value = (float*)curr.value;
+        *value = clamp(*value + heldDir * curr.incr, curr.min, curr.max);
+        if(changedFlags[menuSel])*changedFlags[menuSel] = true;
+      }
+      break;
+    case EntryType::BOOL:
+      if(selDir != 0) {
+        bool *value = (bool*)curr.value;
+        *value = !(*value);
+        if(changedFlags[menuSel])*changedFlags[menuSel] = true;
+      }
+      break;
   }
 
   float posX = 20;
   float posY = 18;
   Debug::print(posX, posY, "[START] Menu");
   posY += 12;
-  int posYStart = posY;
 
-  Debug::print(posX + 8, posY, state.showOffscreen ? "Debug: On" : "Debug: -"); posY += 8;
-  Debug::printf(posX + 8, posY, "Blurs: %d", state.ppConf.blurSteps);         posY += 8;
-  Debug::printf(posX + 8, posY, "Bloom: %.2f", state.ppConf.blurBrightness); posY += 8;
-  Debug::printf(posX + 8, posY, "Expos: %.2f", state.ppConf.hdrFactor);     posY += 8;
-  Debug::printf(posX + 8, posY, "Thres: %.2f", state.ppConf.bloomThreshold); posY += 8;
-  Debug::printf(posX + 8, posY, "Scale: %s", state.ppConf.scalingUseRDP ? "RDP" : "RSP"); posY += 8;
-  Debug::printf(posX + 8, posY, "Auto : %c", state.autoExposure ? '1' : '-'); posY += 8;
+  int idx = 0;
+  for(auto &entry : entries) {
+    if(idx == idxCustom) {
+      Debug::print(posX, posY+8, "Scene:");
+      posY += 12+8;
+    }
 
-  Debug::print(posX, posYStart + menuSel * 8, ">");
+    switch(entry.type) {
+      case EntryType::INT:
+        Debug::printf(posX + 8, posY, "%s: %d", entry.name, *(int*)entry.value);
+      break;
+      case EntryType::FLOAT:
+        Debug::printf(posX + 8, posY, "%s: %.2f", entry.name, *(float*)entry.value);
+      break;
+      case EntryType::BOOL:
+        Debug::printf(posX + 8, posY, *((bool*)entry.value) ? "%s: ON" : "%s: OFF", entry.name);
+      break;
+    }
+
+    if(menuSel == idx) {
+      Debug::print(posX, posY, ">");
+    }
+
+    posY += 8;
+    ++idx;
+  }
 }

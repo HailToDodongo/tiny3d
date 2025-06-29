@@ -20,16 +20,17 @@
 
 #include "scenes/sceneMain.h"
 #include "scenes/sceneParticle.h"
+#include "scenes/sceneEnv.h"
 
 constinit State state{
   .ppConf = {
-    .blurSteps = 1,
+    .blurSteps = 4,
     .blurBrightness = 1.0f,
     .hdrFactor = 1.5f,
     .bloomThreshold = 0.2f,
     .scalingUseRDP = true,
    },
-  .showOffscreen = true,
+  .showOffscreen = false,
   .autoExposure = false,
   .activeScene = nullptr
 };
@@ -74,7 +75,9 @@ int main()
   t3d_fog_set_enabled(false);
 
   MatrixManager::reset();
-  Scene *scene = new SceneParticle();
+  DebugMenu::reset();
+
+  Scene *scene = new SceneEnv();
 
   uint32_t frameIdx = 0;
   bool showMenu = true;
@@ -156,7 +159,7 @@ int main()
     Debug::printStart();
     if(showMenu) {
       DebugMenu::draw(state);
-      Debug::printf(20, 200, "B: %.2f", postProc[frameIdxLast].getBrightness());
+      Debug::printf(20, 200, "%d%%", (int)(postProc[frameIdxLast].getBrightness() * 100));
     } else {
       Debug::printf(20, 20, "%.2f", display_get_fps());
     }

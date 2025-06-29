@@ -15,6 +15,10 @@ namespace Actor
       fm_vec3_t pos{};
 
     public:
+      constexpr static uint32_t FLAG_DISABLED = (1 << 0);
+
+      uint32_t flags{0};
+
       virtual ~Base() {}
       virtual void update(float deltaTime) = 0;
 

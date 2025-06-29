@@ -16,6 +16,10 @@ class Scene
     std::vector<Actor::Base*> actors{};
     Camera camera{};
 
+    virtual void updateScene(float deltaTime) = 0;
+    virtual void draw3D(float deltaTime) = 0;
+    virtual void drawPostHDR(float deltaTime) {}
+
   public:
 
     virtual ~Scene() {
@@ -24,8 +28,8 @@ class Scene
       }
     }
 
-    virtual void update(float deltaTime) = 0;
-    virtual void draw(float deltaTime) = 0;
+    void update(float deltaTime);
+    void draw(float deltaTime);
 
     Camera &getCam() { return camera; }
 };
