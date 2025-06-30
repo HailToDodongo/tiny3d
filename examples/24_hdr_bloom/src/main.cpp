@@ -60,6 +60,7 @@ int main()
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, BUFF_COUNT, GAMMA_NONE, FILTERS_RESAMPLE);
 
   rdpq_init();
+  //rdpq_debug_start();
   #if RSPQ_PROFILE
     rspq_profile_start();
   #endif

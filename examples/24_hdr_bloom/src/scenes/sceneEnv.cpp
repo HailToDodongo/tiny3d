@@ -45,7 +45,7 @@ namespace {
 SceneEnv::SceneEnv()
 {
   state.activeScene = this;
-  bgIndex = 2;
+  bgIndex = 1;
 
   camera.fov = T3D_DEG_TO_RAD(85.0f);
   camera.near = 1.0f;
