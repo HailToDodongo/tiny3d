@@ -7,7 +7,6 @@
 #include <t3d/t3dmodel.h>
 #include "pointGlobe.h"
 #include "../main.h"
-#include "../scenes/scene.h"
 
 namespace {
   constexpr float BASE_SCALE = 0.15f;
@@ -20,7 +19,6 @@ namespace {
 // Shared resources:
 namespace {
   sprite_t *ptTex{};
-  sprite_t *ptTexMask{};
   uint32_t refCount{0};
 
   constexpr uint8_t sampleMap(uint8_t* data, float x, float y) {

@@ -3,19 +3,15 @@
 * @license MIT
 */
 #pragma once
-#include "scene.h"
-#include "../camera/camera.h"
-#include "../camera/flyCam.h"
+#include "../scene.h"
+#include "../../camera/camera.h"
+#include "../../camera/flyCam.h"
 #include <t3d/t3d.h>
 #include <t3d/t3dmodel.h>
 
 class SceneEnv : public Scene
 {
   private:
-    T3DModel *mapModel{};
-    T3DMat4FP* mapMatFP{};
-    T3DMat4FP* skyMatFP{};
-
     sprite_t *spriteBG{};
     rspq_block_t *dplBG{};
     uint32_t bgIndex{0};

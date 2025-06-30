@@ -26,5 +26,5 @@ namespace DebugMenu
   void reset();
   void addEntry(const Entry& entry, bool *changedFlag = nullptr);
 
-  void draw(State &state);
+  void draw();
 }

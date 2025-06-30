@@ -12,15 +12,12 @@
 
 #include "main.h"
 #include "debugMenu.h"
-#include "memory/matrixManager.h"
 #include "postProcess.h"
 #include "render/debugDraw.h"
 #include "rsp/rspFX.h"
-#include "scenes/scene.h"
 
-#include "scenes/sceneMain.h"
-#include "scenes/sceneParticle.h"
-#include "scenes/sceneEnv.h"
+#include "scene/scene.h"
+#include "scene/sceneManager.h"
 
 constinit State state{
   .ppConf = {
@@ -38,10 +35,6 @@ constinit State state{
 namespace {
   constexpr int BUFF_COUNT = 3;
 
-  T3DVec3 camPos = {{-35.0, 21.0, 40.0}};
-  T3DVec3 camTarget = {{0,0,0}};
-  T3DVec3 camDir = {{0,0,1}};
-
   rspq_profile_data_t profileData{};
   uint64_t lastUcodeTime = 0;
 }
@@ -54,7 +47,6 @@ int main()
   profileData.frame_count = 0;
 	debug_init_isviewer();
 	debug_init_usblog();
-	//asset_init_compression(2);
 
   dfs_init(DFS_DEFAULT_LOCATION);
   display_init(RESOLUTION_320x240, DEPTH_16_BPP, BUFF_COUNT, GAMMA_NONE, FILTERS_RESAMPLE);
@@ -75,10 +67,7 @@ int main()
 
   t3d_fog_set_enabled(false);
 
-  MatrixManager::reset();
-  DebugMenu::reset();
-
-  Scene *scene = new SceneEnv();
+  SceneManager::loadScene(2);
 
   uint32_t frameIdx = 0;
   bool showMenu = true;
@@ -89,12 +78,15 @@ int main()
   for(uint64_t frame = 0;; ++frame)
   {
     uint32_t frameIdxLast = (frameIdx+BUFF_COUNT-1) % BUFF_COUNT;
+
+    SceneManager::update();
+
     joypad_poll();
     auto pressed = joypad_get_buttons_pressed(JOYPAD_PORT_1);
     if(pressed.start)showMenu = !showMenu;
 
     float deltaTime = display_get_delta_time();
-    scene->update(deltaTime);
+    state.activeScene->update(deltaTime);
 
     // ----------- DRAW ------------ //
     fb = display_get();
@@ -111,12 +103,10 @@ int main()
       float delta = 0.05f;
       float target = 0.2f;
       if(avg > (target+delta)) {
-        auto diff = avg - (target+delta);
         float adjust = (0.8f) * deltaTime;
         state.ppConf.hdrFactor = fmaxf(state.ppConf.hdrFactor-adjust, 0.0f);
       }
       if(avg < (target-delta)) {
-        auto diff = (target+delta) - avg;
         float adjust = (0.8f) * deltaTime;
         state.ppConf.hdrFactor = fmin(state.ppConf.hdrFactor+adjust, 8.0f);
       }
@@ -128,10 +118,9 @@ int main()
     t3d_frame_start();
     rdpq_mode_antialias(AA_NONE);
     rdpq_mode_dithering(DITHER_NONE_NONE);
-    rdpq_set_prim_color({0xFF, 0xFF, 0xFF, 0xFF});
     rdpq_mode_fog(0);
 
-    scene->draw(deltaTime);
+    state.activeScene->draw(deltaTime);
 
     postProc[frameIdx].endFrame();
     auto surfBlur = postProc[frameIdxLast].applyEffects(*fb);
@@ -159,7 +148,7 @@ int main()
 
     Debug::printStart();
     if(showMenu) {
-      DebugMenu::draw(state);
+      DebugMenu::draw();
       Debug::printf(20, 200, "%d%%", (int)(postProc[frameIdxLast].getBrightness() * 100));
     } else {
       Debug::printf(20, 20, "%.2f", display_get_fps());

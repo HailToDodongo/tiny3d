@@ -7,7 +7,6 @@
 #include <t3d/t3dmodel.h>
 #include "envSphere.h"
 #include "../main.h"
-#include "../scenes/scene.h"
 
 namespace {
   constexpr float BASE_SCALE = 0.04f;

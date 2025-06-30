@@ -40,13 +40,13 @@ void Debug::printStart() {
 }
 
 float Debug::print(float x, float y, const char *str) {
-  int width = 8;
-  int height = 8;
+  constexpr int width = 8;
+  constexpr int height = 8;
   int s = 0;
 
   while(*str) {
     uint8_t c = *str;
-    if(c != ' ' && c != '\n')
+    if(c != ' ')
     {
       if(c >= 'a' && c <= 'z')c &= ~0x20;
       s = (c - 33) * width;

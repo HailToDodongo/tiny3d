@@ -5,13 +5,17 @@
 #include "debugMenu.h"
 #include <libdragon.h>
 #include "render/debugDraw.h"
+#include "scene/sceneManager.h"
 #include <vector>
 
 namespace
 {
   constinit int menuSel{};
   constinit int maxMenuSel{};
-  int idxCustom{};
+  constinit int idxCustom{};
+
+  constinit int sceneId{};
+  constinit bool needsSceneLoad{false};
 
   template<typename T>
   constexpr T clamp(T val, T min, T max)
@@ -30,6 +34,7 @@ void DebugMenu::reset()
   entries.clear();
   changedFlags.clear();
 
+  entries.push_back({"Scene", EntryType::INT, &sceneId, 0, 2});
   entries.push_back({"Debug", EntryType::BOOL, &state.showOffscreen});
   entries.push_back({"Blurs", EntryType::INT, &state.ppConf.blurSteps, 0, 50});
   entries.push_back({"Bloom", EntryType::FLOAT, &state.ppConf.blurBrightness, 0.0f, 8.0f, 0.01f});
@@ -37,6 +42,10 @@ void DebugMenu::reset()
   entries.push_back({"Thres", EntryType::FLOAT, &state.ppConf.bloomThreshold, 0.0f, 1.0f, 1.0f/256.0f});
   entries.push_back({"RDP-S", EntryType::BOOL, &state.ppConf.scalingUseRDP});
   entries.push_back({"Auto ", EntryType::BOOL, &state.autoExposure});
+
+  changedFlags.resize(entries.size());
+  changedFlags[0] = &needsSceneLoad;
+
   menuSel = 0;
   idxCustom = entries.size();
 }
@@ -48,10 +57,22 @@ void DebugMenu::addEntry(const Entry& entry, bool *changedFlag) {
   menuSel = entries.size()-1;
 }
 
-void DebugMenu::draw(State &state)
+void DebugMenu::draw()
 {
   auto btn = joypad_get_buttons_pressed(JOYPAD_PORT_1);
   auto held = joypad_get_buttons_held(JOYPAD_PORT_1);
+
+  if(btn.l && sceneId > entries[0].min) {
+    sceneId--; needsSceneLoad = true;
+  }
+  if(btn.r && sceneId < entries[0].max) {
+    sceneId++; needsSceneLoad = true;
+  }
+
+  if(needsSceneLoad) {
+    SceneManager::loadScene(sceneId);
+    needsSceneLoad = false;
+  }
 
   maxMenuSel = entries.size()-1;
   if(btn.d_up || btn.c_up)menuSel--;
@@ -95,6 +116,7 @@ void DebugMenu::draw(State &state)
   float posX = 20;
   float posY = 18;
   Debug::print(posX, posY, "[START] Menu");
+  Debug::print(display_get_width() - 100, posY, "[L/R] Scene");
   posY += 12;
 
   int idx = 0;

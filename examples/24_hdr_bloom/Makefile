@@ -9,8 +9,8 @@ include $(T3D_INST)/t3d.mk
 PROJECT_NAME=t3d_24_hdr_bloom
 
 src = $(wildcard src/*.cpp) $(wildcard src/render/*.cpp) $(wildcard src/rsp/*.cpp)
-src += $(wildcard src/scenes/*.cpp) $(wildcard src/camera/*.cpp) $(wildcard src/actors/*.cpp)
-src += $(wildcard src/memory/*.cpp)
+src += $(wildcard src/scene/*.cpp) $(wildcard src/camera/*.cpp) $(wildcard src/actors/*.cpp)
+src += $(wildcard src/memory/*.cpp) $(wildcard src/scene/scenes/*.cpp)
 
 assets_png = $(wildcard assets/*.png) $(wildcard assets/env/*.png)
 assets_gltf = $(wildcard assets/*.glb)

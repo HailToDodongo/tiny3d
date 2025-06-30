@@ -7,7 +7,6 @@
 #include <t3d/t3dmodel.h>
 #include "magicSphere.h"
 #include "../main.h"
-#include "../scenes/scene.h"
 
 namespace {
   constexpr float BASE_SCALE = 0.7f;
@@ -57,9 +56,6 @@ namespace Actor
 
   void MagicSphere::draw3D(float deltaTime)
   {
-    auto &cam = state.activeScene->getCam();
-    auto ptPos = pos + (cam.getDirection() * 80.0f);
-
     t3d_light_set_ambient({0x22, 0x22, 0x22, 0xFF});
     t3d_matrix_set(matFP.get(), true);
 

@@ -3,9 +3,9 @@
 * @license MIT
 */
 #include "sceneEnv.h"
-#include "../main.h"
-#include "../actors/envSphere.h"
-#include "../debugMenu.h"
+#include "../../main.h"
+#include "../../actors/envSphere.h"
+#include "../../debugMenu.h"
 #include <array>
 
 namespace {
@@ -44,7 +44,6 @@ namespace {
 
 SceneEnv::SceneEnv()
 {
-  state.activeScene = this;
   bgIndex = 1;
 
   camera.fov = T3D_DEG_TO_RAD(85.0f);
@@ -68,9 +67,6 @@ SceneEnv::SceneEnv()
 
 SceneEnv::~SceneEnv()
 {
-  t3d_model_free(mapModel);
-  free_uncached(mapMatFP);
-
   if(spriteBG)sprite_free(spriteBG);
   if(dplBG)rspq_block_free(dplBG);
 }

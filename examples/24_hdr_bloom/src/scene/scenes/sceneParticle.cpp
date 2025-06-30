@@ -3,9 +3,9 @@
 * @license MIT
 */
 #include "sceneParticle.h"
-#include "../actors/magicSphere.h"
-#include "../actors/pointGlobe.h"
-#include "../main.h"
+#include "../../actors/magicSphere.h"
+#include "../../actors/pointGlobe.h"
+#include "../../main.h"
 
 namespace {
   uint8_t colorAmbient[4] = {0x19, 0x19, 0x19, 0x00};
@@ -16,8 +16,6 @@ namespace {
 
 SceneParticle::SceneParticle()
 {
-  state.activeScene = this;
-
   camera.fov = T3D_DEG_TO_RAD(70.0f);
   camera.near = 2.5f;
   camera.far = 100.0f;

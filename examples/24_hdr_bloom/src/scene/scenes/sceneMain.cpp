@@ -3,7 +3,7 @@
 * @license MIT
 */
 #include "sceneMain.h"
-#include "../main.h"
+#include "../../main.h"
 
 namespace {
   uint8_t colorAmbient[4] = {0x19, 0x19, 0x19, 0x00};
@@ -22,8 +22,6 @@ namespace {
 
 SceneMain::SceneMain()
 {
-  state.activeScene = this;
-
   camera.fov = T3D_DEG_TO_RAD(85.0f);
   camera.near = 2.5f;
   camera.far = 100.0f;
