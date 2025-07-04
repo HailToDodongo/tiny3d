@@ -54,7 +54,7 @@ void DebugMenu::addEntry(const Entry& entry, bool *changedFlag) {
   entries.push_back(entry);
   changedFlags.resize(entries.size());
   changedFlags[entries.size()-1] = changedFlag;
-  menuSel = entries.size()-1;
+  // menuSel = entries.size()-1;
 }
 
 void DebugMenu::draw()

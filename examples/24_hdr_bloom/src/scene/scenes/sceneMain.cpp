@@ -6,7 +6,7 @@
 #include "../../main.h"
 
 namespace {
-  uint8_t colorAmbient[4] = {0x19, 0x19, 0x19, 0x00};
+  uint8_t colorAmbient[4] = {0x3A, 0x3A, 0x3A, 0x00};
 
   uint8_t colorDir[4] = {0x1F, 0x1F, 0x1F, 0};
   T3DVec3 lightDirVec{0.0f, 1.0f, 0.0f};
@@ -23,15 +23,15 @@ namespace {
 SceneMain::SceneMain()
 {
   camera.fov = T3D_DEG_TO_RAD(85.0f);
-  camera.near = 2.5f;
-  camera.far = 100.0f;
+  camera.near = 3.0f;
+  camera.far = 230.0f;
   camera.pos = {-35.0, 21.0, 40.0};
   camera.target = {0,0,0};
   flyCam.camRotX = -2.0f;
 
   mapModel = t3d_model_load("rom://scene.t3dm");
   mapMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
-  skyMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
+  //skyMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
 
   float modelScale = 0.15f;
   t3d_mat4fp_from_srt_euler(mapMatFP,
@@ -39,15 +39,15 @@ SceneMain::SceneMain()
     (float[3]){0,0,0},
     (float[3]){0,0,0}
   );
-  t3d_mat4fp_from_srt_euler(skyMatFP,
+  /*t3d_mat4fp_from_srt_euler(skyMatFP,
     (float[3]){modelScale, modelScale, modelScale},
     (float[3]){0,0,0},
     (float[3]){0,0,0}
-  );
+  );*/
 
   T3DModelState modelState = t3d_model_state_create();
 
-  skyObj = t3d_model_get_object(mapModel, "sky");
+  /*skyObj = t3d_model_get_object(mapModel, "sky");
   rspq_block_begin();
     skyObj->material->otherModeMask |= SOM_Z_WRITE | SOM_Z_COMPARE;
     skyObj->material->otherModeValue &= ~(SOM_Z_WRITE | SOM_Z_COMPARE);
@@ -57,6 +57,7 @@ SceneMain::SceneMain()
     t3d_model_draw_object(skyObj, NULL);
 
   skyObj->userBlock = rspq_block_end();
+   */
 
   auto it = t3d_model_iter_create(mapModel, T3D_CHUNK_TYPE_OBJECT);
   while(t3d_model_iter_next(&it)) {
@@ -81,12 +82,11 @@ SceneMain::~SceneMain()
 {
   t3d_model_free(mapModel);
   free_uncached(mapMatFP);
-  free_uncached(skyMatFP);
 }
 
 void SceneMain::updateScene(float deltaTime)
 {
-  t3d_mat4fp_set_pos(skyMatFP, camera.pos);
+  //t3d_mat4fp_set_pos(skyMatFP, camera.pos);
   flyCam.update(deltaTime);
 
   lightAngle += deltaTime * 1.5f;
@@ -106,10 +106,9 @@ void SceneMain::draw3D(float deltaTime)
 
   t3d_light_set_ambient(colorAmbient);
 
-  t3d_matrix_push(skyMatFP);
-  //rspq_block_run(skyObj->userBlock);
+  t3d_matrix_push(mapMatFP);
 
-  t3d_matrix_set(mapMatFP, true);
+  t3d_light_set_count(0);
 
   uint8_t lastLightID = 0xFF;
   auto it = t3d_model_iter_create(mapModel, T3D_CHUNK_TYPE_OBJECT);
@@ -118,7 +117,7 @@ void SceneMain::draw3D(float deltaTime)
     if(it.object == skyObj)continue;
     if(it.object->userValue0 != lastLightID) {
       lastLightID = it.object->userValue0;
-      if(lastLightID == 0) {
+      /*if(lastLightID == 0) {
         t3d_light_set_point(0, lightPointColor, lightPointPos, 0.09f, false);
         t3d_light_set_point(1, lightPointColor2, lightPointPos2, 0.07f, false);
         t3d_light_set_count(2);
@@ -129,7 +128,7 @@ void SceneMain::draw3D(float deltaTime)
         t3d_light_set_point(0, col0, {{camPos.x, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false);
         t3d_light_set_point(1, col1, {{camPos.x, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false);
         t3d_light_set_count(2);
-      }
+      }*/
     }
     rspq_block_run(it.object->userBlock);
   }

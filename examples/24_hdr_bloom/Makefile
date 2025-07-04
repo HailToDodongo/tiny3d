@@ -12,7 +12,7 @@ src = $(wildcard src/*.cpp) $(wildcard src/render/*.cpp) $(wildcard src/rsp/*.cp
 src += $(wildcard src/scene/*.cpp) $(wildcard src/camera/*.cpp) $(wildcard src/actors/*.cpp)
 src += $(wildcard src/memory/*.cpp) $(wildcard src/scene/scenes/*.cpp)
 
-assets_png = $(wildcard assets/*.png) $(wildcard assets/env/*.png)
+assets_png = $(wildcard assets/*.png) $(wildcard assets/env/*.png) $(wildcard assets/space/*.png)
 assets_gltf = $(wildcard assets/*.glb)
 assets_ttf = $(wildcard assets/*.ttf)
 
@@ -21,6 +21,8 @@ assets_conv = $(patsubst assets/%,filesystem/%,$(assets_png:%.png=%.sprite)) \
 			  $(addprefix filesystem/,$(notdir $(assets_gltf:%.glb=%.t3dm)))
 
 all: $(PROJECT_NAME).z64
+
+filesystem/scene.t3dm: T3DM_FLAGS += --bvh --base-scale=32
 
 filesystem/%.sprite: assets/%.png
 	@mkdir -p $(dir $@)
@@ -35,7 +37,8 @@ filesystem/%.font64: assets/%.ttf
 filesystem/%.t3dm: assets/%.glb
 	@mkdir -p $(dir $@)
 	@echo "    [T3D-MODEL] $@"
-	$(T3D_GLTF_TO_3D) "$<" $@
+	$(T3D_GLTF_TO_3D) "$<" $@ $(T3DM_FLAGS)
+	$(N64_BINDIR)/mkasset -c 1 -o $(dir $@) $@
 
 $(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
 $(BUILD_DIR)/$(PROJECT_NAME).elf: $(src:%.cpp=$(BUILD_DIR)/%.o) $(BUILD_DIR)/src/rsp/rsp_fx.o

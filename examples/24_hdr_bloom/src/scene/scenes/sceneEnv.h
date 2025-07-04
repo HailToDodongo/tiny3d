@@ -15,7 +15,7 @@ class SceneEnv : public Scene
     sprite_t *spriteBG{};
     rspq_block_t *dplBG{};
     uint32_t bgIndex{0};
-    bool showBlurred{false};
+    bool showBlurred{true};
     bool showModel{true};
 
     void refreshScene();
