@@ -23,6 +23,9 @@ namespace Actor
       PTSystem particles{};
       float timer{};
       float timerNoise{};
+      float timerFlicker{};
+      float actualScale{};
+      int lastDrawnPartCount{};
       Args args{};
 
     public:

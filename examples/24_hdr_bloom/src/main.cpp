@@ -67,7 +67,7 @@ int main()
 
   t3d_fog_set_enabled(false);
 
-  SceneManager::loadScene(2);
+  SceneManager::loadScene(0);
 
   uint32_t frameIdx = 0;
   bool showMenu = true;
@@ -101,7 +101,7 @@ int main()
       avg /= lastBrightness.size();
 
       float delta = 0.05f;
-      float target = 0.2f;
+      float target = 0.40f;
       if(avg > (target+delta)) {
         float adjust = (0.8f) * deltaTime;
         state.ppConf.hdrFactor = fmaxf(state.ppConf.hdrFactor-adjust, 0.0f);
@@ -153,6 +153,8 @@ int main()
     } else {
       Debug::printf(20, 20, "%.2f", display_get_fps());
     }
+
+    state.activeScene->draw2D(deltaTime);
 
     #if RSPQ_PROFILE
       Debug::printf(20, 220, "%.2fms", lastUcodeTime / 1000.0f);

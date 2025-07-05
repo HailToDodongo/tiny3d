@@ -37,4 +37,8 @@ struct Camera
     t3d_vec3_norm(&dir);
     return dir;
   }
+
+  T3DFrustum getFrustum() {
+    return viewports[vpIdx].viewFrustum;
+  }
 };

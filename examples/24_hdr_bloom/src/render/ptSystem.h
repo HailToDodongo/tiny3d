@@ -30,5 +30,5 @@ struct PTSystem
   void draw() const;
   void drawTextured() const;
 
-  void drawTexturedSlice(int begin, int end) const;
+  int drawTexturedSlice(int begin, int end) const;
 };

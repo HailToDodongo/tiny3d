@@ -14,8 +14,8 @@ void FlyCam::update(float deltaTime)
   float camSpeed = deltaTime * 0.5f;
   float camRotSpeed = deltaTime * 0.015f;
 
-  camRotXCurr = t3d_lerp_angle(camRotXCurr, camRotX, 0.1f);
-  camRotYCurr = t3d_lerp_angle(camRotYCurr, camRotY, 0.1f);
+  camRotXCurr = t3d_lerp_angle(camRotXCurr, camRotX, 0.25f);
+  camRotYCurr = t3d_lerp_angle(camRotYCurr, camRotY, 0.25f);
 
   T3DVec3 camDir{};
   camDir.v[0] = fm_cosf(camRotXCurr) * fm_cosf(camRotYCurr);
@@ -32,7 +32,7 @@ void FlyCam::update(float deltaTime)
     camPos.v[2] -= camDir.v[0] * (float)joypad.stick_x * -camSpeed;
   }
 
-  t3d_vec3_lerp(cam.pos, cam.pos, camPos, 0.1f);
+  t3d_vec3_lerp(cam.pos, cam.pos, camPos, 0.25f);
   auto actualTarget = cam.pos + camDir;
   cam.target = actualTarget;
 }

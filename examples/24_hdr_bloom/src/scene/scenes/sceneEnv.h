@@ -22,7 +22,6 @@ class SceneEnv : public Scene
 
     void updateScene(float deltaTime) final;
     void draw3D(float deltaTime) final;
-    void drawPostHDR(float deltaTime) final;
 
   public:
     SceneEnv();

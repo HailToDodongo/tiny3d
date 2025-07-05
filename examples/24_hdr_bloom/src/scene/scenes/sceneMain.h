@@ -15,7 +15,6 @@ class SceneMain : public Scene
     T3DModel *mapModel{};
     T3DMat4FP* mapMatFP{};
     T3DMat4FP* skyMatFP{};
-    float lightAngle{};
 
     FlyCam flyCam{camera};
 
@@ -23,6 +22,8 @@ class SceneMain : public Scene
     void draw3D(float deltaTime) final;
 
   public:
+    void draw2D(float deltaTime) final;
+
     SceneMain();
     ~SceneMain();
 };

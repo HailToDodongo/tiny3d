@@ -34,7 +34,7 @@ void DebugMenu::reset()
   entries.clear();
   changedFlags.clear();
 
-  entries.push_back({"Scene", EntryType::INT, &sceneId, 0, 2});
+  entries.push_back({"Scene", EntryType::INT, &sceneId, 0, 1});
   entries.push_back({"Debug", EntryType::BOOL, &state.showOffscreen});
   entries.push_back({"Blurs", EntryType::INT, &state.ppConf.blurSteps, 0, 50});
   entries.push_back({"Bloom", EntryType::FLOAT, &state.ppConf.blurBrightness, 0.0f, 8.0f, 0.01f});

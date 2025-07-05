@@ -122,8 +122,3 @@ void SceneEnv::draw3D(float deltaTime)
   t3d_light_set_directional(2, sceneLights[bgIndex].lightB.color, sceneLights[bgIndex].lightB.dir);
   t3d_light_set_count(0);
 }
-
-void SceneEnv::drawPostHDR(float deltaTime)
-{
-
-}

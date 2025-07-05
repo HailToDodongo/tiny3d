@@ -48,7 +48,7 @@ void PTSystem::drawTextured() const {
   tpx_matrix_pop(1);
 }
 
-void PTSystem::drawTexturedSlice(int begin, int end) const
+int PTSystem::drawTexturedSlice(int begin, int end) const
 {
   if(begin < 0)begin = 0;
   if(end > (int)countMax)end = countMax;
@@ -57,8 +57,10 @@ void PTSystem::drawTexturedSlice(int begin, int end) const
   end = end & ~1; // ensure size is even
 
   auto size = end - begin;
-  if(size <= 0)return;
+  if(size <= 0)return 0;
   tpx_matrix_push(mat);
   tpx_particle_draw_tex(particles + (begin/2), size);
   tpx_matrix_pop(1);
+
+  return size;
 }
