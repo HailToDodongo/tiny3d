@@ -520,7 +520,7 @@ static inline void* t3d_segment_address(uint8_t segmentId, void* ptr) {
  * can be encoded too without overhead.
  *
  * Examples:   (original triangles -> expected input of this function)
- * [4,5,6] [0,1,2] [7,8,9]         -> [4,5,6,(0x8000|1),1,2,(0x8000|7),8,9]
+ * [4,5,6] [0,1,2] [7,8,9]         -> [4,5,6,(0x8000|0),1,2,(0x8000|7),8,9]
  * [0,1,2] [3,0,2] [0,3,4] [5,0,4] -> [1,2,0,3,0,4,5]
  *
  * @param indices index buffer of local indices, will be modified in-place
