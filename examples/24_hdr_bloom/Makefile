@@ -13,6 +13,8 @@ src += $(wildcard src/scene/*.cpp) $(wildcard src/camera/*.cpp) $(wildcard src/a
 src += $(wildcard src/memory/*.cpp) $(wildcard src/scene/scenes/*.cpp)
 
 assets_png = $(wildcard assets/*.png) $(wildcard assets/env/*.png) $(wildcard assets/space/*.png)
+assets_png += $(wildcard assets/magic/*.png)
+
 assets_gltf = $(wildcard assets/*.glb)
 assets_ttf = $(wildcard assets/*.ttf)
 

@@ -50,8 +50,11 @@ build_lib:
 	make all
 
 sc64: build_lib
+	make
+	curl 192.168.0.6:9065/off
+	sleep 1
 	sc64deployer --remote 192.168.0.6:9064 upload --tv ntsc *.z64
-	curl 192.168.0.6:9065/reset
+	curl 192.168.0.6:9065/on
 
 -include $(wildcard $(BUILD_DIR)/*.d)
 

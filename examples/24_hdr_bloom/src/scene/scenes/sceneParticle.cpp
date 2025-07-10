@@ -8,7 +8,6 @@
 #include "../../main.h"
 
 namespace {
-  uint8_t colorAmbient[4] = {0x19, 0x19, 0x19, 0x00};
   int8_t orgPosX[256]{};
   int8_t orgPosZ[256]{};
   int8_t displace[255]{};
@@ -16,9 +15,9 @@ namespace {
 
 SceneParticle::SceneParticle()
 {
-  camera.fov = T3D_DEG_TO_RAD(70.0f);
-  camera.near = 2.5f;
-  camera.far = 100.0f;
+  camera.fov = T3D_DEG_TO_RAD(75.0f);
+  camera.near = 5.0f;
+  camera.far = 200.0f;
 
   camera.target = {0,0,0};
   flyCam.camPos = {-70.0, 21.0, 0.0};
@@ -77,8 +76,6 @@ SceneParticle::SceneParticle()
   actors.push_back(new Actor::MagicSphere(pos, {.scale = 1.25f, .color = {0x33,0x33,0xFF,0xFF}}));
   actors.push_back(new Actor::MagicSphere(pos, {.scale = 1.3f, .color = {0x33,0x55,0xFF,0xFF}}));
   actors.push_back(new Actor::MagicSphere(pos, {.scale = 1.35f, .color = {0x33,0x77,0xFF,0xFF}}));
-
-  actors.push_back(new Actor::PointGlobe(pos, {.scale = 1.0f }));
 }
 
 SceneParticle::~SceneParticle()
@@ -107,14 +104,16 @@ void SceneParticle::updateScene(float deltaTime)
 void SceneParticle::draw3D(float deltaTime)
 {
   t3d_screen_clear_depth();
-  rdpq_set_env_color({0x1F, 0x1F, 0x1F, 0x1F});
+  t3d_screen_clear_color({0,0,0, 0xFF});
+  rdpq_set_env_color({0xFF, 0xFF, 0xFF, 0xFF});
 
-  t3d_light_set_ambient({0xFF, 0xFF, 0xFF, 0xFF});
+
+  t3d_light_set_ambient({0x6F, 0x6F, 0x6F, 0xFF});
   t3d_light_set_count(0);
 
   t3d_matrix_push(mapMatFP);
 
-  float texScroll = 0.75f * deltaTime;
+  float texScroll = 8.0f * deltaTime;
 
   auto it = t3d_model_iter_create(mapModel, T3D_CHUNK_TYPE_OBJECT);
   auto modelState = t3d_model_state_create();
@@ -130,25 +129,5 @@ void SceneParticle::draw3D(float deltaTime)
     rspq_block_run(it.object->userBlock);
   }
 
-  for(auto actor : actors)actor->draw3D(deltaTime);
-
   t3d_matrix_pop(1);
-
-  // particles
-  rdpq_sync_pipe();
-
-  rdpq_mode_begin();
-    rdpq_mode_zbuf(true, true);
-    rdpq_mode_zoverride(true, 0, 0);
-    rdpq_mode_alphacompare(20);
-    rdpq_mode_persp(false);
-    rdpq_mode_filter(FILTER_BILINEAR);
-    rdpq_mode_combiner(RDPQ_COMBINER1((0,0,0,PRIM), (0,0,0,1)));
-  rdpq_mode_end();
-
-  tpx_state_from_t3d();
-  tpx_state_set_scale(0.4f, 1.0f);
-
-  particles.count = particles.countMax;
-  //particles.draw();
 }
