@@ -299,7 +299,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
 
       // convert vertices
       for(int k = 0; k < vertices.size(); k++) {
-        Mat4 mat = parseNodeMatrix(node);
+        Mat4 mat = config.ignoreTransforms ? Mat4{} : parseNodeMatrix(node);
         convertVertex(
           modelScale, texSizeX, texSizeY, vertices[k], verticesT3D[k],
           mat, matrixStack, model.material.uvFilterAdjust

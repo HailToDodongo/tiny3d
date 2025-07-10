@@ -252,6 +252,7 @@ struct Config {
   bool ignoreMaterials{false};
   bool createBVH{false};
   bool verbose{false};
+  bool ignoreTransforms{false};
   std::string assetPath{};
   std::string assetPathFull{};
 };
