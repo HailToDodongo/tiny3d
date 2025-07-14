@@ -2,25 +2,28 @@
 * @copyright 2025 - Max Bebök
 * @license MIT
 */
-#include "sceneParticle.h"
+#include "sceneMagic.h"
+#include <string_view>
 #include "../../actors/magicSphere.h"
 #include "../../actors/pointGlobe.h"
 #include "../../main.h"
 
 namespace {
+  constexpr float modelScale = 0.15f;
+
   int8_t orgPosX[256]{};
   int8_t orgPosZ[256]{};
   int8_t displace[255]{};
 }
 
-SceneParticle::SceneParticle()
+SceneMagic::SceneMagic()
 {
   camera.fov = T3D_DEG_TO_RAD(75.0f);
-  camera.near = 5.0f;
+  camera.near = 3.0f;
   camera.far = 200.0f;
 
   camera.target = {0,0,0};
-  flyCam.camPos = {-70.0, 21.0, 0.0};
+  flyCam.camPos = {-50.0, 0.0, 0.0};
   flyCam.camRotX = 0.0f;
 
   for(uint32_t i=0; i<particles.countMax; ++i) {
@@ -52,7 +55,6 @@ SceneParticle::SceneParticle()
   mapModel = t3d_model_load("rom://sceneMagic.t3dm");
   mapMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
 
-  float modelScale = 0.15f;
   t3d_mat4fp_from_srt_euler(mapMatFP,
     (float[3]){modelScale, modelScale, modelScale},
     (float[3]){0,0,0},
@@ -65,29 +67,47 @@ SceneParticle::SceneParticle()
   );
 
   auto it = t3d_model_iter_create(mapModel, T3D_CHUNK_TYPE_OBJECT);
+  auto matState = t3d_model_state_create();
+  rspq_block_begin();
   while(t3d_model_iter_next(&it)) {
-    rspq_block_begin();
+    if(std::string_view{it.object->name} == "Sky") {
+      objSky = it.object;
+      continue;
+    }
+    t3d_model_draw_material(it.object->material, &matState);
     t3d_model_draw_object(it.object, NULL);
-    it.object->userBlock = rspq_block_end();
   }
+  t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);
+  mapModel->userBlock = rspq_block_end();
 
-  constexpr fm_vec3_t pos{0, 40, 0};
-  actors.push_back(new Actor::MagicSphere(pos, {.scale = 1.2f, .color = {0x33,0x11,0xFF,0xFF}}));
-  actors.push_back(new Actor::MagicSphere(pos, {.scale = 1.25f, .color = {0x33,0x33,0xFF,0xFF}}));
-  actors.push_back(new Actor::MagicSphere(pos, {.scale = 1.3f, .color = {0x33,0x55,0xFF,0xFF}}));
-  actors.push_back(new Actor::MagicSphere(pos, {.scale = 1.35f, .color = {0x33,0x77,0xFF,0xFF}}));
+  assertf(objSky, "Sky object not found in model!");
+  rspq_block_begin();
+    t3d_model_draw_object(objSky, nullptr);
+  objSky->userBlock = rspq_block_end();
+
+  constexpr fm_vec3_t posSp{0, 29, 0};
+  actors.push_back(new Actor::MagicSphere(posSp, {.scale = 1.20f, .color = {0x67,0x00,0x80,0xFF}}));
+  actors.push_back(new Actor::MagicSphere(posSp, {.scale = 1.25f, .color = {0x67,0x20,0x90,0xFF}}));
+  actors.push_back(new Actor::MagicSphere(posSp, {.scale = 1.30f, .color = {0x67,0x40,0xA0,0xFF}}));
+  actors.push_back(new Actor::MagicSphere(posSp, {.scale = 1.35f, .color = {0x67,0x50,0xB0,0xFF}}));
 }
 
-SceneParticle::~SceneParticle()
+SceneMagic::~SceneMagic()
 {
   t3d_model_free(mapModel);
   free_uncached(mapMatFP);
 }
 
-void SceneParticle::updateScene(float deltaTime)
+void SceneMagic::updateScene(float deltaTime)
 {
   flyCam.update(deltaTime);
   lightAngle += deltaTime * 1.5f;
+
+  t3d_mat4fp_from_srt_euler(matFPSky.getNext(),
+    {modelScale, modelScale, modelScale},
+    {0,0,0},
+    camera.pos
+  );
 
   // generate particles
   for(uint32_t i=0; i<particles.countMax; ++i) {
@@ -101,33 +121,32 @@ void SceneParticle::updateScene(float deltaTime)
   }
 }
 
-void SceneParticle::draw3D(float deltaTime)
+void SceneMagic::draw3D(float deltaTime)
 {
   t3d_screen_clear_depth();
   t3d_screen_clear_color({0,0,0, 0xFF});
   rdpq_set_env_color({0xFF, 0xFF, 0xFF, 0xFF});
 
-
-  t3d_light_set_ambient({0x6F, 0x6F, 0x6F, 0xFF});
+  t3d_light_set_ambient({0x4F, 0x4F, 0x4F, 0xFF});
   t3d_light_set_count(0);
 
-  t3d_matrix_push(mapMatFP);
+  t3d_matrix_push(matFPSky.get());
 
-  float texScroll = 8.0f * deltaTime;
-
-  auto it = t3d_model_iter_create(mapModel, T3D_CHUNK_TYPE_OBJECT);
-  auto modelState = t3d_model_state_create();
-  while(t3d_model_iter_next(&it)) {
-
-    auto &texB = it.object->material->textureB;
-    texB.s.low += texScroll;
-    texB.s.height += texScroll;
-    texB.t.low += texScroll;
-    texB.t.height += texScroll;
-
-    t3d_model_draw_material(it.object->material, &modelState);
-    rspq_block_run(it.object->userBlock);
+  // Skybox, rotate texture
+  auto &texA = objSky->material->textureA;
+  texA.s.low += deltaTime * 4.0f;
+  if(texA.s.low > objSky->material->textureA.texWidth*2) {
+    texA.s.low -= objSky->material->textureA.texWidth*2;
   }
+  t3d_model_draw_material(objSky->material, nullptr);
+  rdpq_mode_zbuf(false, false);
+  rspq_block_run(objSky->userBlock);
+
+  rdpq_sync_pipe();
+  rdpq_mode_zbuf(true, true);
+
+  t3d_matrix_set(mapMatFP, true);
+  rspq_block_run(mapModel->userBlock);
 
   t3d_matrix_pop(1);
 }

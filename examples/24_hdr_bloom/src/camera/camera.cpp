@@ -17,8 +17,8 @@ Camera::Camera()
 
 void Camera::update(float deltaTime)
 {
-  auto &vp = viewports[vpIdx];
   vpIdx = (vpIdx + 1) % 3;
+  auto &vp = viewports[vpIdx];
 
   //if(needsProjUpdate) {
     t3d_viewport_set_projection(vp, fov, near, far);

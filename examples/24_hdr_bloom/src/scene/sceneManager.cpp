@@ -9,7 +9,7 @@
 #include "../debugMenu.h"
 
 #include "scenes/sceneMain.h"
-#include "scenes/sceneParticle.h"
+#include "scenes/sceneMagic.h"
 #include "scenes/sceneEnv.h"
 
 namespace {
@@ -46,7 +46,7 @@ void SceneManager::update()
     switch(requestSceneId) {
       case 0: state.activeScene = new SceneMain(); break;
       case 1: state.activeScene = new SceneEnv(); break;
-      case 2: state.activeScene = new SceneParticle(); break;
+      case 2: state.activeScene = new SceneMagic(); break;
 
       default: assertf(false, "Invalid scene-id: %d", requestSceneId);
     }

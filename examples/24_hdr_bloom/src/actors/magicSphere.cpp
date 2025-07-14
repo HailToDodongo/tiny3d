@@ -9,7 +9,7 @@
 #include "../main.h"
 
 namespace {
-  constexpr float BASE_SCALE = 0.7f;
+  constexpr float BASE_SCALE = 0.32f;
 }
 
 // Shared resources:
@@ -31,7 +31,7 @@ namespace Actor
 
     pos = _pos;
     args = _args;
-    timer = (get_ticks() % 100) / 25;
+    timer = (float)(rand() % 256) / 32.0f;
 
     args.scale *= BASE_SCALE;
   }
@@ -56,7 +56,6 @@ namespace Actor
 
   void MagicSphere::draw3D(float deltaTime)
   {
-    t3d_light_set_ambient({0x22, 0x22, 0x22, 0xFF});
     t3d_matrix_set(matFP.get(), true);
 
     rdpq_set_prim_color(args.color);
