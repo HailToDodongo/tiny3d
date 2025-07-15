@@ -5,7 +5,7 @@
 
 #include "parser.h"
 
-Mat4 parseNodeMatrix(const cgltf_node *node, const Vec3 &posScale)
+Mat4 parseNodeMatrix(const cgltf_node *node, bool recursive)
 {
   Mat4 matScale{};
   if(node->has_scale)matScale.setScale({node->scale[0], node->scale[1], node->scale[2]});
@@ -20,14 +20,16 @@ Mat4 parseNodeMatrix(const cgltf_node *node, const Vec3 &posScale)
 
   Mat4 matTrans{};
   if(node->has_translation) {
-    matTrans.setPos({
-      node->translation[0] * posScale[0],
-      node->translation[1] * posScale[1],
-      node->translation[2] * posScale[2],
-    });
+    matTrans.setPos({node->translation[0], node->translation[1], node->translation[2]});
   };
 
   Mat4 res = matTrans * matRot * matScale;
+
+  if(recursive && node->parent) {
+    auto parentMat = parseNodeMatrix(node->parent, recursive);
+    res = parentMat * res;
+  }
+
   // remove very small values (underflow issues & '-0' values)
   for(int i=0; i<4; ++i) {
     for(int j=0; j<4; ++j) {

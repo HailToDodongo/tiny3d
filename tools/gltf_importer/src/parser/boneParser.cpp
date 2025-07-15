@@ -37,7 +37,7 @@ Bone parseBoneTree(const cgltf_node *rootBone, Bone *parentBone, int &count) {
     safeFloat(rootBone->scale[2])
   ) : Vec3(1,1,1);
 
-  bone.parentMatrix = parseNodeMatrix(rootBone, {1, 1, 1});
+  bone.parentMatrix = parseNodeMatrix(rootBone, false);
   bone.parentIndex = parentBone ? parentBone->index : -1;
   bone.index = count;
   count += 1;
