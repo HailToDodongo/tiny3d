@@ -22,7 +22,6 @@ class SceneMagic : public Scene
     float lightAngle{};
 
     FlyCam flyCam{camera};
-    PTSystem particles{256};
 
     void updateScene(float deltaTime) final;
     void draw3D(float deltaTime) final;

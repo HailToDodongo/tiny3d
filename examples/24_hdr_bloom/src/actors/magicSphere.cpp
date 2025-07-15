@@ -61,8 +61,4 @@ namespace Actor
     rdpq_set_prim_color(args.color);
     rspq_block_run(model->userBlock);
   }
-
-  void MagicSphere::drawPTX(float deltaTime)
-  {
-  }
 }
