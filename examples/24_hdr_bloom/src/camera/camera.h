@@ -38,7 +38,7 @@ struct Camera
     return dir;
   }
 
-  T3DFrustum getFrustum() {
+  const T3DFrustum &getFrustum() {
     return viewports[vpIdx].viewFrustum;
   }
 };

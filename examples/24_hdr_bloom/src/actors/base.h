@@ -14,6 +14,9 @@ namespace Actor
     protected:
       fm_vec3_t pos{};
 
+      bool checkFrustumAABB(const fm_vec3_t &aabbMin, const fm_vec3_t &aabbMax) const;
+      bool checkFrustumSphere(const fm_vec3_t &center, float radius) const;
+
     public:
       constexpr static uint32_t FLAG_DISABLED = (1 << 0);
 

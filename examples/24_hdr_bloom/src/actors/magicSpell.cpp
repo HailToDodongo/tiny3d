@@ -103,6 +103,9 @@ namespace Actor
 
   void MagicSpell::draw3D(float deltaTime)
   {
+    auto &fr = state.activeScene->getCam().getFrustum();
+    if(!checkFrustumSphere(pos, args.scale * 90.0f))return;
+
     t3d_matrix_set(matFP.get(), true);
     rdpq_set_prim_color(args.color);
 
@@ -118,6 +121,11 @@ namespace Actor
 
   void MagicSpell::drawPTX(float deltaTime)
   {
+    if(!checkFrustumAABB(
+      pos - fm_vec3_t{15.0f, 5.0f,  15.0f},
+      pos + fm_vec3_t{15.0f, 80.0f, 15.0f}
+    ))return;
+
     // fake viewing angle by making particles less tall if the camera is looking down
     float camY = state.activeScene->getCam().getDirection().y;
     camY = fabsf(camY);

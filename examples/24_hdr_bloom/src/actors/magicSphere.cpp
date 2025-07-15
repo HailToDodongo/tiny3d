@@ -56,6 +56,8 @@ namespace Actor
 
   void MagicSphere::draw3D(float deltaTime)
   {
+    if(!checkFrustumSphere(pos, args.scale * 70.0f))return;
+
     t3d_matrix_set(matFP.get(), true);
 
     rdpq_set_prim_color(args.color);
