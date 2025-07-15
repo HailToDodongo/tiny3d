@@ -21,7 +21,7 @@ namespace Actor
       };
 
     private:
-      PTSystem particles{256};
+      PTSystem particles{200};
       int8_t orgPosX[256]{};
       int8_t orgPosZ[256]{};
       int8_t displace[255]{};

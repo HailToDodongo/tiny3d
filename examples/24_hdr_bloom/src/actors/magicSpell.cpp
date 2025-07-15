@@ -5,17 +5,19 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
 #include <t3d/t3dmodel.h>
+#include "../scene/scene.h"
 #include "magicSpell.h"
 #include "../main.h"
 
 namespace {
-  constexpr float BASE_SCALE = 0.15f;
+  constexpr float BASE_SCALE = 0.2f;
   constexpr float ROT_SPEED = 0.1f;
 }
 
 // Shared resources:
 namespace {
   T3DModel *model{};
+  T3DObject *obj{};
   uint32_t refCount{0};
 }
 
@@ -25,9 +27,10 @@ namespace Actor
   {
     if(refCount++ == 0) {
       model = t3d_model_load("rom:/magic.t3dm");
+      obj = t3d_model_get_object_by_index(model, 0);
       rspq_block_begin();
-        t3d_model_draw(model);
-      model->userBlock = rspq_block_end();
+        t3d_model_draw_object(obj, nullptr);
+      obj->userBlock = rspq_block_end();
     }
 
     pos = _pos;
@@ -52,9 +55,9 @@ namespace Actor
       orgPosX[i] = p[0];
       orgPosZ[i] = p[2];
 
-      col[0] = 0x33 + (randRad & 0b11);
-      col[1] = 0xFF - (randRad & 0b111);
-      col[2] = 0x55 + (randRad & 0b1111);
+      col[0] = args.color.r + (randRad & 0b11);
+      col[1] = args.color.g - (randRad & 0b111);
+      col[2] = args.color.b + (randRad & 0b1111);
       col[3] = 1 + (rand() % 3);
     }
 
@@ -102,12 +105,24 @@ namespace Actor
   {
     t3d_matrix_set(matFP.get(), true);
     rdpq_set_prim_color(args.color);
-    rspq_block_run(model->userBlock);
+
+    auto &tex = obj->material->textureB;
+    tex.s.low = timer * 50.0f;
+    tex.t.low = timer * 40.0f;
+    tex.s.low = fmodf(tex.s.low, tex.texWidth * 2.0f);
+    tex.t.low = fmodf(tex.t.low, tex.texHeight * 2.0f);
+
+    t3d_model_draw_material(obj->material, nullptr);
+    rspq_block_run(obj->userBlock);
   }
 
   void MagicSpell::drawPTX(float deltaTime)
   {
-    tpx_state_set_scale(0.2f, 0.8f);
+    // fake viewing angle by making particles less tall if the camera is looking down
+    float camY = state.activeScene->getCam().getDirection().y;
+    camY = fabsf(camY);
+
+    tpx_state_set_scale(0.4f, 1.0f - (camY * 0.6f));
     particles.draw();
   }
 }

@@ -64,9 +64,9 @@ SceneMagic::SceneMagic()
   actors.push_back(new Actor::MagicSphere(posSp, {.scale = 1.30f, .color = {0x67,0x40,0xA0,0xFF}}));
   actors.push_back(new Actor::MagicSphere(posSp, {.scale = 1.35f, .color = {0x67,0x50,0xB0,0xFF}}));
 
-  actors.push_back(new Actor::MagicSpell(blToWorld({-4.7f, 5.7f, 2.4f + 0.2f}), {.scale = 1.2f, .color = {0x67,0x50,0xB0,0xFF}}));
-  actors.push_back(new Actor::MagicSpell(blToWorld({ 7.2f, 0.9f, 0.8f + 0.2f}), {.scale = 1.3f, .color = {0x67,0x50,0xB0,0xFF}}));
-  actors.push_back(new Actor::MagicSpell(blToWorld({ 1.1f,-7.9f,-2.3f + 0.2f}), {.scale = 1.0f, .color = {0x67,0x50,0xB0,0xFF}}));
+  actors.push_back(new Actor::MagicSpell(blToWorld({-4.7f, 5.7f, 2.4f + 0.2f}), {.scale = 1.2f, .color = {0x50,0x40,0xC0,0xFF}}));
+  actors.push_back(new Actor::MagicSpell(blToWorld({ 7.2f, 0.9f, 0.8f + 0.2f}), {.scale = 1.3f, .color = {0xB0,0x50,0x67,0xFF}}));
+  actors.push_back(new Actor::MagicSpell(blToWorld({ 1.1f,-7.9f,-2.3f + 0.2f}), {.scale = 1.0f, .color = {0x67,0xC0,0x50,0xFF}}));
 }
 
 SceneMagic::~SceneMagic()
@@ -108,6 +108,7 @@ void SceneMagic::draw3D(float deltaTime)
   rdpq_mode_zbuf(false, false);
   rspq_block_run(objSky->userBlock);
 
+  // Main map mesh
   rdpq_sync_pipe();
   rdpq_mode_zbuf(true, true);
 
