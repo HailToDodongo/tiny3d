@@ -38,7 +38,7 @@ void DebugMenu::reset()
   entries.push_back({"Debug", EntryType::BOOL, &state.showOffscreen});
   entries.push_back({"Blurs", EntryType::INT, &state.ppConf.blurSteps, 0, 50});
   entries.push_back({"Bloom", EntryType::FLOAT, &state.ppConf.blurBrightness, 0.0f, 8.0f, 0.01f});
-  entries.push_back({"Expos", EntryType::FLOAT, &state.ppConf.hdrFactor, 0.0f, 16.0f, 0.03f});
+  entries.push_back({"Expos", EntryType::FLOAT, &state.ppConf.hdrFactor, 0.0f, 8.0f, 0.03f});
   entries.push_back({"Thres", EntryType::FLOAT, &state.ppConf.bloomThreshold, 0.0f, 1.0f, 1.0f/256.0f});
   entries.push_back({"RDP-S", EntryType::BOOL, &state.ppConf.scalingUseRDP});
   entries.push_back({"Auto ", EntryType::BOOL, &state.autoExposure});
@@ -100,7 +100,7 @@ void DebugMenu::draw()
     case EntryType::FLOAT:
       if(heldDir != 0) {
         float *value = (float*)curr.value;
-        *value = clamp(*value + heldDir * curr.incr, curr.min, curr.max);
+        *value = clamp(*value + heldDir * curr.incr * (held.z ? 4.0f : 1.0f), curr.min, curr.max);
         if(changedFlags[menuSel])*changedFlags[menuSel] = true;
       }
       break;

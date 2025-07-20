@@ -31,7 +31,9 @@ namespace Actor
 
     pos = _pos;
     args = _args;
+
     timer = 0.0f;
+    args.color.a = 0;
   }
 
   LightBlock::~LightBlock()
@@ -44,13 +46,13 @@ namespace Actor
 
   void LightBlock::update(float deltaTime)
   {
-    timer += deltaTime * 0.5f;
+    timer += deltaTime * 0.4f;
 
     float scale = fm_sinf(timer * 3.0f) * 0.5f + 0.5f;
     scale += 1.0f;
 
     pos.x = fm_sinf(timer * 1.0f) * 25.0f;
-    pos.y = fm_sinf(timer * 6.0f) * 4.0f;
+    pos.y = 2 + fm_sinf(timer * 6.0f) * 4.0f;
     pos.z = fm_cosf(timer * 1.0f) * 25.0f;
 
     t3d_mat4fp_from_srt_euler(matFP.getNext(),
@@ -59,7 +61,8 @@ namespace Actor
       pos
     );
 
-    t3d_light_set_point(args.index, args.color, pos, scale * 0.03f, true);
+    t3d_light_set_point(args.index,   args.color,   pos, scale * 0.042f, false);
+    t3d_light_set_point(args.index+1, {0,0,0,0xFF}, pos, scale * 0.03f, true);
   }
 
   void LightBlock::draw3D(float deltaTime)

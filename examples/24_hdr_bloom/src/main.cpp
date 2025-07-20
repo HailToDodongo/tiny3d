@@ -74,7 +74,7 @@ int main()
 
   t3d_fog_set_enabled(false);
 
-  SceneManager::loadScene(3);
+  SceneManager::loadScene(0);
 
   uint32_t frameIdx = 0;
   bool showMenu = true;

@@ -10,7 +10,7 @@
 #include <t3d/t3dmodel.h>
 #include "../../memory/matrixManager.h"
 
-class SceneSpace : public Scene
+class ScenePixel : public Scene
 {
   private:
     T3DModel *model{};
@@ -26,6 +26,6 @@ class SceneSpace : public Scene
     void draw3D(float deltaTime) final;
 
   public:
-    SceneSpace();
-    ~SceneSpace();
+    ScenePixel();
+    ~ScenePixel();
 };

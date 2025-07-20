@@ -25,6 +25,8 @@ namespace Actor
       float timer{};
 
     public:
+      void setColor(const color_t color) { args.color = color; }
+
       LightBlock(const fm_vec3_t &_pos, const Args &_args);
       ~LightBlock();
 

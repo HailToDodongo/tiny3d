@@ -2,7 +2,7 @@
 * @copyright 2025 - Max Bebök
 * @license MIT
 */
-#include "sceneSpace.h"
+#include "scenePixel.h"
 #include <string_view>
 #include "../../main.h"
 #include "../../debugMenu.h"
@@ -10,12 +10,22 @@
 
 namespace {
   bool useAmbientLight = false;
+  bool useDirLight = false;
+  bool doCutout = true;
+  int lightColor = 0;
   fm_vec3_t lightDir{};
+
+  constexpr color_t LIGHT_COLORS[5] = {
+    {0xFF, 0xFF, 0xFF, 0xFF}, // white
+    {0xFF, 0xFF, 0x22, 0xFF}, // yellow
+    {0xFF, 0x22, 0x22, 0xFF}, // red
+    {0x22, 0xFF, 0x22, 0xFF}, // green
+    {0x22, 0x22, 0xFF, 0xFF}  // blue
+  };
 }
 
-SceneSpace::SceneSpace()
+ScenePixel::ScenePixel()
 {
-
   camera.fov = T3D_DEG_TO_RAD(70.0f);
   camera.near = 1.0f;
   camera.far = 100.0f;
@@ -31,7 +41,6 @@ SceneSpace::SceneSpace()
   fm_vec3_norm(&lightDir, &lightDir);
 
   model = t3d_model_load("rom:/skyAnim/scene.t3dm");
-  DebugMenu::addEntry({"Ambient", DebugMenu::EntryType::BOOL, &useAmbientLight});
   T3DObject *objSkyTop{};
 
   auto it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
@@ -48,6 +57,7 @@ SceneSpace::SceneSpace()
     }
 
     it.object->material->fogMode = 0;
+    it.object->material->setColorFlags = 0;
     t3d_model_draw_material(it.object->material, &matState);
     t3d_model_draw_object(it.object, NULL);
   }
@@ -62,15 +72,21 @@ SceneSpace::SceneSpace()
     t3d_model_draw_object(objSky, nullptr);
   objSky->userBlock = rspq_block_end();
 
-  actors.push_back(new Actor::LightBlock({0,0,0}, {{0xFF, 0x77, 0xAA, 0xFF}, 1}));
+  actors.push_back(new Actor::LightBlock({0,0,0}, {{0xFF, 0xFF, 0x77, 0xFF}, 1}));
+
+  DebugMenu::addEntry({"Cutout ", DebugMenu::EntryType::BOOL, &doCutout});
+  DebugMenu::addEntry({"Ambient", DebugMenu::EntryType::BOOL, &useAmbientLight});
+  DebugMenu::addEntry({"Direct ", DebugMenu::EntryType::BOOL, &useDirLight});
+  DebugMenu::addEntry({"L-Color", DebugMenu::EntryType::INT, &lightColor, 0, 4});
+
 }
 
-SceneSpace::~SceneSpace()
+ScenePixel::~ScenePixel()
 {
   t3d_model_free(model);
 }
 
-void SceneSpace::updateScene(float deltaTime)
+void ScenePixel::updateScene(float deltaTime)
 {
   timerSky += deltaTime * 2.0f;
   if(timerSky > 32.0f) {
@@ -92,9 +108,11 @@ void SceneSpace::updateScene(float deltaTime)
     {0,0,0},
     camera.pos
   );
+
+  ((Actor::LightBlock*)actors[0])->setColor(LIGHT_COLORS[lightColor]);
 }
 
-void SceneSpace::draw3D(float deltaTime)
+void ScenePixel::draw3D(float deltaTime)
 {
   t3d_screen_clear_depth();
 
@@ -120,15 +138,22 @@ void SceneSpace::draw3D(float deltaTime)
   rdpq_sync_pipe();
   rdpq_mode_zbuf(true, true);
   rdpq_set_prim_color({0xFF, 0xFF, 0xFF, 0xFF});
+  rdpq_set_env_color({0xFF, 0xFF, 0xFF, (uint8_t)(doCutout ? 0x00 : 0x70)});
 
   if(useAmbientLight) {
-    t3d_light_set_ambient({0x20, 0x20, 0x20, 0x00});
-    t3d_light_set_directional(0, {0x50, 0x50, 0x50, 0}, lightDir);
+    t3d_light_set_ambient({0x20, 0x20, 0x20, 0});
   } else {
     t3d_light_set_ambient({0,0,0,0});
-    t3d_light_set_directional(0, {0xA, 0xA, 0xA, 0}, lightDir);
   }
-  t3d_light_set_count(2);
+
+  if (useDirLight) {
+    t3d_light_set_directional(0, {0x50, 0x50, 0x50, 0}, lightDir);
+  } else {
+    t3d_light_set_directional(0, {0, 0, 0, 0}, lightDir);
+  }
+
+
+  t3d_light_set_count(doCutout ? 3 : 2);
 
   t3d_matrix_set(matFP.get(), true);
   rspq_block_run(model->userBlock);
