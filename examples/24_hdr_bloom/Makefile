@@ -13,14 +13,14 @@ src += $(wildcard src/scene/*.cpp) $(wildcard src/camera/*.cpp) $(wildcard src/a
 src += $(wildcard src/memory/*.cpp) $(wildcard src/scene/scenes/*.cpp)
 
 assets_png = $(wildcard assets/*.png) $(wildcard assets/env/*.png) $(wildcard assets/space/*.png)
-assets_png += $(wildcard assets/magic/*.png)
+assets_png += $(wildcard assets/magic/*.png) $(wildcard assets/skyAnim/*.png)
 
-assets_gltf = $(wildcard assets/*.glb)
+assets_gltf = $(wildcard assets/*.glb) $(wildcard assets/space/*.glb)
 assets_ttf = $(wildcard assets/*.ttf)
 
 assets_conv = $(patsubst assets/%,filesystem/%,$(assets_png:%.png=%.sprite)) \
 			  $(addprefix filesystem/,$(notdir $(assets_ttf:%.ttf=%.font64))) \
-			  $(addprefix filesystem/,$(notdir $(assets_gltf:%.glb=%.t3dm)))
+			  $(patsubst assets/%,filesystem/%,$(assets_gltf:%.glb=%.t3dm))
 
 all: $(PROJECT_NAME).z64
 

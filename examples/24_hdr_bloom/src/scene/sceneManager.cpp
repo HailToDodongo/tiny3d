@@ -11,6 +11,7 @@
 #include "scenes/sceneMain.h"
 #include "scenes/sceneMagic.h"
 #include "scenes/sceneEnv.h"
+#include "scenes/sceneSpace.h"
 
 namespace {
   constinit int requestSceneId{-1};
@@ -47,6 +48,7 @@ void SceneManager::update()
       case 0: state.activeScene = new SceneMain(); break;
       case 1: state.activeScene = new SceneEnv(); break;
       case 2: state.activeScene = new SceneMagic(); break;
+      case 3: state.activeScene = new SceneSpace(); break;
 
       default: assertf(false, "Invalid scene-id: %d", requestSceneId);
     }
