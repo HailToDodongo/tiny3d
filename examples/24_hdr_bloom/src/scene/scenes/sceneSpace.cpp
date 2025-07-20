@@ -6,9 +6,10 @@
 #include <string_view>
 #include "../../main.h"
 #include "../../debugMenu.h"
+#include "../../actors/lightBlock.h"
 
 namespace {
-  bool paramsChanged = false;
+  bool useAmbientLight = false;
   fm_vec3_t lightDir{};
 }
 
@@ -29,8 +30,9 @@ SceneSpace::SceneSpace()
   lightDir = {0.2f,1,0.4f};
   fm_vec3_norm(&lightDir, &lightDir);
 
-  model = t3d_model_load("rom:/space/rock.t3dm");
-  //DebugMenu::addEntry({"Scene", DebugMenu::EntryType::INT, &bgIndex, 0, 2}, &paramsChanged);
+  model = t3d_model_load("rom:/skyAnim/scene.t3dm");
+  DebugMenu::addEntry({"Ambient", DebugMenu::EntryType::BOOL, &useAmbientLight});
+  T3DObject *objSkyTop{};
 
   auto it = t3d_model_iter_create(model, T3D_CHUNK_TYPE_OBJECT);
   auto matState = t3d_model_state_create();
@@ -38,9 +40,14 @@ SceneSpace::SceneSpace()
   while(t3d_model_iter_next(&it)) {
     if(std::string_view{it.object->name} == "Sky") {
       objSky = it.object;
-      objSky->material->fogMode = 0;
       continue;
     }
+    if(std::string_view{it.object->name} == "SkyTop") {
+      objSkyTop = it.object;
+      continue;
+    }
+
+    it.object->material->fogMode = 0;
     t3d_model_draw_material(it.object->material, &matState);
     t3d_model_draw_object(it.object, NULL);
   }
@@ -48,9 +55,14 @@ SceneSpace::SceneSpace()
   model->userBlock = rspq_block_end();
 
   assertf(objSky, "Sky object not found in model!");
+  assertf(objSkyTop, "SkyTop object not found in model!");
+
   rspq_block_begin();
+    t3d_model_draw_object(objSkyTop, nullptr);
     t3d_model_draw_object(objSky, nullptr);
   objSky->userBlock = rspq_block_end();
+
+  actors.push_back(new Actor::LightBlock({0,0,0}, {{0xFF, 0x77, 0xAA, 0xFF}, 1}));
 }
 
 SceneSpace::~SceneSpace()
@@ -86,8 +98,12 @@ void SceneSpace::draw3D(float deltaTime)
 {
   t3d_screen_clear_depth();
 
-  t3d_light_set_ambient({0x20, 0x20, 0x20, 0x00});
   t3d_light_set_count(0);
+  if(useAmbientLight) {
+    t3d_light_set_ambient({0xAA, 0xAA, 0xAA, 0x00});
+  } else {
+    t3d_light_set_ambient({0x20, 0x20, 0x20, 0x00});
+  }
 
   t3d_matrix_push(matFPSky.get());
 
@@ -105,8 +121,13 @@ void SceneSpace::draw3D(float deltaTime)
   rdpq_mode_zbuf(true, true);
   rdpq_set_prim_color({0xFF, 0xFF, 0xFF, 0xFF});
 
-  t3d_light_set_directional(0, {0x50, 0x50, 0x50, 0}, lightDir);
-  t3d_light_set_point(1, {0,0,0,0xFF}, {0,0,0}, 0.05f, true);
+  if(useAmbientLight) {
+    t3d_light_set_ambient({0x20, 0x20, 0x20, 0x00});
+    t3d_light_set_directional(0, {0x50, 0x50, 0x50, 0}, lightDir);
+  } else {
+    t3d_light_set_ambient({0,0,0,0});
+    t3d_light_set_directional(0, {0xA, 0xA, 0xA, 0}, lightDir);
+  }
   t3d_light_set_count(2);
 
   t3d_matrix_set(matFP.get(), true);

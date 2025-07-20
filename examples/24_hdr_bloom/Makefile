@@ -15,7 +15,7 @@ src += $(wildcard src/memory/*.cpp) $(wildcard src/scene/scenes/*.cpp)
 assets_png = $(wildcard assets/*.png) $(wildcard assets/env/*.png) $(wildcard assets/space/*.png)
 assets_png += $(wildcard assets/magic/*.png) $(wildcard assets/skyAnim/*.png)
 
-assets_gltf = $(wildcard assets/*.glb) $(wildcard assets/space/*.glb)
+assets_gltf = $(wildcard assets/*.glb) $(wildcard assets/space/*.glb) $(wildcard assets/skyAnim/*.glb)
 assets_ttf = $(wildcard assets/*.ttf)
 
 assets_conv = $(patsubst assets/%,filesystem/%,$(assets_png:%.png=%.sprite)) \
