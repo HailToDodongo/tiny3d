@@ -76,6 +76,12 @@ rdpq_sync_pipe();
 rdpq_set_color_image(fb);
 ```
 
+If you need to know the average brightness of the image (e.g. for auto-exposure), you can call:
+```cpp
+postProc[frameIdx].getBrightness()
+```
+Which gives you a float from 0.0 to 1.0.
+
 Once thing to consider is syncing.<br>
 Since the RSP needs to access data that the RDP is rendering, it may overstep it.<br>
 This demo chooses to triple buffer the post-processing.<br>
