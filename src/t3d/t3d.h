@@ -55,6 +55,7 @@ enum T3DDrawFlags {
   T3D_FLAG_SHADED     = 1 << 2,
   T3D_FLAG_CULL_FRONT = 1 << 3,
   T3D_FLAG_CULL_BACK  = 1 << 4,
+  T3D_FLAG_NO_LIGHT   = 1 << 16,
 };
 
 // Segment addresses, some are used internally but can be set by the user too
@@ -398,6 +399,18 @@ void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, fl
 void t3d_light_set_count(int count);
 
 /**
+ * Sets the final color exposure.
+ * This will be applied to the combined light + vertex color as a simple scaling factor.
+ * Any value above 1.0 after scaling will be clamped.
+ * This setting can be used to implement a simple form of HDR.
+ *
+ * Note that negative values are allowed and will invert the color to some extend.
+ *
+ * @param exposure factor, 1.0 by default
+ */
+void t3d_light_set_exposure(float exposure);
+
+/**
  * Sets the range of the fog.
  * To disable fog, use 't3d_fog_disable' or set 'near' and 'far' to 0.
  * Note: in order for fog itself to work, make sure to setup the needed RSPQ commands.
@@ -412,9 +425,10 @@ void t3d_fog_set_range(float near, float far);
  * @param isEnabled
  */
 static inline void t3d_fog_set_enabled(bool isEnabled) {
-  // 0x06/0x08 are the offsets of attributes (color/UV) in a vertex on the RSP side
-  // this allows the code to do a branch-less save
-  rspq_write(T3D_RSP_ID, T3D_CMD_FOG_STATE, isEnabled ? 0x08 : 0x0C);
+  // 3/72 are the offsets of attributes (color/UV) in a vertex on the RSP side
+  // this allows the code to do a branch-less save.
+  // 3 points to alpha of the current vertex, 72 somewhere into the next vertex
+  rspq_write(T3D_RSP_ID, T3D_CMD_FOG_STATE, isEnabled ? 3 : 72);
 }
 
 /**

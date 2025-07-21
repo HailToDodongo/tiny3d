@@ -5,7 +5,8 @@
 #include <t3d/t3d.h>
 #include "rsp/rsp_tiny3d.h"
 
-_Static_assert(RSP_T3D_TEMP_STATE_MEM_END == RSP_T3D_CLIP_TEMP_STATE_MEM_END, "Overlay data doesn't match!");
+_Static_assert((RSP_T3D_RSPQ_SCRATCH_MEM & 0xFFFF) == 0x80, "Scratch-Memory location changed!");
+_Static_assert(RSP_T3D_BSS_TEMP_STATE_MEM_END == RSP_T3D_CLIP_BSS_TEMP_STATE_MEM_END, "Overlay data doesn't match!");
 _Static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_Async == RSP_T3D_CODE_CLIP_RDPQ_Triangle_Send_Async, "Overlay code doesn't match!");
 _Static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_End == RSP_T3D_CODE_CLIP_RDPQ_Triangle_Send_End, "Overlay code doesn't match!");
 _Static_assert(RSP_T3D_CODE_RSPQCmd_RdpAppendBuffer == RSP_T3D_CODE_CLIP_RSPQCmd_RdpAppendBuffer, "Overlay code doesn't match!");
@@ -124,13 +125,13 @@ void t3d_vert_load(const T3DVertPacked *vertices, uint32_t offset, uint32_t coun
 
   // calculate where to start the DMA, this may overlap the buffer of transformed vertices
   // we have to place it so that racing the input data is possible
-  uint32_t tmpBufferEnd = (RSP_T3D_CLIP_BUFFER_RESULT & 0xFFFF) + 6*16;
+  uint32_t tmpBufferEnd = (RSP_T3D_BSS_CLIP_BUFFER_RESULT & 0xFFFF) + 6*16;
   uint16_t offsetDest = tmpBufferEnd - inputSize;
   offsetDest = (offsetDest & ~0xF); // make sure it's aligned to 16 bytes, must be aligned backwards
 
   // DMEM address where the transformed vertices are stored
-  // must be within RSP_T3D_TRI_BUFFER, alignment is not required
-  uint16_t offsetInput = RSP_T3D_TRI_BUFFER & 0xFFFF;
+  // must be within RSP_T3D_VERT_BUFFER, alignment is not required
+  uint16_t offsetInput = RSP_T3D_VERT_BUFFER & 0xFFFF;
   offsetInput += offset * VERT_OUTPUT_SIZE;
 
   rspq_write(T3D_RSP_ID, T3D_CMD_VERT_LOAD,
@@ -159,6 +160,12 @@ void t3d_frame_start(void) {
 void t3d_light_set_count(int count)
 {
   t3d_dmem_set_u16((RSP_T3D_ACTIVE_LIGHT_SIZE & 0xFFF), (count * 16) << 8);
+}
+
+void t3d_light_set_exposure(float exposure)
+{
+  int16_t exp = (int16_t)(exposure * 0x80);
+  t3d_dmem_set_u16((RSP_T3D_COLOR_EXPOSURE & 0xFFF), (uint32_t)exp);
 }
 
 void t3d_light_set_ambient(const uint8_t *color)
@@ -317,9 +324,9 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
   v1 *= VERT_OUTPUT_SIZE;
   v2 *= VERT_OUTPUT_SIZE;
 
-  v0 += RSP_T3D_TRI_BUFFER & 0xFFFF;
-  v1 += RSP_T3D_TRI_BUFFER & 0xFFFF;
-  v2 += RSP_T3D_TRI_BUFFER & 0xFFFF;
+  v0 += RSP_T3D_VERT_BUFFER & 0xFFFF;
+  v1 += RSP_T3D_VERT_BUFFER & 0xFFFF;
+  v2 += RSP_T3D_VERT_BUFFER & 0xFFFF;
 
   uint32_t v12 = (v1 << 16) | v2;
   rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_DRAW,
@@ -331,7 +338,7 @@ void t3d_tri_draw_strip(int16_t* indexBuff, int count)
 {
   uint32_t loadAddr = (uint32_t)PhysicalAddr(indexBuff);
 
-  uint32_t dmemAddr = (RSP_T3D_CLIP_BUFFER_TMP & 0xFFFF);
+  uint32_t dmemAddr = (RSP_T3D_BSS_CLIP_BUFFER_TMP & 0xFFFF);
   dmemAddr -= count * 2; // 16bit indices
   dmemAddr &= ~7; // align start to 8 bytes
 
@@ -497,7 +504,7 @@ void t3d_indexbuffer_convert(int16_t indices[], int count) {
       restartFlag |= 1 << 14;
     }
     indices[i] = (int16_t)(
-      ((idx * VERT_OUTPUT_SIZE) + (RSP_T3D_TRI_BUFFER & 0xFFFF)) | restartFlag
+      ((idx * VERT_OUTPUT_SIZE) + (RSP_T3D_VERT_BUFFER & 0xFFFF)) | restartFlag
     );
   }
 }

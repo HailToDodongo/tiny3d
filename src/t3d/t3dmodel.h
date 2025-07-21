@@ -83,7 +83,9 @@ typedef struct {
   // can be used freely by the user for recording, will be freed automatically by t3d
   rspq_block_t *userBlock;
   uint8_t isVisible; // set by culling checks, otherwise no effect on rendering
-  uint8_t _padding[3];
+  uint8_t _padding;
+  uint8_t userValue0; // free values usable by users
+  uint8_t userValue1; // free values usable by users
   int16_t aabbMin[3];
   int16_t aabbMax[3];
 

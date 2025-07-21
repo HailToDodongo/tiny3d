@@ -1,6 +1,7 @@
 ## Auto-generated file, transpiled with RSPL
+#define RSPQ_PROFILE_MANUAL_SLOT 1
 #define OVERLAY_CLIPPING 1
-#define TRI_BUFFER_COUNT 70
+#define VERT_BUFFER_COUNT 70
 #define LIGHT_COUNT 8
 #define RDPQ_TRIANGLE_CUSTOM_VTX 1
 #define VTX_ATTR_XY 0x00
@@ -132,11 +133,8 @@
     MATRIX_MV: .ds.b 64
     .align 3
     MATRIX_NORMAL: .ds.b 24
-    TRI_BUFFER: .ds.b 2520
-    .align 4
-    CLIP_BUFFER_TMP: .ds.b 252
-    .align 4
-    CLIP_BUFFER_RESULT: .ds.b 288
+    .align 1
+    FOG_SCALE_OFFSET: .half 0, 0, 32767, 0
     .align 4
     SCREEN_SCALE_OFFSET: .half 0, 0, 0, 0, 0, 0, 16383, 255
     .align 4
@@ -144,9 +142,17 @@
     .align 3
     CLIPPING_PLANES: .byte 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, -1, 0, 1, 0, -1
     .align 1
-    UV_GEN_PARAMS: .half 0, 0
+    RDPQ_TRI_BUFF_OFFSET: .half 0
+    .align 1
+    SCREEN_UVGEN_SCALE: .half 0
     .align 3
     NORM_SCALE_W: .half 65535, 65535, 65535, 0
+    .align 1
+    CLIP_RA: .half 0
+    .align 1
+    UV_GEN_PARAMS: .half 0, 0
+    .align 1
+    COLOR_EXPOSURE: .half 128
     .align 2
     SEGMENT_TABLE: .word 0, 0, 0, 0, 0, 0, 0, 0
     .align 2
@@ -154,37 +160,37 @@
     .align 2
     #if RSPQ_PROFILE
     LIGHT_DIR_COLOR: .ds.b 32
+    _RSPQ_OVL_PROFILESLOT: .long 0, 0
     #else
     LIGHT_DIR_COLOR: .ds.b 112
     #endif
-    .align 1
-    FOG_SCALE_OFFSET: .half 0, 0, 32767, 0
     .align 2
     TRI_COMMAND: .word 0
     .align 2
     MATRIX_STACK_PTR: .word 0
-    .align 1
-    RDPQ_TRI_BUFF_OFFSET: .half 0
-    .align 1
-    SCREEN_UVGEN_SCALE: .half 0
+    FACE_CULLING: .byte 0
+    FOG_STORE_OFFSET: .byte 72
+    ACTIVE_LIGHT_SIZE: .byte 0
+    _UNUSED_: .byte 0
     .align 1
     VERTEX_FX_FUNC: .half 0
     .align 1
-    CLIP_RA: .ds.b 2
-    FACE_CULLING: .byte 0
-    FOG_STORE_OFFSET: .byte 12
-    ACTIVE_LIGHT_SIZE: .byte 0
-    LIGHT_TYPE_MASK: .byte 0
-    .align 1
     CLIP_CODE_SIZE: .half 0
-    STATE_MEM_END:
-  RSPQ_EndSavedState
-
-  TEMP_STATE_MEM_START:
     .align 2
     CLIP_CODE_ADDR: .word 0
     .align 2
     CLIP_CODE_ORG_ADDR: .word 0
+    .align 3
+    VERT_BUFFER: .ds.b 2520
+    STATE_MEM_END:
+  RSPQ_EndSavedState
+
+.bss
+  TEMP_STATE_MEM_START:
+    .align 4
+    CLIP_BUFFER_TMP: .ds.b 252
+    .align 4
+    CLIP_BUFFER_RESULT: .ds.b 288
   TEMP_STATE_MEM_END:
 
 .text
