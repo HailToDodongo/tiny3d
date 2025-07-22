@@ -778,18 +778,19 @@ command<11> T3DCmd_TriDraw_Strip(u32 rdramAddr, u32 countDmem)
   u32<$s0> dmaAddrRDRAM;
   u16<$t0> copySize;
   s16<$s4> prtDmem;
+  u16<$s2> prtDmemEnd;
 
   //u16<$t2> dmaMode = 0;
   //DMAExec(copySize, dmaAddrRDRAM, prtDmem);
 
   loop { // wait for last DMA to be done
     RA = get_dma_busy();
-    dmaAddrRDRAM = rdramAddr;
     copySize = countDmem & 0xFFFF;
     prtDmem = countDmem >> 16;
+    prtDmemEnd = prtDmem + copySize;
   } while(RA != 0)
 
-  dmaInAsync(dmaAddrRDRAM, prtDmem, copySize);
+  dmaInAsync(rdramAddr, prtDmem, copySize);
   T3DCmd_TriDraw_Strip_PostDMA:
 
   //asm("emux_trace_start");
@@ -801,7 +802,6 @@ command<11> T3DCmd_TriDraw_Strip(u32 rdramAddr, u32 countDmem)
   u16<$sp> rejectDest;
   u16<$s7> currOffset;
 
-  u16<$s2> prtDmemEnd = prtDmem + copySize;
   prtDmemEnd -= 3; // remove?
 
   // load culling (persists across loop), and store inverted one for resetting
@@ -847,6 +847,8 @@ command<11> T3DCmd_TriDraw_Strip(u32 rdramAddr, u32 countDmem)
 
   // if we need to sync the MSB of the DMEM address is set, causing it to be negative
   if(prtDmemEnd >= 0)goto RSPQ_Loop;
+
+  // NOTE: code flows into 'T3DCmd_TriSync' here!
 }
 
 /**
