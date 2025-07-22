@@ -843,7 +843,7 @@ command<11> T3DCmd_TriDraw_Strip(u32 rdramAddr, u32 countDmem)
   STRIP_LOOP_END:
 
   RA = RSPQ_Loop; // RA was no longer RSPQ_Loop, and T3DCmd_TriSync may just jump later
-  store(RA, CLIP_RA); // reset target if clipping happens
+  store(RA:u16, CLIP_RA); // reset target if clipping happens
 
   // if we need to sync the MSB of the DMEM address is set, causing it to be negative
   if(prtDmemEnd >= 0)goto RSPQ_Loop;
