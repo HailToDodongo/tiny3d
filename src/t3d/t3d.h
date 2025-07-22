@@ -292,6 +292,15 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2);
 void t3d_tri_draw_strip(int16_t* indexBuff, int count);
 
 /**
+ * Combined `t3d_tri_draw_strip` + `t3d_tri_sync`.
+ * See individual functions for more details.
+ *
+ * @param indexBuff index buffer to load
+ * @param count amount of indices to load
+ */
+void t3d_tri_draw_strip_and_sync(int16_t* indexBuff, int count);
+
+/**
  * Syncs pending triangles.
  * This needs to be called after triangles where drawn and a different overlay
  * which also generates RDP commands will be used. (e.g. RDPQ)

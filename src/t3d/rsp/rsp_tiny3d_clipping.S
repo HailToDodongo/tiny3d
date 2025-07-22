@@ -410,7 +410,7 @@ clipTriangle:
   nop
   CLIP_RETURN:
   lhu $t6, %lo(CLIP_RA + 0)
-  lhu $s4, %lo(RSPQ_SCRATCH_MEM + 18)
+  lh $s4, %lo(RSPQ_SCRATCH_MEM + 18)
   j $t6
   nop
 triToScreenSpace:

@@ -189,6 +189,15 @@ temp_state {
 function RDPQ_Triangle_Send_Async(u16<$a0> ptrVert0, u16<$a1> ptrVert1, u16<$a2> ptrVert2, u16<$sp> cullDest, u8<$v0> cullFlag);
 function RDPQ_Triangle_Send_End();
 
+function DMAExec(u16<$t0> size, u32<$s0> rdramAddr, s16<$s4> dmemAddr);
+
+macro dmaInAsync(u32 addrRDRAM, u32 addrDMEM, u32 size)
+{
+  @Barrier("DMA") set_dma_addr_rsp(addrDMEM);
+  @Barrier("DMA") set_dma_addr_rdram(addrRDRAM);
+  @Barrier("DMA") set_dma_read(size);
+}
+
 @NoRegAlloc
 function pointLight(
   u16<$s3> ptrLight,
@@ -763,14 +772,28 @@ command<0> T3DCmd_TriDraw_Cmd(u32 vert0, u32 vert1)
   goto CLIPPING_CODE_TARGET;
 }
 
-//@NoReturn
+@NoReturn
 command<11> T3DCmd_TriDraw_Strip(u32 rdramAddr, u32 countDmem)
 {
-  u32<$s0> dmaAddrRDRAM = rdramAddr;
-  u32<$t0> copySize = countDmem >> 16;
-  u16<$s4> prtDmem = countDmem & 0xFFFF;
-  dma_in(prtDmem, dmaAddrRDRAM, copySize);
+  u32<$s0> dmaAddrRDRAM;
+  u16<$t0> copySize;
+  s16<$s4> prtDmem;
+
+  //u16<$t2> dmaMode = 0;
+  //DMAExec(copySize, dmaAddrRDRAM, prtDmem);
+
+  loop { // wait for last DMA to be done
+    RA = get_dma_busy();
+    dmaAddrRDRAM = rdramAddr;
+    copySize = countDmem & 0xFFFF;
+    prtDmem = countDmem >> 16;
+  } while(RA != 0)
+
+  dmaInAsync(dmaAddrRDRAM, prtDmem, copySize);
+  T3DCmd_TriDraw_Strip_PostDMA:
+
   //asm("emux_trace_start");
+
   undef rdramAddr;
   undef countDmem;
 
@@ -779,7 +802,7 @@ command<11> T3DCmd_TriDraw_Strip(u32 rdramAddr, u32 countDmem)
   u16<$s7> currOffset;
 
   u16<$s2> prtDmemEnd = prtDmem + copySize;
-  prtDmemEnd -= 3;
+  prtDmemEnd -= 3; // remove?
 
   // load culling (persists across loop), and store inverted one for resetting
   u8<$v0> faceCull = load(FACE_CULLING);
@@ -787,9 +810,13 @@ command<11> T3DCmd_TriDraw_Strip(u32 rdramAddr, u32 countDmem)
   store(faceCull, RSPQ_SCRATCH_MEM, 16);
   u16<$a0> idx0, idx1, idx2;
 
-  RA:u16 = STRIP_LOOP_NEXT;
-  store(RA:u16, CLIP_RA);
   prtDmem -= 2; // compensate for the first increment in the loop
+
+  loop { // Wait for DMA to be done
+    vertAddr = get_dma_busy();
+    RA:u16 = STRIP_LOOP_NEXT;
+    store(RA:u16, CLIP_RA);
+  } while(vertAddr != 0)
 
   STRIP_LOOP_NEW:
     faceCull = load(RSPQ_SCRATCH_MEM, 16);
@@ -815,9 +842,11 @@ command<11> T3DCmd_TriDraw_Strip(u32 rdramAddr, u32 countDmem)
 
   STRIP_LOOP_END:
 
-  rejectDest = RSPQ_Loop;
-  store(rejectDest, CLIP_RA);
-  //asm("emux_trace_stop");
+  RA = RSPQ_Loop; // RA was no longer RSPQ_Loop, and T3DCmd_TriSync may just jump later
+  store(RA, CLIP_RA); // reset target if clipping happens
+
+  // if we need to sync the MSB of the DMEM address is set, causing it to be negative
+  if(prtDmemEnd >= 0)goto RSPQ_Loop;
 }
 
 /**

@@ -5,7 +5,7 @@ function triToScreenSpace(u32<$s6> ptr);
 macro returnBack() {
   u16 tmp = load(CLIP_RA);
   // restore old DMEM address for indices, this is expected to persist for tri-strips
-  u16<$s4> oldDMEM = load(RSPQ_SCRATCH_MEM, 18);
+  s16<$s4> oldDMEM = load(RSPQ_SCRATCH_MEM, 18);
   goto tmp;
 }
 

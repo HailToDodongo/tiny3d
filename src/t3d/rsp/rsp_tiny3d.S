@@ -743,40 +743,48 @@ T3DCmd_TriDraw_End:
   j CLIPPING_CODE_TARGET
   ori $s4, $zero, %lo(CLIPPING_CODE_TARGET)
 T3DCmd_TriDraw_Strip:
-  addiu $t2, $zero, 12
-  andi $s4, $a1, 65535
-  srl $t0, $a1, 16
-  addiu $t0, $t0, -1
-  jal DMAExec ## Args: $t0, $t1, $s0, $s4, $t2
-  or $s0, $zero, $a0
-  lbu $v0, %lo(FACE_CULLING + 0)
-  ori $ra, $zero, %lo(STRIP_LOOP_NEXT)
-  addu $s2, $s4, $t0
-  addiu $s2, $s2, 65533
-  addiu $s4, $s4, 65534
-  xori $v0, $v0, 1
-  sh $ra, %lo(CLIP_RA)($zero)
-  sb $v0, %lo(16 + RSPQ_SCRATCH_MEM)($zero)
+  LABEL_T3DCmd_TriDraw_Strip_0014:
+  mfc0 $ra, COP0_DMA_BUSY                            ## L:1056 |      1 | RA = get_dma_busy();
+  sra $s4, $a1, 16                                   ## L:1059 |      2 | prtDmem = countDmem >> 16;
+  andi $t0, $a1, 65535                               ## L:1058 |      3 | copySize = countDmem & 0xFFFF;
+  bne $ra, $zero, LABEL_T3DCmd_TriDraw_Strip_0014    ## L:1059 |      4 | prtDmem = countDmem >> 16;
+  or $s0, $zero, $a0                                 ## L:1057 |     *6 | dmaAddrRDRAM = rdramAddr;
+  LABEL_T3DCmd_TriDraw_Strip_0015:
+  mtc0 $s4, COP0_DMA_SPADDR                          ## L:223  |      7 | @Barrier("DMA") set_dma_addr_rsp(addrDMEM); ## Barrier: 0x1
+  mtc0 $s0, COP0_DMA_RAMADDR                         ## L:224  |      8 | @Barrier("DMA") set_dma_addr_rdram(addrRDRAM); ## Barrier: 0x1
+  mtc0 $t0, COP0_DMA_READ                            ## L:225  |   **11 | @Barrier("DMA") set_dma_read(size); ## Barrier: 0x1
+  T3DCmd_TriDraw_Strip_PostDMA:
+  addu $s2, $s4, $t0                                 ## L:1074 |     12 | u16<$s2> prtDmemEnd = prtDmem + copySize;
+  lbu $v0, %lo(FACE_CULLING + 0)                     ## L:1078 |     13 | u8<$v0> faceCull = load(FACE_CULLING);
+  addiu $s2, $s2, 65533                              ## L:1075 |     14 | prtDmemEnd -= 3;
+  addiu $s4, $s4, 65534                              ## L:1083 |     15 | prtDmem -= 2;
+  xori $v0, $v0, 1                                   ## L:1079 |     16 | faceCull ^= 1;
+  sb $v0, %lo(16 + RSPQ_SCRATCH_MEM)($zero)          ## L:1080 |     17 | store(faceCull, RSPQ_SCRATCH_MEM, 16);
+  LABEL_T3DCmd_TriDraw_Strip_0016:
+  mfc0 $v1, COP0_DMA_BUSY                            ## L:1086 |     18 | vertAddr = get_dma_busy();
+  ori $ra, $zero, %lo(STRIP_LOOP_NEXT)               ## L:1087 |     19 | RA:u16 = STRIP_LOOP_NEXT;
+  bne $v1, $zero, LABEL_T3DCmd_TriDraw_Strip_0016    ## L:1088 |    *21 | store(RA:u16, CLIP_RA);
+  sh $ra, %lo(CLIP_RA)($zero)                        ## L:1088 |    *23 | store(RA:u16, CLIP_RA);
   STRIP_LOOP_NEW:
-  lbu $v0, %lo(RSPQ_SCRATCH_MEM + 16)
-  addiu $s4, $s4, 2
+  lbu $v0, %lo(RSPQ_SCRATCH_MEM + 16)                ## L:1092 |     24 | faceCull = load(RSPQ_SCRATCH_MEM, 16);
+  addiu $s4, $s4, 2                                  ## L:1093 |     25 | prtDmem += 2;
   STRIP_LOOP_NEXT:
-  beq $s4, $s2, STRIP_LOOP_END
-  xori $v0, $v0, 1
-  lh $a1, 4($s4)
-  lhu $a0, 0($s4)
-  lhu $a2, 2($s4)
-  bltz $a1, STRIP_LOOP_NEW
-  addiu $s4, $s4, 2
-  addiu $v1, $s4, 65534
-  jal RDPQ_Triangle_Send_Async ## Args: $a0, $a1, $a2, $sp, $v0
-  ori $sp, $zero, %lo(STRIP_LOOP_NEXT)
-  j STRIP_LOOP_NEXT
-  sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)
+  beq $s4, $s2, STRIP_LOOP_END                       ## L:1096 |     26 | if(prtDmem == prtDmemEnd)goto STRIP_LOOP_END;
+  xori $v0, $v0, 1                                   ## L:1095 |    *28 | faceCull ^= 1;
+  lh $a1, 4($s4)                                     ## L:1099 |     29 | idx1:s16 = load(prtDmem, 4);
+  lhu $a0, 0($s4)                                    ## L:1098 |     30 | idx0     = load(prtDmem, 0);
+  lhu $a2, 2($s4)                                    ## L:1100 |     31 | idx2     = load(prtDmem, 2);
+  bltz $a1, STRIP_LOOP_NEW                           ## L:1103 |     32 | if(idx1:s16 < 0)goto STRIP_LOOP_NEW;
+  addiu $s4, $s4, 2                                  ## L:1102 |    *34 | prtDmem += 2;
+  ori $sp, $zero, %lo(STRIP_LOOP_NEXT)               ## L:1105 |     35 | rejectDest = STRIP_LOOP_NEXT;
+  jal RDPQ_Triangle_Send_Async                       ## L:1109 |     36 | RDPQ_Triangle_Send_Async(idx0, idx1, idx2, rejectDest, faceCull); ## Args: $a0, $a1, $a2, $sp, $v0
+  addiu $v1, $s4, 65534                              ## L:1108 |    *38 | vertAddr = prtDmem - 2;
+  j STRIP_LOOP_NEXT                                  ## L:1111 |     39 | goto STRIP_LOOP_NEXT;
+  sh $s7, %lo(RDPQ_TRI_BUFF_OFFSET)($zero)           ## L:1110 |    *41 | store(currOffset, RDPQ_TRI_BUFF_OFFSET);
   STRIP_LOOP_END:
-  ori $sp, $zero, %lo(RSPQ_Loop)
-  j RSPQ_Loop
-  sh $sp, %lo(CLIP_RA)($zero)
+  ori $ra, $zero, %lo(RSPQ_Loop)                     ## L:1115 |     42 | RA = RSPQ_Loop;
+  bgez $s2, RSPQ_Loop                                ## L:1119 |     43 | if(prtDmemEnd >= 0)goto RSPQ_Loop;
+  sw $ra, %lo(CLIP_RA)($zero)                        ## L:1116 |    *45 | store(RA, CLIP_RA);
 T3DCmd_TriSync:
   lbu $s7, %lo(CLIP_CODE_ADDR + 0)
   beq $s7, $zero, RDPQ_Triangle_Send_End

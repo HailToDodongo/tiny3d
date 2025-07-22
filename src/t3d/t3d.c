@@ -334,17 +334,28 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
   );
 }
 
-void t3d_tri_draw_strip(int16_t* indexBuff, int count)
+inline static void t3d_tri_draw_strip_generic(int16_t* indexBuff, int count, bool doSync)
 {
   uint32_t loadAddr = (uint32_t)PhysicalAddr(indexBuff);
 
   uint32_t dmemAddr = (RSP_T3D_BSS_CLIP_BUFFER_TMP & 0xFFFF);
   dmemAddr -= count * 2; // 16bit indices
   dmemAddr &= ~7; // align start to 8 bytes
+  dmemAddr |= (doSync ? 0x8000 : 0); // make negative if we want to sync
 
   rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_STRIP,
-    loadAddr, ((count*2) << 16) | dmemAddr
+    loadAddr, (dmemAddr << 16) | ((count*2-1) & 0xFFFF)
   );
+}
+
+void t3d_tri_draw_strip(int16_t* indexBuff, int count)
+{
+  t3d_tri_draw_strip_generic(indexBuff, count, false);
+}
+
+void t3d_tri_draw_strip_and_sync(int16_t* indexBuff, int count)
+{
+  t3d_tri_draw_strip_generic(indexBuff, count, true);
 }
 
 void t3d_fog_set_range(float near, float far) {
