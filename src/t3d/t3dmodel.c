@@ -313,16 +313,19 @@ void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrice
     // Internally, this will re-use the space of the vertex cache of verts. that are not used anymore
     uint8_t *idxPtrBase = (uint8_t*)align_pointer(part->indices + part->numIndices, 8);
     bool didSync = false;
-    for(int s=0; s<4; ++s) {
-      bool isLastStrip = s == 3 || part->numStripIndices[s+1] == 0;
-      if (isLastStrip) {
-        t3d_tri_draw_strip_and_sync((int16_t*)idxPtrBase, part->numStripIndices[s]);
-        didSync = true;
-        break;
-      }
 
-      t3d_tri_draw_strip((int16_t*)idxPtrBase, part->numStripIndices[s]);
-      idxPtrBase = (uint8_t*)align_pointer(idxPtrBase + part->numStripIndices[s] * 2, 8);
+    if (part->numStripIndices[0] != 0) {
+      for(int s=0; s<4; ++s) {
+        bool isLastStrip = s == 3 || part->numStripIndices[s+1] == 0;
+        if (isLastStrip) {
+          t3d_tri_draw_strip_and_sync((int16_t*)idxPtrBase, part->numStripIndices[s]);
+          didSync = true;
+          break;
+        }
+
+        t3d_tri_draw_strip((int16_t*)idxPtrBase, part->numStripIndices[s]);
+        idxPtrBase = (uint8_t*)align_pointer(idxPtrBase + part->numStripIndices[s] * 2, 8);
+      }
     }
 
     // Sync, waits for any triangles in flight. This is necessary since the rdpq-api is not
