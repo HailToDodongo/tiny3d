@@ -547,29 +547,21 @@ loadCurrentMVPMat:
   ldv $v21, 8, 48, $at
 .align 3
 T3DCmd_SetScreenSize:
-  sra $s6, $a2, 16
-  vxor $v28, $v00, $v00.e0
-  mtc2 $s6, $v27.e0
-  sh $a3, %lo(6 + NORM_SCALE_W)($zero)
-  sw $a1, %lo(8 + SCREEN_SCALE_OFFSET)($zero)
-  sw $a2, %lo(0 + SCREEN_SCALE_OFFSET)($zero)
-  vrcph $v27.e0, $v27.e0
-  andi $a0, $a0, 15
-  vrcpl $v28.e0, $v28.e0
-  sb $a0, %lo(3 + CLIPPING_PLANES)($zero)
-  ori $s6, $zero, %lo(RSPQ_Loop)
-  vrcph $v27.e0, $v00.e0
-  vmudm $v26, $v28, $v31.e1
-  subu $s7, $zero, $a0
-  sh $s6, %lo(CLIP_RA)($zero)
-  sb $s7, %lo(19 + CLIPPING_PLANES)($zero)
-  sb $s7, %lo(15 + CLIPPING_PLANES)($zero)
-  sw $a3, %lo(4 + SCREEN_SCALE_OFFSET)($zero)
-  vaddc $v26, $v26, $v30.e7
-  sb $a0, %lo(7 + CLIPPING_PLANES)($zero)
-  ori $at, $zero, %lo(SCREEN_UVGEN_SCALE)
-  j RSPQ_Loop
-  ssv $v26, 0, 0, $at
+  sw $a1, %lo(8 + SCREEN_SCALE_OFFSET)($zero)        ## L:730  |      ^ | store(screenOffsetXY, SCREEN_SCALE_OFFSET, 0x08);
+  srl $s7, $a0, 8                                    ## L:734  |      2 | u16 uvgenScaleFactor = guardBandFactor >> 8;
+  andi $a0, $a0, 15                                  ## L:738  |      3 | guardBandFactor &= 0xF;
+  subu $s6, $zero, $a0                               ## L:739  |      4 | s8 guardBandFactorNeg = ZERO - guardBandFactor;
+  sb $s6, %lo(19 + CLIPPING_PLANES)($zero)           ## L:745  |      5 | store(guardBandFactorNeg, CLIPPING_PLANES, 19);
+  ori $s5, $zero, %lo(RSPQ_Loop)                     ## L:749  |      6 | u16 clippingRA = RSPQ_Loop;
+  sb $a0, %lo(7 + CLIPPING_PLANES)($zero)            ## L:742  |      7 | store(guardBandFactor,    CLIPPING_PLANES, 7);
+  sh $s5, %lo(CLIP_RA)($zero)                        ## L:750  |      8 | store(clippingRA, CLIP_RA);
+  sw $a3, %lo(4 + SCREEN_SCALE_OFFSET)($zero)        ## L:728  |      9 | store(depthAndWScale:u32, SCREEN_SCALE_OFFSET, 0x04);
+  sb $s6, %lo(15 + CLIPPING_PLANES)($zero)           ## L:744  |     10 | store(guardBandFactorNeg, CLIPPING_PLANES, 15);
+  sh $s7, %lo(SCREEN_UVGEN_SCALE)($zero)             ## L:735  |     11 | store(uvgenScaleFactor, SCREEN_UVGEN_SCALE);
+  sb $a0, %lo(3 + CLIPPING_PLANES)($zero)            ## L:741  |     12 | store(guardBandFactor,    CLIPPING_PLANES, 3);
+  sh $a3, %lo(6 + NORM_SCALE_W)($zero)               ## L:732  |     13 | store(depthAndWScale:s16, NORM_SCALE_W, 6);
+  j RSPQ_Loop                                        ## L:751  |     14 | }
+  sw $a2, %lo(0 + SCREEN_SCALE_OFFSET)($zero)        ## L:729  |    *16 | store(screenScaleXY, SCREEN_SCALE_OFFSET, 0x00);
 T3DCmd_SetFogRange:
   sw $a1, %lo(0 + FOG_SCALE_OFFSET)($zero) ## L:616
   j RSPQ_Loop ## L:617

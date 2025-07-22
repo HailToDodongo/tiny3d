@@ -409,9 +409,15 @@ void t3d_viewport_attach(T3DViewport *viewport) {
   uint32_t depthAndWScale = ((uint32_t)depthScale << 16) | normWScale;
 
   int32_t guardBandScale = viewport->guardBandScale & 0xF;
+
+  // uv-gen offset, used to skew normals based on distance to the screen center.
+  // This can fake uvgen shifting based on the viewing angle.
+  // The factor chosen here is arbitrary, and just needs to look good.
+  uint32_t invScreenSize = (uint32_t)(1.0f / viewport->size[0] * 0x2A00) << 8;
+  guardBandScale |= invScreenSize;
+
   rspq_write(T3D_RSP_ID, T3D_CMD_SCREEN_SIZE,
-    guardBandScale | (viewport->useRejection << 16),
-    screenOffset, screenScale, depthAndWScale
+    guardBandScale, screenOffset, screenScale, depthAndWScale
   );
 
   // update projection matrix

@@ -600,7 +600,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
 /**
  * Sets current screen-size in pixel.
- * @param guardBandFactor s16 with the guard multiplier (should be 1-4)
+ * @param guardBandFactor u8 with the guard multiplier (should be 1-4)
  * @param screenScale screen-size * 2
  * @param depthAndWScale fractional 16bit scales to normalize W and depth
  */
@@ -612,6 +612,9 @@ command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 scre
 
   store(depthAndWScale:s16, NORM_SCALE_W, 6);
 
+  u16 uvgenScaleFactor = guardBandFactor >> 8;
+  store(uvgenScaleFactor, SCREEN_UVGEN_SCALE);
+
   // guard-band multiplier (W value of the clipping plane, integer)
   guardBandFactor &= 0xF;
   s8 guardBandFactorNeg = ZERO - guardBandFactor;
@@ -621,18 +624,6 @@ command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 scre
   //store(guardBandFactor,    CLIPPING_PLANES, 11); // +Z Plane
   store(guardBandFactorNeg, CLIPPING_PLANES, 15); // -X Plane
   store(guardBandFactorNeg, CLIPPING_PLANES, 19); // -Y Plane
-
-  // prepare additional inverse screen-scale, this is used for generated UVs
-  {
-    vec32 screenSize:sfract = 0;
-    s16 screenScaleX = screenScaleXY >> 16;
-    screenSize:sint.x = screenScaleX;
-    screenSize.x = invert_half(screenSize).x;
-
-    vec16 scaleFactor = screenSize:sfract >> 2;
-    scaleFactor += 1;
-    store(scaleFactor.x, SCREEN_UVGEN_SCALE);
-  }
 
   // reset the clipping code return point, this here initially sets it.
   // however multi-tri draws may set it to other values and *should* reset it after
