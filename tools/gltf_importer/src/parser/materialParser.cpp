@@ -165,10 +165,14 @@ namespace {
       colorFloat[c] = powf(colorFloat[c], 0.4545f);
     }
 
-    out[0] = (uint8_t)(colorFloat[0] * 255.0f);
-    out[1] = (uint8_t)(colorFloat[1] * 255.0f);
-    out[2] = (uint8_t)(colorFloat[2] * 255.0f);
-    out[3] = (uint8_t)(colorFloat[3] * 255.0f);
+    for (size_t i = 0; i < 4; i++)
+    {
+      if (colorFloat[i] > 1.f)
+      {
+        colorFloat[i] = 1.f;
+      }
+      out[i] = (uint8_t)(colorFloat[i] * 255.0f);
+    }
   }
 }
 
