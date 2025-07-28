@@ -227,6 +227,13 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
               for(int c=0; c<3; ++c) {
                 v.color[c] = powf(v.color[c], 0.4545f);
               }
+              for (size_t i = 0; i < 4; i++)
+              {
+                if ((v.color[i] - 1.0f) > 0.00001f)
+                {
+                  v.color[i] = 1.f;
+                }
+              }
             }
           }
         }
