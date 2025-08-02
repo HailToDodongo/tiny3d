@@ -168,10 +168,10 @@
     TRI_COMMAND: .word 0
     .align 2
     MATRIX_STACK_PTR: .word 0
-    .align 1
-    FOG_STORE_OFFSET: .half 72
     FACE_CULLING: .byte 0
+    FOG_STORE_OFFSET: .byte 72
     ACTIVE_LIGHT_SIZE: .byte 0
+    _UNUSED_: .byte 0
     .align 1
     VERTEX_FX_FUNC: .half 0
     .align 1
@@ -180,7 +180,7 @@
     CLIP_CODE_ADDR: .word 0
     .align 2
     CLIP_CODE_ORG_ADDR: .word 0
-    .align 4
+    .align 3
     VERT_BUFFER: .ds.b 2520
     STATE_MEM_END:
   RSPQ_EndSavedState
