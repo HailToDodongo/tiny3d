@@ -788,26 +788,26 @@ T3DCmd_TriSync:
 T3DCmd_TriDraw_Seq:
   srl $s1, $a1, 16                                   ## L:1137 |      ^ | u16<$s1> isQuad = endIndex >> 16;
   andi $s4, $a1, 65535                               ## L:1133 |      2 | u8<$s4> baseVtxEnd = endIndex & 0xFFFF;
-  andi $s2, $a0, 65535                               ## L:1134 |      3 | u16<$s2> baseVtx = sizeAndIndex & 0xFFFF;
-  addiu $v1, $s1, 108                                ## L:1138 |      4 | u16<$v1> vtxIncr = isQuad + (36 * 3);
-  lbu $v0, %lo(FACE_CULLING + 0)                     ## L:1136 |      5 | u8<$v0> faceCull = load(FACE_CULLING);
+  lbu $v0, %lo(FACE_CULLING + 0)                     ## L:1136 |      3 | u8<$v0> faceCull = load(FACE_CULLING);
+  andi $s2, $a0, 65535                               ## L:1134 |      4 | u16<$s2> baseVtx = sizeAndIndex & 0xFFFF;
+  addiu $v1, $s1, 108                                ## L:1138 |      5 | u16<$v1> vtxIncr = isQuad + (36 * 3);
   SEQ_LOOP_NEXT:
   beq $s2, $s4, SEQ_LOOP_END                         ## L:1146 |      6 | if(baseVtx == baseVtxEnd)goto SEQ_LOOP_END;
   addiu $a0, $s2, 72                                 ## L:1145 |     *8 | idx0 = baseVtx + (36 * 2);
-  ori $ra, $zero, %lo(SEQ_LOOP_NEXT)                 ## L:1151 |      9 | RA = SEQ_LOOP_NEXT;
+  or $a2, $zero, $s2                                 ## L:1148 |      9 | idx2 = baseVtx;
   addiu $a1, $s2, 36                                 ## L:1147 |     10 | idx1 = baseVtx + (36 * 1);
-  or $a2, $zero, $s2                                 ## L:1148 |     11 | idx2 = baseVtx;
+  ori $ra, $zero, %lo(SEQ_LOOP_NEXT)                 ## L:1151 |     11 | RA = SEQ_LOOP_NEXT;
   j RDPQ_Triangle_Send_Async                         ## L:1152 |     12 | goto RDPQ_Triangle_Send_Async;
   addu $s2, $s2, $v1                                 ## L:1149 |    *14 | baseVtx += vtxIncr;
   SEQ_LOOP_END:
   beq $s1, $zero, T3DCmd_TriSync                     ## L:1157 |     15 | if(isQuad) {
   ori $ra, $zero, %lo(RSPQ_Loop)                     ## L:1156 |    *17 | RA = RSPQ_Loop;
-  xori $v0, $v0, 1                                   ## L:1159 |     18 | faceCull ^= 1;
-  lhu $s2, %lo(RSPQ_DMEM_BUFFER  -6)($gp)            ## L:1160 |     19 | baseVtx:u16 = load_arg(2);
-  or $s1, $zero, $zero                               ## L:1158 |     20 | isQuad = 0;
-  addiu $s4, $s4, 36                                 ## L:1162 |     21 | baseVtxEnd += 36;
+  lhu $s2, %lo(RSPQ_DMEM_BUFFER  -6)($gp)            ## L:1160 |     18 | baseVtx:u16 = load_arg(2);
+  xori $v0, $v0, 1                                   ## L:1159 |     19 | faceCull ^= 1;
+  addiu $s4, $s4, 36                                 ## L:1162 |     20 | baseVtxEnd += 36;
+  addiu $s2, $s2, 36                                 ## L:1161 |     21 | baseVtx += 36;
   j SEQ_LOOP_NEXT                                    ## L:1163 |     22 | goto SEQ_LOOP_NEXT;
-  addiu $s2, $s2, 36                                 ## L:1161 |    *24 | baseVtx += 36;
+  or $s1, $zero, $zero                               ## L:1158 |    *24 | isQuad = 0;
 
 OVERLAY_CODE_END:
 
