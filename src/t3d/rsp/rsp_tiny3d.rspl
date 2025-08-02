@@ -198,71 +198,6 @@ macro dmaInAsync(u32 addrRDRAM, u32 addrDMEM, u32 size)
   @Barrier("DMA") set_dma_read(size);
 }
 
-@NoRegAlloc
-function pointLight(
-  u16<$s3> ptrLight,
-  vec32<$v27> vertPos, vec32<$v25> mat1, vec32<$v23> ptPos, vec32<$v21> lightVertDot,
-  vec16<$v08> pos, vec16<$v07> norm,
-  vec16<$v01> lightRes, vec16<$v04> color,
-  u8<$t9> mvMatrixLoaded, s32<$t7> lightSize
-)
-{
-  lightSize:u16 = load(ptrLight, 14);
-  if(!mvMatrixLoaded) {
-    // point lights need to be done in eye-space
-    // since the usual matrix is MVP, we need to load the MV one
-    loadCurrentMVMat(vertPos, mat1, ptPos, lightVertDot);
-    mulMat4Vec8(vertPos, mat1, ptPos, lightVertDot, pos, vertPos);
-    vertPos >>= 4;
-    mvMatrixLoaded = 1;
-  }
-
-  lightSize &= 0x7FFF; // MSB is "use-normal" flag
-  lightSize <<= 13; // shift s16 into s16 range
-
-  // get light position
-  ptPos:sint.xyzw = load(ptrLight, 8).xyzw;
-  ptPos:sint.XYZW = load(ptrLight, 8).xyzw;
-
-  ptPos = ptPos:sint >> 8; // light position into 16.16
-  ptPos = ptPos - vertPos; // get distance from light to vertex
-
-  // calc. dot product and normalize distance vector
-  lightVertDot = ptPos * ptPos;
-  mat1         = lightVertDot + lightVertDot.yyyyYYYY;
-  lightVertDot = lightVertDot + mat1.zzzzZZZZ;
-
-  mat1.w = lightSize;
-
-  lightSize:u8 = load(ptrLight, 14); // extract "use-normal" flag
-  lightSize >>= 7;
-
-  // rest of normalization
-  lightVertDot.x = invert_half_sqrt(lightVertDot).x;
-  lightVertDot.X = invert_half_sqrt(lightVertDot).X;
-  lightRes = lightVertDot * mat1.w;
-
-  if(!lightSize) {
-    // adjust shift of sqrt() and make large enough to move the fractional part
-    // into the integer later in the mul. this avoids clamping issues
-    lightVertDot *= 256;
-
-    lightRes:sfract *= lightRes:sfract; // squared light fall-off
-
-    pos:sint = ptPos * lightVertDot.xxxxXXXX; // normalize vector...
-    pos:sfract *= lightRes:sfract.xxxxXXXX; // ...and scale by fall-off
-
-    // final dot with the vertex-normal, color + accumulate is handled in the light loop
-    lightRes = pos:sfract * norm:sfract;
-  } else {
-    // simplified point light, this just used a radius irrespective of vertex normals
-    lightRes:sfract *= lightRes:sfract; // squared light fall-off
-    lightRes.y = 0; lightRes.z = 0;
-    lightRes.Y = 0; lightRes.Z = 0;
-  }
-}
-
-
 // Packs +xyz & -xyz into a single byte
 macro packClipCode(u32 res, u32 clipCode)
 {
@@ -277,16 +212,6 @@ macro packClipCodeInverted(u32 res, u32 clipCode)
   res = clipCode & 0b0000'0111'0000'0111;
   u32 tmp = res >> 5; //  -zyx      +xyx
   res = res ~| tmp;
-}
-
-// Loads currently active model matrix (premultiplied with proj. matrix) into registers
-// This already duplicates it for 2-vector operations.
-function loadCurrentMVPMat(vec32<$v27> mat0, vec32<$v25> mat1, vec32<$v23> mat2, vec32<$v21> mat3)
-{
-  mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
-  mat1 = load(MATRIX_MVP, 0x10).xyzwxyzw;
-  mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
-  mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
 }
 
 macro loadCurrentMVMat(vec32 mat0, vec32 mat1, vec32 mat2, vec32 mat3)
@@ -607,6 +532,80 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
 #include "vertexFX.rspl"
 
+@NoRegAlloc
+function pointLight(
+  u16<$s3> ptrLight,
+  vec32<$v27> vertPos, vec32<$v25> mat1, vec32<$v23> ptPos, vec32<$v21> lightVertDot,
+  vec16<$v08> pos, vec16<$v07> norm,
+  vec16<$v01> lightRes, vec16<$v04> color,
+  u8<$t9> mvMatrixLoaded, s32<$t7> lightSize
+)
+{
+  lightSize:u16 = load(ptrLight, 14);
+  if(!mvMatrixLoaded) {
+    // point lights need to be done in eye-space
+    // since the usual matrix is MVP, we need to load the MV one
+    loadCurrentMVMat(vertPos, mat1, ptPos, lightVertDot);
+    mulMat4Vec8(vertPos, mat1, ptPos, lightVertDot, pos, vertPos);
+    vertPos >>= 4;
+    mvMatrixLoaded = 1;
+  }
+
+  lightSize &= 0x7FFF; // MSB is "use-normal" flag
+  lightSize <<= 13; // shift s16 into s16 range
+
+  // get light position
+  ptPos:sint.xyzw = load(ptrLight, 8).xyzw;
+  ptPos:sint.XYZW = load(ptrLight, 8).xyzw;
+
+  ptPos = ptPos:sint >> 8; // light position into 16.16
+  ptPos = ptPos - vertPos; // get distance from light to vertex
+
+  // calc. dot product and normalize distance vector
+  lightVertDot = ptPos * ptPos;
+  mat1         = lightVertDot + lightVertDot.yyyyYYYY;
+  lightVertDot = lightVertDot + mat1.zzzzZZZZ;
+
+  mat1.w = lightSize;
+
+  lightSize:u8 = load(ptrLight, 14); // extract "use-normal" flag
+  lightSize >>= 7;
+
+  // rest of normalization
+  lightVertDot.x = invert_half_sqrt(lightVertDot).x;
+  lightVertDot.X = invert_half_sqrt(lightVertDot).X;
+  lightRes = lightVertDot * mat1.w;
+
+  if(!lightSize) {
+    // adjust shift of sqrt() and make large enough to move the fractional part
+    // into the integer later in the mul. this avoids clamping issues
+    lightVertDot *= 256;
+
+    lightRes:sfract *= lightRes:sfract; // squared light fall-off
+
+    pos:sint = ptPos * lightVertDot.xxxxXXXX; // normalize vector...
+    pos:sfract *= lightRes:sfract.xxxxXXXX; // ...and scale by fall-off
+
+    // final dot with the vertex-normal, color + accumulate is handled in the light loop
+    lightRes = pos:sfract * norm:sfract;
+  } else {
+    // simplified point light, this just used a radius irrespective of vertex normals
+    lightRes:sfract *= lightRes:sfract; // squared light fall-off
+    lightRes.y = 0; lightRes.z = 0;
+    lightRes.Y = 0; lightRes.Z = 0;
+  }
+}
+
+// Loads currently active model matrix (premultiplied with proj. matrix) into registers
+// This already duplicates it for 2-vector operations.
+function loadCurrentMVPMat(vec32<$v27> mat0, vec32<$v25> mat1, vec32<$v23> mat2, vec32<$v21> mat3)
+{
+  mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
+  mat1 = load(MATRIX_MVP, 0x10).xyzwxyzw;
+  mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
+  mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
+}
+
 /**
  * Sets current screen-size in pixel.
  * @param guardBandFactor u8 with the guard multiplier (should be 1-4)
@@ -633,11 +632,6 @@ command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 scre
   //store(guardBandFactor,    CLIPPING_PLANES, 11); // +Z Plane
   store(guardBandFactorNeg, CLIPPING_PLANES, 15); // -X Plane
   store(guardBandFactorNeg, CLIPPING_PLANES, 19); // -Y Plane
-
-  // reset the clipping code return point, this here initially sets it.
-  // however multi-tri draws may set it to other values and *should* reset it after
-  u16 clippingRA = RSPQ_Loop;
-  store(clippingRA, CLIP_RA);
 }
 
 /**
@@ -752,17 +746,13 @@ command<0> T3DCmd_TriDraw_Cmd(u32 vert0, u32 vert1)
     //     u16 currOffset = load(RDPQ_TRI_BUFF_OFFSET);
     //     currOffset ^= RDP_CMD_MAX_SIZE; // note: overflows into the next buffer
 
-  T3DCmd_TriDraw_End: // returned to from:  'RDPQ_Triangle_Send_Async'
-    u16<$s7> currOffset;
-    store(currOffset, RDPQ_TRI_BUFF_OFFSET);
-    exit;
-
   RDPQ_Triangle_Clip:
   // we need to clip now, first wait for any triangle still in flight
   // this is necessary as clipping uses both buffers used as outputs
   // Used: t0, t1
   u32<$s4> targetImem; // this still contains the DMEM addr. of vertex indices, backup here (tri. strips)
   store(targetImem:u16, RSPQ_SCRATCH_MEM, 18);
+  store(RA:u16, CLIP_RA);
   RDPQ_Triangle_Send_End(); // <- resets 'RDPQ_TRI_BUFF_OFFSET' to zero
 
   // Now we need to perform clipping, the code for this is in a separate overlay.
@@ -804,46 +794,38 @@ command<11> T3DCmd_TriDraw_Strip(u32 rdramAddr, u32 countDmem)
 
   prtDmemEnd -= 3; // remove?
 
-  // load culling (persists across loop), and store inverted one for resetting
-  u8<$v0> faceCull = load(FACE_CULLING);
-  faceCull ^= 1;
-  store(faceCull, RSPQ_SCRATCH_MEM, 16);
+  // load culling (persists across loop)
+  u8<$v0> faceCull;
   u16<$a0> idx0, idx1, idx2;
 
   prtDmem -= 2; // compensate for the first increment in the loop
 
   loop { // Wait for DMA to be done
     vertAddr = get_dma_busy();
-    RA:u16 = STRIP_LOOP_NEXT;
-    store(RA:u16, CLIP_RA);
   } while(vertAddr != 0)
 
   STRIP_LOOP_NEW:
-    faceCull = load(RSPQ_SCRATCH_MEM, 16);
+    faceCull = load(FACE_CULLING);
     prtDmem += 2;
   STRIP_LOOP_NEXT:
     faceCull ^= 1; // strips alternate winding order each time
     if(prtDmem == prtDmemEnd)goto STRIP_LOOP_END;
 
-    idx0     = load(prtDmem, 0);
+    idx0     = load(prtDmem, 2);
     idx1:s16 = load(prtDmem, 4); // sign bit marks the end of the strip
-    idx2     = load(prtDmem, 2);
+    idx2     = load(prtDmem, 0);
 
     prtDmem += 2;
     if(idx1:s16 < 0)goto STRIP_LOOP_NEW;
 
-    rejectDest = STRIP_LOOP_NEXT; // jump-target for rejected/culled tri
-
     //print(idx0, idx1, idx2);
-    vertAddr = prtDmem - 2;
-    RDPQ_Triangle_Send_Async(idx0, idx1, idx2, rejectDest, faceCull);
-    store(currOffset, RDPQ_TRI_BUFF_OFFSET);
-    goto STRIP_LOOP_NEXT;
+    RA = STRIP_LOOP_NEXT;
+    goto RDPQ_Triangle_Send_Async;
+    //RDPQ_Triangle_Send_Async(idx0, idx1, idx2, rejectDest, faceCull);
 
   STRIP_LOOP_END:
 
-  RA = RSPQ_Loop; // RA was no longer RSPQ_Loop, and T3DCmd_TriSync may just jump later
-  store(RA:u16, CLIP_RA); // reset target if clipping happens
+  RA = RSPQ_Loop; // T3DCmd_TriSync needs RA with that value
 
   // if we need to sync the MSB of the DMEM address is set, causing it to be negative
   if(prtDmemEnd >= 0)goto RSPQ_Loop;
@@ -871,6 +853,47 @@ command<10> T3DCmd_TriSync()
   RA = RSPQ_Loop;
   store(ZERO:u8, CLIP_CODE_ADDR); // mark as not loaded
   goto RDPQ_Triangle_Send_End;
+}
+
+
+@NoReturn
+command<12> T3DCmd_TriDraw_Seq(u32 sizeAndIndex, u16 endIndex)
+{
+  // Note: $s1, $s4, $s2, $v0, $v1 are preserved across  RDPQ_Triangle calls
+  u8<$s4> baseVtxEnd = endIndex & 0xFFFF;
+  u16<$s2> baseVtx = sizeAndIndex & 0xFFFF;
+
+  u8<$v0> faceCull = load(FACE_CULLING);
+  u16<$s1> isQuad = endIndex >> 16;
+  u16<$v1> vtxIncr = isQuad + (TRI_SIZE * 3);
+
+  undef sizeAndIndex;
+  undef endIndex;
+  u16<$a0> idx0, idx1, idx2;
+
+  SEQ_LOOP_NEXT:
+    idx0 = baseVtx + (TRI_SIZE * 2);
+    if(baseVtx == baseVtxEnd)goto SEQ_LOOP_END;
+    idx1 = baseVtx + (TRI_SIZE * 1);
+    idx2 = baseVtx;
+    baseVtx += vtxIncr;
+
+    RA = SEQ_LOOP_NEXT;
+    goto RDPQ_Triangle_Send_Async;
+    //RDPQ_Triangle_Send_Async(idx0, idx1, idx2, rejectDest, faceCull);
+
+  SEQ_LOOP_END:
+    RA = RSPQ_Loop;
+    if(isQuad) {
+      isQuad = 0;
+      faceCull ^= 1;
+      baseVtx:u16 = load_arg(2);
+      baseVtx += TRI_SIZE;
+      baseVtxEnd += TRI_SIZE;
+      goto SEQ_LOOP_NEXT;
+    }
+
+    goto T3DCmd_TriSync;
 }
 
 #endif

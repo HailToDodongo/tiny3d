@@ -334,6 +334,30 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
   );
 }
 
+static void t3d_tri_draw_sequence(uint32_t baseVertex, uint8_t polyCount, bool isQuad)
+{
+  baseVertex *= VERT_OUTPUT_SIZE;
+  baseVertex += RSP_T3D_VERT_BUFFER & 0xFFFF;
+
+  uint32_t primIndices = isQuad ? 4 : 3;
+
+  // vertex DMEM address one past the last polygon
+  uint32_t baseVertexEnd = primIndices * polyCount * VERT_OUTPUT_SIZE;
+  baseVertexEnd += baseVertex;
+  // increment per step (+ 3*VERT_OUTPUT_SIZE), also serves as a flag for tri vs. quad
+  baseVertexEnd |= (VERT_OUTPUT_SIZE * (isQuad ? 1 : 0)) << 16;
+
+  rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_SEQ, baseVertex, baseVertexEnd);
+}
+
+void t3d_tri_draw_unindexed(uint32_t baseIndex, uint32_t triCount) {
+  t3d_tri_draw_sequence(baseIndex, triCount, false);
+}
+
+void t3d_quad_draw_unindexed(uint32_t baseIndex, uint32_t quadCount) {
+  t3d_tri_draw_sequence(baseIndex, quadCount, true);
+}
+
 inline static void t3d_tri_draw_strip_generic(int16_t* indexBuff, int count, bool doSync)
 {
   uint32_t loadAddr = (uint32_t)PhysicalAddr(indexBuff);

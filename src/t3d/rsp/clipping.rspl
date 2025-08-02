@@ -43,22 +43,27 @@ macro intersection(
     // if not done, it will result in tiny sub-pixel gaps between edges
     if(newClipCode)
     {
+      planeNorm:sint.XYZW = planeNorm:sint.xyzw;
+      planeNorm:sfract = 0;
+
       posUVDiff = posBase - pos;
       vpos = pos;
       vpos.XYZW = posBase.xyzw;
+      planeNorm >>= 8;
 
       colorDiff = colorBase - color;
     } else {
+      planeNorm:sint.XYZW = planeNorm:sint.xyzw;
+      planeNorm:sfract = 0;
+
       posUVDiff = pos - posBase;
       vpos = posBase;
       vpos.XYZW = pos.xyzw;
+      planeNorm >>= 8;
 
       colorDiff = color - colorBase;
     }
 
-    planeNorm:sint.XYZW = planeNorm:sint.xyzw;
-    planeNorm:sfract = 0;
-    planeNorm >>= 8;
     planeNorm *= normScaleWInv:ufract;
 
     vec32 dot = dotXYZW(vpos, planeNorm);
@@ -113,6 +118,7 @@ function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, 
 {
   u8<$v0> faceCull; // stays across triangles, no need to load here
 
+  store(RA:u16, CLIP_RA);
   arraySize = TRI_SIZE_3; // 3-verts by default
 
   // The loop streams vertices in and out at the same time.
@@ -211,10 +217,6 @@ function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, 
   u32<$s5> ptrVertInEnd = ptrVertIn + arraySize;
   ptrVertInEnd -= TRI_SIZE_2;
 
-  // we need to save the vertex-addresses to memory for RDPQ_Triangle.
-  // set the first one here (is constant) the rest is set in each loop iteration
-  store(ptrVertIn:u16, RSPQ_SCRATCH_MEM, 0);
-
   // convert the base-vertex and the one from the first iteration
   // for each triangle-fan part we then only need to convert one new vert
   @Relative triToScreenSpace(ptrVertIn);
@@ -231,13 +233,8 @@ function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, 
     ptrVertB = ptrVertIn;
     ptrVertC = ptrVertIn + TRI_SIZE;
 
-    u32<$v1> vertAddr = RSPQ_SCRATCH_MEM;
-    store(ptrVertC:u16, RSPQ_SCRATCH_MEM, 2);
-    store(ptrVertB:u16, RSPQ_SCRATCH_MEM, 4);
-
     #ifdef DRAW_TRIS
-      u16<$sp> cullDest = RDPQ_Triangle_Clip;
-      RDPQ_Triangle_Send_Async(ptrVertA, ptrVertB, ptrVertC, cullDest, faceCull);
+      RDPQ_Triangle_Send_Async(ptrVertA, ptrVertB, ptrVertC, faceCull);
       RDPQ_Triangle_Send_End();
       RDPQ_Triangle_Clip:
     #endif
