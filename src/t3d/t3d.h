@@ -29,7 +29,7 @@ enum T3DCmd {
   T3D_CMD_FOG_STATE    = 0x9,
   T3D_CMD_TRI_SYNC     = 0xA,
   T3D_CMD_TRI_STRIP    = 0xB,
-  //                   = 0xC,
+  T3D_CMD_TRI_SEQ      = 0xC,
   //                   = 0xD,
   //                   = 0xE,
   //                   = 0xF,
@@ -270,6 +270,33 @@ void t3d_viewport_calc_viewspace_pos(T3DViewport *viewport, T3DVec3 *out, const 
  * @param v2 vertex index 2
  */
 void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2);
+
+/**
+ * Draws multiple triangles, assuming sequential indices.
+ * For example with baseIndex=4 and triCount=2, we would get
+ *  -> 4,5,6  7,8,9
+ * This is effectively performing an un-indexed draw of triangles,
+ * but without the overhead of loading an index-buffer.
+ * This method is faster than going through 't3d_tri_draw_strip'.
+ *
+ * @param baseIndex first index
+ * @param triCount amount of triangles to draw
+ */
+void t3d_tri_draw_unindexed(uint32_t baseIndex, uint32_t triCount);
+
+/**
+ * Draws multiple quads, assuming sequential indices.
+ * For example with baseIndex=4 and quadCount=2, we would get
+ *  -> 4,5,6  7,6,5,  8,9,10, 11,10,9
+ * This is effectively performing an un-indexed draw of quads,
+ * but without the overhead of loading an index-buffer.
+ * This method is faster than going through 't3d_tri_draw_strip'.
+ *
+ * @param baseIndex first index
+ * @param triCount amount of quads to draw
+ */
+void t3d_quad_draw_unindexed(uint32_t baseIndex, uint32_t quadCount);
+
 
 /**
  * Draws a strip of triangles by loading an index buffer.

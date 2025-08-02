@@ -81,7 +81,6 @@
     # * sp: return address if culled
     #
     # OUTPUT:
-    # * v1: 1=clipping required, 0=nothing to do
     # * s3: pointer to the end of the primitive in the output buffer
     # * s7: next output buffer offset (not pointer), either 0 or 176
     #
@@ -111,11 +110,8 @@
     #   test_rdpq_triangle checks if there's a saturation and skip checks for known-wrong values.
 
 T3DCmd_TriDraw:
-    lbu v0, %lo(FACE_CULLING + 0);
     srl a2, a1, 16
-    addiu v1, gp, %lo(RSPQ_DMEM_BUFFER) - 6
-    ori sp, zero, %lo(RSPQ_Loop)
-    ori ra, zero, %lo(T3DCmd_TriDraw_End)
+    lbu v0, %lo(FACE_CULLING + 0);
 
     .func RDPQ_Triangle_Send_Async
 RDPQ_Triangle_Send_Async:
@@ -124,7 +120,6 @@ RDPQ_Triangle_Send_Async:
     #define vtx2   RDPQ_TRIANGLE_VTX2   // a2
     #define vtx3   RDPQ_TRIANGLE_VTX3   // a3
     #define cull   v0
-    #define out_clip_flag   v1
 
     # r, g, b, a, s, t, w, z
     #define vfinal_i         $v01
@@ -233,45 +228,37 @@ RDPQ_Triangle_Send_Async:
     # If so, should we do that BEFORE or AFTER the sort-of-three?
     .set noat
 
-    #ifdef STORE_VTX1
-    sh vtx1, 0(s3)
-    #endif
-    #ifdef STORE_VTX2
-    sh vtx2, 2(s3)
-    #endif
-    #ifdef STORE_VTX3
-    sh vtx3, 4(s3)
-    #endif
-
     # emux_trace_start
-    lhu s7, %lo(RDPQ_TRI_BUFF_OFFSET);
+
+    mtc2 vtx1, vall1.e3
+    mtc2 vtx2, vall2.e3
     llv vall1, VTX_ATTR_XY,vtx1
     llv vall2, VTX_ATTR_XY,vtx2
     llv vall3, VTX_ATTR_XY,vtx3;                # Create a vector for negative pow2 constants
     lhu clip1, VTX_ATTR_CLIPFLAGS(vtx1);        vsubc vmconst, vzero, vshift;
 
-    vcopy vy1, vall1.e1;                        lsv vall1.e3, RDPQ_TRIANGLE_VTX1_DMEM
-    vcopy vy2, vall2.e1;                        lsv vall2.e3, RDPQ_TRIANGLE_VTX2_DMEM
-    vcopy vy3, vall3.e1;                        lsv vall3.e3, RDPQ_TRIANGLE_VTX3_DMEM
+    vcopy vy1, vall1.e1;                        ori $at, zero, 0xFF;
+    vcopy vy2, vall2.e1;                        lhu clip2, VTX_ATTR_CLIPFLAGS(vtx2)
+    vcopy vy3, vall3.e1;                        mtc2 vtx3, vall3.e3
 
     # Create vector of ones.
     # Do it with vaddc so that we also clear
     # VCO to make sure the first VGE does
     # the right thing if vy1==vy2               # Finish loading clipping codes
     vaddc vk1, vzero, K1;                       lhu clip3, VTX_ATTR_CLIPFLAGS(vtx3)
-                                                lhu clip2, VTX_ATTR_CLIPFLAGS(vtx2)
+
 
     # Do a sort-of-three (min, mid, max), using vyN as key of the sort,
     # and vallN as values to sort. We compare the keys with vlt/vge,
     # and then use vmrg to apply the swap.
-    ori $at, zero, 0xFF;                        vge vytmp1, vy1, vy2;
-    or clip1, clip3;                            vmrg valltmp1, vall1, vall2;
-    or clip1, clip2;                            vlt vy1, vy1, vy2;
+    lhu s7, %lo(RDPQ_TRI_BUFF_OFFSET);          vge vytmp1, vy1, vy2;
+    or clip1, clip2;                            vmrg valltmp1, vall1, vall2;
+    or clip1, clip3;                            vlt vy1, vy1, vy2;
     cfc2 did_swap_0, COP2_CTRL_VCC;             vmrg vall1, vall1, vall2;
 
     andi t1, clip1, 0xFF;                       vxor vhmlupp, vhmlupp
 
-    bne t1, $at, CullTri;                       vge vytmp2, vy1, vy3;
+    bne t1, $at, JrRa;                          vge vytmp2, vy1, vy3;
     nop;                                        vmrg valltmp2, vall1, vall3;
     lw tricmd, %lo(TRI_COMMAND);                vlt vy1, vy1, vy3;
     cfc2 did_swap_1, COP2_CTRL_VCC;             vmrg vall1, vall1, vall3;
@@ -337,7 +324,7 @@ RDPQ_Triangle_Send_Async:
 
     # Compute ISH (H slope). 1/HY  (s14.1)
     vrcp  vslope_f.e0, hy;                      slt t0, t0, zero
-    vrcph vslope_i.e0, hy;                      beq t0, t1, CullTri
+    vrcph vslope_i.e0, hy;                      beq t0, t1, JrRa
     # Compute ISM (M slope). 1/MY  (s14.1)
     vrcp  vslope_f.e2, my;                      # <delay slot>
     vrcph vslope_i.e2, my;                      lsv vw_i.e0, VTX_ATTR_Wi,vtx1
@@ -569,17 +556,17 @@ RDPQ_Triangle_Send_Async:
     # DY = HA * MX + MA * -HX
     vmudh vdy_f, vha, mx;                           ssv ish_i, 20,s3
     vmadh vdy_f, vma, hx;                           ssv ish_f, 22,s3
-    vsar vdy_f, COP2_ACC_MD;                        lw rdram_sentinel, %lo(RDPQ_SENTINEL)
-                                                    # Clear MSB of rdram_cur (contains garbage)
-    vsar vdy_i, COP2_ACC_HI;                        sll rdram_cur, 8
+    vsar vdy_f, COP2_ACC_MD;                        mtc0 s3, COP0_DMA_SPADDR
 
-    # DX * 1/N
-    vmudl v__,  vdx_f, inz_f;                       srl rdram_cur, 8
-                                                    # Setup DMA addresses
-    vmadm v__,  vdx_i, inz_f;                       mtc0 s3, COP0_DMA_SPADDR
+    vsar vdy_i, COP2_ACC_HI;                        lw rdram_sentinel, %lo(RDPQ_SENTINEL)
+
+    # DX * 1/N                                  # Calculate final s3 value
+    vmudl v__,  vdx_f, inz_f;                       addu s3, prim_size
+                                                # Setup DMA addresses
+    vmadm v__,  vdx_i, inz_f;                       # <NOP (SU) >
     vmadn vdx_f, vdx_f, inz_i;                      mtc0 rdram_cur, COP0_DMA_RAMADDR
-                                                    # Calculate final s3 value
-    vmadh vdx_i, vdx_i, inz_i;                      addu s3, prim_size
+
+    vmadh vdx_i, vdx_i, inz_i;                      sh s7, %lo(RDPQ_TRI_BUFF_OFFSET)
 
     # DY * 1/N                                      # Compute final RDRAM pointer, and
                                                     # check if it goes past the sentinel
@@ -630,22 +617,9 @@ rdpq_triangle_change_buffer_done:
                                                     addiu prim_size, -1
                                                     sdv vzout1.e0, 0x00,z_dmem
 
-#if RDPQ_TRIANGLE_PROFILE
-    emux_trace_stop
-    mfc0 t0, COP0_DP_CLOCK
-    sub t0, t0, fp
-    emux_log_string "RDPQ_Triangle:  "
-    emux_dump_gpr t0
-#endif
-
     # emux_trace_stop
     jr ra
     mtc0 prim_size, COP0_DMA_WRITE
-
-    CullTri:
-    # emux_trace_stop
-    j sp
-    nop
 
     #undef tricm
     #undef vtx1
@@ -769,7 +743,9 @@ rdpq_triangle_dma_busy:
     bnez t1, rdpq_triangle_dma_busy
     mfc0 t1, COP0_DMA_BUSY
     j rdpq_triangle_dma_idle
-    nop
+    # NOTE: overflows into `RDPQ_Triangle_Send_End`
+    #         ||
+    #         \/
 
     .endfunc
 
@@ -791,20 +767,20 @@ rdpq_triangle_dma_busy:
     #
     #####################################################################
 
-    .func RDPQ_Triangle_Send_End
+.set noat
 RDPQ_Triangle_Send_End:
-    mfc0 t0, COP0_DMA_BUSY
-    bnez t0, RDPQ_Triangle_Send_End
+    # instruction below must be "neutral", the above function overflows into it
+    mfc0 $at, COP0_DMA_BUSY
     sh zero, %lo(RDPQ_TRI_BUFF_OFFSET)(zero) # clear offset after each explicit wait
+    lbu t0, %lo(RDPQ_SYNCFULL_ONGOING)
+    bnez $at, RDPQ_Triangle_Send_End
+    lw t1, %lo(RDPQ_CURRENT)
 
     # j RSPQCmd_RdpAppendBuffer
     # lw a0, %lo(RDPQ_CURRENT) # we don't want to destroy a0 for clipping
 
-    lw t1, %lo(RDPQ_CURRENT)
-    lbu t0, %lo(RDPQ_SYNCFULL_ONGOING)
     bnez t0, JrRa
     sw t1, %lo(RDPQ_CURRENT)
     jr ra
     mtc0 t1, COP0_DP_END
 
-    .endfunc

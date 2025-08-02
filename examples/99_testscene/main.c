@@ -28,10 +28,14 @@ int main()
   //rdpq_debug_start();
   //rdpq_debug_log(true);
 
+  bool testClip = false;
+
   joypad_init();
   t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create();
-  //viewport.guardBandScale = 1;
+  if(testClip) {
+    viewport.guardBandScale = 1;
+  }
 
   t3d_debug_print_init();
   sprite_t *spriteLogo = sprite_load("rom:/logo.ia8.sprite");
@@ -43,6 +47,7 @@ int main()
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
 
   T3DVec3 camPos = {{2.9232f, 67.6248f, 61.1093f}};
+  if(testClip)camPos = (T3DVec3){{2.9232f, 37.6248f, 31.1093f}};
   T3DVec3 camTarget = {{0,0,0}};
   T3DVec3 camDir = {{0,0,1}};
 
