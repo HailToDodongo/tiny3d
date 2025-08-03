@@ -115,6 +115,37 @@ namespace {
 
     return res;
   }
+
+  struct SequenceRes {
+    TriList tris{};
+    int seqStart{0};
+    int seqCount{0};
+  };
+
+  SequenceRes extractSequenceTris(TriList &tris)
+  {
+    SequenceRes bestRes{};
+    for(int baseIdx=0; baseIdx<tris.size()/2; ++baseIdx)
+    {
+      SequenceRes res{};
+      res.seqStart = baseIdx;
+      int currIdx = res.seqStart;
+
+      for(auto &tri : tris) {
+        if(tri[0] == currIdx && tri[1] == currIdx+1 && tri[2] == currIdx+2) {
+          currIdx += 3;
+          ++res.seqCount;
+        } else {
+          res.tris.push_back(tri);
+        }
+      }
+      if(res.seqCount > bestRes.seqCount) {
+        bestRes = res;
+      }
+    }
+
+    return bestRes;
+  }
 }
 
 void optimizeModelChunk(ModelChunked &model)
@@ -127,10 +158,44 @@ void optimizeModelChunk(ModelChunked &model)
 
     // convert indices into split up triangles, then clear old indices
     TriList tris{}; // input tris
-    for(int i=0; i<chunk.indices.size(); i+=3) {
-      tris.push_back({chunk.indices[i], chunk.indices[i+1], chunk.indices[i+2]});
+    {
+      auto &idx = chunk.indices;
+      for(int i=0; i<idx.size(); i+=3) {
+        // store rotated so that the smallest index always comes first
+        // this makes index sequence detection easier later on
+        int8_t smallest = std::min({idx[i+0], idx[i+1], idx[i+2]});
+        if(idx[i+0] == smallest) {
+          tris.push_back({idx[i+0], idx[i+1], idx[i+2]});
+        } else if(idx[i+1] == smallest) {
+          tris.push_back({idx[i+1], idx[i+2], idx[i+0]});
+        } else {
+          tris.push_back({idx[i+2], idx[i+0], idx[i+1]});
+        }
+      }
     }
     chunk.indices.clear();
+
+    auto seq = extractSequenceTris(tris);
+    if(
+      // at least 3 triangles in a sequence to pay off the fixed-cost
+      seq.seqCount >= 3
+      // and must cut down a lot of tris not make strips worse
+      && (seq.tris.size() < (tris.size() / 2))
+    )
+    {
+      if(config.verbose) {
+        printf("Sequence:\n  Tris: ");
+        for(auto &tri : seq.tris) {
+          printf("%d %d %d | ", tri[0], tri[1], tri[2]);
+        }
+        printf("\n  Sequence start: %d, count: %d\n", seq.seqStart, seq.seqCount);
+      }
+
+      tris = seq.tris;
+      chunk.seqStart = seq.seqStart;
+      chunk.seqCount = seq.seqCount;
+    }
+
 
     // writes out a single triangle (3 indices ina command, no DMAs)
     auto emitTri = [&chunk](const Tri &tri) {

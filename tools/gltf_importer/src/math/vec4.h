@@ -82,6 +82,15 @@ struct Vec4
     return dot(*this);
   }
 
+  [[nodiscard]] constexpr Vec4 clamp(f32 min, f32 max) const {
+    return {
+      data[0] < min ? min : (data[0] > max ? max : data[0]),
+      data[1] < min ? min : (data[1] > max ? max : data[1]),
+      data[2] < min ? min : (data[2] > max ? max : data[2]),
+      data[3] < min ? min : (data[3] > max ? max : data[3])
+    };
+  }
+
   // Operations (Vector)
   constexpr Vec4 operator-() const {
     return { -data[0], -data[1], -data[2], -data[3] };

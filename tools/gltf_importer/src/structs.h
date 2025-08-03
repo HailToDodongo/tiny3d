@@ -147,6 +147,8 @@ struct Material {
 struct MeshChunk {
   std::vector<int8_t> indices{};
   std::vector<int16_t> stripIndices[4]{};
+  uint8_t seqStart{0};
+  uint8_t seqCount{0};
   Material material{};
   uint32_t vertexOffset{0};
   uint32_t vertexCount{0};
@@ -260,4 +262,4 @@ extern Config config;
 
 constexpr int MAX_VERTEX_COUNT = 70;
 constexpr int CACHE_VERTEX_SIZE = 36;
-constexpr u8 T3DM_VERSION = 0x03;
+constexpr u8 T3DM_VERSION = 0x04;

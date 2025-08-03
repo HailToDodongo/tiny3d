@@ -153,7 +153,8 @@ namespace {
   }
 
   void readColor(const json &color, uint8_t out[4]) {
-    float colorFloat[4] = {
+
+    Vec4 colorFloat{
       color[0].get<float>(),
       color[1].get<float>(),
       color[2].get<float>(),
@@ -165,10 +166,12 @@ namespace {
       colorFloat[c] = powf(colorFloat[c], 0.4545f);
     }
 
-    out[0] = (uint8_t)(colorFloat[0] * 255.0f);
-    out[1] = (uint8_t)(colorFloat[1] * 255.0f);
-    out[2] = (uint8_t)(colorFloat[2] * 255.0f);
-    out[3] = (uint8_t)(colorFloat[3] * 255.0f);
+    colorFloat = colorFloat.clamp(0, 1) * 255.0f;
+
+    out[0] = (uint8_t)(colorFloat[0]);
+    out[1] = (uint8_t)(colorFloat[1]);
+    out[2] = (uint8_t)(colorFloat[2]);
+    out[3] = (uint8_t)(colorFloat[3]);
   }
 }
 

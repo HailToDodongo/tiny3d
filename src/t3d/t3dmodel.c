@@ -5,7 +5,7 @@
 
 #include "t3dmodel.h"
 
-#define T3DM_VERSION 0x03
+#define T3DM_VERSION 0x04
 
 static inline void* patch_pointer(void *ptr, uint32_t offset) {
   return (void*)(offset + (int32_t)ptr);
@@ -303,18 +303,30 @@ void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrice
     // load vertices, this will already do T&L (so matrices/fog/lighting must be set before)
     t3d_vert_load(part->vert, part->vertDestOffset, part->vertLoadCount);
     //debugf("Load Vertices[%d]: %d, %d | bone: %d\n", p, part->vertDestOffset, part->vertLoadCount, part->matrixIdx);
-    if(part->numIndices == 0 && part->numStripIndices[0] == 0)continue; // partial-load, last chunk of a sequence will both indices & material data
+    if(part->numIndices == 0 &&
+      part->numStripIndices[0] == 0 &&
+      part->idxSeqCount == 0
+    ) {
+      continue; // partial-load, last chunk of a sequence will both indices & material data
+    }
 
+    bool didSync = false;
     for(int i = 0; i < part->numIndices; i+=3) {
       t3d_tri_draw(part->indices[i], part->indices[i+1], part->indices[i+2]);
+    }
+
+    // ...then sequences (aka unindexed triangles)
+    if(part->idxSeqCount != 0) {
+      t3d_tri_draw_unindexed(part->idxSeqBase, part->idxSeqCount);
+      didSync = true;
     }
 
     // ...then strips, which are an encoded index buffer DMA'd by the RSP.
     // Internally, this will re-use the space of the vertex cache of verts. that are not used anymore
     uint8_t *idxPtrBase = (uint8_t*)align_pointer(part->indices + part->numIndices, 8);
-    bool didSync = false;
 
     if (part->numStripIndices[0] != 0) {
+      didSync = false;
       for(int s=0; s<4; ++s) {
         bool isLastStrip = s == 3 || part->numStripIndices[s+1] == 0;
         if (isLastStrip) {
