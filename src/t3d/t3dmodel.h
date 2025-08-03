@@ -72,6 +72,9 @@ typedef struct {
   uint16_t numIndices;
   uint16_t matrixIdx;
   uint8_t numStripIndices[4];
+  uint8_t idxSeqBase;
+  uint8_t idxSeqCount;
+  uint8_t _padding[2];
 
 } T3DObjectPart;
 

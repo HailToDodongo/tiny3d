@@ -377,6 +377,10 @@ int main(int argc, char* argv[])
       file.write((uint8_t)chunk.stripIndices[1].size());
       file.write((uint8_t)chunk.stripIndices[2].size());
       file.write((uint8_t)chunk.stripIndices[3].size());
+      file.write(chunk.seqStart);
+      file.write(chunk.seqCount);
+      file.write<uint8_t>(0);
+      file.write<uint8_t>(0);
 
       // write indices data
       chunkIndices.writeArray(chunk.indices.data(), chunk.indices.size());

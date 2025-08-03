@@ -101,10 +101,11 @@ void convertVertex(
             | ((int16_t)(normPacked[1]) & 0b111111) <<  5
             | ((int16_t)(normPacked[2]) & 0b11111 ) <<  0;
 
-  vT3D.rgba = (uint32_t)(v.color[3] * 255.0f);
-  vT3D.rgba |= (uint32_t)(v.color[2] * 255.0f) << 8;
-  vT3D.rgba |= (uint32_t)(v.color[1] * 255.0f) << 16;
-  vT3D.rgba |= (uint32_t)(v.color[0] * 255.0f) << 24;
+  auto safeColor = Vec4{v.color[0], v.color[1], v.color[2], v.color[3]}.clamp(0.0f, 1.0f) * 255.0f;
+  vT3D.rgba = (uint32_t)(safeColor[3]);
+  vT3D.rgba |= (uint32_t)(safeColor[2]) << 8;
+  vT3D.rgba |= (uint32_t)(safeColor[1]) << 16;
+  vT3D.rgba |= (uint32_t)(safeColor[0]) << 24;
 
   // Enable this to debug bone-indices:
   /*if(v.boneIndex >= 0) {

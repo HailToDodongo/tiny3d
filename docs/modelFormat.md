@@ -157,6 +157,9 @@ Model part data.
 | 0x0A   | `u16`   | Triangle Index count            |
 | 0x0C   | `u16`   | Matrix index, `0xFFFF` for none |
 | 0x10   | `u8[4]` | Strip Index count               |
+| 0x14   | `u8`    | Index Sequence base index       |
+| 0x15   | `u8`    | Index Sequence count (0=none)   |
+| 0x16   | `u8[2]` | _padding_                       |
 
 ## Skeleton (`S`)
 Contains a tree of bones, used for skeletal animation.<br>
