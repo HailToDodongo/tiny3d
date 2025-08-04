@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Last64 Debug (Ares)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/Last64/last64.elf",
+      "miDebuggerServerAddress": "172.17.176.1:9123",
+      "miDebuggerPath": "/opt/libdragon/bin/mips64-elf-gdb",
+      "cwd": "${workspaceFolder}/Last64",
+      "stopAtEntry": false,
+      "externalConsole": false,
+      "MIMode": "gdb"
+    }
+  ]
+}
