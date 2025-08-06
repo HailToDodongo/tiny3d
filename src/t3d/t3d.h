@@ -461,10 +461,10 @@ void t3d_fog_set_range(float near, float far);
  * @param isEnabled
  */
 static inline void t3d_fog_set_enabled(bool isEnabled) {
-  // 3/72 are the offsets of attributes (color/UV) in a vertex on the RSP side
+  // 0xB/0xC are the offsets of attributes (color/UV) in a vertex on the RSP side
   // this allows the code to do a branch-less save.
-  // 3 points to alpha of the current vertex, 72 somewhere into the next vertex
-  rspq_write(T3D_RSP_ID, T3D_CMD_FOG_STATE, isEnabled ? 3 : 72);
+  // 0xB points to alpha of the current vertex, 0xC to the UV which get overwritten later
+  rspq_write(T3D_RSP_ID, T3D_CMD_FOG_STATE, isEnabled ? 0x0B : 0x0C);
 }
 
 /**
