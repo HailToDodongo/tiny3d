@@ -2,7 +2,6 @@
 A minimalist reimagining of *Vampire Survivors* for the Nintendo 64 using `libdragon` and `tiny3d`. All visuals are abstract — inspired by *REZ* and *Geometry Wars* — relying on bloom and simple shapes for aesthetic effect.
 
 ## 🎨 Visual Style
-
 - No textures or sprites
 - Use triangles, circles, and quads for all entities
 - Color-coded shapes with bloom blending
@@ -10,7 +9,6 @@ A minimalist reimagining of *Vampire Survivors* for the Nintendo 64 using `libdr
 - Stylish, clean, abstract — looks good with low effort
 
 ## 🧩 Core Concepts
-
 | System            | Description |
 |-------------------|-------------|
 | **Player**        | Triangle or diamond shape, glows with color |
@@ -23,13 +21,12 @@ A minimalist reimagining of *Vampire Survivors* for the Nintendo 64 using `libdr
 ## 🛠️ Development Milestones
 
 ### ✅Phase 0: Files and Compile
-- [ ] Create the needed files, incl. a makefile in order to compile
-- [ ] Render a single box
+- [x] Create the needed files, incl. a makefile in order to compile
+- [x] Render a single box
 
 ### ✅ Phase 1: Core Setup
 - [ ] Init tiny3d with bloom pipeline
 - [ ] Render and move player (triangle)
-- [ ] Basic collision detection
 
 ### ✅ Phase 2: Combat System
 - [ ] Auto-fire projectiles
