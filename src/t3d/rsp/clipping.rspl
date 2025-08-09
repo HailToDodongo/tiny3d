@@ -117,8 +117,8 @@ macro intersection(
 function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, u16<$a2> ptrVertC)
 {
   u8<$v0> faceCull; // stays across triangles, no need to load here
+  // u8<$sp> _unused;
 
-  store(RA:u16, CLIP_RA);
   arraySize = TRI_SIZE_3; // 3-verts by default
 
   // The loop streams vertices in and out at the same time.
@@ -136,6 +136,12 @@ function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, 
 
   u32 planePtr = CLIPPING_PLANES;
   s32 planeIdx = 1;
+
+  {
+    // backup old tile-index whicg is stored in the clip-code
+    u8 oldClip = load(ptrVertA, VTX_ATTR_CLIPFLAGS);
+    store(oldClip, RSPQ_SCRATCH_MEM, 20);
+  }
 
   vec16 normScaleWInv;
   normScaleWInv.x = load(NORM_SCALE_W).w;
@@ -291,24 +297,31 @@ macro emitClippedTri(u32 ptrWrite, u8 lastClipCode, vec32 lastPosUV, vec16 lastC
 function triToScreenSpace(u32<$s6> ptr)
 {
   // Note: these values need to be loaded each time, as RDPQ_Triangle wipes most regs
-  vec32 screenSize = load(SCREEN_SCALE_OFFSET).xyzw;
+  vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzw;
   screenSize:sfract = 0;
   screenSize >>= 4;
 
+  vec16 vecOne = 1;
+
+  // write dummy clip-codes to avoid re-clipping
+  // we must set the 5 LSBs (clip codes), but preserve the 3 MSBs (tile index)
+  u16<$t0> oldClipFlag = load(RSPQ_SCRATCH_MEM, 20);
+  oldClipFlag = oldClipFlag & ((0b111'00000) << 8);
+  oldClipFlag |= 0xFF;
+
   vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzw;
 
+  vec32 invW;
   vec32 posClip = load(ptr, VTX_ATTR_CLIPPOSi).xyzw;
-  posClip.w = invert_half(posClip).w;
-  store(posClip.w, ptr, VTX_ATTR_INVWi);
+  invW.w = invert_half(posClip).w;
+  store(invW.w, ptr, VTX_ATTR_INVWi);
 
-  posClip *= posClip.w;
   posClip *= screenSize;
-  posClip:sint += screenOffset;
+  posClip *= invW.w;
+  posClip:sint = screenOffset:sint +* 1;
 
   @Barrier("cc") store(posClip:sint.xyzw, ptr, VTX_ATTR_XY);
-
-  // write dummy clip-codes to avoid re-clipping (screenOffset.w = 0x00FF)
-  @Barrier("cc") store(screenOffset.w, ptr, VTX_ATTR_CLIPFLAGS);
+  @Barrier("cc") store(oldClipFlag, ptr, VTX_ATTR_CLIPFLAGS);
 
   ptr -= TRI_SIZE;
 }

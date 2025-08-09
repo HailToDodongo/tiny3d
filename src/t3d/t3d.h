@@ -490,6 +490,25 @@ void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags);
 void t3d_state_set_depth_offset(int16_t offset);
 
 /**
+ * Enables or disables the alpha-to-tile feature.
+ * This will cause the 3 MSBs of the input vertex alpha to be stored as the base tile.
+ * Which is later used during triangle draws to define what TEX0 is (by default TILE0).
+ * This feature is completely free and adds no extra time.
+ *
+ * This can be useful if you can preload a tile-set into TMEM containing multiple textures.
+ * By setting up distinct tiles you can still take advantage of repeating UVs.
+ * Each triangle can then select its own tile without a costly texture or state switches inbetween.
+ *
+ * NOTE: since a triangle can only have one tile, it is expected that all vertices have the same tile set.
+ * Otherwise it is considered undefined behavior.
+ * Furthermore, When loading vertices it is expected that both vertices in the interleaved struct
+ * must contain the same tile value.
+ *
+ * @param enable true to enable for future vertex loads, false to disable.
+ */
+void t3d_state_set_alpha_to_tile(bool enable);
+
+/**
  * Sets a function for vertex effects.
  * To disable it, set the function to 'T3D_VERTEX_FX_NONE'.
  * The arg0/arg1 values are stored ín DMEM and are used by the ucode.
