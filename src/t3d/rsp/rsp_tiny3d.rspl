@@ -146,7 +146,9 @@ state
     // address of the clipping code to load in RDRAM
   // first byte (MSB) stores if th code is already loaded or not
   u32 CLIP_CODE_ADDR = {0};
-  u32 CLIP_CODE_ORG_ADDR = {0}; // address of the original code (this overlay here)
+  // address of the original code (this overlay here)
+  // first byte (MSB) stores a mask used for the alpha-to-tile feature
+  u32 CLIP_CODE_ORG_ADDR = {0};
 
    /**
    * Buffer format (RDPQ_Triangle compatible):
@@ -186,7 +188,7 @@ temp_state {
 #include "inc/math.rspl"
 
 // Libdragon functions
-function RDPQ_Triangle_Send_Async(u16<$a0> ptrVert0, u16<$a1> ptrVert1, u16<$a2> ptrVert2, u16<$sp> cullDest, u8<$v0> cullFlag);
+function RDPQ_Triangle_Send_Async(u16<$a0> ptrVert0, u16<$a1> ptrVert1, u16<$a2> ptrVert2, u8<$v0> cullFlag);
 function RDPQ_Triangle_Send_End();
 
 function DMAExec(u16<$t0> size, u32<$s0> rdramAddr, s16<$s4> dmemAddr);
@@ -201,13 +203,15 @@ macro dmaInAsync(u32 addrRDRAM, u32 addrDMEM, u32 size)
 // Packs +xyz & -xyz into a single byte
 macro packClipCode(u32 res, u32 clipCode)
 {
-  res = clipCode & 0b0000'0111'0000'0111;
+  // Note: z-far is not clipped, only rejected
+  // instead the current tile is stored in the 3 MSB
+  res = clipCode & 0b0000'0011'0000'0111;
   u32 tmp = res >> 5; //  -zyx      +xyx
   res |= tmp;
 }
 
 // Same as packClipCode, inverts the clipcode to only use one operation later on
-macro packClipCodeInverted(u32 res, u32 clipCode)
+macro packRejectCode(u32 res, u32 clipCode)
 {
   res = clipCode & 0b0000'0111'0000'0111;
   u32 tmp = res >> 5; //  -zyx      +xyx
@@ -340,6 +344,11 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   u16 vertexFxFunc;
   u8 isUnlit = load(TRI_COMMAND);
 
+  undef dmaAddrRDRAM;
+  undef addressInOut;
+  u8<$s0> baseTileMask = load(CLIP_CODE_ORG_ADDR);
+  u8<$a2> baseTile;
+
   // @TODO: racing the DMA is ~40us faster, doesn't work in ares, retest later again
   dma_await();
 
@@ -363,6 +372,10 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     // loads 1.0 to force full light by default (aka unlit)
     // later the ambient light is loaded over this in case lighting is enabled
     vec16 lightColor = fogScaleOffset.z;
+
+    // Load the alpha value from the first vertex, which *may* contain the base-tile...
+    baseTile = load(prt3d, 0x13);
+    baseTile &= baseTileMask; //...now mask it away it that feature isn't enabled
 
     u8 mvMatrixLoaded = 0;
     {
@@ -438,9 +451,12 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       clipCodeA = packClipCode(clipCodes);
       clipCodeB = packClipCode(clipCodeB);
 
+      clipCodeA |= baseTile; // merge base-tile into the 3 unused bits of the clipping code
+      clipCodeB |= baseTile;
+
       rejCodesB = rejCodes >> 4;
-      rejCodesA = packClipCodeInverted(rejCodes);
-      rejCodesB = packClipCodeInverted(rejCodesB);
+      rejCodesA = packRejectCode(rejCodes);
+      rejCodesB = packRejectCode(rejCodesB);
     }
     undef clipPlaneW;
 
@@ -502,10 +518,8 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     @Barrier("pos-cc") store(posClip:sint.XYZW, ptrBuffB, VTX_ATTR_XY);
 
     // pack the first clip-code to get rid of one save + have more SUs
-    clipCodeA <<= 8;
-    rejCodesA &= 0xFF;
-    clipCodeA |= rejCodesA;
-    @Barrier("pos-cc") store(clipCodeA:u16, ptrBuffA, VTX_ATTR_CLIPFLAGS);
+    @Barrier("pos-cc") store(clipCodeA:u8, ptrBuffA, VTX_ATTR_CLIPFLAGS);
+    @Barrier("pos-cc") store(rejCodesA:u8, ptrBuffA, VTX_ATTR_REJFLAGS);
 
     @Barrier("pos-cc") store(clipCodeB:u8, ptrBuffB, VTX_ATTR_CLIPFLAGS);
     @Barrier("pos-cc") store(rejCodesB:u8, ptrBuffB, VTX_ATTR_REJFLAGS);

@@ -228,8 +228,6 @@ RDPQ_Triangle_Send_Async:
     # If so, should we do that BEFORE or AFTER the sort-of-three?
     .set noat
 
-    # emux_trace_start
-
     mtc2 vtx1, vall1.e3
     mtc2 vtx2, vall2.e3
     llv vall1, VTX_ATTR_XY,vtx1
@@ -237,7 +235,7 @@ RDPQ_Triangle_Send_Async:
     llv vall3, VTX_ATTR_XY,vtx3;                # Create a vector for negative pow2 constants
     lhu clip1, VTX_ATTR_CLIPFLAGS(vtx1);        vsubc vmconst, vzero, vshift;
 
-    vcopy vy1, vall1.e1;                        ori $at, zero, 0xFF;
+    vcopy vy1, vall1.e1;                        ori t1, zero, 0xFF;
     vcopy vy2, vall2.e1;                        lhu clip2, VTX_ATTR_CLIPFLAGS(vtx2)
     vcopy vy3, vall3.e1;                        mtc2 vtx3, vall3.e3
 
@@ -247,7 +245,6 @@ RDPQ_Triangle_Send_Async:
     # the right thing if vy1==vy2               # Finish loading clipping codes
     vaddc vk1, vzero, K1;                       lhu clip3, VTX_ATTR_CLIPFLAGS(vtx3)
 
-
     # Do a sort-of-three (min, mid, max), using vyN as key of the sort,
     # and vallN as values to sort. We compare the keys with vlt/vge,
     # and then use vmrg to apply the swap.
@@ -256,14 +253,15 @@ RDPQ_Triangle_Send_Async:
     or clip1, clip3;                            vlt vy1, vy1, vy2;
     cfc2 did_swap_0, COP2_CTRL_VCC;             vmrg vall1, vall1, vall2;
 
-    andi t1, clip1, 0xFF;                       vxor vhmlupp, vhmlupp
+    andi $at, clip1, 0xFF;                      vxor vhmlupp, vhmlupp
 
-    bne t1, $at, JrRa;                          vge vytmp2, vy1, vy3;
-    nop;                                        vmrg valltmp2, vall1, vall3;
+    bne $at, t1, JrRa;                          vge vytmp2, vy1, vy3;
+    # extract tile (0-7) from 3 MSBs of clip1
+    srl $at, clip1, 5+8;                        vmrg valltmp2, vall1, vall3;
     lw tricmd, %lo(TRI_COMMAND);                vlt vy1, vy1, vy3;
     cfc2 did_swap_1, COP2_CTRL_VCC;             vmrg vall1, vall1, vall3;
 
-    andi clip1, clip1, 0xFF00;                  vge vy3, vytmp1, vytmp2;
+    andi clip2, clip1, 0x1F00;                  vge vy3, vytmp1, vytmp2;
     addiu s3, s7, %lo(CLIP_BUFFER_TMP);         vmrg vall3, valltmp1, valltmp2;
     ssv vy1.e0, 6,s3;                           vlt vy2, vytmp1, vytmp2;
     cfc2 did_swap_2, COP2_CTRL_VCC;             vmrg vall2, valltmp1, valltmp2;
@@ -274,7 +272,7 @@ RDPQ_Triangle_Send_Async:
 
     # Build vhml:
     #    vhml      =   HX HY MX MY    LX LY  0  NZf
-    bnez clip1, RDPQ_Triangle_Clip;             xor did_swap_0, did_swap_1
+    bnez clip2, RDPQ_Triangle_Clip;             xor did_swap_0, did_swap_1
     vsubc vhml, vall3, vall1;                   xor did_swap_0, did_swap_2
     vsubc vm, vall2, vall1;                     mfc2 vtx1, vall1.e3
     vsubc vl, vall3, vall2;                     mfc2 vtx2, vall2.e3
@@ -399,7 +397,7 @@ RDPQ_Triangle_Send_Async:
     #   =    X * (2 - R*X)
     vmudl v__,      vtmp_f, vslopem2_f;         addu tex_dmem, color_dmem
     vmadm v__,      vtmp_i, vslopem2_f;         andi z_dmem, tricmd, 0x200
-    vmadn vnz_f,    vtmp_f, vslopem2_i;         srl z_dmem, 3
+    vmadn vnz_f,    vtmp_f, vslopem2_i;         or tricmd, tricmd, $at
     vmadh vnz_i,    vtmp_i, vslopem2_i;         sh tricmd, 0(s3)
 
     #undef vtmp_i
@@ -466,7 +464,7 @@ RDPQ_Triangle_Send_Async:
     # Compute XH and XM
     # TODO: fy_i is always 0xFFFFFFFF here.
     # See if we can benefit from this.
-    vmudl v__,      vslope_f, vfy_f.e4;         addu z_dmem, tex_dmem
+    vmudl v__,      vslope_f, vfy_f.e4;         srl z_dmem, 3
     vmadm v__,      vslope_i, vfy_f.e4;         andi prim_size, tricmd, 0x100
     vmadn vedges_f, vslope_f, vfy_i.e4;         mfc0 t1, COP0_DMA_BUSY
                                                 # Copy normalized invw into the attribute vector
@@ -491,7 +489,7 @@ RDPQ_Triangle_Send_Async:
     # preserving the other components. VCC
     # was set to 0xCF before, so that only
     # the S/T elements (.e4/.e5) are copied
-    vmrg vattr1, vtex1;                         addu prim_size, z_dmem
+    vmrg vattr1, vtex1;                         addu z_dmem, tex_dmem
     vmrg vattr2, vtex2;                         ssv isl_i, 12,s3
     vmrg vattr3, vtex3;                         lw rdram_cur, %lo(RDPQ_CURRENT)
 
@@ -534,7 +532,7 @@ RDPQ_Triangle_Send_Async:
     # and then change the DX/DY calcs
     # to use 32-bit numbers as well.
     vsub vma, vattr2, vattr1;                       ssv vx12_f.e2, 10,s3  # XL_F
-    vsub vha, vattr3, vattr1;                       sub prim_size, s3
+    vsub vha, vattr3, vattr1;                       addu prim_size, z_dmem
 
     #define vzout1      $v10
     #undef vattr2
@@ -561,9 +559,9 @@ RDPQ_Triangle_Send_Async:
     vsar vdy_i, COP2_ACC_HI;                        lw rdram_sentinel, %lo(RDPQ_SENTINEL)
 
     # DX * 1/N                                  # Calculate final s3 value
-    vmudl v__,  vdx_f, inz_f;                       addu s3, prim_size
+    vmudl v__,  vdx_f, inz_f;                       sub prim_size, s3
                                                 # Setup DMA addresses
-    vmadm v__,  vdx_i, inz_f;                       # <NOP (SU) >
+    vmadm v__,  vdx_i, inz_f;                       addu s3, prim_size
     vmadn vdx_f, vdx_f, inz_i;                      mtc0 rdram_cur, COP0_DMA_RAMADDR
 
     vmadh vdx_i, vdx_i, inz_i;                      sh s7, %lo(RDPQ_TRI_BUFF_OFFSET)
@@ -617,7 +615,6 @@ rdpq_triangle_change_buffer_done:
                                                     addiu prim_size, -1
                                                     sdv vzout1.e0, 0x00,z_dmem
 
-    # emux_trace_stop
     jr ra
     mtc0 prim_size, COP0_DMA_WRITE
 

@@ -31,6 +31,7 @@ uint32_t T3D_RSP_ID = 0;
 
 static T3DViewport *currentViewport = NULL;
 static T3DMat4FP *matrixStack = NULL;
+static uint32_t clipCodeAddrOrg = 0; // 'CLIP_CODE_ORG_ADDR' in ucode
 
 void t3d_init(T3DInitParams params)
 {
@@ -49,12 +50,14 @@ void t3d_init(T3DInitParams params)
   uint16_t *uvGenFunc = (uint16_t*)((char*)state + ((RSP_T3D_VERTEX_FX_FUNC - RSP_T3D_STATE_MEM_START) & 0xFFFF));
   *uvGenFunc = RSP_T3D_CODE_VertexFX_None & 0xFFF;
 
+  clipCodeAddrOrg = (uint32_t)PhysicalAddr(rsp_tiny3d.code + (RSP_T3D_CODE_CLIPPING_CODE_TARGET & 0xFFF));
+
   // set the address for the clipping ucode from the other overlay, and that of the main one.
   // this is used to lazy-load a new section of IMEM if clipping is needed, and switch back afterward.
   uint32_t *clipAddrPtr = (uint32_t*)((char*)state + ((RSP_T3D_CLIP_CODE_ADDR - RSP_T3D_STATE_MEM_START) & 0xFFFF));
   uint16_t *clipSizePtr = (uint16_t*)((char*)state + ((RSP_T3D_CLIP_CODE_SIZE - RSP_T3D_STATE_MEM_START) & 0xFFFF));
   clipAddrPtr[0] = (uint32_t)PhysicalAddr(rsp_tiny3d_clipping.code + (RSP_T3D_CODE_CLIP_clipTriangle & 0xFFF));
-  clipAddrPtr[1] = (uint32_t)PhysicalAddr(rsp_tiny3d.code + (RSP_T3D_CODE_CLIPPING_CODE_TARGET & 0xFFF));
+  clipAddrPtr[1] = clipCodeAddrOrg;
   *clipSizePtr = RSP_T3D_CODE_CLIP_OVERLAY_CODE_END - RSP_T3D_CODE_CLIP_clipTriangle + 7;
 
   T3D_RSP_ID = rspq_overlay_register(&rsp_tiny3d);
@@ -274,6 +277,13 @@ void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags)
 
 void t3d_state_set_depth_offset(int16_t offset) {
   t3d_dmem_set_u16((RSP_T3D_SCREEN_SCALE_OFFSET & 0xFFF) + 12, 0x3FFF + offset);
+}
+
+void t3d_state_set_alpha_to_tile(bool enable) {
+  t3d_dmem_set_u32((RSP_T3D_CLIP_CODE_ORG_ADDR & 0xFFF),
+      // store mask that will select or discard the 3 MSBs of the vertex alpha
+     clipCodeAddrOrg | (enable ? (0b111 << (32-3)) : 0)
+  );
 }
 
 void t3d_state_set_vertex_fx(enum T3DVertexFX func, int16_t arg0, int16_t arg1)
