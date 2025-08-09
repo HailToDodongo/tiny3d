@@ -2,16 +2,18 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Last64 Debug (Ares)",
+      "name": "Last64 Make Run Debug",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/Last64/build/last64.elf",
+      "program": "${workspaceFolder}/last64_bloom/build/Last64_Bloom.elf",
       "miDebuggerServerAddress": "localhost:9123",
       "miDebuggerPath": "/opt/libdragon/bin/mips64-elf-gdb",
-      "cwd": "${workspaceFolder}/Last64",
+      "cwd": "${workspaceFolder}/last64_bloom",
       "stopAtEntry": false,
       "externalConsole": false,
-      "MIMode": "gdb"
+      "MIMode": "gdb",
+      "preLaunchTask": "make-run",
+      "postDebugTask": "kill-ares"
     }
   ]
 }

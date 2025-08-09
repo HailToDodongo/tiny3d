@@ -1,0 +1,40 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "make-run",
+            "type": "shell",
+            "command": "cd ${workspaceFolder}/last64_bloom && make run",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                {
+                    "pattern": [
+                        {
+                            "regexp": ".*Loaded Last64_Bloom.*",
+                            "file": 1,
+                            "line": 1,
+                            "message": 0
+                        }
+                    ],
+                    "background": {
+                        "activeOnStart": true,
+                        "beginsPattern": ".*make.*",
+                        "endsPattern": ".*Loaded Last64_Bloom.*"
+                    }
+                }
+            ],
+            "isBackground": true
+        },
+        {
+            "label": "kill-ares",
+            "type": "shell",
+            "command": "pkill -f ares",
+            "presentation": {
+                "reveal": "never"
+            }
+        }
+    ]
+}

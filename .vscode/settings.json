@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "t3dmodel.h": "c",
+        "array": "cpp"
+    }
+}
