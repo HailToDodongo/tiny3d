@@ -316,8 +316,9 @@ function triToScreenSpace(u32<$s6> ptr)
   invW.w = invert_half(posClip).w;
   store(invW.w, ptr, VTX_ATTR_INVWi);
 
-  posClip *= screenSize;
   posClip *= invW.w;
+  posClip *= screenSize;
+
   posClip:sint = screenOffset:sint +* 1;
 
   @Barrier("cc") store(posClip:sint.xyzw, ptr, VTX_ATTR_XY);

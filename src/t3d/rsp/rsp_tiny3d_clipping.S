@@ -415,36 +415,36 @@ clipTriangle:
   j $at                                              ## L:283  |  **230 | goto tmp;
   lh $s4, %lo(RSPQ_SCRATCH_MEM + 18)                 ## L:282  |   *232 | s16<$s4> oldDMEM = load(RSPQ_SCRATCH_MEM, 18);
 triToScreenSpace:
-  vmudl $v02, $v00, $v31.e3                          ## L:576  |      ^ | screenSize >>= 4;
   ori $at, $zero, %lo(SCREEN_SCALE_OFFSET)           ## L:574  |      ^ | vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzw;
   ldv $v01, 0, 0, $at                                ## L:574  |      2 | vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzw;
   ldv $v07, 0, 16, $s6                               ## L:589  |      3 | vec32 posClip = load(ptr, 0x10).xyzw;
+  vmudl $v02, $v00, $v31.e3                          ## L:576  |      ^ | screenSize >>= 4;
   ldv $v08, 0, 24, $s6                               ## L:589  |      4 | vec32 posClip = load(ptr, 0x10).xyzw;
-  ldv $v04, 0, 8, $at                                ## L:586  |     *6 | vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzw;
+  lhu $t0, %lo(RSPQ_SCRATCH_MEM + 20)                ## L:582  |      5 | u16<$t0> oldClipFlag = load(RSPQ_SCRATCH_MEM, 20);
+  ldv $v04, 0, 8, $at                                ## L:586  |      6 | vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzw;
   vmadm $v01, $v01, $v31.e3                          ## L:576  |      ^ | screenSize >>= 4;
   vmadn $v02, $v00, $v00                             ## L:576  |      7 | screenSize >>= 4;
-  vxor $v03, $v00, $v30.e7                           ## L:578  |      8 | vec16 vecOne = 1;
-  lhu $t0, %lo(RSPQ_SCRATCH_MEM + 20)                ## L:582  |      ^ | u16<$t0> oldClipFlag = load(RSPQ_SCRATCH_MEM, 20);
-  vrcph $v05.e3, $v07.e3                             ## L:590  |      9 | invW.w = invert_half(posClip).w;
-  vrcpl $v06.e3, $v08.e3                             ## L:590  |     10 | invW.w = invert_half(posClip).w;
-  vrcph $v05.e3, $v00.e3                             ## L:590  |     11 | invW.w = invert_half(posClip).w;
-  vmudl $v29, $v08, $v02.v                           ## L:593  |     12 | posClip *= screenSize;
-  vmadm $v29, $v07, $v02.v                           ## L:593  |     13 | posClip *= screenSize;
-  vmadn $v08, $v08, $v01.v                           ## L:593  |     14 | posClip *= screenSize;
-  vmadh $v07, $v07, $v01.v                           ## L:593  |     15 | posClip *= screenSize;
-  vmudl $v29, $v08, $v06.e3                          ## L:594  |   **18 | posClip *= invW.w;
-  vmadm $v29, $v07, $v06.e3                          ## L:594  |     19 | posClip *= invW.w;
-  vmadn $v08, $v08, $v05.e3                          ## L:594  |     20 | posClip *= invW.w;
+  vrcph $v05.e3, $v07.e3                             ## L:590  |      8 | invW.w = invert_half(posClip).w;
+  vrcpl $v06.e3, $v08.e3                             ## L:590  |      9 | invW.w = invert_half(posClip).w;
+  vrcph $v05.e3, $v00.e3                             ## L:590  |     10 | invW.w = invert_half(posClip).w;
+  vxor $v03, $v00, $v30.e7                           ## L:578  |     11 | vec16 vecOne = 1;
+  vmudl $v29, $v08, $v06.e3                          ## L:593  |    *13 | posClip *= invW.w;
+  vmadm $v29, $v07, $v06.e3                          ## L:593  |     14 | posClip *= invW.w;
+  vmadn $v08, $v08, $v05.e3                          ## L:593  |     15 | posClip *= invW.w;
+  vmadh $v07, $v07, $v05.e3                          ## L:593  |     16 | posClip *= invW.w;
+  vmudl $v29, $v08, $v02.v                           ## L:594  |   **19 | posClip *= screenSize;
+  vmadm $v29, $v07, $v02.v                           ## L:594  |     20 | posClip *= screenSize;
   andi $t0, $t0, 57344                               ## L:583  |      ^ | oldClipFlag = oldClipFlag & ((0b111'00000) << 8);
-  vmadh $v07, $v07, $v05.e3                          ## L:594  |     21 | posClip *= invW.w;
+  vmadn $v08, $v08, $v01.v                           ## L:594  |     21 | posClip *= screenSize;
   ssv $v06, 6, 34, $s6                               ## L:591  |      ^ | store(invW.w, ptr, 0x20);
   ori $t0, $t0, 255                                  ## L:584  |     22 | oldClipFlag |= 0xFF;
-  vmadh $v07, $v04, $v30.e7                          ## L:595  |      ^ | posClip:sint = screenOffset:sint +* 1;
+  vmadh $v07, $v07, $v01.v                           ## L:594  |      ^ | posClip *= screenSize;
   ssv $v05, 6, 32, $s6                               ## L:591  |     23 | store(invW.w, ptr, 0x20);
-  sdv $v07, 0, 0, $s6                                ## L:597  |   **26 | @Barrier("cc") store(posClip:sint.xyzw, ptr, 0x00); ## Barrier: 0x1
-  sh $t0, 6($s6)                                     ## L:598  |     27 | @Barrier("cc") store(oldClipFlag, ptr, 0x06); ## Barrier: 0x1
-  jr $ra                                             ## L:601  |     28 | }
-  addiu $s6, $s6, 65500                              ## L:600  |    *30 | ptr -= 36;
+  vmadh $v07, $v04, $v30.e7                          ## L:596  |      ^ | posClip:sint = screenOffset:sint +* 1;
+  sdv $v07, 0, 0, $s6                                ## L:598  |  ***27 | @Barrier("cc") store(posClip:sint.xyzw, ptr, 0x00); ## Barrier: 0x1
+  sh $t0, 6($s6)                                     ## L:599  |     28 | @Barrier("cc") store(oldClipFlag, ptr, 0x06); ## Barrier: 0x1
+  jr $ra                                             ## L:602  |     29 | }
+  addiu $s6, $s6, 65500                              ## L:601  |    *31 | ptr -= 36;
 T3DCmd_TriDraw_End:
 OVERLAY_CODE_END:
 
