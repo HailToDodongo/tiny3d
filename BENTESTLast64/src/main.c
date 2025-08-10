@@ -41,7 +41,7 @@ int main()
     t3d_vec3_norm(&lightDirVec);
 
     // Load the box model
-    T3DModel *model = t3d_model_load("rom:/box.t3dm");
+    T3DModel *model = t3d_model_load("rom:/lowpoly_skinned_mario.t3dm");
     float rotAngle = 0.0f;
     rspq_block_t *dplDraw = NULL;
 
