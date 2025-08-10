@@ -1,13 +1,26 @@
 {
     "version": "2.0.0",
     "tasks": [
+
+        {
+            "label": "make",
+            "type": "shell",
+            "command": "cd ${workspaceFolder}/last64_bloom && make",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
         {
             "label": "make-run",
             "type": "shell",
             "command": "cd ${workspaceFolder}/last64_bloom && make run",
             "group": {
                 "kind": "build",
-                "isDefault": true
+                "isDefault": false
             },
             "problemMatcher": [
                 {

@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Last64 Make Run Debug",
+      "name": "makeRunDebug",
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/last64_bloom/build/Last64_Bloom.elf",

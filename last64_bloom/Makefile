@@ -45,7 +45,7 @@ filesystem/%.t3dm: assets/%.glb
 $(BUILD_DIR)/$(PROJECT_NAME).dfs: $(assets_conv)
 $(BUILD_DIR)/$(PROJECT_NAME).elf: $(src:%.cpp=$(BUILD_DIR)/%.o) $(BUILD_DIR)/src/rsp/rsp_fx.o
 
-$(PROJECT_NAME).z64: N64_ROM_TITLE="Tiny3D - HDR Bloom"
+$(PROJECT_NAME).z64: N64_ROM_TITLE="Last64 Bloom"
 $(PROJECT_NAME).z64: $(BUILD_DIR)/$(PROJECT_NAME).dfs
 
 clean:
