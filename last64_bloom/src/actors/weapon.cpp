@@ -10,8 +10,8 @@ namespace Actor {
     
     Weapon::Weapon() : Base() {
         fireCooldown = 0.0f;
-        fireRate = 0.1f;              // 10 shots per second
-        projectileSpeed = 1.0f;
+        fireRate = 0.1f;              // 1 shots per second
+        projectileSpeed = 100.0f;
         projectileSlowdown = 0.0f;
         upgradeLevel = 0;
         maxUpgradeLevel = 3;

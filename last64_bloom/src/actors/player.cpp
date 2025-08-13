@@ -21,13 +21,13 @@ namespace Actor {
         instance = this; // Set the instance pointer
         position = startPos;
         velocity = {0, 0, 0};
-        speed = 100.0f;
+        speed = 50.0f;
         rotation = 0.0f;
         playerPort = port;
         
         // Initialize weapon properties
         fireCooldown = 0.0f;
-        fireRate = 0.3f;              // Reduced to ~3 shots per second
+        fireRate = 1.0f;              // Reduced to ~1 shots per second
         projectileSpeed = 2.0f;
         
         flags &= ~FLAG_DISABLED; // Clear the disabled flag to enable the actor
@@ -54,6 +54,11 @@ namespace Actor {
         // Invert Y axis to match typical 2D game conventions (up is positive)
         float moveX = stick.stick_x / 32.0f; // Normalize analog input (-1 to 1)
         float moveY = -stick.stick_y / 32.0f; // Invert Y axis and normalize
+        
+        // Apply deadzone to prevent drift
+        static constexpr float DEADZONE = 0.2f; // 20% deadzone
+        if (fabsf(moveX) < DEADZONE) moveX = 0.0f;
+        if (fabsf(moveY) < DEADZONE) moveY = 0.0f;
         
         // Apply movement
         float newX = position.x + moveX * moveSpeed;

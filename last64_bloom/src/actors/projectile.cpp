@@ -91,9 +91,9 @@ namespace Actor {
             sharedVertices[idx].normA = norm;
             sharedVertices[idx].posB[0] = 1; sharedVertices[idx].posB[1] = -0.5; sharedVertices[idx].posB[2] = 0;
             sharedVertices[idx].normB = norm;
-            // Projectile colors are now bright red, which is good for bloom
-            sharedVertices[idx].rgbaA = 0xFF0000FF; // Bright red
-            sharedVertices[idx].rgbaB = 0xFF0000FF; // Bright red
+            // Projectile colors are now bright purple
+            sharedVertices[idx].rgbaA = 0xFF00FFFF; // Bright purple (red + blue)
+            sharedVertices[idx].rgbaB = 0xFF00FFFF; // Bright purple (red + blue)
             sharedVertices[idx].stA[0] = 0; sharedVertices[idx].stA[1] = 0;
             sharedVertices[idx].stB[0] = 0; sharedVertices[idx].stB[1] = 0;
             
@@ -103,8 +103,8 @@ namespace Actor {
             sharedVertices[idx+1].normA = norm;
             sharedVertices[idx+1].posB[0] = -1; sharedVertices[idx+1].posB[1] = 0.5; sharedVertices[idx+1].posB[2] = 0;
             sharedVertices[idx+1].normB = norm;
-            sharedVertices[idx+1].rgbaA = 0xFF0000FF; // Bright red
-            sharedVertices[idx+1].rgbaB = 0xFF0000FF; // Bright red
+            sharedVertices[idx+1].rgbaA = 0xFF00FFFF; // Bright purple (red + blue)
+            sharedVertices[idx+1].rgbaB = 0xFF00FFFF; // Bright purple (red + blue)
             sharedVertices[idx+1].stA[0] = 0; sharedVertices[idx+1].stA[1] = 0;
             sharedVertices[idx+1].stB[0] = 0; sharedVertices[idx+1].stB[1] = 0;
         }

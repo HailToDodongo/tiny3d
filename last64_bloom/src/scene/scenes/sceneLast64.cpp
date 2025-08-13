@@ -95,7 +95,7 @@ void SceneLast64::updateScene(float deltaTime)
         T3DVec3 pos = {{spawnX, spawnY, 0.0f}};
         
         // Spawn enemy with zero initial velocity (will be calculated by enemy itself)
-        Actor::Enemy::spawn(pos, 10.0f);
+        Actor::Enemy::spawn(pos, 45.0f);
     }
 }
 
