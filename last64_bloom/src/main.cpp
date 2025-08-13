@@ -103,11 +103,6 @@ int main()
         //debugf("Camera mode: %s\n", sceneMain->useFlyCam ? "Fly" : "Static");
       }
     }
-    
-    // Switch to Last64 scene
-    // if(pressed.l) { // Commented out to prevent loading Last64 scene
-    //   SceneManager::loadScene(4);
-    // }
 
     float deltaTime = display_get_delta_time();
     // Check if C-Down is held and slow down time

@@ -1,5 +1,5 @@
 # 🕹️ Last64 (Abstract Style)
-A minimalist reimagining of *Vampire Survivors* for the Nintendo 64 using `libdragon` and `tiny3d`. All visuals are abstract — inspired by *REZ* and *Geometry Wars* — relying on bloom and simple shapes for aesthetic effect.
+A minimalist reimagining of *Vampire Survivors* for the Nintendo 64 using `libdragon` and `tiny3d`. All visuals are abstract — inspired by *REZ* and *Geometry Wars* — relying on bloom and simple shapes for aesthetic effect. With up to 4 players that can play locally on the actual Nintendo 64 console.
 
 ## 🎨 Visual Style
 - No textures or sprites
