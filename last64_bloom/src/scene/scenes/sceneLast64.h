@@ -9,6 +9,7 @@
 #include "../../render/debugDraw.h"
 #include "../../actors/player.h" // Include Player class
 #include "../../actors/enemy.h"  // Include Enemy class
+#include "../../actors/projectileWeapon.h" // Include weapon class
 #include <t3d/t3d.h>
 #include <t3d/t3dmath.h>
 
@@ -18,19 +19,8 @@ class SceneLast64 : public Scene
     // Player instance
     Actor::Player* player;
     
-    // Projectiles
-    float projX[20] = {0};
-    float projY[20] = {0};
-    bool projActive[20] = {false};
-    
-    // Vertices for geometric shapes
-    // Removed playerVertices as it's now handled by the Player class
-    T3DVertPacked* projVertices;
-    
-    // Matrices
-    // Removed playerMat and playerMatFP as they're now handled by the Player class
-    T3DMat4 projMat[20];
-    T3DMat4FP* projMatFP[20];
+    // Weapon instance
+    Actor::ProjectileWeapon* weapon;
     
     StaticCam staticCam{camera};
     

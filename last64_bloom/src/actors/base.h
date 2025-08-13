@@ -10,6 +10,9 @@ namespace Actor
 {
   class Player;
   class Enemy;
+  class Projectile;
+  class Weapon;
+  class ProjectileWeapon;
 }
 
 namespace Actor

@@ -166,10 +166,6 @@ namespace Actor {
         }
     }
 
-    uint32_t Enemy::getActiveCount() {
-        return activeCount;
-    }
-
     void Enemy::update(float deltaTime) {
         if (flags & FLAG_DISABLED) return;
         

@@ -23,59 +23,15 @@ SceneLast64::SceneLast64()
     // Initialize enemy pool
     Actor::Enemy::initialize();
     
-    // Allocate vertices for projectiles (thin quads)
-    T3DVec3 normalVec = {{0.0f, 0.0f, 1.0f}};
-    uint16_t norm = t3d_vert_pack_normal(&normalVec);
-    projVertices = (T3DVertPacked*)malloc_uncached(sizeof(T3DVertPacked) * 20 * 2); // 2 structures per projectile
-    for (int i = 0; i < 20; i++) {
-        int idx = i * 2;
-        // Using a thin quad to represent a line
-        // First structure: vertices 0 and 1
-        projVertices[idx] = (T3DVertPacked){};
-        projVertices[idx].posA[0] = -1; projVertices[idx].posA[1] = -0.5; projVertices[idx].posA[2] = 0;
-        projVertices[idx].normA = norm;
-        projVertices[idx].posB[0] = 1; projVertices[idx].posB[1] = -0.5; projVertices[idx].posB[2] = 0;
-        projVertices[idx].normB = norm;
-        // Projectile colors are already bright white, which is good for bloom
-        projVertices[idx].rgbaA = 0xFFFFFFFF; // Bright white
-        projVertices[idx].rgbaB = 0xFFFFFFFF; // Bright white
-        projVertices[idx].stA[0] = 0; projVertices[idx].stA[1] = 0;
-        projVertices[idx].stB[0] = 0; projVertices[idx].stB[1] = 0;
-        
-        // Second structure: vertices 2 and 3 (completing the quad)
-        projVertices[idx+1] = (T3DVertPacked){};
-        projVertices[idx+1].posA[0] = 1; projVertices[idx+1].posA[1] = 0.5; projVertices[idx+1].posA[2] = 0;
-        projVertices[idx+1].normA = norm;
-        projVertices[idx+1].posB[0] = -1; projVertices[idx+1].posB[1] = 0.5; projVertices[idx+1].posB[2] = 0;
-        projVertices[idx+1].normB = norm;
-        projVertices[idx+1].rgbaA = 0xFFFFFFFF; // Bright white
-        projVertices[idx+1].rgbaB = 0xFFFFFFFF; // Bright white
-        projVertices[idx+1].stA[0] = 0; projVertices[idx+1].stA[1] = 0;
-        projVertices[idx+1].stB[0] = 0; projVertices[idx+1].stB[1] = 0;
-    }
-    
-    // Create matrices for projectiles
-    for (int i = 0; i < 20; i++) {
-        t3d_mat4_identity(&projMat[i]);
-        projMatFP[i] = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
-    }
-    
-    // Spawn some initial enemies for testing
-    for (int i = 0; i < 5; i++) {
-        T3DVec3 pos = {{(float)(-10 + i * 5), (float)(10 - i * 5), 0.0f}};
-        T3DVec3 vel = {{0.0f, 0.0f, 0.0f}};
-        Actor::Enemy::spawn(pos, vel, 10.0f);
-    }
+    // Create weapon instance
+    weapon = new Actor::ProjectileWeapon();
 }
 
 SceneLast64::~SceneLast64()
 {
     delete player; // Clean up player instance
+    delete weapon; // Clean up weapon instance
     Actor::Enemy::cleanup(); // Clean up enemy pool
-    free_uncached(projVertices);
-    for (int i = 0; i < 20; i++) {
-        free_uncached(projMatFP[i]);
-    }
 }
 
 void SceneLast64::updateScene(float deltaTime)
@@ -83,8 +39,14 @@ void SceneLast64::updateScene(float deltaTime)
     // Update player
     player->update(deltaTime);
     
+    // Update weapon
+    weapon->update(deltaTime);
+    
     // Update all enemies
     Actor::Enemy::updateAll(deltaTime);
+    
+    // Update all projectiles
+    Actor::Projectile::updateAll(deltaTime);
     
     // Get player position for enemy positioning
     // In a real game, enemies would move toward the player's actual position
@@ -92,38 +54,15 @@ void SceneLast64::updateScene(float deltaTime)
     float playerX = playerPos.x;
     float playerY = playerPos.y;
     
-    // Update projectile matrices
-    for (int i = 0; i < 5; i++) { // Only update first 5 projectiles to reduce load
-        if (projActive[i]) {
-            // Move projectiles
-            projY[i] += 0.5f;
-            
-            // Deactivate projectiles that go off screen
-            if (projY[i] > 30.0f) {
-                projActive[i] = false;
-            } else {
-                t3d_mat4_identity(&projMat[i]);
-                t3d_mat4_translate(&projMat[i], projX[i], projY[i], 0.0f);
-                t3d_mat4_to_fixed(projMatFP[i], &projMat[i]);
-            }
-        }
-    }
-    
-    // Fire projectiles occasionally
+    // Fire weapon occasionally
     static float fireTimer = 0.0f;
     fireTimer += deltaTime;
-    if (fireTimer > 0.5f) { // Slower firing rate
+    if (fireTimer > 0.1f) { // Fire more rapidly
         fireTimer = 0.0f;
         
-        // Find an inactive projectile to fire
-        for (int i = 0; i < 5; i++) { // Only use first 5 projectiles
-            if (!projActive[i]) {
-                projActive[i] = true;
-                projX[i] = playerX;
-                projY[i] = playerY;
-                break;
-            }
-        }
+        // Fire weapon in a fixed direction (upwards for now)
+        T3DVec3 direction = {{0.0f, 1.0f, 0.0f}};
+        weapon->fire(playerPos, direction);
     }
     
     // Spawn new enemies occasionally
@@ -201,17 +140,8 @@ void SceneLast64::draw3D(float deltaTime)
     // Draw all enemies
     Actor::Enemy::drawAll(deltaTime);
     
-    // Draw projectiles as thin quads
-    for (int i = 0; i < 5; i++) { // Only draw first 5 projectiles
-        if (projActive[i]) {
-            t3d_matrix_push(projMatFP[i]);
-            t3d_vert_load(&projVertices[i*2], 0, 4); // Load 4 vertices (2 structures)
-            t3d_tri_draw(0, 1, 2);
-            t3d_tri_draw(2, 3, 0);
-            t3d_tri_sync();
-            t3d_matrix_pop(1);
-        }
-    }
+    // Draw all projectiles via weapon
+    weapon->draw3D(deltaTime);
 }
 
 void SceneLast64::draw2D(float deltaTime)
@@ -224,4 +154,5 @@ void SceneLast64::draw2D(float deltaTime)
     // Draw a simple score indicator
     Debug::printf(200, 20, "LAST64");
     Debug::printf(200, 35, "ENEMIES: %d", Actor::Enemy::getActiveCount());
+    Debug::printf(200, 50, "PROJECTILES: %d", Actor::Projectile::getActiveCount());
 }
