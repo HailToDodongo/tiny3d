@@ -25,6 +25,7 @@
 
 #include "scene/scene.h"
 #include "scene/sceneManager.h"
+#include "scene/scenes/sceneMain.h"
 
 State state{ //Constinit removed for compatibility with C++17
   .ppConf = {
@@ -76,10 +77,10 @@ int main()
 
   t3d_fog_set_enabled(false);
 
-  SceneManager::loadScene(0);
+  SceneManager::loadScene(0); // Load SceneLast64 (now index 0) as the initial scene
 
   uint32_t frameIdx = 0;
-  bool showMenu = true;
+  bool showMenu = false;
 
   int lastBrightnessIdx = 0;
   std::array<float, 8> lastBrightness{};
@@ -93,8 +94,27 @@ int main()
     joypad_poll();
     auto pressed = joypad_get_buttons_pressed(JOYPAD_PORT_1);
     if(pressed.start)showMenu = !showMenu;
+    
+    // Toggle between static and fly camera
+    if(pressed.r && state.activeScene) {
+      SceneMain* sceneMain = dynamic_cast<SceneMain*>(state.activeScene);
+      if(sceneMain) {
+        sceneMain->useFlyCam = !sceneMain->useFlyCam;
+        //debugf("Camera mode: %s\n", sceneMain->useFlyCam ? "Fly" : "Static");
+      }
+    }
+    
+    // Switch to Last64 scene
+    // if(pressed.l) { // Commented out to prevent loading Last64 scene
+    //   SceneManager::loadScene(4);
+    // }
 
     float deltaTime = display_get_delta_time();
+    // Check if C-Down is held and slow down time
+    // auto held = joypad_get_buttons_held(JOYPAD_PORT_1);
+    // if (held.c_down) {
+    //     deltaTime *= 0.1f; // Slow down to 10% speed
+    // }
     state.activeScene->update(deltaTime);
 
     // ----------- DRAW ------------ //

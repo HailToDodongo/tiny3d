@@ -12,6 +12,7 @@
 #include "scenes/sceneMagic.h"
 #include "scenes/sceneEnv.h"
 #include "scenes/scenePixel.h"
+#include "scenes/sceneLast64.h"
 
 namespace {
   constinit int requestSceneId{-1};
@@ -45,10 +46,12 @@ void SceneManager::update()
     debugf("Loading scene %d (heap-diff: %ld)\n", requestSceneId, getHeapDiff());
 
     switch(requestSceneId) {
-      case 0: state.activeScene = new SceneMain(); break;
-      case 1: state.activeScene = new SceneEnv(); break;
-      case 2: state.activeScene = new SceneMagic(); break;
-      case 3: state.activeScene = new ScenePixel(); break;
+      case 0: state.activeScene = new SceneLast64(); break; // Make SceneLast64 index 0
+      case 1: state.activeScene = new SceneMain(); break;
+      case 2: state.activeScene = new SceneEnv(); break;
+      case 3: state.activeScene = new SceneMagic(); break;
+      case 4: state.activeScene = new ScenePixel(); break;
+      // case 5: state.activeScene = new SceneLast64(); break; // Old position
 
       default: assertf(false, "Invalid scene-id: %d", requestSceneId);
     }

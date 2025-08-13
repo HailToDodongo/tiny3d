@@ -6,6 +6,7 @@
 #include "../../main.h"
 #include "../../render/debugDraw.h"
 #include "../../actors/pointGlobe.h"
+#include "../../actors/player.h"
 #include <string_view>
 
 namespace {
@@ -31,11 +32,16 @@ SceneMain::SceneMain()
   camera.near = 5.0f;
   camera.far = 295.0f;
 
-  //camera.pos = {0.0, -40.0, -400.0};
-  camera.pos = {0, 0, 10};
-  flyCam.camPos = camera.pos;
-  camera.target = {0,0,0};
-  flyCam.camRotX = -2.0f;
+  // Set up static camera
+  staticCam.setHeight(50.0f);
+  staticCam.setDistance(30.0f);
+  staticCam.setAngle(T3D_DEG_TO_RAD(45.0f)); // 45 degree angle
+  staticCam.setTarget({0, 0, 0});
+
+  // Set up fly camera with initial position similar to static camera
+  flyCam.camPos = {21.2f, 50.0f, 21.2f}; // Approximate position from static camera
+  flyCam.camRotX = T3D_DEG_TO_RAD(45.0f); // Match the static camera angle
+  flyCam.camRotY = 0.0f;
 
   mapModel = t3d_model_load("rom://scene.t3dm");
   mapMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
@@ -73,6 +79,7 @@ SceneMain::SceneMain()
   }
 
   actors.push_back(new Actor::PointGlobe({0, 20, -560}, {.scale = 0.8f}));
+  actors.push_back(new Actor::Player({0, 50, 30})); // Position player in front of camera
 }
 
 SceneMain::~SceneMain()
@@ -83,7 +90,11 @@ SceneMain::~SceneMain()
 
 void SceneMain::updateScene(float deltaTime)
 {
-  flyCam.update(deltaTime);
+  if (useFlyCam) {
+    flyCam.update(deltaTime);
+  } else {
+    staticCam.update(deltaTime);
+  }
 
   auto frustum = camera.getFrustum();
   t3d_frustum_scale(&frustum, modelScale);
@@ -153,4 +164,7 @@ void SceneMain::draw2D(float deltaTime)
 {
   //Debug::printf(100, 200, "%.2f %.2f %.2f", camera.pos.x, camera.pos.y, camera.pos.z);
   //Debug::printf(100, 210, "Tris: %d\n", triCount);
+  
+  // Show which camera mode is active
+  Debug::printf(10, 220, "CAM: %s (Press R to toggle)", useFlyCam ? "FLY" : "STATIC");
 }

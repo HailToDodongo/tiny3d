@@ -34,7 +34,7 @@ void DebugMenu::reset()
   entries.clear();
   changedFlags.clear();
 
-  entries.push_back({"Scene", EntryType::INT, &sceneId, 0, 3});
+  entries.push_back({"Scene", EntryType::INT, &sceneId, 0, 4});
   entries.push_back({"Debug", EntryType::BOOL, &state.showOffscreen});
   entries.push_back({"Blurs", EntryType::INT, &state.ppConf.blurSteps, 0, 50});
   entries.push_back({"Bloom", EntryType::FLOAT, &state.ppConf.blurBrightness, 0.0f, 8.0f, 0.01f});
@@ -128,14 +128,25 @@ void DebugMenu::draw()
 
     switch(entry.type) {
       case EntryType::INT:
-        Debug::printf(posX + 8, posY, "%s: %d", entry.name, *(int*)entry.value);
-      break;
+        if (entry.value == &sceneId) {
+          // Special handling for scene selection - Updated order to match SceneManager
+          const char* sceneNames[] = {"Last64", "Main", "Env", "Magic", "Pixel"};
+          int sceneIdx = *(int*)entry.value;
+          if (sceneIdx >= 0 && sceneIdx <= 4) {
+            Debug::printf(posX + 8, posY, "%s: %d (%s)", entry.name, sceneIdx, sceneNames[sceneIdx]);
+          } else {
+            Debug::printf(posX + 8, posY, "%s: %d", entry.name, sceneIdx);
+          }
+        } else {
+          Debug::printf(posX + 8, posY, "%s: %d", entry.name, *(int*)entry.value);
+        }
+        break;
       case EntryType::FLOAT:
         Debug::printf(posX + 8, posY, "%s: %.2f", entry.name, *(float*)entry.value);
-      break;
+        break;
       case EntryType::BOOL:
         Debug::printf(posX + 8, posY, *((bool*)entry.value) ? "%s: ON" : "%s: OFF", entry.name);
-      break;
+        break;
     }
 
     if(menuSel == idx) {

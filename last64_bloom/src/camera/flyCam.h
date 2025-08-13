@@ -4,6 +4,7 @@
 */
 #pragma once
 #include "camera.h"
+#include <libdragon.h>
 
 struct FlyCam
 {

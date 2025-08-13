@@ -5,6 +5,13 @@
 #pragma once
 #include <libdragon.h>
 
+// Forward declarations
+namespace Actor
+{
+  class Player;
+  class Enemy;
+}
+
 namespace Actor
 {
   class Base

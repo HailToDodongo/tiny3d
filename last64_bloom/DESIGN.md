@@ -26,9 +26,9 @@ A minimalist reimagining of *Vampire Survivors* for the Nintendo 64 using `libdr
 
 ### ✅ Phase 1: Core Setup
 - [x] Init tiny3d with bloom pipeline
-- [ ] Basic scene with background
-- [ ] Camera setup
-- [ ] Render player
+- [x] Basic scene with background
+- [x] Camera setup (static camera implemented)
+- [x] Render player (basic player actor created)
 - [ ] Input to move player
 
 ### ✅ Phase 2: Combat System
@@ -61,3 +61,4 @@ n64-project/
 ## 📌 Notes
 - Use object pools for projectiles and enemies
 - Optimize with spatial partitioning if needed
+- The scene: sceneLast64 is the current default scene for the project
