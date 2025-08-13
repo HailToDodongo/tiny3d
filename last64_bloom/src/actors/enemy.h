@@ -19,7 +19,6 @@ namespace Actor {
         static Enemy enemyPool[MAX_ENEMIES]; // Static pool of enemies
 
         T3DVec3 position;
-        T3DVec3 velocity;
         float speed;
         uint32_t poolIndex;
 
@@ -31,7 +30,7 @@ namespace Actor {
 
         static void initialize();
         static void cleanup();
-        static Enemy* spawn(const T3DVec3& position, const T3DVec3& velocity, float speed);
+        static Enemy* spawn(const T3DVec3& position, float speed);
         static void updateAll(float deltaTime);
         static void drawAll(float deltaTime);
         static uint32_t getActiveCount() { return activeCount; }
@@ -45,6 +44,5 @@ namespace Actor {
 
         T3DVec3 getPosition() const { return position; }
         void setPosition(const T3DVec3& newPos) { position = newPos; }
-        void setVelocity(const T3DVec3& newVelocity) { velocity = newVelocity; }
     };
 }

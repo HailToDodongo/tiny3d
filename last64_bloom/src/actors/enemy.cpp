@@ -31,7 +31,6 @@ namespace Actor {
         
         poolIndex = MAX_ENEMIES; // Invalid index until spawned
         position = {0, 0, 0};
-        velocity = {0, 0, 0};
         speed = 0.0f;
         flags |= FLAG_DISABLED; // Start as disabled
     }
@@ -119,7 +118,7 @@ namespace Actor {
         initialized = true;
     }
 
-    Enemy* Enemy::spawn(const T3DVec3& position, const T3DVec3& velocity, float speed) {
+    Enemy* Enemy::spawn(const T3DVec3& position, float speed) {
         if (!initialized) {
             initializePool();
         }
@@ -136,7 +135,6 @@ namespace Actor {
                 
                 enemy->poolIndex = i;
                 enemy->position = position;
-                enemy->velocity = velocity;
                 enemy->speed = speed;
                 enemy->flags &= ~FLAG_DISABLED; // Enable the enemy
                 
@@ -193,18 +191,14 @@ namespace Actor {
                 direction.x /= length;
                 direction.y /= length;
                 direction.z /= length;
+                
+                // Move enemy directly towards player
+                float moveDistance = speed * deltaTime;
+                position.x += direction.x * moveDistance;
+                position.y += direction.y * moveDistance;
+                position.z += direction.z * moveDistance;
             }
-            
-            // Set velocity towards player with proper speed
-            velocity.x = direction.x * speed;
-            velocity.y = direction.y * speed;
-            velocity.z = direction.z * speed;
         }
-        
-        // Move enemy
-        position.x += velocity.x * deltaTime;
-        position.y += velocity.y * deltaTime;
-        position.z += velocity.z * deltaTime;
         
         // Deactivate enemies that go off-screen
         if (position.x < SCREEN_LEFT || position.x > SCREEN_RIGHT || 

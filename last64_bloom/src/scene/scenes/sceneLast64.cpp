@@ -101,8 +101,7 @@ void SceneLast64::updateScene(float deltaTime)
         T3DVec3 pos = {{spawnX, spawnY, 0.0f}};
         
         // Spawn enemy with zero initial velocity (will be calculated by enemy itself)
-        T3DVec3 direction = {{0.0f, 0.0f, 0.0f}};
-        Actor::Enemy::spawn(pos, direction, 10.0f);
+        Actor::Enemy::spawn(pos, 10.0f);
     }
 }
 
@@ -140,10 +139,10 @@ void SceneLast64::draw2D(float deltaTime)
     // Draw player position
     if (player) {
         T3DVec3 playerPos = player->getPosition();
-        Debug::printf(10, 10, "PLAYER POS: %.0f, %.0f", playerPos.x, playerPos.y);
+        Debug::printf(10, 10, "x:%.0f y:%.0f", playerPos.x, playerPos.y);
     }
     
     // Draw enemy and projectile counts
-    Debug::printf(200, 35, "ENEMIES: %d", Actor::Enemy::getActiveCount());
-    Debug::printf(200, 50, "PROJECTILES: %d", Actor::Projectile::getActiveCount());
+    Debug::printf(100, 5, "E:%d", Actor::Enemy::getActiveCount());
+    Debug::printf(200, 5, "P:%d", Actor::Projectile::getActiveCount());
 }
