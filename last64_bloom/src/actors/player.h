@@ -9,6 +9,7 @@
 namespace Actor {
     class Player : public Base {
     private:
+        static Player* instance;
         T3DVec3 position;
         T3DVec3 velocity;
         float speed;
@@ -16,10 +17,12 @@ namespace Actor {
         
     public:
         Player(T3DVec3 startPos);
+        ~Player();
         void update(float deltaTime) override;
         void draw3D(float deltaTime) override;
         void drawPTX(float deltaTime) override;
         
+        static Player* getInstance() { return instance; }
         T3DVec3 getPosition() const { return position; }
         void setPosition(T3DVec3 newPos) { position = newPos; }
     };

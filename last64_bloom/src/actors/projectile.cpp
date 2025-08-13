@@ -8,6 +8,12 @@
 #include <libdragon.h>
 #include <malloc.h>
 
+// Screen boundaries
+static constexpr float SCREEN_LEFT = 0.0f;
+static constexpr float SCREEN_RIGHT = 312.0f;
+static constexpr float SCREEN_TOP = 0.0f;
+static constexpr float SCREEN_BOTTOM = 236.0f;
+
 namespace Actor {
     // Static member definitions
     T3DVertPacked* Projectile::sharedVertices = nullptr;
@@ -27,6 +33,8 @@ namespace Actor {
         velocity = {0, 0, 0};
         speed = 0.0f;
         slowdown = 0.0f;
+        lifetime = 0.0f;
+        maxLifetime = 10.0f;  // Increased to 10 seconds lifetime
         flags |= FLAG_DISABLED; // Start as disabled
     }
     
@@ -83,9 +91,9 @@ namespace Actor {
             sharedVertices[idx].normA = norm;
             sharedVertices[idx].posB[0] = 1; sharedVertices[idx].posB[1] = -0.5; sharedVertices[idx].posB[2] = 0;
             sharedVertices[idx].normB = norm;
-            // Projectile colors are already bright white, which is good for bloom
-            sharedVertices[idx].rgbaA = 0xFFFFFFFF; // Bright white
-            sharedVertices[idx].rgbaB = 0xFFFFFFFF; // Bright white
+            // Projectile colors are now bright red, which is good for bloom
+            sharedVertices[idx].rgbaA = 0xFF0000FF; // Bright red
+            sharedVertices[idx].rgbaB = 0xFF0000FF; // Bright red
             sharedVertices[idx].stA[0] = 0; sharedVertices[idx].stA[1] = 0;
             sharedVertices[idx].stB[0] = 0; sharedVertices[idx].stB[1] = 0;
             
@@ -95,8 +103,8 @@ namespace Actor {
             sharedVertices[idx+1].normA = norm;
             sharedVertices[idx+1].posB[0] = -1; sharedVertices[idx+1].posB[1] = 0.5; sharedVertices[idx+1].posB[2] = 0;
             sharedVertices[idx+1].normB = norm;
-            sharedVertices[idx+1].rgbaA = 0xFFFFFFFF; // Bright white
-            sharedVertices[idx+1].rgbaB = 0xFFFFFFFF; // Bright white
+            sharedVertices[idx+1].rgbaA = 0xFF0000FF; // Bright red
+            sharedVertices[idx+1].rgbaB = 0xFF0000FF; // Bright red
             sharedVertices[idx+1].stA[0] = 0; sharedVertices[idx+1].stA[1] = 0;
             sharedVertices[idx+1].stB[0] = 0; sharedVertices[idx+1].stB[1] = 0;
         }
@@ -134,6 +142,7 @@ namespace Actor {
                 projectile->velocity = velocity;
                 projectile->speed = speed;
                 projectile->slowdown = slowdown;
+                projectile->lifetime = 0.0f;  // Reset lifetime
                 projectile->flags &= ~FLAG_DISABLED; // Enable the projectile
                 
                 return projectile;
@@ -172,6 +181,13 @@ namespace Actor {
     void Projectile::update(float deltaTime) {
         if (flags & FLAG_DISABLED) return;
         
+        // Update lifetime
+        lifetime += deltaTime;
+        if (lifetime >= maxLifetime) {
+            deactivate();
+            return;
+        }
+        
         // Apply slowdown
         if (slowdown > 0.0f) {
             float speedReduction = slowdown * deltaTime;
@@ -195,7 +211,8 @@ namespace Actor {
         position.z += velocity.z * speed * deltaTime;
         
         // Deactivate projectiles that go off-screen
-        if (position.x < -40 || position.x > 40 || position.y < -40 || position.y > 40) {
+        if (position.x < SCREEN_LEFT || position.x > SCREEN_RIGHT || 
+            position.y < SCREEN_TOP || position.y > SCREEN_BOTTOM) {
             deactivate();
             return;
         }

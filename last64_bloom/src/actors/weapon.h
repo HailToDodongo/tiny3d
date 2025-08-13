@@ -4,16 +4,19 @@
 */
 #pragma once
 #include "../actors/base.h"
+#include "../actors/player.h"
 #include <t3d/t3d.h>
 
-#define MAX_PROJECTILES 50
+#define MAX_PROJECTILES 100
 
 namespace Actor {
     // Forward declarations
     class Projectile;
+    class Player;
     
     class Weapon : public Base {
     protected:
+        static Player* player;        // Reference to the player
         float fireCooldown;           // Current cooldown timer
         float fireRate;              // Time between shots (seconds)
         float projectileSpeed;       // Speed of projectiles
@@ -30,10 +33,13 @@ namespace Actor {
         virtual void draw3D(float deltaTime) override = 0;
         virtual void drawPTX(float deltaTime) override = 0;
         
-        virtual void fire(const T3DVec3& position, const T3DVec3& direction) = 0;
+        virtual void fire(const T3DVec3& position, const T3DVec3& direction);
         virtual void upgrade() { if (upgradeLevel < maxUpgradeLevel) upgradeLevel++; }
         
         // Getters and setters
+        static void setPlayer(Player* p) { player = p; }
+        static Player* getPlayer() { return player; }
+        
         float getFireRate() const { return fireRate; }
         void setFireRate(float rate) { fireRate = rate; }
         

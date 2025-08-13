@@ -5,17 +5,26 @@
 #include "weapon.h"
 
 namespace Actor {
+    // Static member definition
+    Player* Weapon::player = nullptr;
+    
     Weapon::Weapon() : Base() {
         fireCooldown = 0.0f;
-        fireRate = 0.1f;           // 10 shots per second
-        projectileSpeed = 50.0f;
-        projectileSlowdown = 0.0f; // No slowdown by default
-        upgradeLevel = 1;
-        maxUpgradeLevel = 5;
+        fireRate = 0.1f;              // 10 shots per second
+        projectileSpeed = 1.0f;
+        projectileSlowdown = 0.0f;
+        upgradeLevel = 0;
+        maxUpgradeLevel = 3;
         spawnOffset = {0, 0, 0};
+        flags &= ~FLAG_DISABLED; // Clear the disabled flag to enable the actor
     }
     
     Weapon::~Weapon() {
-        // Virtual destructor
+        // Nothing to do here
+    }
+    
+    void Weapon::fire(const T3DVec3& position, const T3DVec3& direction) {
+        // Default implementation does nothing
+        // This should be overridden by subclasses
     }
 }

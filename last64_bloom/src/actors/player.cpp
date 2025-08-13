@@ -7,13 +7,29 @@
 #include <t3d/tpx.h>
 #include <libdragon.h>
 
+// Screen boundaries
+static constexpr float SCREEN_LEFT = 0.0f;
+static constexpr float SCREEN_RIGHT = 312.0f;
+static constexpr float SCREEN_TOP = 0.0f;
+static constexpr float SCREEN_BOTTOM = 236.0f;
+
 namespace Actor {
+    // Static member definition
+    Player* Player::instance = nullptr;
+    
     Player::Player(T3DVec3 startPos) : Base() {
+        instance = this; // Set the instance pointer
         position = startPos;
         velocity = {0, 0, 0};
-        speed = 50.0f;
+        speed = 100.0f;
         rotation = 0.0f;
         flags &= ~FLAG_DISABLED; // Clear the disabled flag to enable the actor
+    }
+    
+    Player::~Player() {
+        if (instance == this) {
+            instance = nullptr; // Clear the instance pointer when destroyed
+        }
     }
     
     void Player::update(float deltaTime) {
@@ -33,11 +49,19 @@ namespace Actor {
         float moveY = -stick.stick_y / 32.0f; // Invert Y axis and normalize
         
         // Apply movement
-        position.x += moveX * moveSpeed;
-        position.y += moveY * moveSpeed;
+        float newX = position.x + moveX * moveSpeed;
+        float newY = position.y + moveY * moveSpeed;
+        
+        // Check boundaries
+        if (newX >= SCREEN_LEFT && newX <= SCREEN_RIGHT) {
+            position.x = newX;
+        }
+        if (newY >= SCREEN_TOP && newY <= SCREEN_BOTTOM) {
+            position.y = newY;
+        }
         
         // For now, just update rotation to show we're alive
-        rotation += deltaTime * 2.0f; // Rotate a bit faster
+        rotation += deltaTime * 4.0f; // Rotate a bit faster
     }
     
     void Player::draw3D(float deltaTime) {
@@ -59,7 +83,7 @@ namespace Actor {
         rdpq_mode_end();
         
         // Set color to bright blue (intended player color)
-        rdpq_set_prim_color(RGBA32(0, 128, 255, 255));
+        rdpq_set_prim_color(RGBA32(25, 128, 255, 255));
         
         // Draw a triangle - Apply rotation
         float cosR = cosf(rotation);

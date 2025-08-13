@@ -3,6 +3,7 @@
 * @license MIT
 */
 #include "projectileWeapon.h"
+#include <libdragon.h>
 
 namespace Actor {
     ProjectileWeapon::ProjectileWeapon() : Weapon() {
@@ -11,7 +12,7 @@ namespace Actor {
         
         // Set weapon-specific properties
         fireRate = 0.1f;              // 10 shots per second
-        projectileSpeed = 50.0f;
+        projectileSpeed = 2.0f;
         projectileSlowdown = 0.0f;    // No slowdown
         maxUpgradeLevel = 5;
         spawnOffset = {0, 0, 0};
@@ -30,6 +31,37 @@ namespace Actor {
                 fireCooldown = 0;
             }
         }
+        
+        // Manual fire logic (check for A button press)
+        if (player) {
+            // Check if A button is pressed
+            joypad_buttons_t pressed = joypad_get_buttons_pressed(JOYPAD_PORT_1);
+            
+            if (pressed.a && fireCooldown <= 0) {
+                // Reset cooldown
+                fireCooldown = fireRate;
+                
+                // Get player position
+                T3DVec3 playerPos = player->getPosition();
+                
+                // Fire weapon in a fixed direction (upwards for now)
+                T3DVec3 direction = {{0.0f, 1.0f, 0.0f}};
+                fire(playerPos, direction);
+            }
+        }
+        
+        // Auto-fire logic (moved from scene)
+        if (fireCooldown <= 0 && player) {
+            // Reset cooldown
+            fireCooldown = fireRate;
+            
+            // Get player position
+            T3DVec3 playerPos = player->getPosition();
+            
+            // Fire weapon in a fixed direction (upwards for now)
+            T3DVec3 direction = {{0.0f, 1.0f, 0.0f}};
+            fire(playerPos, direction);
+        }
     }
     
     void ProjectileWeapon::draw3D(float deltaTime) {
@@ -42,11 +74,6 @@ namespace Actor {
     }
     
     void ProjectileWeapon::fire(const T3DVec3& position, const T3DVec3& direction) {
-        // Check if we can fire (cooldown)
-        if (fireCooldown > 0) {
-            return;
-        }
-        
         // Reset cooldown
         fireCooldown = fireRate;
         

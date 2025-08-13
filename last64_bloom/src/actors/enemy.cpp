@@ -3,10 +3,17 @@
 * @license MIT
 */
 #include "enemy.h"
+#include "player.h"
 #include <t3d/t3d.h>
 #include <t3d/tpx.h>
 #include <libdragon.h>
 #include <malloc.h>
+
+// Screen boundaries
+static constexpr float SCREEN_LEFT = 0.0f;
+static constexpr float SCREEN_RIGHT = 312.0f;
+static constexpr float SCREEN_TOP = 0.0f;
+static constexpr float SCREEN_BOTTOM = 236.0f;
 
 namespace Actor {
     // Static member definitions
@@ -82,8 +89,8 @@ namespace Actor {
             sharedVertices[idx].posB[0] = 3; sharedVertices[idx].posB[1] = -3; sharedVertices[idx].posB[2] = 0;
             sharedVertices[idx].normB = norm;
             // Ensure enemy colors are also bright for bloom effect
-            sharedVertices[idx].rgbaA = 0xFFFF60FF; // Bright yellow
-            sharedVertices[idx].rgbaB = 0xFFFF60FF; // Bright yellow
+            sharedVertices[idx].rgbaA = 0xFF0000FF; // Bright red
+            sharedVertices[idx].rgbaB = 0xFF0000FF; // Bright red
             sharedVertices[idx].stA[0] = 0; sharedVertices[idx].stA[1] = 0;
             sharedVertices[idx].stB[0] = 0; sharedVertices[idx].stB[1] = 0;
             
@@ -93,8 +100,8 @@ namespace Actor {
             sharedVertices[idx+1].normA = norm;
             sharedVertices[idx+1].posB[0] = -3; sharedVertices[idx+1].posB[1] = 3; sharedVertices[idx+1].posB[2] = 0;
             sharedVertices[idx+1].normB = norm;
-            sharedVertices[idx+1].rgbaA = 0xFFFF60FF; // Bright yellow
-            sharedVertices[idx+1].rgbaB = 0xFFFF60FF; // Bright yellow
+            sharedVertices[idx+1].rgbaA = 0xFF0000FF; // Bright red
+            sharedVertices[idx+1].rgbaB = 0xFF0000FF; // Bright red
             sharedVertices[idx+1].stA[0] = 0; sharedVertices[idx+1].stA[1] = 0;
             sharedVertices[idx+1].stB[0] = 0; sharedVertices[idx+1].stB[1] = 0;
         }
@@ -169,13 +176,39 @@ namespace Actor {
     void Enemy::update(float deltaTime) {
         if (flags & FLAG_DISABLED) return;
         
+        // Get player position from the Player class static instance
+        Actor::Player* player = Actor::Player::getInstance();
+        if (player) {
+            T3DVec3 playerPos = player->getPosition();
+            
+            // Calculate direction to player
+            T3DVec3 direction;
+            direction.x = playerPos.x - position.x;
+            direction.y = playerPos.y - position.y;
+            direction.z = playerPos.z - position.z;
+            
+            // Normalize direction
+            float length = sqrtf(direction.x * direction.x + direction.y * direction.y + direction.z * direction.z);
+            if (length > 0.0f) {
+                direction.x /= length;
+                direction.y /= length;
+                direction.z /= length;
+            }
+            
+            // Set velocity towards player with proper speed
+            velocity.x = direction.x * speed;
+            velocity.y = direction.y * speed;
+            velocity.z = direction.z * speed;
+        }
+        
         // Move enemy
-        position.x += velocity.x * speed * deltaTime;
-        position.y += velocity.y * speed * deltaTime;
-        position.z += velocity.z * speed * deltaTime;
+        position.x += velocity.x * deltaTime;
+        position.y += velocity.y * deltaTime;
+        position.z += velocity.z * deltaTime;
         
         // Deactivate enemies that go off-screen
-        if (position.x < -40 || position.x > 40 || position.y < -40 || position.y > 40) {
+        if (position.x < SCREEN_LEFT || position.x > SCREEN_RIGHT || 
+            position.y < SCREEN_TOP || position.y > SCREEN_BOTTOM) {
             deactivate();
             return;
         }

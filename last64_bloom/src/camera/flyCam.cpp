@@ -16,8 +16,8 @@ void FlyCam::update(float deltaTime)
   }
 
   // Deadzone for sticks
-  if(joypad.stick_x < 20 && joypad.stick_x > -20)joypad.stick_x = 0;
-  if(joypad.stick_y < 20 && joypad.stick_y > -20)joypad.stick_y = 0;
+  if(joypad.stick_x < 200 && joypad.stick_x > -200)joypad.stick_x = 0;
+  if(joypad.stick_y < 200 && joypad.stick_y > -200)joypad.stick_y = 0;
   // Assuming c-stick has similar deadzone handling if needed, but it's not directly accessible via joypad_inputs_t
 
   float camSpeed = deltaTime * 0.5f;

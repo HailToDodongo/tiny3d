@@ -8,10 +8,19 @@
 #include "../../actors/pointGlobe.h"
 #include "../../actors/player.h"
 #include <string_view>
+#include <typeinfo>
 
 namespace {
   constexpr uint8_t colorAmbient[4] = {0x2A, 0x2A, 0x2A, 0x00};
   constexpr float modelScale = 0.15f;
+  
+  // Screen boundaries
+  constexpr float SCREEN_LEFT = 0.0f;
+  constexpr float SCREEN_RIGHT = 312.0f;
+  constexpr float SCREEN_TOP = 0.0f;
+  constexpr float SCREEN_BOTTOM = 236.0f;
+  constexpr float SCREEN_WIDTH = SCREEN_RIGHT - SCREEN_LEFT;
+  constexpr float SCREEN_HEIGHT = SCREEN_BOTTOM - SCREEN_TOP;
 
   struct ObjectLayer
   {
@@ -162,8 +171,22 @@ void SceneMain::draw3D(float deltaTime)
 
 void SceneMain::draw2D(float deltaTime)
 {
-  //Debug::printf(100, 200, "%.2f %.2f %.2f", camera.pos.x, camera.pos.y, camera.pos.z);
-  //Debug::printf(100, 210, "Tris: %d\n", triCount);
+  // Draw player position if player exists
+  Actor::Player* player = nullptr;
+  for (auto actor : actors) {
+      player = dynamic_cast<Actor::Player*>(actor);
+      if (player) {
+          break;
+      }
+  }
+  
+  if (player) {
+      T3DVec3 playerPos = player->getPosition();
+      Debug::printf(10, 10, "PLAYER POS: %.2f, %.2f, %.2f", playerPos.x, playerPos.y, playerPos.z);
+  }
+  
+  // Draw camera position
+  Debug::printf(10, 20, "CAMERA POS: %.2f, %.2f, %.2f", camera.pos.x, camera.pos.y, camera.pos.z);
   
   // Show which camera mode is active
   Debug::printf(10, 220, "CAM: %s (Press R to toggle)", useFlyCam ? "FLY" : "STATIC");

@@ -7,6 +7,16 @@
 #include "../../debugMenu.h"
 #include "../../render/debugDraw.h"
 
+namespace {
+  // Screen boundaries
+  constexpr float SCREEN_LEFT = 0.0f;
+  constexpr float SCREEN_RIGHT = 312.0f;
+  constexpr float SCREEN_TOP = 0.0f;
+  constexpr float SCREEN_BOTTOM = 236.0f;
+  constexpr float SCREEN_WIDTH = SCREEN_RIGHT - SCREEN_LEFT;
+  constexpr float SCREEN_HEIGHT = SCREEN_BOTTOM - SCREEN_TOP;
+}
+
 SceneLast64::SceneLast64()
 {
     // Set up camera
@@ -25,6 +35,9 @@ SceneLast64::SceneLast64()
     
     // Create weapon instance
     weapon = new Actor::ProjectileWeapon();
+    
+    // Set player reference in weapon
+    Actor::Weapon::setPlayer(player);
 }
 
 SceneLast64::~SceneLast64()
@@ -51,24 +64,11 @@ void SceneLast64::updateScene(float deltaTime)
     // Get player position for enemy positioning
     // In a real game, enemies would move toward the player's actual position
     T3DVec3 playerPos = player->getPosition();
-    float playerX = playerPos.x;
-    float playerY = playerPos.y;
-    
-    // Fire weapon occasionally
-    static float fireTimer = 0.0f;
-    fireTimer += deltaTime;
-    if (fireTimer > 0.1f) { // Fire more rapidly
-        fireTimer = 0.0f;
-        
-        // Fire weapon in a fixed direction (upwards for now)
-        T3DVec3 direction = {{0.0f, 1.0f, 0.0f}};
-        weapon->fire(playerPos, direction);
-    }
     
     // Spawn new enemies occasionally
     static float enemySpawnTimer = 0.0f;
     enemySpawnTimer += deltaTime;
-    if (enemySpawnTimer > 1.0f) { // Spawn an enemy every second
+    if (enemySpawnTimer > 0.3f) { // Spawn an enemy every second
         enemySpawnTimer = 0.0f;
         
         // Spawn a new enemy at a random edge of the screen
@@ -77,20 +77,20 @@ void SceneLast64::updateScene(float deltaTime)
         
         switch (edge) {
             case 0: // Top
-                spawnX = -30 + (rand() % 60);
-                spawnY = 30;
+                spawnX = SCREEN_LEFT + (rand() % (int)SCREEN_WIDTH);
+                spawnY = SCREEN_TOP;
                 break;
             case 1: // Right
-                spawnX = 30;
-                spawnY = -30 + (rand() % 60);
+                spawnX = SCREEN_RIGHT;
+                spawnY = SCREEN_TOP + (rand() % (int)SCREEN_HEIGHT);
                 break;
             case 2: // Bottom
-                spawnX = -30 + (rand() % 60);
-                spawnY = -30;
+                spawnX = SCREEN_LEFT + (rand() % (int)SCREEN_WIDTH);
+                spawnY = SCREEN_BOTTOM;
                 break;
             case 3: // Left
-                spawnX = -30;
-                spawnY = -30 + (rand() % 60);
+                spawnX = SCREEN_LEFT;
+                spawnY = SCREEN_TOP + (rand() % (int)SCREEN_HEIGHT);
                 break;
             default:
                 spawnX = 0;
@@ -100,17 +100,8 @@ void SceneLast64::updateScene(float deltaTime)
         
         T3DVec3 pos = {{spawnX, spawnY, 0.0f}};
         
-        // Calculate velocity toward player
-        T3DVec3 playerPos = player->getPosition();
-        T3DVec3 direction = {{playerPos.x - spawnX, playerPos.y - spawnY, 0.0f}};
-        
-        // Normalize direction
-        float length = sqrtf(direction.x * direction.x + direction.y * direction.y);
-        if (length > 0) {
-            direction.x /= length;
-            direction.y /= length;
-        }
-        
+        // Spawn enemy with zero initial velocity (will be calculated by enemy itself)
+        T3DVec3 direction = {{0.0f, 0.0f, 0.0f}};
         Actor::Enemy::spawn(pos, direction, 10.0f);
     }
 }
@@ -145,14 +136,14 @@ void SceneLast64::draw3D(float deltaTime)
 }
 
 void SceneLast64::draw2D(float deltaTime)
-{
-    // Draw simple 2D HUD elements
-    rdpq_sync_pipe();
-    rdpq_set_mode_standard();
-    rdpq_mode_combiner(RDPQ_COMBINER_FLAT);
+{   
+    // Draw player position
+    if (player) {
+        T3DVec3 playerPos = player->getPosition();
+        Debug::printf(10, 10, "PLAYER POS: %.0f, %.0f", playerPos.x, playerPos.y);
+    }
     
-    // Draw a simple score indicator
-    Debug::printf(200, 20, "LAST64");
+    // Draw enemy and projectile counts
     Debug::printf(200, 35, "ENEMIES: %d", Actor::Enemy::getActiveCount());
     Debug::printf(200, 50, "PROJECTILES: %d", Actor::Projectile::getActiveCount());
 }

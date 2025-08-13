@@ -6,7 +6,7 @@
 #include "../actors/base.h"
 #include <t3d/t3d.h>
 
-#define MAX_PROJECTILES 50
+#define MAX_PROJECTILES 100
 
 namespace Actor {
     class Projectile : public Base {
@@ -22,6 +22,8 @@ namespace Actor {
         T3DVec3 velocity;
         float speed;
         float slowdown;
+        float lifetime;          // Time the projectile has been active
+        float maxLifetime;       // Maximum time the projectile can be active
         uint32_t poolIndex;
         
         static void initializePool();
@@ -47,5 +49,8 @@ namespace Actor {
         T3DVec3 getPosition() const { return position; }
         void setPosition(const T3DVec3& newPos) { position = newPos; }
         void setVelocity(const T3DVec3& newVelocity) { velocity = newVelocity; }
+        
+        float getMaxLifetime() const { return maxLifetime; }
+        void setMaxLifetime(float lifetime) { maxLifetime = lifetime; }
     };
 }
