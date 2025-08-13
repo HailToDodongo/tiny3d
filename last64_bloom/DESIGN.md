@@ -16,7 +16,7 @@ A minimalist reimagining of *Vampire Survivors* for the Nintendo 64 using `libdr
 | **Projectiles**   | Glowing lines or thin quads |
 | **XP Orbs**       | Floating dots that glow and pulse |
 | **GUI**           | Line-based HUD (health, XP, level) |
-| **Multiplayer**   | (Optional) Shared-screen co-op |
+| **Multiplayer**   | Shared-screen co-op for up to 4 players |
 
 ## 🛠️ Development Milestones
 
@@ -29,10 +29,10 @@ A minimalist reimagining of *Vampire Survivors* for the Nintendo 64 using `libdr
 - [x] Basic scene with background
 - [x] Camera setup (static camera implemented)
 - [x] Render player (basic player actor created)
-- [ ] Input to move player
+- [x] Input to move player
 
 ### ✅ Phase 2: Combat System
-- [ ] Auto-fire projectiles
+- [x] Auto-fire projectiles
 - [ ] Enemy spawning and AI
 - [ ] Collision and damage system
 
@@ -44,7 +44,7 @@ A minimalist reimagining of *Vampire Survivors* for the Nintendo 64 using `libdr
 ### ✅ Phase 4: Polish & Features
 - [ ] GUI (health, XP bars)
 - [ ] Visual effects and bloom
-- [ ] (Optional) Multiplayer support
+- [x] Multiplayer support (4 players)
 
 ## 📂 Project Structure (Suggested)
 n64-project/
