@@ -36,6 +36,8 @@ Last64_Bloom is the personal project we want to built using the Tiny3D framework
 *   `t3d.mk`: A Makefile include used by projects wanting to integrate Tiny3D.
 
 ## Building and Running
+**You have no permission to build, make, run. I will do that manually! Dont ask to build!.**
+
 
 ### Prerequisites
 
