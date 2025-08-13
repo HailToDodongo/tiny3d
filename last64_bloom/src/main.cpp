@@ -175,7 +175,7 @@ int main()
       DebugMenu::draw();
       Debug::printf(20, 200, "%d%%", (int)(postProc[frameIdxLast].getBrightness() * 100));
     } else {
-      Debug::printf(20, 20, "fps:%.0f", display_get_fps());
+      Debug::printf(1, 1, "fps:%.0f", display_get_fps());
     }
 
     state.activeScene->draw2D(deltaTime);
