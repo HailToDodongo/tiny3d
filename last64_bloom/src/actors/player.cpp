@@ -17,12 +17,19 @@ namespace Actor {
     // Static member definition
     Player* Player::instance = nullptr;
     
-    Player::Player(T3DVec3 startPos) : Base() {
+    Player::Player(T3DVec3 startPos, joypad_port_t port) : Base() {
         instance = this; // Set the instance pointer
         position = startPos;
         velocity = {0, 0, 0};
         speed = 100.0f;
         rotation = 0.0f;
+        playerPort = port;
+        
+        // Initialize weapon properties
+        fireCooldown = 0.0f;
+        fireRate = 0.3f;              // Reduced to ~3 shots per second
+        projectileSpeed = 2.0f;
+        
         flags &= ~FLAG_DISABLED; // Clear the disabled flag to enable the actor
     }
     
@@ -34,8 +41,8 @@ namespace Actor {
     
     void Player::update(float deltaTime) {
         // Handle player input
-        joypad_buttons_t held = joypad_get_buttons_held(JOYPAD_PORT_1);
-        joypad_inputs_t stick = joypad_get_inputs(JOYPAD_PORT_1); // Get analog stick inputs
+        joypad_buttons_t held = joypad_get_buttons_held(playerPort);
+        joypad_inputs_t stick = joypad_get_inputs(playerPort); // Get analog stick inputs
         
         float moveSpeed = speed * deltaTime;
         
@@ -60,8 +67,33 @@ namespace Actor {
             position.y = newY;
         }
         
+        // Update fire cooldown
+        if (fireCooldown > 0) {
+            fireCooldown -= deltaTime;
+            if (fireCooldown < 0) {
+                fireCooldown = 0;
+            }
+        }
+        
+        // Check if A button is pressed for firing
+        joypad_buttons_t pressed = joypad_get_buttons_pressed(playerPort);
+        if (pressed.a && fireCooldown <= 0) {
+            fire();
+        }
+        
         // For now, just update rotation to show we're alive
         rotation += deltaTime * 4.0f; // Rotate a bit faster
+    }
+    
+    void Player::fire() {
+        // Reset cooldown
+        fireCooldown = fireRate;
+        
+        // Fire weapon in a fixed direction (upwards for now)
+        T3DVec3 direction = {{0.0f, 1.0f, 0.0f}};
+        
+        // Spawn projectile
+        Projectile::spawn(position, direction, projectileSpeed, 0.0f);
     }
     
     void Player::draw3D(float deltaTime) {
@@ -83,7 +115,12 @@ namespace Actor {
         rdpq_mode_end();
         
         // Set color to bright blue (intended player color)
-        rdpq_set_prim_color(RGBA32(25, 128, 255, 255));
+        // Different colors for different players
+        if (playerPort == JOYPAD_PORT_1) {
+            rdpq_set_prim_color(RGBA32(25, 128, 255, 255)); // Blue for player 1
+        } else {
+            rdpq_set_prim_color(RGBA32(255, 25, 128, 255)); // Red for player 2
+        }
         
         // Draw a triangle - Apply rotation
         float cosR = cosf(rotation);

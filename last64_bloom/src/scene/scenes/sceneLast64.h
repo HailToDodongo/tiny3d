@@ -9,7 +9,6 @@
 #include "../../render/debugDraw.h"
 #include "../../actors/player.h" // Include Player class
 #include "../../actors/enemy.h"  // Include Enemy class
-#include "../../actors/projectileWeapon.h" // Include weapon class
 #include <t3d/t3d.h>
 #include <t3d/t3dmath.h>
 
@@ -18,9 +17,6 @@ class SceneLast64 : public Scene
   private:
     // Player instance
     Actor::Player* player;
-    
-    // Weapon instance
-    Actor::ProjectileWeapon* weapon;
     
     StaticCam staticCam{camera};
     

@@ -2,7 +2,7 @@
 * @copyright 2025 - Max Bebök
 * @license MIT
 */
-#include "sceneLast64.h"
+#include "sceneMP.h"
 #include "../../main.h"
 #include "../../debugMenu.h"
 #include "../../render/debugDraw.h"
@@ -17,7 +17,7 @@ namespace {
   constexpr float SCREEN_HEIGHT = SCREEN_BOTTOM - SCREEN_TOP;
 }
 
-SceneLast64::SceneLast64()
+SceneMP::SceneMP()
 {
     // Set up camera
     camera.fov = T3D_DEG_TO_RAD(85.0f);
@@ -26,24 +26,28 @@ SceneLast64::SceneLast64()
     camera.pos = {0.0f, 0.0f, 20.0f};
     camera.target = {0.0f, 0.0f, 0.0f};
 
-    // Create player instance at the center of the screen
-    T3DVec3 startPos = {{80.0f, 50.0f, 0.0f}};
-    player = new Actor::Player(startPos, JOYPAD_PORT_1);
+    // Create player instances at different positions
+    T3DVec3 startPos1 = {{80.0f, 50.0f, 0.0f}};
+    T3DVec3 startPos2 = {{120.0f, 50.0f, 0.0f}};
+    player1 = new Actor::Player(startPos1, JOYPAD_PORT_1);
+    player2 = new Actor::Player(startPos2, JOYPAD_PORT_2);
     
     // Initialize enemy pool
     Actor::Enemy::initialize();
 }
 
-SceneLast64::~SceneLast64()
+SceneMP::~SceneMP()
 {
-    delete player; // Clean up player instance
+    delete player1; // Clean up player1 instance
+    delete player2; // Clean up player2 instance
     Actor::Enemy::cleanup(); // Clean up enemy pool
 }
 
-void SceneLast64::updateScene(float deltaTime)
+void SceneMP::updateScene(float deltaTime)
 {
-    // Update player
-    player->update(deltaTime);
+    // Update players
+    player1->update(deltaTime);
+    player2->update(deltaTime);
     
     // Update all enemies
     Actor::Enemy::updateAll(deltaTime);
@@ -51,10 +55,14 @@ void SceneLast64::updateScene(float deltaTime)
     // Update all projectiles
     Actor::Projectile::updateAll(deltaTime);
     
+    // Get player positions for enemy positioning
+    T3DVec3 player1Pos = player1->getPosition();
+    T3DVec3 player2Pos = player2->getPosition();
+    
     // Spawn new enemies occasionally
     static float enemySpawnTimer = 0.0f;
     enemySpawnTimer += deltaTime;
-    if (enemySpawnTimer > 0.3f) { // Spawn an enemy every second
+    if (enemySpawnTimer > 0.3f) { // Spawn an enemy every 0.3 seconds
         enemySpawnTimer = 0.0f;
         
         // Spawn a new enemy at a random edge of the screen
@@ -91,7 +99,7 @@ void SceneLast64::updateScene(float deltaTime)
     }
 }
 
-void SceneLast64::draw3D(float deltaTime)
+void SceneMP::draw3D(float deltaTime)
 {
     // Clear screen with a very bright color to see triangles clearly
     t3d_screen_clear_color(RGBA32(255, 255, 255, 0xFF)); // Pure white background
@@ -99,19 +107,16 @@ void SceneLast64::draw3D(float deltaTime)
     t3d_screen_clear_depth();
 
     // Simple lighting - Increase ambient light significantly for better visibility
-    // Consider adding a directional light from above if needed
     uint8_t colorAmbient[4] = {0xFF, 0xFF, 0xFF, 0xFF}; // Full white ambient
     t3d_light_set_ambient(colorAmbient);
     t3d_light_set_count(1); // Use 1 light (ambient only)
     
-    // Set draw flags properly - Ensure lighting and other features are enabled correctly
-    // T3D_FLAG_SHADED is crucial for using vertex colors/lights
-    // T3D_FLAG_DEPTH for depth testing
-    // Other flags might be needed depending on desired effects (e.g., T3D_FLAG_TEXTURE for textures, though not used here)
+    // Set draw flags properly
     t3d_state_set_drawflags((enum T3DDrawFlags)(T3D_FLAG_SHADED | T3D_FLAG_DEPTH));
 
-    // Draw player using the Player class
-    player->draw3D(deltaTime);
+    // Draw players using the Player class
+    player1->draw3D(deltaTime);
+    player2->draw3D(deltaTime);
     
     // Draw all enemies
     Actor::Enemy::drawAll(deltaTime);
@@ -120,12 +125,17 @@ void SceneLast64::draw3D(float deltaTime)
     Actor::Projectile::drawAll(deltaTime);
 }
 
-void SceneLast64::draw2D(float deltaTime)
+void SceneMP::draw2D(float deltaTime)
 {   
-    // Draw player position
-    if (player) {
-        T3DVec3 playerPos = player->getPosition();
-        Debug::printf(10, 10, "x:%.0f y:%.0f", playerPos.x, playerPos.y);
+    // Draw player positions
+    if (player1) {
+        T3DVec3 playerPos = player1->getPosition();
+        Debug::printf(10, 10, "P1 x:%.0f y:%.0f", playerPos.x, playerPos.y);
+    }
+    
+    if (player2) {
+        T3DVec3 playerPos = player2->getPosition();
+        Debug::printf(10, 20, "P2 x:%.0f y:%.0f", playerPos.x, playerPos.y);
     }
     
     // Draw enemy and projectile counts

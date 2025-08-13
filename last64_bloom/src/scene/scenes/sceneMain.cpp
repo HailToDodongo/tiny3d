@@ -88,7 +88,7 @@ SceneMain::SceneMain()
   }
 
   actors.push_back(new Actor::PointGlobe({0, 20, -560}, {.scale = 0.8f}));
-  actors.push_back(new Actor::Player({0, 50, 30})); // Position player in front of camera
+  actors.push_back(new Actor::Player({0, 50, 30}, JOYPAD_PORT_1)); // Position player in front of camera
 }
 
 SceneMain::~SceneMain()

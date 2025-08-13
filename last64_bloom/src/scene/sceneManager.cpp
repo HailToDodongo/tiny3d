@@ -13,6 +13,7 @@
 #include "scenes/sceneEnv.h"
 #include "scenes/scenePixel.h"
 #include "scenes/sceneLast64.h"
+#include "scenes/sceneMP.h"
 
 namespace {
   constinit int requestSceneId{-1};
@@ -51,7 +52,7 @@ void SceneManager::update()
       case 2: state.activeScene = new SceneEnv(); break;
       case 3: state.activeScene = new SceneMagic(); break;
       case 4: state.activeScene = new ScenePixel(); break;
-      // case 5: state.activeScene = new SceneLast64(); break; // Old position
+      case 5: state.activeScene = new SceneMP(); break; // Our new multiplayer scene
 
       default: assertf(false, "Invalid scene-id: %d", requestSceneId);
     }

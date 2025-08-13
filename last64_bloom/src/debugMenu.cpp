@@ -34,7 +34,7 @@ void DebugMenu::reset()
   entries.clear();
   changedFlags.clear();
 
-  entries.push_back({"Scene", EntryType::INT, &sceneId, 0, 4});
+  entries.push_back({"Scene", EntryType::INT, &sceneId, 0, 5});
   entries.push_back({"Debug", EntryType::BOOL, &state.showOffscreen});
   entries.push_back({"Blurs", EntryType::INT, &state.ppConf.blurSteps, 0, 50});
   entries.push_back({"Bloom", EntryType::FLOAT, &state.ppConf.blurBrightness, 0.0f, 8.0f, 0.01f});
@@ -130,9 +130,9 @@ void DebugMenu::draw()
       case EntryType::INT:
         if (entry.value == &sceneId) {
           // Special handling for scene selection - Updated order to match SceneManager
-          const char* sceneNames[] = {"Last64", "Main", "Env", "Magic", "Pixel"};
+          const char* sceneNames[] = {"Last64", "Main", "Env", "Magic", "Pixel", "Multiplayer"};
           int sceneIdx = *(int*)entry.value;
-          if (sceneIdx >= 0 && sceneIdx <= 4) {
+          if (sceneIdx >= 0 && sceneIdx <= 5) {
             Debug::printf(posX + 8, posY, "%s: %d (%s)", entry.name, sceneIdx, sceneNames[sceneIdx]);
           } else {
             Debug::printf(posX + 8, posY, "%s: %d", entry.name, sceneIdx);
