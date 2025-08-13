@@ -101,8 +101,8 @@ void SceneLast64::updateScene(float deltaTime)
 
 void SceneLast64::draw3D(float deltaTime)
 {
-    // Clear screen with a very bright color to see triangles clearly
-    t3d_screen_clear_color(RGBA32(255, 255, 255, 0xFF)); // Pure white background
+    // Clear screen with a grey color
+    t3d_screen_clear_color(RGBA32(128, 128, 128, 0xFF)); // Grey background
     // Clear depth buffer
     t3d_screen_clear_depth();
 
