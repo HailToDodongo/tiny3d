@@ -23,7 +23,6 @@ namespace Actor {
     uint32_t Enemy::activeCount = 0;
     bool Enemy::initialized = false;
     Enemy Enemy::enemyPool[MAX_ENEMIES];
-    Player* Enemy::targetPlayer = nullptr; // Initialize the target player reference
 
     Enemy::Enemy() : Base() {
         if (!initialized) {
@@ -33,6 +32,7 @@ namespace Actor {
         poolIndex = MAX_ENEMIES; // Invalid index until spawned
         position = {0, 0, 0};
         speed = 0.0f;
+        targetPlayer = nullptr; // Initialize individual target player
         flags |= FLAG_DISABLED; // Start as disabled
     }
 
@@ -119,7 +119,7 @@ namespace Actor {
         initialized = true;
     }
 
-    Enemy* Enemy::spawn(const T3DVec3& position, float speed) {
+    Enemy* Enemy::spawn(const T3DVec3& position, float speed, Player* player1, Player* player2) {
         if (!initialized) {
             initializePool();
         }
@@ -137,6 +137,14 @@ namespace Actor {
                 enemy->poolIndex = i;
                 enemy->position = position;
                 enemy->speed = speed;
+                
+                // Randomly select a target player for this enemy
+                if (rand() % 2 == 0) {
+                    enemy->targetPlayer = player1;
+                } else {
+                    enemy->targetPlayer = player2;
+                }
+                
                 enemy->flags &= ~FLAG_DISABLED; // Enable the enemy
                 
                 return enemy;
@@ -175,7 +183,7 @@ namespace Actor {
     void Enemy::update(float deltaTime) {
         if (flags & FLAG_DISABLED) return;
         
-        // Get player position from the target player reference
+        // Get player position from the individual target player reference
         if (targetPlayer) {
             T3DVec3 playerPos = targetPlayer->getPosition();
             

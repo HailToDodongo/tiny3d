@@ -47,8 +47,13 @@ SceneLast64::SceneLast64()
     player1 = new Actor::Player(startPos1, JOYPAD_PORT_1);
     player2 = new Actor::Player(startPos2, JOYPAD_PORT_2);
     
-    // Set target player for enemies (using player1 as the target)
-    Actor::Enemy::setTargetPlayer(player1);
+    // Set target player for enemies
+    // Calculate a random player
+    // if (rand() % 2 == 0) {
+    //     Actor::Enemy::setTargetPlayer(player1);
+    // } else {
+    //     Actor::Enemy::setTargetPlayer(player2);
+    // }
     
     // Initialize enemy pool
     Actor::Enemy::initialize();
@@ -90,7 +95,7 @@ void SceneLast64::updateScene(float deltaTime)
     // Spawn new enemies occasionally
     static float enemySpawnTimer = 0.0f;
     enemySpawnTimer += deltaTime;
-    if (enemySpawnTimer > 2.0f) { // Spawn an enemy every x seconds
+    if (enemySpawnTimer > 0.3f) { // Spawn an enemy every x seconds
         enemySpawnTimer = 0.0f;
         
         // Spawn a new enemy at a random edge of the screen
@@ -124,7 +129,8 @@ void SceneLast64::updateScene(float deltaTime)
         
         // Spawn enemy with zero initial velocity (will be calculated by enemy itself)
         // All actors exist in the same 3D space with Z=0 for the playing field
-        Actor::Enemy::spawn(pos, 45.0f);
+        // Randomly select a target player for this enemy
+        Actor::Enemy::spawn(pos, 45.0f, player1, player2);
     }
 }
 
@@ -170,15 +176,17 @@ void SceneLast64::draw2D(float deltaTime)
     // Draw player positions
     if (player1) {
         T3DVec3 playerPos = player1->getPosition();
-        Debug::printf(10, 10, "P1 x:%.0f y:%.0f", playerPos.x, playerPos.y);
-    }
-    
-    if (player2) {
-        T3DVec3 playerPos = player2->getPosition();
-        Debug::printf(10, 20, "P2 x:%.0f y:%.0f", playerPos.x, playerPos.y);
+        T3DVec3 playerPos2;
+        if (player2) {  playerPos2 = player2->getPosition();    }
+        Debug::printf(10, 10, "P1:%.0f/%.0f P2:%.0f/%.0f", playerPos.x, playerPos.y, playerPos2.x, playerPos2.y);
     }
     
     // Draw enemy and projectile counts
-    Debug::printf(100, 5, "E:%d", Actor::Enemy::getActiveCount());
-    Debug::printf(200, 5, "P:%d", Actor::Projectile::getActiveCount());
+    Debug::printf(230, 10, "E:%d P:%d", Actor::Enemy::getActiveCount(), Actor::Projectile::getActiveCount());
+
+    // Draw Player 1 stick position
+    if (player1) {
+        // joypad_inputs_t stick = joypad_get_inputs(JOYPAD_PORT_1);
+        // Debug::printf(10, 20, "Stick: %.0f/%.0f", stick.stick_x, stick.stick_y);
+    }
 }
