@@ -34,9 +34,9 @@ namespace Actor {
         
         // First structure: vertices 0 and 1
         sharedVertices[0] = (T3DVertPacked){};
-        sharedVertices[0].posA[0] = 0; sharedVertices[0].posA[1] = 5; sharedVertices[0].posA[2] = 0;
+        sharedVertices[0].posA[0] = 0; sharedVertices[0].posA[1] = 3; sharedVertices[0].posA[2] = 0; // Top vertex (smaller to match enemies)
         sharedVertices[0].normA = norm;
-        sharedVertices[0].posB[0] = -5; sharedVertices[0].posB[1] = -5; sharedVertices[0].posB[2] = 0;
+        sharedVertices[0].posB[0] = -3; sharedVertices[0].posB[1] = -3; sharedVertices[0].posB[2] = 0; // Bottom left
         sharedVertices[0].normB = norm;
         sharedVertices[0].rgbaA = 0xFFFF0000; // Will be set per player
         sharedVertices[0].rgbaB = 0xFFFF0000; // Will be set per player
@@ -45,9 +45,9 @@ namespace Actor {
         
         // Second structure: vertex 2 and unused
         sharedVertices[1] = (T3DVertPacked){};
-        sharedVertices[1].posA[0] = 5; sharedVertices[1].posA[1] = -5; sharedVertices[1].posA[2] = 0;
+        sharedVertices[1].posA[0] = 3; sharedVertices[1].posA[1] = -3; sharedVertices[1].posA[2] = 0; // Bottom right
         sharedVertices[1].normA = norm;
-        sharedVertices[1].posB[0] = 0; sharedVertices[1].posB[1] = 0; sharedVertices[1].posB[2] = 0;
+        sharedVertices[1].posB[0] = 0; sharedVertices[1].posB[1] = 0; sharedVertices[1].posB[2] = 0; // Unused
         sharedVertices[1].normB = norm;
         sharedVertices[1].rgbaA = 0xFFFF0000; // Will be set per player
         sharedVertices[1].rgbaB = 0xFFFF0000; // Will be set per player
@@ -129,7 +129,7 @@ namespace Actor {
         // Using analog stick for smooth movement in all directions
         // Invert Y axis to match typical 2D game conventions (up is positive)
         float moveX = stick.stick_x / 32.0f; // Normalize analog input (-1 to 1)
-        float moveY = -stick.stick_y / 32.0f; // Invert Y axis and normalize
+        float moveY = stick.stick_y / 32.0f; // normalize
         
         // Apply deadzone to prevent drift
         static constexpr float DEADZONE = 0.2f; // 20% deadzone
@@ -186,8 +186,8 @@ namespace Actor {
     // Draw the player using the shared vertices and matrix
     if (sharedMatrix && sharedVertices) {
         t3d_matrix_push(sharedMatrix);
-        t3d_vert_load(sharedVertices, 0, 3); // Load 3 vertices (part of 2 structures)
-        t3d_tri_draw(0, 1, 2);
+        t3d_vert_load(sharedVertices, 0, 4); // Load 4 vertices (2 structures)
+        t3d_tri_draw(0, 1, 2); // Draw triangle with vertices 0, 1, 2
         t3d_tri_sync();
         t3d_matrix_pop(1);
     }

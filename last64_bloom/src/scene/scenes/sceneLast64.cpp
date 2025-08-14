@@ -20,8 +20,8 @@ namespace {
   constexpr float SCREEN_WIDTH = SCREEN_RIGHT - SCREEN_LEFT;
   constexpr float SCREEN_HEIGHT = SCREEN_BOTTOM - SCREEN_TOP;
   
-  // Ambient lighting - match SceneMain exactly
-  constexpr uint8_t colorAmbient[4] = {0x2A, 0x2A, 0x2A, 0x00};
+  // Ambient lighting
+  constexpr uint8_t colorAmbient[4] = {0xB0, 0xB0, 0xB0, 0xFF};
 
   // Static matrix for scene
   T3DMat4FP* sceneMatFP = nullptr;
@@ -33,7 +33,7 @@ SceneLast64::SceneLast64()
     camera.fov = T3D_DEG_TO_RAD(80.0f);
     camera.near = 5.0f;
     camera.far = 295.0f;
-    camera.pos = {0.0f, 0.0f, 20.0f};
+    camera.pos = {0.0f, 0.0f, 200.0f};
     camera.target = {0.0f, 0.0f, 0.0f};
 
     // Initialize scene matrix
