@@ -28,6 +28,7 @@ namespace Actor {
         
         // Initialize weapon
         weapon = new ProjectileWeapon();
+        weapon->setPlayer(this); // Set the player reference in the weapon
         
         flags &= ~FLAG_DISABLED; // Clear the disabled flag to enable the actor
     }
@@ -85,19 +86,11 @@ namespace Actor {
         // Check if A button is pressed for firing
         joypad_buttons_t pressed = joypad_get_buttons_pressed(playerPort);
         if (pressed.a) {
-            fire();
+            weapon->fire(position, {{0.0f, 1.0f, 0.0f}});
         }
         
         // For now, just update rotation to show we're alive
         rotation += deltaTime * 4.0f; // Rotate a bit faster
-    }
-    
-    void Player::fire() {
-        // Fire weapon if available
-        if (weapon) {
-            T3DVec3 direction = {{0.0f, 1.0f, 0.0f}};
-            weapon->fire(position, direction);
-        }
     }
     
     void Player::draw3D(float deltaTime) {

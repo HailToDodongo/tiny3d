@@ -34,7 +34,6 @@ namespace Actor {
         void setPosition(T3DVec3 newPos) { position = newPos; }
         
         // Weapon methods
-        void fire();
         Weapon* getWeapon() const { return weapon; }
         void setWeapon(Weapon* newWeapon) { weapon = newWeapon; }
     };
