@@ -21,9 +21,6 @@ namespace Actor {
     T3DMat4FP* Player::sharedMatrix = nullptr;
     bool Player::initialized = false;
     
-    // Static member definition
-    Player* Player::instance = nullptr;
-    
     void Player::initialize() {
         if (initialized) return;
         
@@ -80,7 +77,6 @@ namespace Actor {
             initialize();
         }
         
-        instance = this; // Set the instance pointer
         position = startPos;
         velocity = {0, 0, 0};
         speed = 50.0f;
@@ -88,13 +84,7 @@ namespace Actor {
         playerPort = port;
         
         // Set player color based on port
-        if (sharedVertices) {
-            uint32_t color = (playerPort == JOYPAD_PORT_1) ? 0xFF1980FF : 0xFFFF1980; // Blue or Red
-            sharedVertices[0].rgbaA = color;
-            sharedVertices[0].rgbaB = color;
-            sharedVertices[1].rgbaA = color;
-            sharedVertices[1].rgbaB = color;
-        }
+        playerColor = (playerPort == JOYPAD_PORT_1) ? 0xFF1980FF : 0xFFFF1980; // Blue or Red
         
         // Initialize weapon
         weapon = new ProjectileWeapon();
@@ -104,10 +94,6 @@ namespace Actor {
     }
     
     Player::~Player() {
-        if (instance == this) {
-            instance = nullptr; // Clear the instance pointer when destroyed
-        }
-        
         // Clean up weapon
         if (weapon) {
             delete weapon;
@@ -117,7 +103,6 @@ namespace Actor {
     
     void Player::update(float deltaTime) {
         // Handle player input
-        joypad_buttons_t held = joypad_get_buttons_held(playerPort);
         joypad_inputs_t stick = joypad_get_inputs(playerPort); // Get analog stick inputs
         
         float moveSpeed = speed * deltaTime;
@@ -127,12 +112,11 @@ namespace Actor {
         // positive Y is up, negative Y is down, positive X is right, negative X is left
         // 
         // Using analog stick for smooth movement in all directions
-        // Invert Y axis to match typical 2D game conventions (up is positive)
         float moveX = stick.stick_x / 32.0f; // Normalize analog input (-1 to 1)
         float moveY = stick.stick_y / 32.0f; // normalize
         
         // Apply deadzone to prevent drift
-        static constexpr float DEADZONE = 0.2f; // 20% deadzone
+        static constexpr float DEADZONE = 0.25f; // 25% deadzone
         if (fabsf(moveX) < DEADZONE) moveX = 0.0f;
         if (fabsf(moveY) < DEADZONE) moveY = 0.0f;
         
@@ -185,6 +169,12 @@ namespace Actor {
     
     // Draw the player using the shared vertices and matrix
     if (sharedMatrix && sharedVertices) {
+        // Update vertex colors for this specific player
+        sharedVertices[0].rgbaA = playerColor;
+        sharedVertices[0].rgbaB = playerColor;
+        sharedVertices[1].rgbaA = playerColor;
+        sharedVertices[1].rgbaB = playerColor;
+        
         t3d_matrix_push(sharedMatrix);
         t3d_vert_load(sharedVertices, 0, 4); // Load 4 vertices (2 structures)
         t3d_tri_draw(0, 1, 2); // Draw triangle with vertices 0, 1, 2

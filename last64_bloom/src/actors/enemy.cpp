@@ -23,6 +23,7 @@ namespace Actor {
     uint32_t Enemy::activeCount = 0;
     bool Enemy::initialized = false;
     Enemy Enemy::enemyPool[MAX_ENEMIES];
+    Player* Enemy::targetPlayer = nullptr; // Initialize the target player reference
 
     Enemy::Enemy() : Base() {
         if (!initialized) {
@@ -174,10 +175,9 @@ namespace Actor {
     void Enemy::update(float deltaTime) {
         if (flags & FLAG_DISABLED) return;
         
-        // Get player position from the Player class static instance
-        Actor::Player* player = Actor::Player::getInstance();
-        if (player) {
-            T3DVec3 playerPos = player->getPosition();
+        // Get player position from the target player reference
+        if (targetPlayer) {
+            T3DVec3 playerPos = targetPlayer->getPosition();
             
             // Calculate direction to player
             T3DVec3 direction;

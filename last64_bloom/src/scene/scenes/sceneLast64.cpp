@@ -33,8 +33,8 @@ SceneLast64::SceneLast64()
     camera.fov = T3D_DEG_TO_RAD(80.0f);
     camera.near = 5.0f;
     camera.far = 295.0f;
-    camera.pos = {0.0f, 0.0f, 200.0f};
-    camera.target = {0.0f, 0.0f, 0.0f};
+    camera.pos = {140.0f, 100.0f, 160.0f};
+    camera.target = {140.0f, 100.0f, 0.0f};
 
     // Initialize scene matrix
     sceneMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
@@ -46,6 +46,9 @@ SceneLast64::SceneLast64()
     T3DVec3 startPos2 = {{20.0f, 0.0f, 0.0f}};  // Slightly to the right
     player1 = new Actor::Player(startPos1, JOYPAD_PORT_1);
     player2 = new Actor::Player(startPos2, JOYPAD_PORT_2);
+    
+    // Set target player for enemies (using player1 as the target)
+    Actor::Enemy::setTargetPlayer(player1);
     
     // Initialize enemy pool
     Actor::Enemy::initialize();

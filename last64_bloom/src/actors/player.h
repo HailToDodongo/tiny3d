@@ -12,7 +12,6 @@
 namespace Actor {
     class Player : public Base {
     private:
-        static Player* instance;
         static T3DVertPacked* sharedVertices;
         static T3DMat4FP* sharedMatrix;
         static bool initialized;
@@ -22,6 +21,7 @@ namespace Actor {
         float speed;
         float rotation;
         joypad_port_t playerPort; // To identify which controller this player uses
+        uint32_t playerColor; // Store player-specific color
         
         // Weapon reference
         Weapon* weapon;
@@ -36,7 +36,6 @@ namespace Actor {
         void draw3D(float deltaTime) override;
         void drawPTX(float deltaTime) override;
         
-        static Player* getInstance() { return instance; }
         T3DVec3 getPosition() const { return position; }
         void setPosition(T3DVec3 newPos) { position = newPos; }
         float getRotation() const { return rotation; }
