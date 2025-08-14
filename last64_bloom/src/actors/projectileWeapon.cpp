@@ -37,11 +37,16 @@ namespace Actor {
             // Reset cooldown
             fireCooldown = fireRate;
             
-            // Get player position
+            // Get player position and rotation
             T3DVec3 playerPos = player->getPosition();
+            float playerRotation = player->getRotation();
             
-            // Fire weapon in a fixed direction (upwards for now)
-            T3DVec3 direction = {{0.0f, 1.0f, 0.0f}};
+            // Fire weapon in the direction the player is facing
+            T3DVec3 direction = {{
+                sinf(playerRotation),
+                cosf(playerRotation),
+                0.0f
+            }};
             fire(playerPos, direction);
         }
     }

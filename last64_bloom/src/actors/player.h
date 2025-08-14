@@ -13,6 +13,10 @@ namespace Actor {
     class Player : public Base {
     private:
         static Player* instance;
+        static T3DVertPacked* sharedVertices;
+        static T3DMat4FP* sharedMatrix;
+        static bool initialized;
+        
         T3DVec3 position;
         T3DVec3 velocity;
         float speed;
@@ -21,6 +25,9 @@ namespace Actor {
         
         // Weapon reference
         Weapon* weapon;
+        
+        static void initialize();
+        static void cleanup();
         
     public:
         Player(T3DVec3 startPos, joypad_port_t port);
@@ -32,9 +39,13 @@ namespace Actor {
         static Player* getInstance() { return instance; }
         T3DVec3 getPosition() const { return position; }
         void setPosition(T3DVec3 newPos) { position = newPos; }
+        float getRotation() const { return rotation; }
         
         // Weapon methods
         Weapon* getWeapon() const { return weapon; }
         void setWeapon(Weapon* newWeapon) { weapon = newWeapon; }
+        
+        static void initializePlayer() { initialize(); }
+        static void cleanupPlayer() { cleanup(); }
     };
 }

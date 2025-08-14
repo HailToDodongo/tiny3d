@@ -7,6 +7,7 @@
 #include <t3d/t3d.h>
 #include <t3d/tpx.h>
 #include <libdragon.h>
+#include <malloc.h>
 
 // Screen boundaries
 static constexpr float SCREEN_LEFT = 0.0f;
@@ -15,16 +16,85 @@ static constexpr float SCREEN_TOP = 0.0f;
 static constexpr float SCREEN_BOTTOM = 232.0f;
 
 namespace Actor {
+    // Static members for player mesh
+    T3DVertPacked* Player::sharedVertices = nullptr;
+    T3DMat4FP* Player::sharedMatrix = nullptr;
+    bool Player::initialized = false;
+    
     // Static member definition
     Player* Player::instance = nullptr;
     
+    void Player::initialize() {
+        if (initialized) return;
+        
+        // Allocate vertices for the player (triangle)
+        T3DVec3 normalVec = {{0.0f, 0.0f, 1.0f}};
+        uint16_t norm = t3d_vert_pack_normal(&normalVec);
+        sharedVertices = (T3DVertPacked*)malloc_uncached(sizeof(T3DVertPacked) * 2);
+        
+        // First structure: vertices 0 and 1
+        sharedVertices[0] = (T3DVertPacked){};
+        sharedVertices[0].posA[0] = 0; sharedVertices[0].posA[1] = 5; sharedVertices[0].posA[2] = 0;
+        sharedVertices[0].normA = norm;
+        sharedVertices[0].posB[0] = -5; sharedVertices[0].posB[1] = -5; sharedVertices[0].posB[2] = 0;
+        sharedVertices[0].normB = norm;
+        sharedVertices[0].rgbaA = 0xFFFF0000; // Will be set per player
+        sharedVertices[0].rgbaB = 0xFFFF0000; // Will be set per player
+        sharedVertices[0].stA[0] = 0; sharedVertices[0].stA[1] = 0;
+        sharedVertices[0].stB[0] = 0; sharedVertices[0].stB[1] = 0;
+        
+        // Second structure: vertex 2 and unused
+        sharedVertices[1] = (T3DVertPacked){};
+        sharedVertices[1].posA[0] = 5; sharedVertices[1].posA[1] = -5; sharedVertices[1].posA[2] = 0;
+        sharedVertices[1].normA = norm;
+        sharedVertices[1].posB[0] = 0; sharedVertices[1].posB[1] = 0; sharedVertices[1].posB[2] = 0;
+        sharedVertices[1].normB = norm;
+        sharedVertices[1].rgbaA = 0xFFFF0000; // Will be set per player
+        sharedVertices[1].rgbaB = 0xFFFF0000; // Will be set per player
+        sharedVertices[1].stA[0] = 0; sharedVertices[1].stA[1] = 0;
+        sharedVertices[1].stB[0] = 0; sharedVertices[1].stB[1] = 0;
+        
+        // Allocate matrix
+        sharedMatrix = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
+        t3d_mat4fp_identity(sharedMatrix);
+        
+        initialized = true;
+    }
+    
+    void Player::cleanup() {
+        if (sharedVertices) {
+            free_uncached(sharedVertices);
+            sharedVertices = nullptr;
+        }
+        
+        if (sharedMatrix) {
+            free_uncached(sharedMatrix);
+            sharedMatrix = nullptr;
+        }
+        
+        initialized = false;
+    }
+    
     Player::Player(T3DVec3 startPos, joypad_port_t port) : Base() {
+        if (!initialized) {
+            initialize();
+        }
+        
         instance = this; // Set the instance pointer
         position = startPos;
         velocity = {0, 0, 0};
         speed = 50.0f;
         rotation = 0.0f;
         playerPort = port;
+        
+        // Set player color based on port
+        if (sharedVertices) {
+            uint32_t color = (playerPort == JOYPAD_PORT_1) ? 0xFF1980FF : 0xFFFF1980; // Blue or Red
+            sharedVertices[0].rgbaA = color;
+            sharedVertices[0].rgbaB = color;
+            sharedVertices[1].rgbaA = color;
+            sharedVertices[1].rgbaB = color;
+        }
         
         // Initialize weapon
         weapon = new ProjectileWeapon();
@@ -52,7 +122,7 @@ namespace Actor {
         
         float moveSpeed = speed * deltaTime;
         
-        // Basic 2D movement on X/Y plane to match the scene's perspective
+        // 3D movement - X and Y for horizontal/vertical movement, Z stays constant
         // Note: In the N64's coordinate system with the camera looking down the Z-axis,
         // positive Y is up, negative Y is down, positive X is right, negative X is left
         // 
@@ -77,6 +147,7 @@ namespace Actor {
         if (newY >= SCREEN_TOP && newY <= SCREEN_BOTTOM) {
             position.y = newY;
         }
+        // Z position stays constant (we're moving on the X/Y plane)
         
         // Update weapon
         if (weapon) {
@@ -86,68 +157,46 @@ namespace Actor {
         // Check if A button is pressed for firing
         joypad_buttons_t pressed = joypad_get_buttons_pressed(playerPort);
         if (pressed.a) {
-            weapon->fire(position, {{0.0f, 1.0f, 0.0f}});
+            // Fire in the direction the player is facing (based on rotation)
+            float fireX = sinf(rotation);
+            float fireY = cosf(rotation);
+            weapon->fire(position, {{fireX, fireY, 0.0f}});
         }
         
-        // For now, just update rotation to show we're alive
-        rotation += deltaTime * 4.0f; // Rotate a bit faster
+        // Update rotation based on movement direction
+        if (moveX != 0.0f || moveY != 0.0f) {
+            rotation = atan2f(moveX, moveY); // Point in movement direction
+        }
+        
+        // Update matrix
+        if (sharedMatrix) {
+            t3d_mat4fp_from_srt_euler(
+                sharedMatrix,
+                (T3DVec3){{1.0f, 1.0f, 1.0f}},  // scale
+                (T3DVec3){{0.0f, 0.0f, rotation}},  // rotation around Z axis
+                position                         // translation
+            );
+        }
     }
     
     void Player::draw3D(float deltaTime) {
-        // Draw a simple triangle for the player
-        rdpq_sync_pipe();
-        
-        rdpq_mode_begin();
-        rdpq_mode_zbuf(true, true);
-        // Use PRIM color set by rdpq_set_prim_color
-        // RDPQ_COMBINER1((PRIM, 0, SHADE, 0), (0, 0, 0, 1)) allows both PRIM color and vertex shading (SHADE) to influence the final color.
-        // This might help if there's some basic lighting intended.
-        rdpq_mode_combiner(RDPQ_COMBINER1((PRIM, 0, SHADE, 0), (0, 0, 0, 1))); 
-        rdpq_mode_blender(0); // No blending for opaque triangle
-        rdpq_mode_antialias(AA_NONE);
-        rdpq_mode_filter(FILTER_POINT);
-        rdpq_mode_dithering(DITHER_NONE_NONE);
-        rdpq_mode_persp(true);
-        rdpq_mode_fog(0);
-        rdpq_mode_end();
-        
-        // Set color to bright blue (intended player color)
-        // Different colors for different players
-        if (playerPort == JOYPAD_PORT_1) {
-            rdpq_set_prim_color(RGBA32(25, 128, 255, 255)); // Blue for player 1
-        } else {
-            rdpq_set_prim_color(RGBA32(255, 25, 128, 255)); // Red for player 2
-        }
-        
-        // Draw a triangle - Apply rotation
-        float cosR = cosf(rotation);
-        float sinR = sinf(rotation);
-        
-        // Define triangle vertices in local space (centered at origin)
-        float x1 = 0, y1 = 5;   // Top vertex
-        float x2 = -5, y2 = -5; // Bottom left
-        float x3 = 5, y3 = -5;  // Bottom right
-        
-        // Rotate vertices
-        float rx1 = x1 * cosR - y1 * sinR;
-        float ry1 = x1 * sinR + y1 * cosR;
-        float rx2 = x2 * cosR - y2 * sinR;
-        float ry2 = x2 * sinR + y2 * cosR;
-        float rx3 = x3 * cosR - y3 * sinR;
-        float ry3 = x3 * sinR + y3 * cosR;
-        
-        // Draw triangle at player's position (on X/Y plane, Z=0)
-        rdpq_triangle(&TRIFMT_FILL,
-            (float[]){position.x + rx1, position.y + ry1, 0.0f},
-            (float[]){position.x + rx2, position.y + ry2, 0.0f},
-            (float[]){position.x + rx3, position.y + ry3, 0.0f}
-        );
-        
-        // Draw weapon projectiles
-        if (weapon) {
-            weapon->draw3D(deltaTime);
-        }
+    // Set up rendering state
+    t3d_state_set_drawflags((enum T3DDrawFlags)(T3D_FLAG_SHADED | T3D_FLAG_DEPTH));
+    
+    // Draw the player using the shared vertices and matrix
+    if (sharedMatrix && sharedVertices) {
+        t3d_matrix_push(sharedMatrix);
+        t3d_vert_load(sharedVertices, 0, 3); // Load 3 vertices (part of 2 structures)
+        t3d_tri_draw(0, 1, 2);
+        t3d_tri_sync();
+        t3d_matrix_pop(1);
     }
+    
+    // Draw weapon projectiles
+    if (weapon) {
+        weapon->draw3D(deltaTime);
+    }
+}
     
     void Player::drawPTX(float deltaTime) {
         // Draw weapon particle effects

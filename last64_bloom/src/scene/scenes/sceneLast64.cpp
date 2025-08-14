@@ -6,6 +6,10 @@
 #include "../../main.h"
 #include "../../debugMenu.h"
 #include "../../render/debugDraw.h"
+#include <t3d/t3d.h>
+#include <t3d/tpx.h>
+#include <t3d/t3dmath.h>
+#include <libdragon.h>
 
 namespace {
   // Screen boundaries
@@ -15,20 +19,31 @@ namespace {
   constexpr float SCREEN_BOTTOM = 232.0f;
   constexpr float SCREEN_WIDTH = SCREEN_RIGHT - SCREEN_LEFT;
   constexpr float SCREEN_HEIGHT = SCREEN_BOTTOM - SCREEN_TOP;
+  
+  // Ambient lighting - match SceneMain exactly
+  constexpr uint8_t colorAmbient[4] = {0x2A, 0x2A, 0x2A, 0x00};
+
+  // Static matrix for scene
+  T3DMat4FP* sceneMatFP = nullptr;
 }
 
 SceneLast64::SceneLast64()
 {
-    // Set up camera
-    camera.fov = T3D_DEG_TO_RAD(85.0f);
-    camera.near = 1.0f;
-    camera.far = 100.0f;
+    // Set up camera - match SceneMain more closely
+    camera.fov = T3D_DEG_TO_RAD(80.0f);
+    camera.near = 5.0f;
+    camera.far = 295.0f;
     camera.pos = {0.0f, 0.0f, 20.0f};
     camera.target = {0.0f, 0.0f, 0.0f};
 
+    // Initialize scene matrix
+    sceneMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
+    t3d_mat4fp_identity(sceneMatFP);
+
     // Create player instances at different positions
-    T3DVec3 startPos1 = {{80.0f, 50.0f, 0.0f}};
-    T3DVec3 startPos2 = {{120.0f, 50.0f, 0.0f}};
+    // All actors exist in 3D space now, with Z=0 for the playing field
+    T3DVec3 startPos1 = {{0.0f, 0.0f, 0.0f}};  // Center of screen
+    T3DVec3 startPos2 = {{20.0f, 0.0f, 0.0f}};  // Slightly to the right
     player1 = new Actor::Player(startPos1, JOYPAD_PORT_1);
     player2 = new Actor::Player(startPos2, JOYPAD_PORT_2);
     
@@ -41,10 +56,20 @@ SceneLast64::~SceneLast64()
     delete player1; // Clean up player1 instance
     delete player2; // Clean up player2 instance
     Actor::Enemy::cleanup(); // Clean up enemy pool
+    
+    // Clean up scene matrix
+    if (sceneMatFP) {
+        free_uncached(sceneMatFP);
+        sceneMatFP = nullptr;
+    }
 }
 
 void SceneLast64::updateScene(float deltaTime)
 {
+    // Update camera
+    camera.update(deltaTime);
+    camera.attach();
+    
     // Update players (this will also update their weapons)
     player1->update(deltaTime);
     player2->update(deltaTime);
@@ -95,23 +120,32 @@ void SceneLast64::updateScene(float deltaTime)
         T3DVec3 pos = {{spawnX, spawnY, 0.0f}};
         
         // Spawn enemy with zero initial velocity (will be calculated by enemy itself)
+        // All actors exist in the same 3D space with Z=0 for the playing field
         Actor::Enemy::spawn(pos, 45.0f);
     }
 }
 
 void SceneLast64::draw3D(float deltaTime)
 {
-    // Clear screen with a grey color
-    t3d_screen_clear_color(RGBA32(128, 128, 128, 0xFF)); // Grey background
+    // Attach camera
+    camera.attach();
+    
+    // Clear screen with a dark grey color (similar to original but darker)
+    t3d_screen_clear_color(RGBA32(32, 32, 32, 0xFF)); // Dark grey background
     // Clear depth buffer
     t3d_screen_clear_depth();
-
-    // Simple lighting
-    uint8_t colorAmbient[4] = {0xFF, 0xFF, 0xFF, 0xFF}; // Full white ambient
-    t3d_light_set_ambient(colorAmbient);
-    t3d_light_set_count(1); // Use 1 light (ambient only)
     
-    // Set draw flags properly
+    // Set up environment color for bloom effect
+    rdpq_set_env_color({0xFF, 0xAA, 0xEE, 0xAA});
+
+    // Set up lighting to match SceneMain
+    t3d_light_set_ambient(colorAmbient);
+    t3d_light_set_count(0); // No directional lights, just ambient
+
+    // Push scene matrix
+    t3d_matrix_push(sceneMatFP);
+
+    // Set up rendering state
     t3d_state_set_drawflags((enum T3DDrawFlags)(T3D_FLAG_SHADED | T3D_FLAG_DEPTH));
 
     // Draw players using the Player class (this will also draw their weapons)
@@ -123,6 +157,9 @@ void SceneLast64::draw3D(float deltaTime)
     
     // Draw all projectiles (this is now handled by the player's weapon)
     Actor::Projectile::drawAll(deltaTime);
+
+    // Pop scene matrix
+    t3d_matrix_pop(1);
 }
 
 void SceneLast64::draw2D(float deltaTime)

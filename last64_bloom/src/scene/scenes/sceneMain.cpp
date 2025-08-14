@@ -88,6 +88,7 @@ SceneMain::SceneMain()
   }
 
   actors.push_back(new Actor::PointGlobe({0, 20, -560}, {.scale = 0.8f}));
+  Actor::Player::initializePlayer(); // Initialize player static resources
   actors.push_back(new Actor::Player({0, 50, 30}, JOYPAD_PORT_1)); // Position player in front of camera
 }
 
@@ -95,6 +96,9 @@ SceneMain::~SceneMain()
 {
   t3d_model_free(mapModel);
   free_uncached(mapMatFP);
+  
+  // Clean up player static resources
+  Actor::Player::cleanupPlayer();
 }
 
 void SceneMain::updateScene(float deltaTime)
