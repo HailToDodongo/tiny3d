@@ -3,6 +3,7 @@
 * @license MIT
 */
 #include "player.h"
+#include "projectileWeapon.h"
 #include <t3d/t3d.h>
 #include <t3d/tpx.h>
 #include <libdragon.h>
@@ -11,7 +12,7 @@
 static constexpr float SCREEN_LEFT = 0.0f;
 static constexpr float SCREEN_RIGHT = 312.0f;
 static constexpr float SCREEN_TOP = 0.0f;
-static constexpr float SCREEN_BOTTOM = 236.0f;
+static constexpr float SCREEN_BOTTOM = 232.0f;
 
 namespace Actor {
     // Static member definition
@@ -25,10 +26,8 @@ namespace Actor {
         rotation = 0.0f;
         playerPort = port;
         
-        // Initialize weapon properties
-        fireCooldown = 0.0f;
-        fireRate = 1.0f;              // Reduced to ~1 shots per second
-        projectileSpeed = 2.0f;
+        // Initialize weapon
+        weapon = new ProjectileWeapon();
         
         flags &= ~FLAG_DISABLED; // Clear the disabled flag to enable the actor
     }
@@ -36,6 +35,12 @@ namespace Actor {
     Player::~Player() {
         if (instance == this) {
             instance = nullptr; // Clear the instance pointer when destroyed
+        }
+        
+        // Clean up weapon
+        if (weapon) {
+            delete weapon;
+            weapon = nullptr;
         }
     }
     
@@ -72,17 +77,14 @@ namespace Actor {
             position.y = newY;
         }
         
-        // Update fire cooldown
-        if (fireCooldown > 0) {
-            fireCooldown -= deltaTime;
-            if (fireCooldown < 0) {
-                fireCooldown = 0;
-            }
+        // Update weapon
+        if (weapon) {
+            weapon->update(deltaTime);
         }
         
         // Check if A button is pressed for firing
         joypad_buttons_t pressed = joypad_get_buttons_pressed(playerPort);
-        if (pressed.a && fireCooldown <= 0) {
+        if (pressed.a) {
             fire();
         }
         
@@ -91,14 +93,11 @@ namespace Actor {
     }
     
     void Player::fire() {
-        // Reset cooldown
-        fireCooldown = fireRate;
-        
-        // Fire weapon in a fixed direction (upwards for now)
-        T3DVec3 direction = {{0.0f, 1.0f, 0.0f}};
-        
-        // Spawn projectile
-        Projectile::spawn(position, direction, projectileSpeed, 0.0f);
+        // Fire weapon if available
+        if (weapon) {
+            T3DVec3 direction = {{0.0f, 1.0f, 0.0f}};
+            weapon->fire(position, direction);
+        }
     }
     
     void Player::draw3D(float deltaTime) {
@@ -150,9 +149,17 @@ namespace Actor {
             (float[]){position.x + rx2, position.y + ry2, 0.0f},
             (float[]){position.x + rx3, position.y + ry3, 0.0f}
         );
+        
+        // Draw weapon projectiles
+        if (weapon) {
+            weapon->draw3D(deltaTime);
+        }
     }
     
     void Player::drawPTX(float deltaTime) {
-        // No particle effects for now
+        // Draw weapon particle effects
+        if (weapon) {
+            weapon->drawPTX(deltaTime);
+        }
     }
 }

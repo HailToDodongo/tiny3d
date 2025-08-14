@@ -1,4 +1,5 @@
 # QWEN.md - Context for Tiny3D and Last64_Bloom
+You have no permission to build, make, run. I will do that manually! Dont ask to build!
 
 This file provides an overview of the Tiny3D project and the user's personal project, Last64_Bloom, for use as context in future interactions, particularly with AI assistants.
 
@@ -146,3 +147,6 @@ The compiled ROM for Last64_Bloom will be in the `last64_bloom/build/` directory
     *   `last64_bloom/Readme.md`: Details the implementation of the custom HDR and Bloom post-processing effects used in the project.
 
 *(This file was generated based on an analysis of the project structure and key files on Wednesday, 13 August 2025.)*
+
+
+**You have no permission to build, make, run. I will do that manually! Dont ask to build!.**

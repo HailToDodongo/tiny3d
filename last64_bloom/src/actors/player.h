@@ -5,6 +5,7 @@
 #pragma once
 #include "../actors/base.h"
 #include "../actors/projectile.h"
+#include "../actors/weapon.h"
 #include <t3d/t3d.h>
 #include <libdragon.h>
 
@@ -16,12 +17,10 @@ namespace Actor {
         T3DVec3 velocity;
         float speed;
         float rotation;
-        
-        // Weapon properties
-        float fireCooldown;
-        float fireRate;
-        float projectileSpeed;
         joypad_port_t playerPort; // To identify which controller this player uses
+        
+        // Weapon reference
+        Weapon* weapon;
         
     public:
         Player(T3DVec3 startPos, joypad_port_t port);
@@ -36,5 +35,7 @@ namespace Actor {
         
         // Weapon methods
         void fire();
+        Weapon* getWeapon() const { return weapon; }
+        void setWeapon(Weapon* newWeapon) { weapon = newWeapon; }
     };
 }

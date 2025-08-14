@@ -12,7 +12,7 @@ namespace {
   constexpr float SCREEN_LEFT = 0.0f;
   constexpr float SCREEN_RIGHT = 312.0f;
   constexpr float SCREEN_TOP = 0.0f;
-  constexpr float SCREEN_BOTTOM = 236.0f;
+  constexpr float SCREEN_BOTTOM = 232.0f;
   constexpr float SCREEN_WIDTH = SCREEN_RIGHT - SCREEN_LEFT;
   constexpr float SCREEN_HEIGHT = SCREEN_BOTTOM - SCREEN_TOP;
 }
@@ -45,14 +45,14 @@ SceneLast64::~SceneLast64()
 
 void SceneLast64::updateScene(float deltaTime)
 {
-    // Update players
+    // Update players (this will also update their weapons)
     player1->update(deltaTime);
     player2->update(deltaTime);
     
     // Update all enemies
     Actor::Enemy::updateAll(deltaTime);
     
-    // Update all projectiles
+    // Update all projectiles (this is now handled by the player's weapon)
     Actor::Projectile::updateAll(deltaTime);
     
     // Get player positions for enemy positioning
@@ -114,14 +114,14 @@ void SceneLast64::draw3D(float deltaTime)
     // Set draw flags properly
     t3d_state_set_drawflags((enum T3DDrawFlags)(T3D_FLAG_SHADED | T3D_FLAG_DEPTH));
 
-    // Draw players using the Player class
+    // Draw players using the Player class (this will also draw their weapons)
     player1->draw3D(deltaTime);
     player2->draw3D(deltaTime);
     
     // Draw all enemies
     Actor::Enemy::drawAll(deltaTime);
     
-    // Draw all projectiles
+    // Draw all projectiles (this is now handled by the player's weapon)
     Actor::Projectile::drawAll(deltaTime);
 }
 

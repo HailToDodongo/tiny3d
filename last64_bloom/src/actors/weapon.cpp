@@ -5,9 +5,6 @@
 #include "weapon.h"
 
 namespace Actor {
-    // Static member definition
-    Player* Weapon::player = nullptr;
-    
     Weapon::Weapon() : Base() {
         fireCooldown = 0.0f;
         fireRate = 0.1f;              // 1 shots per second
