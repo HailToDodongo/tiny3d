@@ -42,8 +42,8 @@ SceneLast64::SceneLast64()
 
     // Create player instances at different positions
     // All actors exist in 3D space now, with Z=0 for the playing field
-    T3DVec3 startPos1 = {{0.0f, 0.0f, 0.0f}};  // Center of screen
-    T3DVec3 startPos2 = {{20.0f, 0.0f, 0.0f}};  // Slightly to the right
+    T3DVec3 startPos1 = {{140.0f, 100.0f, 0.0f}};  // Center of screen
+    T3DVec3 startPos2 = {{160.0f, 100.0f, 0.0f}};  // Slightly to the right
     player1 = new Actor::Player(startPos1, JOYPAD_PORT_1);
     player2 = new Actor::Player(startPos2, JOYPAD_PORT_2);
     
@@ -90,7 +90,7 @@ void SceneLast64::updateScene(float deltaTime)
     // Spawn new enemies occasionally
     static float enemySpawnTimer = 0.0f;
     enemySpawnTimer += deltaTime;
-    if (enemySpawnTimer > 0.3f) { // Spawn an enemy every 0.3 seconds
+    if (enemySpawnTimer > 2.0f) { // Spawn an enemy every x seconds
         enemySpawnTimer = 0.0f;
         
         // Spawn a new enemy at a random edge of the screen

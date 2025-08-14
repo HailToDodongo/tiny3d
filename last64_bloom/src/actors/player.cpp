@@ -77,6 +77,17 @@ namespace Actor {
             initialize();
         }
         
+        // Allocate per-player vertices and matrix
+        playerVertices = (T3DVertPacked*)malloc_uncached(sizeof(T3DVertPacked) * 2);
+        playerMatrix = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
+        
+        // Copy shared vertices to player vertices
+        playerVertices[0] = sharedVertices[0];
+        playerVertices[1] = sharedVertices[1];
+        
+        // Initialize matrix
+        t3d_mat4fp_identity(playerMatrix);
+        
         position = startPos;
         velocity = {0, 0, 0};
         speed = 50.0f;
@@ -94,6 +105,17 @@ namespace Actor {
     }
     
     Player::~Player() {
+        // Clean up per-player vertices and matrix
+        if (playerVertices) {
+            free_uncached(playerVertices);
+            playerVertices = nullptr;
+        }
+        
+        if (playerMatrix) {
+            free_uncached(playerMatrix);
+            playerMatrix = nullptr;
+        }
+        
         // Clean up weapon
         if (weapon) {
             delete weapon;
@@ -153,9 +175,9 @@ namespace Actor {
         }
         
         // Update matrix
-        if (sharedMatrix) {
+        if (playerMatrix) {
             t3d_mat4fp_from_srt_euler(
-                sharedMatrix,
+                playerMatrix,
                 (T3DVec3){{1.0f, 1.0f, 1.0f}},  // scale
                 (T3DVec3){{0.0f, 0.0f, rotation}},  // rotation around Z axis
                 position                         // translation
@@ -167,16 +189,16 @@ namespace Actor {
     // Set up rendering state
     t3d_state_set_drawflags((enum T3DDrawFlags)(T3D_FLAG_SHADED | T3D_FLAG_DEPTH));
     
-    // Draw the player using the shared vertices and matrix
-    if (sharedMatrix && sharedVertices) {
+    // Draw the player using the player-specific vertices and matrix
+    if (playerMatrix && playerVertices) {
         // Update vertex colors for this specific player
-        sharedVertices[0].rgbaA = playerColor;
-        sharedVertices[0].rgbaB = playerColor;
-        sharedVertices[1].rgbaA = playerColor;
-        sharedVertices[1].rgbaB = playerColor;
+        playerVertices[0].rgbaA = playerColor;
+        playerVertices[0].rgbaB = playerColor;
+        playerVertices[1].rgbaA = playerColor;
+        playerVertices[1].rgbaB = playerColor;
         
-        t3d_matrix_push(sharedMatrix);
-        t3d_vert_load(sharedVertices, 0, 4); // Load 4 vertices (2 structures)
+        t3d_matrix_push(playerMatrix);
+        t3d_vert_load(playerVertices, 0, 4); // Load 4 vertices (2 structures)
         t3d_tri_draw(0, 1, 2); // Draw triangle with vertices 0, 1, 2
         t3d_tri_sync();
         t3d_matrix_pop(1);

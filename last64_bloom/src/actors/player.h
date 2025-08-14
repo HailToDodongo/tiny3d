@@ -16,6 +16,9 @@ namespace Actor {
         static T3DMat4FP* sharedMatrix;
         static bool initialized;
         
+        T3DVertPacked* playerVertices; // Per-player vertices
+        T3DMat4FP* playerMatrix; // Per-player matrix
+        
         T3DVec3 position;
         T3DVec3 velocity;
         float speed;
