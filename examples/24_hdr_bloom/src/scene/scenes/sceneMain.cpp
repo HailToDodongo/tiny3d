@@ -41,9 +41,9 @@ SceneMain::SceneMain()
   mapMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
 
   t3d_mat4fp_from_srt_euler(mapMatFP,
-    (float[3]){modelScale, modelScale, modelScale},
-    (float[3]){0,0,0},
-    (float[3]){0,0,0}
+    {modelScale, modelScale, modelScale},
+    {0,0,0},
+    {0,0,0}
   );
 
   for(auto &l : objLayers)l = {};
