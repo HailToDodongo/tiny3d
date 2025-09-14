@@ -44,6 +44,7 @@ $(BUILD_DIR)/libt3d.a: $(OBJ)
 	@echo "    [LD_LIB] $<"
 	$(N64_LD) -r -o $(BUILD_DIR)/libt3d.a $^
 
+$(BUILD_DIR)/libt3d.a: RSPASFLAGS+=$(N64_RSPASFLAGS)
 $(BUILD_DIR)/rsp/rsp_tiny3d.o: $(SOURCE_DIR)/rsp/rspq_triangle.inc
 $(BUILD_DIR)/rsp/rsp_tiny3d_clipping.o: $(SOURCE_DIR)/rsp/rspq_triangle.inc
 
@@ -94,12 +95,12 @@ $(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c
 	$(N64_CC) -c $(CFLAGS) $(N64_CFLAGS) -o $@ $<
 
 install: all
-	mkdir -p $(INSTALLDIR)/mips64-elf/include/t3d
+	mkdir -p $(INSTALLDIR)/$(N64_TARGET)/include/t3d
 	install -cv -m 0644 t3d-inst.mk $(INSTALLDIR)/include/t3d.mk
 	for file in $(inc); do \
-		install -Cv -m 0644 $$file $(INSTALLDIR)/mips64-elf/include/t3d; \
+		install -Cv -m 0644 $$file $(INSTALLDIR)/$(N64_TARGET)/include/t3d; \
 	done
-	install -Cv -m 0644 $(BUILD_DIR)/libt3d.a $(INSTALLDIR)/mips64-elf/lib
+	install -Cv -m 0644 $(BUILD_DIR)/libt3d.a $(INSTALLDIR)/$(N64_TARGET)/lib
 
 clean:
 	rm -rf $(BUILD_DIR)
