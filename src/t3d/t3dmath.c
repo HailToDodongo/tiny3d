@@ -240,13 +240,10 @@ void t3d_mat4_from_srt(T3DMat4 *mat, const float scale[3], const  float quat[4],
 
 void t3d_mat4_from_srt_euler(T3DMat4 *mat, const float scale[3], const float rot[3], const float translate[3])
 {
-  float cosR0 = fm_cosf(rot[0]);
-  float cosR2 = fm_cosf(rot[2]);
-  float cosR1 = fm_cosf(rot[1]);
-
-  float sinR0 = fm_sinf(rot[0]);
-  float sinR1 = fm_sinf(rot[1]);
-  float sinR2 = fm_sinf(rot[2]);
+  float sinR0, sinR1, sinR2, cosR0, cosR1, cosR2;
+  fm_sincosf(rot[0], &sinR0, &cosR0);
+  fm_sincosf(rot[1], &sinR1, &cosR1);
+  fm_sincosf(rot[2], &sinR2, &cosR2);
 
   *mat = (T3DMat4){{
     {scale[0] * cosR2 * cosR1, scale[0] * (cosR2 * sinR1 * sinR0 - sinR2 * cosR0), scale[0] * (cosR2 * sinR1 * cosR0 + sinR2 * sinR0), 0.0f},
@@ -290,10 +287,7 @@ void t3d_mat4fp_from_srt(T3DMat4FP *mat, const float scale[3], const float rotQu
 void t3d_mat4_rotate(T3DMat4 *mat, const T3DVec3* axis, float angleRad)
 {
   float s, c;
-  // @TODO: currently buggy in libdragon, use once fixed
-  // fm_sincosf(angleRad, &s, &c);
-  s = fm_sinf(angleRad);
-  c = fm_cosf(angleRad);
+  fm_sincosf(angleRad, &s, &c);
 
   float t = 1.0f - c;
 
