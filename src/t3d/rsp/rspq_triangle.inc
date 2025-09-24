@@ -293,7 +293,6 @@ RDPQ_Triangle_Send_Async:
     vsar vnz_i, COP2_ACC_HI;                    slv vl.e0,  12,s3
     vsar vnz_f, COP2_ACC_MD;                    ldv vhml.e2, 8,s3
 
-    .set at
 # emux_trace_stop
     #undef clip1
     #undef clip2
@@ -700,6 +699,8 @@ rdpq_triangle_change_buffer_done:
     #undef STORE_VTX1
     #undef STORE_VTX2
     #undef STORE_VTX3
+
+    .set at
 
     # Slow path: when the RDRAM buffer is full (we reached the sentinel),
     # we need to switch buffer. This is basicaly an inlined version of the same
