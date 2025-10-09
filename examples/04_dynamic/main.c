@@ -38,29 +38,50 @@ int main()
   T3DViewport viewport = t3d_viewport_create();
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
 
-  T3DMat4 modelMat;
-  t3d_mat4_identity(&modelMat);
-  t3d_mat4_scale(&modelMat, 0.12f, 0.12f, 0.12f);
-
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
-  t3d_mat4_to_fixed(modelMatFP, &modelMat);
+  t3d_mat4fp_from_srt_euler(modelMatFP,
+    (float[3]){0.12f, 0.12f, 0.12f},
+    (float[3]){0,0,0},
+    (float[3]){0,0,0}
+  );
 
   const T3DVec3 camTarget = {{0,0,0}};
   float camAngle = 0.0f;
-  T3DVec3 camVec = {{2.5f,1.5f,0.0f}};
-  t3d_vec3_norm(&camVec);
 
   uint8_t colorAmbient[4] = {0xF0, 0xF0, 0xF0, 0xFF};
 
   T3DModel *modelRoom = t3d_model_load("rom:/model.t3dm");
   T3DModel *modelLava = t3d_model_load("rom:/lava.t3dm");
 
+  // returns the global vertex buffer for a model.
+  // If you have multiple models and want to only update one, you have to manually iterate over the objects.
+  // see the implementation of t3d_model_draw_custom in that case.
+  T3DVertPacked* vertsLava = t3d_model_get_vertices(modelLava);
+  uint32_t byteSizeVertices = sizeof(T3DVertPacked) * modelLava->totalVertCount / 2;
+
+  // since the RSP runs in parallel to the CPU, we want to multi-buffer the vertices here.
+  // This avoids the case where the RSP may read values partially overwritten by the CPU for the next frame.
+  // So allocate 2 extra copies of the vertices here...
+  T3DVertPacked* vertsBuff[3] = {vertsLava, malloc(byteSizeVertices), malloc(byteSizeVertices)};
+  // ...and fill the other buffers with the initial data
+  memcpy(vertsBuff[1], vertsLava, byteSizeVertices);
+  memcpy(vertsBuff[2], vertsLava, byteSizeVertices);
+
+  // the static room can be drawn normally
   rspq_block_begin();
-  t3d_model_draw(modelRoom);
+    t3d_model_draw(modelRoom);
   rspq_block_t *dplRoom = rspq_block_end();
 
+  // for the lava we want to grab the lava object...
+  auto objLava = t3d_model_get_object_by_index(modelLava, 0);
+  // ... and replace the actual vertex address with a placeholder (see 11_segments example for more on that)
+  // this means the address to vertices is replaced with a relative offset internally,
+  // and we need to set the absolute starting address later on before drawing.
+  t3d_model_make_object_vert_placeholder(modelLava, objLava, 1);
+
+  // after that we can still fully record the model as usual
   rspq_block_begin();
-  t3d_model_draw(modelLava);
+    t3d_model_draw(modelLava);
   rspq_block_t *dplLava = rspq_block_end();
 
   bool scrollEnabled = true;
@@ -68,10 +89,12 @@ int main()
 
   float tileOffset = 0.0f;
   float transformOffset = 0.0f;
+  int frameIdx = 0;
 
   for(;;)
   {
     // ======== Update ======== //
+    frameIdx = (frameIdx + 1) % 3;
     joypad_poll();
     joypad_buttons_t btn = joypad_get_buttons_pressed(JOYPAD_PORT_1);
     if(btn.a)scrollEnabled = !scrollEnabled;
@@ -89,12 +112,11 @@ int main()
     if(transformEnabled)
     {
       transformOffset += 0.0042f;
-
-      // returns the global vertex buffer for a model.
-      // If you have multiple models and want to only update one, you have to manually iterate over the objects.
-      // see the implementation of t3d_model_draw_custom in that case.
-      T3DVertPacked* verts = t3d_model_get_vertices(modelLava);
       float globalHeight = fm_sinf(transformOffset * 2.5f) * 30.0f;
+
+      // grab the next vertex buffer to modify, 'frameIdx' here cycles through the 3 buffers each frame.
+      // So while we modify 'frameIdx', the RSP can still safely draw 'frameIdx-1' and 'frameIdx-2'.
+      T3DVertPacked* verts = vertsBuff[frameIdx];
 
       for(uint16_t i=0; i < modelLava->totalVertCount; ++i)
       {
@@ -138,12 +160,17 @@ int main()
 
     t3d_matrix_push(modelMatFP);
 
-    // Draw lava:
     t3d_light_set_ambient((uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF});
+
+    // Draw lava, now we can set which vertex buffer to use.
+    // The segment (first arg) must be the same as the one chosen in t3d_model_make_object_placeholder above.
+    // Note that this id is global, so if you have multiple dynamic objects make sure to keep it unique,
+    // or set it between draws.
+    // Other draws (like the static room) that don't use placeholders are not affected by this.
+    t3d_segment_set(1, vertsBuff[frameIdx]);
 
     /**
      * To draw a dynamic mesh you can use a recorded block.
-     *
      * If you want to modify tile-settings however you have to use the custom draw function.
      * Since tile settings are baked into the display list, you can't change them afterwards.
      */

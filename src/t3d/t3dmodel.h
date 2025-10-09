@@ -321,6 +321,22 @@ static inline T3DVertPacked* t3d_model_get_vertices(const T3DModel *model) {
 }
 
 /**
+ * Modifies an object to replace absolute vertex addresses with relative addressing.
+ * This can be used for switching out vertex buffers for effects or dynamic meshes,
+ * while still being able to record a mesh.
+ *
+ * Internally this works by replacing the pointers with segments (see 't3d_segment_address').
+ * In order to draw anything, you have to point the segment to a vertex buffer before drawing.
+ *
+ * See the '04_dynamic' example for a full demo.
+ *
+ * @param model model containing the object
+ * @param object object to patch
+ * @param segmentId segment id to use (1-7)
+ */
+void t3d_model_make_object_vert_placeholder(const T3DModel *model, T3DObject *object, uint8_t segmentId);
+
+/**
  * Returns the first/main skeleton of a model.
  * If the model contains multiple skeletons, data must be manually traversed instead.
  *

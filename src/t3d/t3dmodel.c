@@ -292,6 +292,16 @@ void t3d_model_draw_custom(const T3DModel* model, T3DModelDrawConf conf)
   if(state.lastVertFXFunc != T3D_VERTEX_FX_NONE)t3d_state_set_vertex_fx(T3D_VERTEX_FX_NONE, 0, 0);
 }
 
+void t3d_model_make_object_vert_placeholder(const T3DModel *model, T3DObject *object, uint8_t segmentId)
+{
+  char* vertPtrBase = (char*)t3d_model_get_vertices(model);
+  for(uint32_t p = 0; p < object->numParts; p++) {
+    T3DObjectPart *part = &object->parts[p];
+    uint32_t ptrDiff = (uint32_t)part->vert - (uint32_t)vertPtrBase;
+    part->vert = (T3DVertPacked*)t3d_segment_address(segmentId, (void*)ptrDiff);
+  }
+}
+
 void t3d_model_draw_object(const T3DObject *object, const T3DMat4FP *boneMatrices)
 {
   bool hadMatrixPush = false;
