@@ -116,6 +116,15 @@ void t3d_anim_update(T3DAnim* anim, float deltaTime);
 void t3d_anim_set_time(T3DAnim* anim, float time);
 
 /**
+ * Returns the length of an animation in seconds.
+ * @param anim animation to get length for
+ * @return length in seconds
+ */
+static float t3d_anim_get_length(const T3DAnim* anim) {
+  return anim->animRef->duration;
+}
+
+/**
  * Sets the speed of the animation.
  * Note: reverse playback (speed < 0) is currently not supported.
  * @param anim animation to set speed for

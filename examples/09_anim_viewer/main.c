@@ -167,8 +167,8 @@ int main()
     md->animInst[activeAnim].speed += (float)joypad.stick_y * 0.0001f;
     if(md->animInst[activeAnim].speed < 0.0f)md->animInst[activeAnim].speed = 0.0f;
 
-    if(timeCursor < 0.0f)timeCursor = md->animInst[activeAnim].animRef->duration;
-    if(timeCursor > md->animInst[activeAnim].animRef->duration)timeCursor = 0.0f;
+    if(timeCursor < 0.0f)timeCursor = t3d_anim_get_length(&md->animInst[activeAnim]);
+    if(timeCursor > t3d_anim_get_length(&md->animInst[activeAnim]))timeCursor = 0.0f;
 
     float newTime = get_time_s();
     float deltaTime = newTime - lastTime;
