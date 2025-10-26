@@ -275,7 +275,7 @@ int main()
     rdpq_fill_rectangle(posX, posY, posX + barWidth, posY + barHeight);
 
     rdpq_set_fill_color(RGBA32(0xAA, 0xAA, 0xAA, 0xFF)); // progress bar
-    rdpq_fill_rectangle(posX, posY, posX + (md->animInst[activeAnim].time * timeScale), posY + barHeight);
+    rdpq_fill_rectangle(posX, posY, posX + (t3d_anim_get_time(&md->animInst[activeAnim]) * timeScale), posY + barHeight);
 
     rdpq_set_fill_color(RGBA32(0x55, 0x55, 0xFF, 0xFF)); // cursor
     rdpq_fill_rectangle(posX + (timeCursor * timeScale), posY-2, posX + (timeCursor * timeScale) + 2, posY + barHeight+2);
