@@ -290,20 +290,33 @@ void t3d_state_set_vertex_fx(enum T3DVertexFX func, int16_t arg0, int16_t arg1)
 {
   uint16_t rspFunc = RSP_T3D_CODE_VertexFX_None & 0xFFF;
   switch (func) {
+    case T3D_VERTEX_FX_NONE:
+      arg0 = 0;
+      arg1 = 0;
+    break;
     case T3D_VERTEX_FX_SPHERICAL_UV:
       arg0 *= 16;
       arg1 *= -16;
       rspFunc = RSP_T3D_CODE_VertexFX_Spherical & 0xFFF;
     break;
     case T3D_VERTEX_FX_CELSHADE_COLOR:
+      arg0 = 0;
+      arg1 = 0;
       rspFunc = RSP_T3D_CODE_VertexFX_CelShadeColor & 0xFFF;
     break;
     case T3D_VERTEX_FX_CELSHADE_ALPHA:
+      arg0 = 0;
+      arg1 = 0;
       rspFunc = RSP_T3D_CODE_VertexFX_CelShadeAlpha & 0xFFF;
     break;
     case T3D_VERTEX_FX_OUTLINE:
       arg1 = -arg1;
       rspFunc = RSP_T3D_CODE_VertexFX_Outline & 0xFFF;
+    case T3D_VERTEX_FX_UV_OFFSET:
+      // same as T3D_VERTEX_FX_NONE internally
+      // for legacy reasons keep the old one
+      break;
+
     break;
     default: break;
   }

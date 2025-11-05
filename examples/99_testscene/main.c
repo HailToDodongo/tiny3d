@@ -75,6 +75,7 @@ int main()
   float vertFxTime = 0;
   int vertFxFunc = T3D_VERTEX_FX_NONE;
   float colorExposure = 1.0f;
+  int16_t uvOffset[2] = {0,0};
 
   for(uint64_t frame = 0;; ++frame)
   {
@@ -103,6 +104,12 @@ int main()
       if(joypad.btn.z) {
         camRotX += (float)joypad.stick_x * camRotSpeed;
         camRotY += (float)joypad.stick_y * camRotSpeed;
+
+        if(joypad.btn.c_up)uvOffset[1] += 11;
+        if(joypad.btn.c_down)uvOffset[1] -= 11;
+        if(joypad.btn.c_left)uvOffset[0] += 11;
+        if(joypad.btn.c_right)uvOffset[0] -= 11;
+
       } else {
         camPos.v[0] += camDir.v[0] * (float)joypad.stick_y * camSpeed;
         camPos.v[1] += camDir.v[1] * (float)joypad.stick_y * camSpeed;
@@ -110,10 +117,10 @@ int main()
 
         camPos.v[0] += camDir.v[2] * (float)joypad.stick_x * -camSpeed;
         camPos.v[2] -= camDir.v[0] * (float)joypad.stick_x * -camSpeed;
-      }
 
-      if(joypad.btn.c_up)camPos.v[1] += camSpeed * 15.0f;
-      if(joypad.btn.c_down)camPos.v[1] -= camSpeed * 15.0f;
+        if(joypad.btn.c_up)camPos.v[1] += camSpeed * 15.0f;
+        if(joypad.btn.c_down)camPos.v[1] -= camSpeed * 15.0f;
+      }
 
       camTarget.v[0] = camPos.v[0] + camDir.v[0];
       camTarget.v[1] = camPos.v[1] + camDir.v[1];
@@ -154,8 +161,13 @@ int main()
     if(btn.l) {
       vertFxTime = 500.0f;
       vertFxFunc++;
-      if(vertFxFunc > T3D_VERTEX_FX_OUTLINE)vertFxFunc = T3D_VERTEX_FX_NONE;
+      if(vertFxFunc > T3D_VERTEX_FX_UV_OFFSET)vertFxFunc = T3D_VERTEX_FX_NONE;
+
       t3d_state_set_vertex_fx(vertFxFunc, 32, 32);
+    }
+
+    if(vertFxFunc == T3D_VERTEX_FX_UV_OFFSET) {
+      t3d_state_set_vertex_fx(T3D_VERTEX_FX_UV_OFFSET, uvOffset[0], uvOffset[1]);
     }
 
     rotAngle += 0.03f;
@@ -208,6 +220,11 @@ int main()
       t3d_debug_print_start();
       t3d_debug_printf(16, 16, "VertexFX: %ld", vertFxFunc);
       t3d_debug_printf(16, 32, "Exposure: %.2f", colorExposure);
+    }
+
+    if(vertFxFunc == T3D_VERTEX_FX_UV_OFFSET) {
+      t3d_debug_print_start();
+      t3d_debug_printf(16, 48, "UV Offset: %d %d", uvOffset[0], uvOffset[1]);
     }
 
     if(displayMetrics)

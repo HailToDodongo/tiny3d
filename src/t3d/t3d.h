@@ -78,6 +78,7 @@ enum T3DVertexFX {
   T3D_VERTEX_FX_CELSHADE_COLOR = 2,
   T3D_VERTEX_FX_CELSHADE_ALPHA = 3,
   T3D_VERTEX_FX_OUTLINE        = 4,
+  T3D_VERTEX_FX_UV_OFFSET      = 5,
 };
 
 /**
@@ -521,7 +522,7 @@ void t3d_state_set_alpha_to_tile(bool enable);
  * - T3D_VERTEX_FX_CELSHADE_COLOR: (no arguments)
  * - T3D_VERTEX_FX_CELSHADE_ALPHA: (no arguments)
  * - T3D_VERTEX_FX_OUTLINE       : pixel size X/Y
- *
+ * - T3D_VERTEX_FX_UV_OFFSET     : UV offset, same 10.5 format as vertex
  *
  * @param func vertex effect function
  * @param arg0 first argument

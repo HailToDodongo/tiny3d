@@ -18,6 +18,16 @@ macro mulMat4Vec8(
   out = mat3 +* vec.wwwwWWWW;
 }
 
+macro mulMat4Vec3(
+  vec32 mat0, vec32 mat1, vec32 mat2, vec32 mat3,
+  vec16 vec, vec32 out
+) {
+  out = mat0  * vec.xxxxXXXX;
+  out = mat1 +* vec.yyyyYYYY;
+  out = mat2 +* vec.zzzzZZZZ;
+  out = mat3 +* 1;
+}
+
 // 4D dot-product with two vectors at once, result is in 'res.x' and 'res.X'
 macro dotXYZW(vec32 res, vec32 a, vec32 b)
 {
