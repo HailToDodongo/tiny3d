@@ -555,7 +555,8 @@ function pointLight(
     // point lights need to be done in eye-space
     // since the usual matrix is MVP, we need to load the MV one
     loadCurrentMVMat(vertPos, mat1, ptPos, lightVertDot);
-    mulMat4Vec8(vertPos, mat1, ptPos, lightVertDot, pos, vertPos);
+
+    mulMat4Vec3(vertPos, mat1, ptPos, lightVertDot, pos, vertPos);
     vertPos >>= 4;
     mvMatrixLoaded = 1;
   }

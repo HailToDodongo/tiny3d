@@ -445,86 +445,86 @@ VertexFX_Outline:
 #endif
 
 pointLight:
-  bne $t9, $zero, LABEL_pointLight_0001
-  lhu $t7, 14($s3)
-  ori $at, $zero, %lo(MATRIX_MV)
-  ldv $v27, 0, 0, $at
-  ldv $v28, 0, 8, $at
-  ldv $v26, 0, 24, $at
-  ldv $v28, 8, 8, $at
-  ldv $v25, 0, 16, $at
-  ldv $v27, 8, 0, $at
-  ldv $v25, 8, 16, $at
-  ldv $v21, 0, 48, $at
-  vmudn $v28, $v28, $v08.h0
-  ldv $v26, 8, 24, $at
-  ldv $v24, 0, 40, $at
-  ldv $v24, 8, 40, $at
-  ldv $v23, 0, 32, $at
-  vmadh $v27, $v27, $v08.h0
-  ldv $v23, 8, 32, $at
-  vmadn $v28, $v26, $v08.h1
-  ldv $v22, 0, 56, $at
-  ldv $v22, 8, 56, $at
-  vmadh $v27, $v25, $v08.h1
-  ldv $v21, 8, 48, $at
-  vmadn $v28, $v24, $v08.h2
-  addiu $t9, $zero, 1
-  vmadh $v27, $v23, $v08.h2
-  vmadn $v28, $v22, $v08.h3
-  vmadh $v27, $v21, $v08.h3
-  vmudl $v28, $v28, $v31.e3
-  vmadm $v27, $v27, $v31.e3
-  vmadn $v28, $v00, $v00
-  LABEL_pointLight_0001:
-  ldv $v23, 0, 8, $s3
-  ldv $v23, 8, 8, $s3
-  vmudm $v23, $v23, $v31.e7
-  vmadn $v24, $v00, $v00
-  andi $t7, $t7, 32767
-  vsubc $v24, $v24, $v28.v
-  sll $t7, $t7, 13
-  srl $at, $t7, 16
-  vsub $v23, $v23, $v27.v
-  vmudl $v29, $v24, $v24.v
-  vmadm $v29, $v23, $v24.v
-  vmadn $v22, $v24, $v23.v
-  vmadh $v21, $v23, $v23.v
-  vaddc $v26, $v22, $v22.h1
-  vadd $v25, $v21, $v21.h1
-  vaddc $v22, $v22, $v26.h2
-  vadd $v21, $v21, $v25.h2
-  vrsqh $v21.e0, $v21.e0
-  vrsql $v22.e0, $v22.e0
-  vrsqh $v21.e0, $v21.e4
-  mtc2 $at, $v25.e3
-  vrsql $v22.e4, $v22.e4
-  mtc2 $t7, $v26.e3
-  vrsqh $v21.e4, $v00.e0
-  lbu $t7, 14($s3)
-  vmudl $v29, $v22, $v26.e3
-  sra $t7, $t7, 7
-  vmadm $v29, $v21, $v26.e3
-  vmadn $v29, $v22, $v25.e3
-  bne $t7, $zero, LABEL_pointLight_0002
-  vmadh $v01, $v21, $v25.e3
-  vmudn $v22, $v22, $v31.e7
-  vmadh $v21, $v21, $v31.e7
-  vmulf $v01, $v01, $v01.v
-  vmudl $v29, $v24, $v22.h0
-  vmadm $v29, $v23, $v22.h0
-  vmadn $v29, $v24, $v21.h0
-  vmadh $v08, $v23, $v21.h0
-  vmulf $v08, $v08, $v01.h0
+  bne $t9, $zero, LABEL_pointLight_000C              ## L:683  |      ^ | if(!mvMatrixLoaded) {
+  lhu $t7, 14($s3)                                   ## L:682  |     *3 | lightSize:u16 = load(ptrLight, 14);
+  ori $at, $zero, %lo(MATRIX_MV)                     ## L:260  |      4 | mat0 = load(MATRIX_MV, 0x00).xyzwxyzw;
+  ldv $v26, 0, 24, $at                               ## L:261  |      5 | mat1 = load(MATRIX_MV, 0x10).xyzwxyzw;
+  ldv $v26, 8, 24, $at                               ## L:261  |      6 | mat1 = load(MATRIX_MV, 0x10).xyzwxyzw;
+  ldv $v27, 0, 0, $at                                ## L:260  |      7 | mat0 = load(MATRIX_MV, 0x00).xyzwxyzw;
+  ldv $v28, 0, 8, $at                                ## L:260  |      8 | mat0 = load(MATRIX_MV, 0x00).xyzwxyzw;
+  ldv $v23, 0, 32, $at                               ## L:262  |      9 | mat2 = load(MATRIX_MV, 0x20).xyzwxyzw;
+  ldv $v24, 0, 40, $at                               ## L:262  |     10 | mat2 = load(MATRIX_MV, 0x20).xyzwxyzw;
+  ldv $v28, 8, 8, $at                                ## L:260  |     11 | mat0 = load(MATRIX_MV, 0x00).xyzwxyzw;
+  ldv $v27, 8, 0, $at                                ## L:260  |     12 | mat0 = load(MATRIX_MV, 0x00).xyzwxyzw;
+  ldv $v21, 0, 48, $at                               ## L:263  |     13 | mat3 = load(MATRIX_MV, 0x30).xyzwxyzw;
+  ldv $v24, 8, 40, $at                               ## L:262  |     14 | mat2 = load(MATRIX_MV, 0x20).xyzwxyzw;
+  ldv $v25, 0, 16, $at                               ## L:261  |     15 | mat1 = load(MATRIX_MV, 0x10).xyzwxyzw;
+  vmudn $v28, $v28, $v08.h0                          ## L:212  |      ^ | out = mat0  * vec.xxxxXXXX;
+  ldv $v25, 8, 16, $at                               ## L:261  |     16 | mat1 = load(MATRIX_MV, 0x10).xyzwxyzw;
+  ldv $v23, 8, 32, $at                               ## L:262  |     17 | mat2 = load(MATRIX_MV, 0x20).xyzwxyzw;
+  ldv $v22, 0, 56, $at                               ## L:263  |     18 | mat3 = load(MATRIX_MV, 0x30).xyzwxyzw;
+  vmadh $v27, $v27, $v08.h0                          ## L:212  |      ^ | out = mat0  * vec.xxxxXXXX;
+  ldv $v22, 8, 56, $at                               ## L:263  |     19 | mat3 = load(MATRIX_MV, 0x30).xyzwxyzw;
+  vmadn $v28, $v26, $v08.h1                          ## L:213  |      ^ | out = mat1 +* vec.yyyyYYYY;
+  ldv $v21, 8, 48, $at                               ## L:263  |     20 | mat3 = load(MATRIX_MV, 0x30).xyzwxyzw;
+  vmadh $v27, $v25, $v08.h1                          ## L:213  |      ^ | out = mat1 +* vec.yyyyYYYY;
+  vmadn $v28, $v24, $v08.h2                          ## L:214  |     21 | out = mat2 +* vec.zzzzZZZZ;
+  vmadh $v27, $v23, $v08.h2                          ## L:214  |     22 | out = mat2 +* vec.zzzzZZZZ;
+  vmadn $v28, $v22, $v30.e7                          ## L:215  |     23 | out = mat3 +* 1;
+  vmadh $v27, $v21, $v30.e7                          ## L:215  |     24 | out = mat3 +* 1;
+  vmudl $v28, $v28, $v31.e3                          ## L:689  |   **27 | vertPos >>= 4;
+  vmadm $v27, $v27, $v31.e3                          ## L:689  |     28 | vertPos >>= 4;
+  addiu $t9, $zero, 1                                ## L:690  |      ^ | mvMatrixLoaded = 1;
+  vmadn $v28, $v00, $v00                             ## L:689  |     29 | vertPos >>= 4;
+  LABEL_pointLight_000C:
+  ldv $v23, 0, 8, $s3                                ## L:697  |      ^ | ptPos:sint.xyzw = load(ptrLight, 8).xyzw;
+  ldv $v23, 8, 8, $s3                                ## L:698  |     30 | ptPos:sint.XYZW = load(ptrLight, 8).xyzw;
+  andi $t7, $t7, 32767                               ## L:693  |  ***34 | lightSize &= 0x7FFF;
+  vmudm $v23, $v23, $v31.e7                          ## L:700  |      ^ | ptPos = ptPos:sint >> 8;
+  vmadn $v24, $v00, $v00                             ## L:700  |     35 | ptPos = ptPos:sint >> 8;
+  sll $t7, $t7, 13                                   ## L:694  |      ^ | lightSize <<= 13;
+  vsubc $v24, $v24, $v28.v                           ## L:701  |  ***39 | ptPos = ptPos - vertPos;
+  vsub $v23, $v23, $v27.v                            ## L:701  |     40 | ptPos = ptPos - vertPos;
+  vmudl $v29, $v24, $v24.v                           ## L:704  |   **43 | lightVertDot = ptPos * ptPos;
+  vmadm $v29, $v23, $v24.v                           ## L:704  |     44 | lightVertDot = ptPos * ptPos;
+  vmadn $v22, $v24, $v23.v                           ## L:704  |     45 | lightVertDot = ptPos * ptPos;
+  vmadh $v21, $v23, $v23.v                           ## L:704  |     46 | lightVertDot = ptPos * ptPos;
+  vaddc $v26, $v22, $v22.h1                          ## L:705  |   **49 | mat1         = lightVertDot + lightVertDot.yyyyYYYY;
+  vadd $v25, $v21, $v21.h1                           ## L:705  |     50 | mat1         = lightVertDot + lightVertDot.yyyyYYYY;
+  vaddc $v22, $v22, $v26.h2                          ## L:706  |   **53 | lightVertDot = lightVertDot + mat1.zzzzZZZZ;
+  mtc2 $t7, $v26.e3                                  ## L:708  |      ^ | mat1.w = lightSize;
+  vadd $v21, $v21, $v25.h2                           ## L:706  |     54 | lightVertDot = lightVertDot + mat1.zzzzZZZZ;
+  srl $at, $t7, 16                                   ## L:708  |      ^ | mat1.w = lightSize;
+  vrsqh $v21.e0, $v21.e0                             ## L:714  |  ***58 | lightVertDot.x = invert_half_sqrt(lightVertDot).x;
+  lbu $t7, 14($s3)                                   ## L:710  |      ^ | lightSize:u8 = load(ptrLight, 14);
+  vrsql $v22.e0, $v22.e0                             ## L:714  |     59 | lightVertDot.x = invert_half_sqrt(lightVertDot).x;
+  mtc2 $at, $v25.e3                                  ## L:708  |      ^ | mat1.w = lightSize;
+  sra $t7, $t7, 7                                    ## L:711  |   **62 | lightSize >>= 7;
+  vrsqh $v21.e0, $v21.e4                             ## L:715  |      ^ | lightVertDot.X = invert_half_sqrt(lightVertDot).X;
+  vrsql $v22.e4, $v22.e4                             ## L:715  |     63 | lightVertDot.X = invert_half_sqrt(lightVertDot).X;
+  vrsqh $v21.e4, $v00.e0                             ## L:715  |     64 | lightVertDot.X = invert_half_sqrt(lightVertDot).X;
+  vmudl $v29, $v22, $v26.e3                          ## L:716  |   **67 | lightRes = lightVertDot * mat1.w;
+  vmadm $v29, $v21, $v26.e3                          ## L:716  |     68 | lightRes = lightVertDot * mat1.w;
+  vmadn $v29, $v22, $v25.e3                          ## L:716  |     69 | lightRes = lightVertDot * mat1.w;
+  bne $t7, $zero, LABEL_pointLight_000D              ## L:718  |      ^ | if(!lightSize) {
+  vmadh $v01, $v21, $v25.e3                          ## L:716  |    *71 | lightRes = lightVertDot * mat1.w;
+  vmudn $v22, $v22, $v31.e7                          ## L:721  |     72 | lightVertDot *= 256;
+  vmadh $v21, $v21, $v31.e7                          ## L:721  |     73 | lightVertDot *= 256;
+  vmulf $v01, $v01, $v01.v                           ## L:723  |    *75 | lightRes:sfract *= lightRes:sfract;
+  vmudl $v29, $v24, $v22.h0                          ## L:725  |     76 | pos:sint = ptPos * lightVertDot.xxxxXXXX;
+  vmadm $v29, $v23, $v22.h0                          ## L:725  |     77 | pos:sint = ptPos * lightVertDot.xxxxXXXX;
+  vmadn $v29, $v24, $v21.h0                          ## L:725  |     78 | pos:sint = ptPos * lightVertDot.xxxxXXXX;
+  vmadh $v08, $v23, $v21.h0                          ## L:725  |     79 | pos:sint = ptPos * lightVertDot.xxxxXXXX;
+  vmulf $v08, $v08, $v01.h0                          ## L:726  |  ***83 | pos:sfract *= lightRes:sfract.xxxxXXXX;
   jr $ra
-  vmulf $v01, $v08, $v07.v
-  LABEL_pointLight_0002:
-  vmulf $v01, $v01, $v01.v
-  vmov $v01.e5, $v00.e0
-  vmov $v01.e1, $v00.e0
-  vmov $v01.e2, $v00.e0
-  jr $ra
-  vmov $v01.e6, $v00.e0
+  vmulf $v01, $v08, $v07.v                           ## L:729  |  ***87 | lightRes = pos:sfract * norm:sfract;
+  LABEL_pointLight_000D:
+  vmulf $v01, $v01, $v01.v                           ## L:732  |    *91 | lightRes:sfract *= lightRes:sfract;
+  vmov $v01.e5, $v00.e0                              ## L:734  |     92 | lightRes.Y = 0; lightRes.Z = 0;
+  vmov $v01.e6, $v00.e0                              ## L:734  |     93 | lightRes.Y = 0; lightRes.Z = 0;
+  vmov $v01.e2, $v00.e0                              ## L:733  |     94 | lightRes.y = 0; lightRes.z = 0;
+  jr $ra                                             ## L:735  |      ^ | }
+  vmov $v01.e1, $v00.e0                              ## L:733  |     95 | lightRes.y = 0; lightRes.z = 0;
 loadCurrentMVPMat:
   ori $at, $zero, %lo(MATRIX_MVP)
   ldv $v28, 8, 8, $at
