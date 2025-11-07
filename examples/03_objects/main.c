@@ -1,7 +1,8 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
 #include <t3d/t3dmodel.h>
-#include <t3d/t3ddebug.h>
+
+#define FB_COUNT 3
 
 /**
  * This shows how you can draw multiple objects (actors) in a scene.
@@ -14,6 +15,7 @@
 static float objTimeLast = 0.0f;
 static float objTime = 0.0f;
 static float baseSpeed = 1.0f;
+static int frameIdx = 0;
 
 // Holds our actor data, relevant for t3d is 'modelMat'.
 typedef struct {
@@ -35,9 +37,8 @@ Actor actor_create(uint32_t id, rspq_block_t *dpl)
     .rot = {0, 0, 0},
     .scale = {randScale, randScale, randScale},
     .dpl = dpl,
-    .modelMat = malloc_uncached(sizeof(T3DMat4FP)) // needed for t3d
+    .modelMat = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT)
   };
-  t3d_mat4fp_identity(actor.modelMat);
   return actor;
 }
 
@@ -57,11 +58,11 @@ void actor_update(Actor *actor) {
   actor->pos[2] = randDist * fm_cosf(objTime * 1.4f + randDist*randRot);
 
   // t3d lets you directly construct a fixed-point matrix from SRT
-  t3d_mat4fp_from_srt_euler(actor->modelMat, actor->scale, actor->rot, actor->pos);
+  t3d_mat4fp_from_srt_euler(&actor->modelMat[frameIdx], actor->scale, actor->rot, actor->pos);
 }
 
 void actor_draw(Actor *actor) {
-  t3d_matrix_set(actor->modelMat, true);
+  t3d_matrix_set(&actor->modelMat[frameIdx], true);
   rspq_block_run(actor->dpl);
 }
 
@@ -72,6 +73,7 @@ void actor_delete(Actor *actor) {
 float get_time_s()  { return (float)((double)get_ticks_ms() / 1000.0); }
 float get_time_ms() { return (float)((double)get_ticks_us() / 1000.0); }
 
+[[noreturn]]
 int main()
 {
 	debug_init_isviewer();
@@ -80,7 +82,7 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
 
   rdpq_init();
   joypad_init();
@@ -129,6 +131,8 @@ int main()
     if(joypad.btn.c_left)actorCount -= 10;
     if(joypad.btn.c_right)actorCount += 10;
     baseSpeed = joypad.stick_y / 80.0f + 1.2f;
+
+    frameIdx = (frameIdx + 1) % FB_COUNT;
 
     if(actorCount < 0)actorCount = 0;
     if(actorCount > ACTOR_COUNT)actorCount = ACTOR_COUNT;
@@ -184,8 +188,5 @@ int main()
 
     rdpq_detach_show();
   }
-
-  t3d_destroy();
-  return 0;
 }
 
