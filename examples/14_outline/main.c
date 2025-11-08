@@ -31,6 +31,7 @@ color_t get_rainbow_color(float s, float brightness) {
 }
 
 #define FONT_MAIN 2
+#define FB_COUNT 3
 
 int main()
 {
@@ -40,7 +41,7 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
 
   rdpq_init();
 
@@ -54,7 +55,7 @@ int main()
 
   joypad_init();
   t3d_init((T3DInitParams){});
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
   T3DVec3 camPos = {{0,10.0f,50.0f}};
   T3DVec3 camTarget = {{0,0,0}};
@@ -66,7 +67,7 @@ int main()
 
   // Thew model we want to draw is already smooth-shaded, and only contains a single mesh
   T3DModel *itemModel = t3d_model_load("rom:/potion.t3dm");
-  T3DMat4FP *itemMatFP = malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP *itemMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
 
   // Create a block for the regular model here...
   rspq_block_begin();
@@ -92,7 +93,6 @@ int main()
   rspq_block_t *dplTextbox = NULL;
 
   float rotAngle = 0.0f;
-  rspq_syncpoint_t syncPoint = 0;
   T3DVec3 currentPos = {{0,0,0}};
 
   float colorPos = 0.0f;
@@ -100,10 +100,12 @@ int main()
   float outlineSize = 16.0f;
 
   T3DVec3 targetPos = (T3DVec3){{0.0f, 7.0f, -4.0f}};
+  int frameIdx = 0;
 
   for(;;)
   {
     // ======== Update ======== //
+    frameIdx = (frameIdx + 1) % FB_COUNT;
     joypad_poll();
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
 
@@ -129,10 +131,8 @@ int main()
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 5.0f, 120.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
-    if(syncPoint)rspq_syncpoint_wait(syncPoint);
-
     float scale = 0.13f;
-    t3d_mat4fp_from_srt_euler(itemMatFP,
+    t3d_mat4fp_from_srt_euler(&itemMatFP[frameIdx],
       (float[3]){scale, scale, scale},
       (float[3]){0.0f, rotAngle*0.5f - 1.5f, 0.3f},
       currentPos.v
@@ -149,7 +149,7 @@ int main()
     t3d_light_set_ambient((uint8_t[4]){0xFF, 0xFF, 0xFF, 0xFF});
     t3d_light_set_count(0);
 
-    t3d_matrix_push(itemMatFP);
+    t3d_matrix_push(&itemMatFP[frameIdx]);
       rspq_block_run(itemDpl);
 
       if(outlineSize > 0.0f) {
@@ -164,8 +164,6 @@ int main()
       }
 
     t3d_matrix_pop(1);
-
-    syncPoint = rspq_syncpoint_new();
 
     // ======== 2D ======== //
     float posCenter = display_get_width() / 2;
