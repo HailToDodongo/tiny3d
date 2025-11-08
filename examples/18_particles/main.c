@@ -27,6 +27,8 @@
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 static const char* EXAMPLE_NAMES[] = {"Random", "Flame", "Grass"};
 
+#define FB_COUNT 3
+
 [[noreturn]]
 int main()
 {
@@ -36,7 +38,7 @@ int main()
   asset_init_compression(2);
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE);
 
   rdpq_init();
   //rdpq_debug_start();
@@ -78,7 +80,7 @@ int main()
   model->userBlock = rspq_block_end();
 
   T3DMat4FP *matFP = malloc_uncached(sizeof(T3DMat4FP));
-  T3DMat4FP *matPartFP = malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP *matPartFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
 
   t3d_mat4fp_from_srt_euler(matFP,
     (float[]){0.25f, 0.25f, 0.25f},
@@ -98,7 +100,7 @@ int main()
   T3DVec3 lightDirVec = {{0.0f, 0.0f, 1.0f}};
   t3d_vec3_norm(&lightDirVec);
 
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
   float partSizeX = 0.4f;
   float partSizeY = 0.9f;
 
@@ -108,10 +110,12 @@ int main()
   T3DVec3 particleRot = {{0, 0, 0}};
   float time = 0;
   bool needRebuild = true;
+  int frameIdx = 0;
 
   for(;;)
   {
     // ======== Update ======== //
+    frameIdx = (frameIdx + 1) % FB_COUNT;
     joypad_poll();
     float deltaTime = display_get_delta_time();
 
@@ -208,7 +212,7 @@ int main()
     }
     needRebuild = false;
 
-    t3d_mat4fp_from_srt_euler(matPartFP, particleMatScale.v, particleRot.v, particlePos.v);
+    t3d_mat4fp_from_srt_euler(&matPartFP[frameIdx], particleMatScale.v, particleRot.v, particlePos.v);
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(80.0f), 5.0f, 250.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
@@ -258,7 +262,7 @@ int main()
     // tpx also has the same matrix stack functions as t3d, Note that the stack itself is NOT shared
     // so any push/pop here will not affect t3d and vice versa.
     // Also make sure that the first stack operation you do after 'tpx_state_from_t3d' is a push and not a set.
-    tpx_matrix_push(matPartFP);
+    tpx_matrix_push(&matPartFP[frameIdx]);
     // While each particle has its own size, there is a global scaling factor that can be set.
     // This can only scale particles down, so the range is 0.0 - 1.0.
     tpx_state_set_scale(partSizeX, partSizeY);
