@@ -332,9 +332,11 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   ptrLightEnd += LIGHT_DIR_COLOR;
 
   // Note: also loads COLOR_EXPOSURE into .z, and 0 into .w
-  vec16 uvGenArgs = load(UV_GEN_PARAMS).xyzw;
-  uvGenArgs.XY = load(UV_GEN_PARAMS).xy;
+  vec16 uvGenArgs;
+  uvGenArgs.XYZW = load(UV_GEN_PARAMS).xyzw;
   uvGenArgs.W = load(SCREEN_UVGEN_SCALE).x;
+  uvGenArgs.xy = load(UV_GEN_PARAMS).xy;
+  uvGenArgs.zw = load(UV_GEN_PARAMS).xy;
 
   u8 fogStoreOffset = load(FOG_STORE_OFFSET);
   ptrBuffA -= TRI_SIZE_2; // move one back since it increments at the start of the loop
@@ -356,9 +358,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   vec16 pos = load(prt3d, 0x00);
   vec16 norm = normMask & pos.wwwwWWWW;
   norm *= normShift;
-
-  pos.w = load(CLIPPING_PLANES, 4).x; // loads "1"
-  pos.W = load(CLIPPING_PLANES, 4).x;
 
   // Process all vertices and apply transformation & lighting.
   // This always handles 2 vertices at once, most sitting in one register.
@@ -390,7 +389,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       norm         = matN2:sfract +* norm.zzzzZZZZ;
 
       // object-space to clip-space
-      mulMat4Vec8(mat0, mat1, mat2, mat3, pos, posClip);
+      mulMat4Vec3(mat0, mat1, mat2, mat3, pos, posClip);
 
       ptrLight = LIGHT_DIR_COLOR;
 
@@ -465,7 +464,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     posClip *= normScaleW:ufract;
 
     color >>= 7;
-    color:sint *= uvGenArgs:sint.z;
+    color:sint *= uvGenArgs:sint.Z;
 
     @Barrier("color-fog") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
     @Barrier("color-fog") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
@@ -524,13 +523,13 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     @Barrier("pos-cc") store(clipCodeB:u8, ptrBuffB, VTX_ATTR_CLIPFLAGS);
     @Barrier("pos-cc") store(rejCodesB:u8, ptrBuffB, VTX_ATTR_REJFLAGS);
 
+    uv += uvGenArgs;
+
     pos = load(prt3d, 0x20); // load next pos
     vec16 oldNorm = norm;
     norm = normMask & pos.wwwwWWWW;
     norm *= normShift;
 
-    pos.w = 1;
-    pos.W = 1;
     prt3d += 0x20;
 
     vertexFxFunc(); // handles the loop condition internally
@@ -556,7 +555,8 @@ function pointLight(
     // point lights need to be done in eye-space
     // since the usual matrix is MVP, we need to load the MV one
     loadCurrentMVMat(vertPos, mat1, ptPos, lightVertDot);
-    mulMat4Vec8(vertPos, mat1, ptPos, lightVertDot, pos, vertPos);
+
+    mulMat4Vec3(vertPos, mat1, ptPos, lightVertDot, pos, vertPos);
     vertPos >>= 4;
     mvMatrixLoaded = 1;
   }

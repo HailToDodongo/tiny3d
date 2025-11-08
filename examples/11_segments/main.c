@@ -37,7 +37,7 @@ int main()
   rdpq_init();
   t3d_init((T3DInitParams){});
 
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(display_get_num_buffers());
 
   // allocate a matrix per frame here, this can be done in a single buffer
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP) * display_get_num_buffers());

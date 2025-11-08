@@ -45,6 +45,8 @@ typedef struct {
 #define STYLE_GREY 2
 #define STYLE_GREEN 3
 
+#define FB_COUNT 3
+
 int main()
 {
   debug_init_isviewer();
@@ -53,7 +55,7 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 2, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
 
   rdpq_init();
   joypad_init();
@@ -66,9 +68,9 @@ int main()
   rdpq_font_style(fnt, STYLE_GREEN, &(rdpq_fontstyle_t){RGBA32(0x39, 0xBF, 0x1F, 0xFF)});
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, fnt);
 
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
-  T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
 
   T3DVec3 camPos = {{0,40.0f,40.0f}};
   T3DVec3 camTarget = {{0,30,0}};
@@ -87,7 +89,7 @@ int main()
   };
 
   for(int i = 0; i < MODEL_COUNT; i++) {
-    modelData[i].skel = t3d_skeleton_create(modelData[i].model);
+    modelData[i].skel = t3d_skeleton_create_buffered(modelData[i].model, FB_COUNT);
     modelData[i].skelBlend = t3d_skeleton_clone(&modelData[i].skel, false); // <- has no matrices
     modelData[i].animCount = t3d_model_get_animation_count(modelData[i].model);
     modelData[i].anims = malloc(modelData[i].animCount * sizeof(void*));
@@ -111,19 +113,15 @@ int main()
   float lastTime = get_time_s() - (1.0f / 60.0f);
   float blendFactor = 0.0f;
   float timeCursor = 0.5f;
-
-  rspq_syncpoint_t syncPoint = 0;
+  int frameIdx = 0;
 
   for(;;)
   {
     // ======== Update ======== //
+    frameIdx = (frameIdx + 1) % FB_COUNT;
     joypad_poll();
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
     joypad_buttons_t btn = joypad_get_buttons_pressed(JOYPAD_PORT_1);
-
-    const float SPEED_ROT = 0.0008f;
-    const float SPEED_MOVE = 0.008f;
-    const float SPEED_SCALE = 0.0003f;
 
     int lastAnim = activeAnim;
 
@@ -184,10 +182,9 @@ int main()
       t3d_skeleton_blend(&md->skel, &md->skelBlend, &md->skel, blendFactor);
     }
 
-    if(syncPoint)rspq_syncpoint_wait(syncPoint);
     t3d_skeleton_update(&md->skel);
 
-    t3d_mat4fp_from_srt_euler(modelMatFP,
+    t3d_mat4fp_from_srt_euler(&modelMatFP[frameIdx],
       (float[3]){md->scale, md->scale, md->scale},
       (float[3]){0.0f, 0, 0},
       (float[3]){25,2,0}
@@ -205,12 +202,11 @@ int main()
     t3d_light_set_directional(0, colorDir, &lightDirVec);
     t3d_light_set_count(1);
 
-    t3d_matrix_push(modelMatFP);
+    t3d_matrix_push(&modelMatFP[frameIdx]);
       rdpq_set_prim_color(RGBA32(255, 255, 255, 255));
+      t3d_skeleton_use(&md->skel);
       rspq_block_run(md->dplDraw);
     t3d_matrix_pop(1);
-
-    syncPoint = rspq_syncpoint_new();
 
     // ======== Draw (UI) ======== //
     float posX = 16;

@@ -16,6 +16,8 @@
 #define MODE_MIXED 2
 #define MODE_LIGHT 3
 
+#define FB_COUNT 3
+
 [[noreturn]]
 int main()
 {
@@ -25,13 +27,13 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
   rdpq_init();
   //rdpq_debug_start();
 
   joypad_init();
   t3d_init((T3DInitParams){});
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
   T3DModel *sceneA = t3d_model_load("rom://sceneA.t3dm");
   T3DModel *sceneB = t3d_model_load("rom://sceneB.t3dm");
@@ -40,7 +42,7 @@ int main()
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
 
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
-  T3DMat4FP* matLightFP = malloc_uncached(sizeof(T3DMat4FP) * 5);
+  T3DMat4FP* matLightFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
 
   t3d_mat4fp_from_srt_euler(modelMatFP,
     (float[]){0.1f, 0.1f, 0.1f},
@@ -76,12 +78,12 @@ int main()
   int currMode = MODE_MIXED;
   bool ignoreNormals = true;
   int ditherMode = 0;
-
-  rspq_syncpoint_t syncPoint = 0;
+  int frameIdx = 0;
 
   for(;;)
   {
     float deltaTime = display_get_delta_time();
+    frameIdx = (frameIdx + 1) % FB_COUNT;
 
     joypad_poll();
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
@@ -103,13 +105,11 @@ int main()
     lightPos.v[1] = fm_sinf(-time * 2.4f) * 15.0f + 24.0f;
     lightPos.v[2] = fm_cosf(time * 0.8f) * 44.0f;
 
-    t3d_mat4fp_from_srt_euler(matLightFP,
+    t3d_mat4fp_from_srt_euler(&matLightFP[frameIdx],
       (float[]){0.05f, 0.05f, 0.05f},
       (float[]){0.0f, rotAngle, 0.0f},
       (float[]){lightPos.v[0], lightPos.v[1], lightPos.v[2]}
     );
-
-    if(syncPoint)rspq_syncpoint_wait(syncPoint);
 
     camDist += joypad.cstick_y * 0.01f;
     angleHor = T3D_DEG_TO_RAD(60.0f) - joypad.stick_x * 0.0085f;
@@ -159,11 +159,10 @@ int main()
     if(currMode != MODE_CUTOUT)rspq_block_run(dplSceneA);
     if(currMode == MODE_CUTOUT || currMode == MODE_MIXED)rspq_block_run(dplSceneB);
 
-    t3d_matrix_set(matLightFP, true);
+    t3d_matrix_set(&matLightFP[frameIdx], true);
     rspq_block_run(dplLight);
 
     t3d_matrix_pop(1);
-    syncPoint = rspq_syncpoint_new();
 
     // ----------- DRAW (2D) ------------ //
     rdpq_sync_pipe();

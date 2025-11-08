@@ -3,6 +3,8 @@
 #include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 
+#define FB_COUNT 3
+
 typedef struct {
   color_t color;
   T3DVec3 dir;
@@ -25,15 +27,15 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS_DEDITHER);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS_DEDITHER);
 
   rdpq_init();
   t3d_init((T3DInitParams){});
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
   // Now allocate a fixed-point matrix, this is what t3d uses internally.
-  T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
-  T3DMat4FP* lightMatFP = malloc_uncached(sizeof(T3DMat4FP) * 4);
+  T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
+  T3DMat4FP* lightMatFP = malloc_uncached(sizeof(T3DMat4FP) * 4 * FB_COUNT);
 
   T3DVec3 camPos = {{40.0f,15.0f,0}};
   const T3DVec3 camTarget = {{0,0,0}};
@@ -57,21 +59,21 @@ int main()
   t3d_model_get_material(model, "unlit")->renderFlags |= T3D_FLAG_NO_LIGHT;
 
   rspq_block_begin();
-  t3d_matrix_push(modelMatFP);
-  t3d_model_draw(model);
-  t3d_matrix_pop(1);
+    t3d_model_draw(model);
   rspq_block_t *dplModel = rspq_block_end();
 
   rspq_block_begin();
-  t3d_model_draw(modelLight);
+    t3d_model_draw(modelLight);
   rspq_block_t *dplLight = rspq_block_end();
 
   float rotAngle = 0.0f;
   float lightCountTimer = 0.5f;
+  int frameIdx = 0;
 
   for(;;)
   {
     // ======== Update ======== //
+    frameIdx = (frameIdx + 1) % FB_COUNT;
     rotAngle += 0.02f;
     float modelScale = 0.08f;
     lightCountTimer += 0.003f;
@@ -80,7 +82,7 @@ int main()
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     // Model Matrix
-    t3d_mat4fp_from_srt_euler(modelMatFP,
+    t3d_mat4fp_from_srt_euler(&modelMatFP[frameIdx],
       (float[3]){modelScale, modelScale, modelScale},
       (float[3]){0.0f, rotAngle*0.2f, rotAngle},
       (float[3]){0,0,0}
@@ -99,7 +101,7 @@ int main()
         dirLights[i].dir.v[1] = 0.0f;
       }
 
-      t3d_mat4fp_from_srt_euler(&lightMatFP[i],
+      t3d_mat4fp_from_srt_euler(&lightMatFP[i + (frameIdx * 4)],
         (float[3]){0.02f, 0.02f, 0.02f},
         dirLights[i].dir.v,
         (float[3]){
@@ -131,14 +133,16 @@ int main()
     for(int i = 0; i < lightCount; i++) {
       t3d_light_set_directional(i, &dirLights[i].color.r, &dirLights[i].dir);
 
-      t3d_matrix_set(&lightMatFP[i], true);
+      t3d_matrix_set(&lightMatFP[i + (frameIdx * 4)], true);
 
       rdpq_set_prim_color(dirLights[i].color);
       rspq_block_run(dplLight);
     }
     t3d_matrix_pop(1);
 
+    t3d_matrix_push(&modelMatFP[frameIdx]);
     rspq_block_run(dplModel);
+    t3d_matrix_pop(1);
 
     rdpq_detach_show();
   }

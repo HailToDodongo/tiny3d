@@ -7,6 +7,8 @@
 
 #include "debug_overlay.h"
 
+#define FB_COUNT 3
+
 /**
  * Simple example with a spinning quad.
  * This shows how to manually generate geometry and draw it,
@@ -15,13 +17,19 @@
 int main()
 {
   profile_data.frame_count = 0;
-	//debug_init_isviewer();
-	debug_init_usblog();
+
+  // @TODO: game random slows down under different code.
+  // investigate what part of the shifting code/data is causing this
+  #if RSPQ_PROFILE == 1
+	  debug_init_isviewer();
+    debug_init_usblog();
+  #endif
+
 	asset_init_compression(2);
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
 
   rdpq_init();
   rspq_profile_start();
@@ -32,7 +40,7 @@ int main()
 
   joypad_init();
   t3d_init((T3DInitParams){});
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
   if(testClip) {
     viewport.guardBandScale = 1;
   }
@@ -75,6 +83,7 @@ int main()
   float vertFxTime = 0;
   int vertFxFunc = T3D_VERTEX_FX_NONE;
   float colorExposure = 1.0f;
+  int16_t uvOffset[2] = {0,0};
 
   for(uint64_t frame = 0;; ++frame)
   {
@@ -103,6 +112,12 @@ int main()
       if(joypad.btn.z) {
         camRotX += (float)joypad.stick_x * camRotSpeed;
         camRotY += (float)joypad.stick_y * camRotSpeed;
+
+        if(joypad.btn.c_up)uvOffset[1] += 11;
+        if(joypad.btn.c_down)uvOffset[1] -= 11;
+        if(joypad.btn.c_left)uvOffset[0] += 11;
+        if(joypad.btn.c_right)uvOffset[0] -= 11;
+
       } else {
         camPos.v[0] += camDir.v[0] * (float)joypad.stick_y * camSpeed;
         camPos.v[1] += camDir.v[1] * (float)joypad.stick_y * camSpeed;
@@ -110,10 +125,10 @@ int main()
 
         camPos.v[0] += camDir.v[2] * (float)joypad.stick_x * -camSpeed;
         camPos.v[2] -= camDir.v[0] * (float)joypad.stick_x * -camSpeed;
-      }
 
-      if(joypad.btn.c_up)camPos.v[1] += camSpeed * 15.0f;
-      if(joypad.btn.c_down)camPos.v[1] -= camSpeed * 15.0f;
+        if(joypad.btn.c_up)camPos.v[1] += camSpeed * 15.0f;
+        if(joypad.btn.c_down)camPos.v[1] -= camSpeed * 15.0f;
+      }
 
       camTarget.v[0] = camPos.v[0] + camDir.v[0];
       camTarget.v[1] = camPos.v[1] + camDir.v[1];
@@ -154,8 +169,13 @@ int main()
     if(btn.l) {
       vertFxTime = 500.0f;
       vertFxFunc++;
-      if(vertFxFunc > T3D_VERTEX_FX_OUTLINE)vertFxFunc = T3D_VERTEX_FX_NONE;
+      if(vertFxFunc > T3D_VERTEX_FX_UV_OFFSET)vertFxFunc = T3D_VERTEX_FX_NONE;
+
       t3d_state_set_vertex_fx(vertFxFunc, 32, 32);
+    }
+
+    if(vertFxFunc == T3D_VERTEX_FX_UV_OFFSET) {
+      t3d_state_set_vertex_fx(T3D_VERTEX_FX_UV_OFFSET, uvOffset[0], uvOffset[1]);
     }
 
     rotAngle += 0.03f;
@@ -208,6 +228,11 @@ int main()
       t3d_debug_print_start();
       t3d_debug_printf(16, 16, "VertexFX: %ld", vertFxFunc);
       t3d_debug_printf(16, 32, "Exposure: %.2f", colorExposure);
+    }
+
+    if(vertFxFunc == T3D_VERTEX_FX_UV_OFFSET) {
+      t3d_debug_print_start();
+      t3d_debug_printf(16, 48, "UV Offset: %d %d", uvOffset[0], uvOffset[1]);
     }
 
     if(displayMetrics)

@@ -10,11 +10,9 @@ Camera::Camera()
     rotX{1.544792654048f},
     rotY{3.05f}
 {
-  for(auto &vp : viewport) {
-    vp = t3d_viewport_create();;
-    vp.size[0] = SCREEN_WIDTH;
-    vp.size[1] = SCREEN_HEIGHT;
-  }
+  viewport = t3d_viewport_create_buffered(3);
+  viewport.size[0] = SCREEN_WIDTH;
+  viewport.size[1] = SCREEN_HEIGHT;
 }
 
 void Camera::update(float deltaTime) {
@@ -67,13 +65,10 @@ void Camera::update(float deltaTime) {
   target.v[1] = pos.v[1] + dir.v[1];
   target.v[2] = pos.v[2] + dir.v[2];
 
-  ++frameIdx;
-  frameIdx = frameIdx % 3;
-
-  t3d_viewport_set_projection(&viewport[frameIdx], T3D_DEG_TO_RAD(70.0f), 4.0f, 180.0f);
-  t3d_viewport_look_at(viewport[frameIdx], pos, target, {0,1,0});
+  t3d_viewport_set_projection(viewport, T3D_DEG_TO_RAD(70.0f), 4.0f, 180.0f);
+  t3d_viewport_look_at(viewport, pos, target, {0,1,0});
 }
 
 void Camera::attach() {
-  t3d_viewport_attach(&viewport[frameIdx]);
+  t3d_viewport_attach(viewport);
 }

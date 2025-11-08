@@ -2,7 +2,8 @@
 #include <t3d/t3d.h>
 #include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
-#include <t3d/t3ddebug.h>
+
+#define FB_COUNT 3
 
 /**
  * Showcase for dynamically transformed meshes.
@@ -29,16 +30,16 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
 
   rdpq_init();
   joypad_init();
 
   t3d_init((T3DInitParams){});
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
 
-  T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP)); // no need to buffer this matrix, since it never updates
   t3d_mat4fp_from_srt_euler(modelMatFP,
     (float[3]){0.12f, 0.12f, 0.12f},
     (float[3]){0,0,0},
@@ -201,6 +202,7 @@ int main()
     rdpq_detach_show();
   }
 
+  t3d_viewport_destroy(&viewport);
   t3d_destroy();
   return 0;
 }

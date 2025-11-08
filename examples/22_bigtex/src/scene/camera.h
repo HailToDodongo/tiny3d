@@ -8,7 +8,7 @@
 class Camera
 {
   private:
-    T3DViewport viewport[3]{};
+    T3DViewport viewport{};
 
     T3DVec3 pos{{0,0,0}};
     T3DVec3 target{{0,0,0}};
@@ -22,8 +22,6 @@ class Camera
 
     float targetRotX{rotX};
     float targetRotY{rotY};
-
-    int frameIdx{0};
 
   public:
     Camera();

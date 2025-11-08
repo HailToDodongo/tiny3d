@@ -20,6 +20,8 @@ color_t get_rainbow_color(float s) {
 #define STYLE_BTN_C 4
 #define STYLE_GREY 5
 
+#define FB_COUNT 3
+
 /**
  * Example showing how to load, instantiate and modify a skinned model.
  * This also includes using a bone-matrix to "attach" a model to it.
@@ -32,7 +34,7 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 2, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
 
   rdpq_init();
   joypad_init();
@@ -47,10 +49,10 @@ int main()
   rdpq_font_style(fnt, STYLE_GREY,  &(rdpq_fontstyle_t){RGBA32(0x66, 0x66, 0x66, 0xFF)});
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, fnt);
   
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
-  T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
-  T3DMat4FP* matrixBoxFP = malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
+  T3DMat4FP* matrixBoxFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
 
   T3DVec3 camPos = {{0,40.0f,40.0f}};
   T3DVec3 camTarget = {{0,30,0}};
@@ -66,7 +68,7 @@ int main()
 
   // This creates an instance of a skeleton which can then be modified.
   // The model itself stays untouched, and you can create as many instances as you want.
-  T3DSkeleton skel = t3d_skeleton_create(model);
+  T3DSkeleton skel = t3d_skeleton_create_buffered(model, FB_COUNT);
 
   rspq_block_begin();
   t3d_model_draw(modelBox);
@@ -85,13 +87,12 @@ int main()
   // Bones can be queried by name, the index should be cached for performance reasons.
   int attachedBone = t3d_skeleton_find_bone(&skel, "Top");
 
-  // Since we double buffer the screen, matrices could update mid-render.
-  // You can either double-buffer the skeleton matrices, or use a sync-point, in this example the latter is used.
-  rspq_syncpoint_t syncPoint = 0;
+  int frameIdx = 0;
 
   for(;;)
   {
     // ======== Update ======== //
+    frameIdx = (frameIdx + 1) % FB_COUNT;
     joypad_poll();
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
     joypad_buttons_t btn = joypad_get_buttons_pressed(JOYPAD_PORT_1);
@@ -144,17 +145,15 @@ int main()
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
-    // Before touching the skeleton matrices, we wait for the RSP to be done using it
-    if(syncPoint)rspq_syncpoint_wait(syncPoint);
     // This function updates any matrices that need re-calculating after scale/rot/pos changes
     t3d_skeleton_update(&skel);
 
-    t3d_mat4fp_from_srt_euler(modelMatFP,
+    t3d_mat4fp_from_srt_euler(&modelMatFP[frameIdx],
       (float[3]){0.45f, 0.45f, 0.45f},
       (float[3]){0.0f, rotAngle, 0},
       (float[3]){12,5,0}
     );
-    t3d_mat4fp_from_srt_euler(matrixBoxFP,
+    t3d_mat4fp_from_srt_euler(&matrixBoxFP[frameIdx],
       (float[3]){0.08f, 0.08f, 0.08f},
       (float[3]){colorTimer*1.5f,colorTimer*1.2f,colorTimer*1.7f},
       (float[3]){0,10,0}
@@ -173,20 +172,20 @@ int main()
     t3d_light_set_count(1);
 
     // Draw Chicken & Box
-    t3d_matrix_push(modelMatFP);
+    t3d_matrix_push(&modelMatFP[frameIdx]);
 
       rdpq_set_prim_color(get_rainbow_color(colorTimer));
+      t3d_skeleton_use(&skel);
       rspq_block_run(dplDraw); // skinned mesh is already recorded, use a normal draw here
       rdpq_set_prim_color(RGBA32(255, 255, 255, 255));
 
       if(attachedBone >= 0) {
         // to attach another model, simply use a bone form the skeleton:
         t3d_matrix_push(&skel.boneMatricesFP[attachedBone]);
-        t3d_matrix_push(matrixBoxFP); // apply local matrix of the model
+        t3d_matrix_push(&matrixBoxFP[frameIdx]); // apply local matrix of the model
           rspq_block_run(dplBox);
         t3d_matrix_pop(2);
       }
-      syncPoint = rspq_syncpoint_new(); // create a sync-point to let the CPU know we are done with using the matrices
 
     t3d_matrix_pop(1);
 

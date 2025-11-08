@@ -3,6 +3,8 @@
 #include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 
+#define FB_COUNT 3
+
 /**
  * Example project showcasing "flip-book" textures, aka. animated textures.
  * This uses a static model which includes both normal and dynamic textures.
@@ -35,7 +37,7 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
   float aspectRatio = (float)display_get_width() / (float)display_get_height();
 
   rdpq_init();
@@ -52,9 +54,9 @@ int main()
   };
 
   t3d_init((T3DInitParams){});
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
-  T3DMat4FP* mapMatFP = malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP* mapMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
   T3DVec3 camPos    = {{-84, 12, 0}};
   T3DVec3 camTarget = {{-82, 12,-10}};
 
@@ -67,7 +69,6 @@ int main()
   T3DModel *modelMap = t3d_model_load("rom:/map.t3dm");
 
   rspq_block_begin();
-    t3d_matrix_push(mapMatFP);
     // Draw the model with our callback now, this will embed the placeholder into it
     // (Remember to use the "Use Texture Reference" settings in fast64 to mark textures as dynamic)
     t3d_model_draw_custom(modelMap, (T3DModelDrawConf){
@@ -75,16 +76,16 @@ int main()
       .dynTextureCb = dynamic_tex_cb, // your callback (this pointer is only used for this call and is not saved)
       //.matrices = skeleton->boneMatricesFP // if this is a skinned mesh, set the bone matrices here too
     });
-    t3d_matrix_pop(1);
   rspq_block_t *dplMap = rspq_block_end();
 
   float lastTime = get_time_s() - (1.0f / 60.0f);
-  rspq_syncpoint_t syncPoint = 0;
   float rotY = 0.0f;
+  int frameIdx = 0;
 
   for(;;)
   {
     // ======== Update ======== //
+    frameIdx = (frameIdx + 1) % FB_COUNT;
     float newTime = get_time_s();
     float deltaTime = newTime - lastTime;
     lastTime = newTime;
@@ -111,9 +112,7 @@ int main()
     t3d_viewport_set_perspective(&viewport, T3D_DEG_TO_RAD(85.0f), aspectRatio, 10.0f, 150.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
-    if(syncPoint)rspq_syncpoint_wait(syncPoint); // wait for the RSP to process the previous frame
-
-    t3d_mat4fp_from_srt_euler(mapMatFP,
+    t3d_mat4fp_from_srt_euler(&mapMatFP[frameIdx],
       (float[3]){0.2f, 0.2f, 0.2f},
       (float[3]){0, rotY, 0},
       (float[3]){0, 0, 0}
@@ -138,9 +137,11 @@ int main()
 
     // before drawing the recorded model, set the texture placeholders to the actual textures...
     rdpq_set_lookup_address(1, spritesWarn[textureIndex]->data);
-    rspq_block_run(dplMap); // ...and then draw as usual
 
-    syncPoint = rspq_syncpoint_new();
+    t3d_matrix_push(&mapMatFP[frameIdx]);
+      rspq_block_run(dplMap); // ...and then draw as usual
+    t3d_matrix_pop(1);
+
     rdpq_detach_show();
   }
   return 0;

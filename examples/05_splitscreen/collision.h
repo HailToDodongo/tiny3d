@@ -9,14 +9,14 @@ typedef struct {
 } AABB;
 
 #define MAP_COLL_AABB_COUNT 3
-#define AABB_BORDER 5
+#define AABB_BORDER 50
 
 // 2D AABBs (top-down view) for the map
 // to avoid any custom map export shenanigans, we just hardcode the AABBs here
 static AABB mapColl[MAP_COLL_AABB_COUNT] = {
-  {{ -25-AABB_BORDER, -78-AABB_BORDER}, { 25+AABB_BORDER, 78+AABB_BORDER}},
-  {{-102-AABB_BORDER, -27-AABB_BORDER}, {-50+AABB_BORDER, 27+AABB_BORDER}},
-  {{  50-AABB_BORDER, -27-AABB_BORDER}, {102+AABB_BORDER, 27+AABB_BORDER}}
+  {{ -250-AABB_BORDER, -780-AABB_BORDER}, { 250+AABB_BORDER, 780+AABB_BORDER}},
+  {{-1020-AABB_BORDER, -270-AABB_BORDER}, {-500+AABB_BORDER, 270+AABB_BORDER}},
+  {{  500-AABB_BORDER, -270-AABB_BORDER}, {1020+AABB_BORDER, 270+AABB_BORDER}}
 };
 
 static void resolve_aabb_collision(AABB *aabb, T3DVec3 *pos) {

@@ -34,6 +34,9 @@ typedef struct {
     color_t color;
 } PointLight;
 
+#define FB_COUNT 3
+#define LIGHT_COUNT 5
+
 [[noreturn]]
 int main()
 {
@@ -43,13 +46,13 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE);
   rdpq_init();
   //rdpq_debug_start();
 
   joypad_init();
   t3d_init((T3DInitParams){});
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
   // Credits (CC0): https://kaylousberg.itch.io/kaykit-dungeon-remastered
   T3DModel *model = t3d_model_load("rom://scene.t3dm");
@@ -60,8 +63,8 @@ int main()
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
 
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
-  T3DMat4FP* cursorMatFP = malloc_uncached(sizeof(T3DMat4FP));
-  T3DMat4FP* matLightFP = malloc_uncached(sizeof(T3DMat4FP) * 5);
+  T3DMat4FP* cursorMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
+  T3DMat4FP* matLightFP = malloc_uncached(sizeof(T3DMat4FP) * LIGHT_COUNT * FB_COUNT);
 
   t3d_mat4fp_from_srt_euler(modelMatFP,
     (float[]){0.15f, 0.15f, 0.15f},
@@ -103,10 +106,11 @@ int main()
   bool isOrtho = true;
   bool dirLightOn = false;
   float textTimer = 7.0f;
-  rspq_syncpoint_t syncPoint = 0;
+  int frameIdx = 0;
 
   for(;;)
   {
+    frameIdx = (frameIdx + 1) % FB_COUNT;
     float deltaTime = display_get_delta_time();
     time += deltaTime;
     rotAngle += deltaTime * 1.25f;
@@ -151,8 +155,6 @@ int main()
     t3d_vec3_scale(&camPos, &camDir, 65.0f);
     t3d_vec3_add(&camPos, &camTargetCurr, &camPos);
 
-    if(syncPoint)rspq_syncpoint_wait(syncPoint);
-
     // flickering and wobble of the crystal in the center of the room
     pointLights[4].pos.v[1] = 24.0f + (sinf(time*2.0f) * 3.5f);
     pointLights[4].strength = 0.2f
@@ -163,19 +165,19 @@ int main()
 
     // cursor below selected point light
     float cursorScale = 0.075f + fm_sinf(rotAngle*6.0f)*0.005f;
-    t3d_mat4fp_from_srt_euler(cursorMatFP,
+    t3d_mat4fp_from_srt_euler(&cursorMatFP[frameIdx],
       (float[3]){cursorScale, cursorScale, cursorScale},
       (float[3]){0.0f, rotAngle*0.5f, 0.0f},
       (float[3]){camTarget.v[0], camTarget.v[1] + 0.5f, camTarget.v[2]}
     );
 
     // update matrix for lights (crystal balls)
-    for(int i=0; i<5; ++i)
+    for(int i=0; i<LIGHT_COUNT; ++i)
     {
       float scale = i == currLight ? 0.03f : 0.02f;
       if(i == 4)scale *= 5;
 
-      t3d_mat4fp_from_srt_euler(&matLightFP[i],
+      t3d_mat4fp_from_srt_euler(&matLightFP[i * FB_COUNT + frameIdx],
         (float[]){scale, scale, scale},
         (float[]){ fm_cosf(time * 2.0f), fm_sinf(time * 2.0f), fm_cosf(time * 2.0f)},
         (float[]){
@@ -235,18 +237,17 @@ int main()
     t3d_matrix_set(modelMatFP, true);
     rspq_block_run(dplDraw);
 
-    for(int i=0; i<5; ++i) {
+    for(int i=0; i<LIGHT_COUNT; ++i) {
       rdpq_set_prim_color(pointLights[i].strength <= 0.0001f ? lightColorOff : pointLights[i].color);
-      t3d_matrix_set(&matLightFP[i], true);
+      t3d_matrix_set(&matLightFP[i * FB_COUNT + frameIdx], true);
       rspq_block_run(dplLight);
     }
 
     rdpq_set_prim_color(pointLights[currLight].color);
-    t3d_matrix_set(cursorMatFP, true);
+    t3d_matrix_set(&cursorMatFP[frameIdx], true);
     rspq_block_run(dplCursor);
 
     t3d_matrix_pop(1);
-    syncPoint = rspq_syncpoint_new();
 
     // ----------- DRAW (2D) ------------ //
     if(textTimer > 0.0f) {

@@ -78,6 +78,7 @@ enum T3DVertexFX {
   T3D_VERTEX_FX_CELSHADE_COLOR = 2,
   T3D_VERTEX_FX_CELSHADE_ALPHA = 3,
   T3D_VERTEX_FX_OUTLINE        = 4,
+  T3D_VERTEX_FX_UV_OFFSET      = 5,
 };
 
 /**
@@ -87,8 +88,8 @@ enum T3DVertexFX {
  * Note: members considered private are prefixed with an underscore.
  */
 typedef struct {
-  T3DMat4FP _matCameraFP; // calculated from 'matCamera' by 't3d_viewport_look_at'
-  T3DMat4FP _matProjFP;   // calculated from 'matProj' by 't3d_viewport_set_projection'
+  T3DMat4FP _matCameraFP [[deprecated("Use t3d_viewport_set_view_matrix()")]];
+  T3DMat4FP _matProjFP [[deprecated("Use t3d_viewport_set_projection_matrix()")]];
 
   T3DMat4 matCamera; // view matrix, can be set via `t3d_viewport_look_at`
   T3DMat4 matProj;   // projection matrix, can be set via `t3d_viewport_set_projection`
@@ -103,6 +104,10 @@ typedef struct {
   int useRejection;   // use rejection instead of clipping, false by default
 
   float _normScaleW; // factor to normalize W in the ucode, set automatically
+
+  uint16_t _bufferCount; // amount of matrices / framebuffers
+  uint16_t _bufferIdx;   // current buffer index
+  T3DMat4FP *_matFP; // stores both camera and projection matrices
 } T3DViewport;
 
 /**
@@ -139,7 +144,11 @@ void t3d_screen_clear_depth();
 
 /**
  * Creates a viewport struct, this only creates a struct and doesn't change any setting.
- * Note: Nothing in this struct needs any cleanup/free.
+ * Most likely you want to update the camera and projection matrix over time,
+ * in which case you should use 't3d_viewport_create_buffered' instead.
+ *
+ * Once done, free the viewports internal data via 't3d_viewport_destroy'.
+ * (Note that for compatibility reasons, this is not strictly necessary unless buffered)
  *
  * @return struct with the documented default values
  */
@@ -150,7 +159,44 @@ inline static T3DViewport t3d_viewport_create() {
     .size = {(int32_t)display_get_width(), (int32_t)display_get_height()},
     .guardBandScale = 2,
     .useRejection = false,
+    ._bufferCount = 0,
+    ._matFP = NULL,
   };
+}
+
+/**
+ * Same as 't3d_viewport_create' but buffered.
+ * This will allow you to change matrices over time without running into race-conditions
+ * with the RSP.
+ *
+ * Once done, free the viewports internal data via 't3d_viewport_destroy'.
+ *
+ * @param count amount of buffered matrices (usually amount of framebuffers)
+ * @return struct with the documented default values
+ */
+inline static T3DViewport t3d_viewport_create_buffered(uint16_t count) {
+  T3DViewport vp = t3d_viewport_create();
+  vp._bufferCount = count;
+  vp._bufferIdx = 0;
+  vp._matFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP) * 2 * count);
+  return vp;
+}
+
+/**
+ * Destroys a viewport and frees allocated internal data.
+ *
+ * Note that since you still hold the struct itself, any further use of it is undefined behavior.
+ * To create a new viewport overwrite the struct with a new one from 't3d_viewport_create' instead.
+ *
+ * @param viewport viewport to destroy
+ */
+inline static void t3d_viewport_destroy(T3DViewport *viewport) {
+  if(viewport->_matFP) {
+    free_uncached(viewport->_matFP);
+    viewport->_matFP = NULL;
+    viewport->_bufferCount = 0;
+    viewport->_bufferIdx = 0;
+  }
 }
 
 /**
@@ -254,6 +300,16 @@ void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVe
  * @param mat new view matrix
  */
 void t3d_viewport_set_view_matrix(T3DViewport *viewport, const T3DMat4 *mat);
+
+/**
+ * Sets a new projection matrix for the given viewport.
+ * If you have a perspective or orthographic projection prefer using
+ * 't3d_viewport_set_projection' or 't3d_viewport_set_ortho'.
+ *
+ * @param viewport viewport to set for
+ * @param mat new projection matrix
+ */
+void t3d_viewport_set_projection_matrix(T3DViewport *viewport, const T3DMat4 *mat);
 
 /**
  * Calculates the view-space position of a given world-space position.
@@ -521,7 +577,7 @@ void t3d_state_set_alpha_to_tile(bool enable);
  * - T3D_VERTEX_FX_CELSHADE_COLOR: (no arguments)
  * - T3D_VERTEX_FX_CELSHADE_ALPHA: (no arguments)
  * - T3D_VERTEX_FX_OUTLINE       : pixel size X/Y
- *
+ * - T3D_VERTEX_FX_UV_OFFSET     : UV offset, same 10.5 format as vertex
  *
  * @param func vertex effect function
  * @param arg0 first argument

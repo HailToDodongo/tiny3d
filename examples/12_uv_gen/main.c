@@ -12,6 +12,8 @@
  * is mostly stuff that was shown in previous examples.
  */
 
+#define FB_COUNT 3
+
 typedef struct {
   T3DModel *model;
   rspq_block_t *dplModel;
@@ -29,14 +31,14 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
 
   rdpq_init();
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
 
   joypad_init();
   t3d_init((T3DInitParams){});
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
   T3DVec3 camPos = {{0,10.0f,50.0f}};
   T3DVec3 camTarget = {{0,0,0}};
@@ -80,22 +82,21 @@ int main()
   uint32_t modelCount = sizeof(models)/sizeof(models[0]);
 
   for(int i = 0; i < modelCount; i++) {
-    models[i].modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
+    models[i].modelMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
     rspq_block_begin();
-      t3d_matrix_push(models[i].modelMatFP);
       t3d_model_draw(models[i].model);
-      t3d_matrix_pop(1);
     models[i].dplModel = rspq_block_end();
   }
 
   uint32_t currModelIdx = 0;
   float rotAngle = 0.0f;
-  rspq_syncpoint_t syncPoint = 0;
   T3DVec3 currentPos = {{0,0,0}};
+  int frameIdx = 0;
 
   for(;;)
   {
     // ======== Update ======== //
+    frameIdx = (frameIdx + 1) % FB_COUNT;
     joypad_poll();
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
     joypad_buttons_t btn = joypad_get_buttons_pressed(JOYPAD_PORT_1);
@@ -122,8 +123,7 @@ int main()
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 4.0f, 160.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
-    if(syncPoint)rspq_syncpoint_wait(syncPoint);
-    t3d_mat4fp_from_srt_euler(model->modelMatFP,
+    t3d_mat4fp_from_srt_euler(&model->modelMatFP[frameIdx],
       (float[3]){model->scale, model->scale, model->scale},
       (float[3]){0.0f, rotAngle*0.8f - 1.5f, rotAngle*0.1f},
       currentPos.v
@@ -141,8 +141,10 @@ int main()
     t3d_light_set_count(0);
 
     rdpq_set_prim_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
-    rspq_block_run(model->dplModel);
-    syncPoint = rspq_syncpoint_new();
+
+    t3d_matrix_push(&model->modelMatFP[frameIdx]);
+      rspq_block_run(model->dplModel);
+    t3d_matrix_pop(1);
 
     // ======== 2D ======== //
     rdpq_sync_pipe();

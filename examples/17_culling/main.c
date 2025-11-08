@@ -5,6 +5,8 @@
 #include <t3d/t3ddebug.h>
 #include "debugDraw.h"
 
+#define FB_COUNT 3
+
 /**
  * Example showcasing an implementation of frustum culling,
  * using a few builtin helper functions in t3d.
@@ -20,7 +22,7 @@ int main()
 	asset_init_compression(2);
 
   dfs_init(DFS_DEFAULT_LOCATION);
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
 
   rdpq_init();
   t3d_debug_print_init();
@@ -28,7 +30,7 @@ int main()
 
   joypad_init();
   t3d_init((T3DInitParams){});
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
   #define MODEL_COUNT 2
   T3DModel *models[MODEL_COUNT] = {
@@ -41,7 +43,7 @@ int main()
     t3d_model_load("rom://platformer.t3dm")
   };
 
-  T3DMat4FP* modelMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP* modelMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
 
   T3DVec3 camPos = {{-60.0f, 70.0f, 20.f}};
   T3DVec3 camPosTarget = camPos;
@@ -70,10 +72,12 @@ int main()
     }
   }
 
+  int frameIdx = 0;
   uint64_t ticks = 0;
   for(uint32_t frame=1; ; ++frame)
   {
     int visibleObjects = 0, triCount = 0;
+    frameIdx = frame % FB_COUNT;
 
     joypad_poll();
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
@@ -130,7 +134,7 @@ int main()
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
     float modelScale = currentModel == 0 ? 0.5f : 0.15f;
-    t3d_mat4fp_from_srt_euler(modelMatFP,
+    t3d_mat4fp_from_srt_euler(&modelMatFP[frameIdx],
       (float[]){modelScale,modelScale,modelScale},
       (float[]){0,0,0},
       (float[]){0,0,0}
@@ -198,7 +202,7 @@ int main()
     t3d_light_set_ambient((uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF});
     t3d_light_set_count(0);
 
-    t3d_matrix_push(modelMatFP);
+    t3d_matrix_push(&modelMatFP[frameIdx]);
 
     // Now draw all objects that we determined to be visible
     // we still want to optimize materials, so we create a state here and draw them directly
