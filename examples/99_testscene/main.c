@@ -7,6 +7,8 @@
 
 #include "debug_overlay.h"
 
+#define FB_COUNT 3
+
 /**
  * Simple example with a spinning quad.
  * This shows how to manually generate geometry and draw it,
@@ -27,7 +29,7 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
 
   rdpq_init();
   rspq_profile_start();
@@ -38,7 +40,7 @@ int main()
 
   joypad_init();
   t3d_init((T3DInitParams){});
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
   if(testClip) {
     viewport.guardBandScale = 1;
   }
