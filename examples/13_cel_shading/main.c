@@ -25,6 +25,8 @@ typedef struct {
   bool hasOutline;
 } Model;
 
+#define FB_COUNT 3
+
 int main()
 {
 	debug_init_isviewer();
@@ -33,14 +35,14 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
 
   rdpq_init();
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
 
   joypad_init();
   t3d_init((T3DInitParams){});
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
   T3DVec3 camPos = {{0,10.0f,50.0f}};
   T3DVec3 camTarget = {{0,0,0}};
@@ -51,8 +53,8 @@ int main()
   t3d_vec3_norm(&lightDirVec2);
 
   T3DModel *arrowModel = t3d_model_load("rom:/arrow.t3dm");
-  T3DMat4FP *arrowMatFP = malloc_uncached(sizeof(T3DMat4FP));
-  T3DMat4FP *arrowMat2FP = malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP *arrowMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
+  T3DMat4FP *arrowMat2FP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
 
   Model models[] = {
     (Model){.model = t3d_model_load("rom:/pot.t3dm"), .scale = 0.12f,
@@ -136,7 +138,7 @@ int main()
       celShadeMat->vertexFxFunc = models[i].vertexFx;
     }
 
-    models[i].modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
+    models[i].modelMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
 
     rspq_block_begin();
       t3d_model_draw(models[i].model);
@@ -164,26 +166,19 @@ int main()
   }
 
   rspq_block_begin();
-    t3d_matrix_push(arrowMatFP);
     t3d_model_draw(arrowModel);
-    t3d_matrix_pop(1);
   rspq_block_t *dplArrow = rspq_block_end();
-
-  rspq_block_begin();
-    t3d_matrix_push(arrowMat2FP);
-    t3d_model_draw(arrowModel);
-    t3d_matrix_pop(1);
-  rspq_block_t *dplArrow2 = rspq_block_end();
 
   uint32_t currModelIdx = 0;
   float rotAngle = 0.0f;
-  rspq_syncpoint_t syncPoint = 0;
   T3DVec3 currentPos = {{0,0,0}};
   bool useTwoLights = false;
+  int frameIdx = 0;
 
   for(;;)
   {
     // ======== Update ======== //
+    frameIdx = (frameIdx + 1) % FB_COUNT;
     joypad_poll();
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
     joypad_buttons_t btn = joypad_get_buttons_pressed(JOYPAD_PORT_1);
@@ -209,9 +204,7 @@ int main()
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 5.0f, 120.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
-    if(syncPoint)rspq_syncpoint_wait(syncPoint);
-
-    t3d_mat4fp_from_srt_euler(model->modelMatFP,
+    t3d_mat4fp_from_srt_euler(&model->modelMatFP[frameIdx],
       (float[3]){model->scale, model->scale, model->scale},
       (float[3]){0.0f, rotAngle*0.5f - 1.5f, sinf(rotAngle*0.5f)*0.5f},
       currentPos.v
@@ -230,11 +223,11 @@ int main()
     T3DMat4 rotMat;
     t3d_mat4_rot_from_dir(&rotMat, &lightDirVec, &(T3DVec3){{0,1,0}});
     t3d_mat4_scale(&rotMat, 0.1f, 0.1f, 0.1f);
-    t3d_mat4_to_fixed(arrowMatFP, &rotMat);
+    t3d_mat4_to_fixed(&arrowMatFP[frameIdx], &rotMat);
 
     t3d_mat4_rot_from_dir(&rotMat, &lightDirVec2, &(T3DVec3){{0,1,0}});
     t3d_mat4_scale(&rotMat, 0.1f, 0.1f, 0.1f);
-    t3d_mat4_to_fixed(arrowMat2FP, &rotMat);
+    t3d_mat4_to_fixed(&arrowMat2FP[frameIdx], &rotMat);
 
     // ======== Draw ======== //
     rdpq_attach(display_get(), display_get_zbuf());
@@ -256,22 +249,24 @@ int main()
     t3d_light_set_count(useTwoLights ? 2 : 1);
 
     rdpq_set_prim_color(*(color_t*)model->colorDir);
+
+    t3d_matrix_push(&arrowMatFP[frameIdx]);
+
     rspq_block_run(dplArrow);
     if(useTwoLights) {
       rdpq_set_prim_color(*(color_t*)color2);
-      rspq_block_run(dplArrow2);
+      t3d_matrix_set(&arrowMat2FP[frameIdx], true);
+      rspq_block_run(dplArrow);
     }
 
     rdpq_set_prim_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
 
-    t3d_matrix_push(model->modelMatFP);
+    t3d_matrix_set(&model->modelMatFP[frameIdx], true);
     rspq_block_run(model->dplModel);
     if(model->dplOutline) {
       rspq_block_run(model->dplOutline);
     }
     t3d_matrix_pop(1);
-
-    syncPoint = rspq_syncpoint_new();
 
     // ======== 2D ======== //
     rdpq_sync_pipe();
