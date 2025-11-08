@@ -39,7 +39,6 @@ void t3d_init(T3DInitParams params)
 
   rspq_init();
   char* state = (char*)UncachedAddr(rspq_overlay_get_state(&rsp_tiny3d));
-  char* stateClipping = (char*)UncachedAddr(rspq_overlay_get_state(&rsp_tiny3d_clipping));
 
   // Allocate matrix stack and let the ucode know where it is
   matrixStack = malloc_uncached(sizeof(T3DMat4FP) * params.matrixStackSize);
@@ -478,15 +477,37 @@ void t3d_viewport_attach(T3DViewport *viewport) {
     guardBandScale, screenOffset, screenScale, depthAndWScale
   );
 
-  // update projection matrix
-  t3d_mat4_to_fixed(&viewport->_matProjFP, &viewport->matProj);
-  data_cache_hit_writeback(&viewport->_matProjFP, sizeof(T3DMat4FP));
-  t3d_matrix_set_proj(&viewport->_matProjFP);
+  if(viewport->_matFP)
+  {
+    viewport->_bufferIdx = (viewport->_bufferIdx + 1) % viewport->_bufferCount;
+    T3DMat4FP *matCam = &viewport->_matFP[viewport->_bufferIdx];
+    T3DMat4FP *matProj = &viewport->_matFP[viewport->_bufferIdx + viewport->_bufferCount];
 
-  // update camera matrix
-  t3d_mat4_to_fixed(&viewport->_matCameraFP, &viewport->matCamera);
-  data_cache_hit_writeback(&viewport->_matCameraFP, sizeof(T3DMat4FP));
-  t3d_matrix_set(&viewport->_matCameraFP, false);
+    t3d_mat4_to_fixed(matCam, &viewport->matProj);
+    t3d_matrix_set_proj(matCam);
+
+    t3d_mat4_to_fixed(matProj, &viewport->matCamera);
+    t3d_matrix_set(matProj, false);
+  } else
+  {
+    // DEPRECATED PATH, this is kept for backwards compatibility
+    // since some may set the matrices directly on the viewport struct
+
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
+    // update projection matrix
+      t3d_mat4_to_fixed(&viewport->_matProjFP, &viewport->matProj);
+      data_cache_hit_writeback(&viewport->_matProjFP, sizeof(T3DMat4FP));
+      t3d_matrix_set_proj(&viewport->_matProjFP);
+
+      // update camera matrix
+      t3d_mat4_to_fixed(&viewport->_matCameraFP, &viewport->matCamera);
+      data_cache_hit_writeback(&viewport->_matCameraFP, sizeof(T3DMat4FP));
+      t3d_matrix_set(&viewport->_matCameraFP, false);
+
+    #pragma GCC diagnostic pop
+  }
 }
 
 T3DViewport *t3d_viewport_get() {
@@ -520,6 +541,14 @@ void t3d_viewport_look_at(T3DViewport *viewport, const T3DVec3 *eye, const T3DVe
 
 void t3d_viewport_set_view_matrix(T3DViewport *viewport, const T3DMat4 *mat) {
   viewport->matCamera = *mat;
+
+  t3d_mat4_mul(&viewport->matCamProj, &viewport->matProj, &viewport->matCamera);
+  t3d_mat4_to_frustum(&viewport->viewFrustum, &viewport->matCamProj);
+  viewport->_isCamProjDirty = false;
+}
+
+void t3d_viewport_set_projection_matrix(T3DViewport *viewport, const T3DMat4 *mat) {
+  viewport->matProj = *mat;
 
   t3d_mat4_mul(&viewport->matCamProj, &viewport->matProj, &viewport->matCamera);
   t3d_mat4_to_frustum(&viewport->viewFrustum, &viewport->matCamProj);

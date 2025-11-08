@@ -29,12 +29,15 @@ int main()
   rdpq_init();
 
   t3d_init((T3DInitParams){});
-  T3DViewport viewport = t3d_viewport_create();
 
   // Now allocate a fixed-point matrix, this is what t3d uses internally.
   // Note: this gets DMA'd to the RSP, so it needs to be uncached.
   // If you can't allocate uncached memory, remember to flush the cache after writing to it instead.
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT); // allocate one matrix for each framebuffer
+
+  // Also create a buffered viewport to have a distinct matrix for each frame, avoiding corruptions if the CPU is too fast
+  // In an actual game make sure to free this viewport via 't3d_viewport_destroy' if no longer needed.
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
   const T3DVec3 camPos = {{0,10.0f,40.0f}};
   const T3DVec3 camTarget = {{0,0,0}};

@@ -31,7 +31,7 @@ int main()
 
   rdpq_init();
   t3d_init((T3DInitParams){});
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
   // Now allocate a fixed-point matrix, this is what t3d uses internally.
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);

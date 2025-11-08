@@ -51,7 +51,11 @@ int main()
 
   // Here we allocate multiple viewports to render to different parts of the screen
   // This isn't really any different to other examples, just that we have 3 of them now
-  T3DViewport viewports[PLAYER_COUNT] = {t3d_viewport_create(), t3d_viewport_create(), t3d_viewport_create()};
+  T3DViewport viewports[PLAYER_COUNT] = {
+    t3d_viewport_create_buffered(FB_COUNT),
+    t3d_viewport_create_buffered(FB_COUNT),
+    t3d_viewport_create_buffered(FB_COUNT),
+  };
   t3d_viewport_set_area(&viewports[0], 0,       0,       sizeX/2, sizeY/2);
   t3d_viewport_set_area(&viewports[1], sizeX/2, 0,       sizeX/2, sizeY/2);
   t3d_viewport_set_area(&viewports[2], 0,       sizeY/2, sizeX,   sizeY/2-2);
