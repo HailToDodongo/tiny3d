@@ -91,7 +91,6 @@ int main()
   rspq_block_t *dplMap = rspq_block_end();
 
   float lastTime = get_time_s() - (1.0f / 60.0f);
-  rspq_syncpoint_t syncPoint = 0;
 
   T3DVec3 moveDir = {{0,0,0}};
   T3DVec3 playerPos = {{0,0.15f,0}};
@@ -178,8 +177,6 @@ int main()
     // We now blend the walk animation with the idle/attack one
     t3d_skeleton_blend(&skel, &skel, &skelBlend, animBlend);
 
-    if(syncPoint)rspq_syncpoint_wait(syncPoint); // wait for the RSP to process the previous frame
-
     // Now recalc. the matrices, this will cause any model referencing them to use the new pose
     t3d_skeleton_update(&skel);
 
@@ -208,8 +205,6 @@ int main()
     t3d_matrix_push(&modelMatFP[frameIdx]);
       rspq_block_run(dplSnake);
     t3d_matrix_pop(1);
-
-    syncPoint = rspq_syncpoint_new();
 
     // ======== Draw (UI) ======== //
     float posX = 16;
