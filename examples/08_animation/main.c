@@ -4,12 +4,13 @@
 #include <t3d/t3dmodel.h>
 #include <t3d/t3dskeleton.h>
 #include <t3d/t3danim.h>
-#include <t3d/t3ddebug.h>
 
 /**
  * Example project showcasing the usage of the animation system.
  * This includes instancing animations, blending animations, and controlling playback.
  */
+
+#define FB_COUNT 3
 
 float get_time_s() {
   return (float)((double)get_ticks_us() / 1000000.0);
@@ -23,16 +24,17 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS);
 
   rdpq_init();
   joypad_init();
 
   t3d_init((T3DInitParams){});
   rdpq_text_register_font(FONT_BUILTIN_DEBUG_MONO, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO));
-  T3DViewport viewport = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
-  T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
+
   T3DMat4FP* mapMatFP = malloc_uncached(sizeof(T3DMat4FP));
   t3d_mat4fp_from_srt_euler(mapMatFP, (float[3]){0.3f, 0.3f, 0.3f}, (float[3]){0, 0, 0}, (float[3]){0, 0, -10});
 
@@ -53,7 +55,7 @@ int main()
 
   // First instantiate skeletons, they will be used to draw models in a specific pose
   // And serve as the target for animations to modify
-  T3DSkeleton skel = t3d_skeleton_create(model);
+  T3DSkeleton skel = t3d_skeleton_create_buffered(model, FB_COUNT);
   T3DSkeleton skelBlend = t3d_skeleton_clone(&skel, false); // optimized for blending, has no matrices
 
   // Now create animation instances (by name), the data in 'model' is fixed,
@@ -73,13 +75,12 @@ int main()
   t3d_anim_attach(&animAttack, &skel);
 
   rspq_block_begin();
-    t3d_matrix_push(modelMatFP);
     rdpq_set_prim_color(RGBA32(255, 255, 255, 255));
     t3d_model_draw_skinned(model, &skel); // as in the last example, draw skinned with the main skeleton
 
     rdpq_set_prim_color(RGBA32(0, 0, 0, 120));
     t3d_model_draw(modelShadow);
-    t3d_matrix_pop(1);
+
   rspq_block_t *dplSnake = rspq_block_end();
 
   rspq_block_begin();
@@ -99,10 +100,12 @@ int main()
   float currSpeed = 0.0f;
   float animBlend = 0.0f;
   bool isAttack = false;
+  int frameIdx = 0;
 
   for(;;)
   {
     // ======== Update ======== //
+    frameIdx = (frameIdx + 1) % FB_COUNT;
     joypad_poll();
 
     float newTime = get_time_s();
@@ -181,7 +184,7 @@ int main()
     t3d_skeleton_update(&skel);
 
     // Update player matrix
-    t3d_mat4fp_from_srt_euler(modelMatFP,
+    t3d_mat4fp_from_srt_euler(&modelMatFP[frameIdx],
       (float[3]){0.125f, 0.125f, 0.125f},
       (float[3]){0.0f, -rotY, 0},
       playerPos.v
@@ -200,7 +203,11 @@ int main()
     t3d_light_set_count(1);
 
     rspq_block_run(dplMap);
-    rspq_block_run(dplSnake);
+
+    t3d_skeleton_use(&skel);
+    t3d_matrix_push(&modelMatFP[frameIdx]);
+      rspq_block_run(dplSnake);
+    t3d_matrix_pop(1);
 
     syncPoint = rspq_syncpoint_new();
 
