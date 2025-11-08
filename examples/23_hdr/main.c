@@ -76,6 +76,8 @@ void exposure_set(void* framebuffer){
   if(exposure < 0) exposure = 0;
 }
 
+#define FB_COUNT 3
+
 [[noreturn]]
 int main()
 {
@@ -86,17 +88,14 @@ int main()
 
   dfs_init(DFS_DEFAULT_LOCATION);
 
-  display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS_DEDITHER);
+  display_init(RESOLUTION_320x240, DEPTH_16_BPP, FB_COUNT, GAMMA_NONE, FILTERS_RESAMPLE_ANTIALIAS_DEDITHER);
 
   rdpq_init();
   rspq_profile_start();
 
   joypad_init();
   t3d_init((T3DInitParams){});
-  T3DViewport viewport[3];
-  viewport[0] = t3d_viewport_create();
-  viewport[1] = t3d_viewport_create();
-  viewport[2] = t3d_viewport_create();
+  T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
   sprite_t *spriteLogo = sprite_load("rom:/logo.ia8.sprite");
   T3DModel *model = t3d_model_load("rom://arcvis_baked_282.t3dm");
@@ -120,8 +119,8 @@ int main()
   sky->color.fog =  RGBA32(0xFF,0xFF,0xFF,0xff);
   sky->color.clouds =  RGBA32(0x85,0x89,0xB7,0xff);
 
-  T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
-  T3DMat4FP* rotMatFP = malloc_uncached(sizeof(T3DMat4FP) * 3);
+  T3DMat4FP* modelMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
+  T3DMat4FP* rotMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
 
   float modelScale = 0.15f;
   t3d_mat4fp_from_srt_euler(modelMatFP,
@@ -165,15 +164,16 @@ int main()
 
   uint8_t colorAmbient[4] = {128, 128, 128, 0xFF};
 
+  [[maybe_unused]]
   bool requestDisplayMetrics = false;
+
   bool displayMetrics = false;
   float last3dFPS = 0.0f;
   float skyRot = 0;
 
   for(uint64_t frame = 0;; ++frame)
   {
-    uint32_t currIdx = frame % 3;
-    uint32_t nextIdx = (frame + 1) % 3;
+    uint32_t frameIdx = frame % 3;
 
     joypad_poll();
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
@@ -223,16 +223,16 @@ int main()
       displayMetrics = false;
     }
 
-    t3d_viewport_set_projection(&viewport[nextIdx], T3D_DEG_TO_RAD(85.0f), 2.5f, 150.0f);
-    t3d_viewport_look_at(&viewport[nextIdx], &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 2.5f, 150.0f);
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
 
-    t3d_mat4fp_from_srt_euler(&rotMatFP[currIdx],
+    t3d_mat4fp_from_srt_euler(&rotMatFP[frameIdx],
       (float[3]){modelScale, modelScale, modelScale},
       (float[3]){0,skyRot,0},
       (float[3]){camPos.x, 0, camPos.z}
     );
 
-    t3d_segment_address(1, (void*)(sizeof(T3DMat4FP) * currIdx));
+    t3d_segment_address(1, (void*)(sizeof(T3DMat4FP) * frameIdx));
 
     // ----------- DRAW ------------ //
 
@@ -243,13 +243,13 @@ int main()
     fb = display_get();
     rdpq_attach(fb, display_get_zbuf());
     t3d_frame_start();
-    t3d_viewport_attach(&viewport[currIdx]);
+    t3d_viewport_attach(&viewport);
     t3d_screen_clear_depth();
 
     t3d_light_set_exposure(exposure);
     t3d_matrix_push(t3d_segment_address(1, rotMatFP));
     rdpq_sync_pipe();
-    skydome_set_viewport(sky, &viewport[nextIdx]);
+    skydome_set_viewport(sky, &viewport);
     skydome_cloud_pass(sky, display_get_delta_time() * 1000); // move the clouds with time
     rdpq_sync_pipe();
     // Draw sky without any depth first

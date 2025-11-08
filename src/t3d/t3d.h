@@ -178,7 +178,7 @@ inline static T3DViewport t3d_viewport_create_buffered(uint16_t count) {
   T3DViewport vp = t3d_viewport_create();
   vp._bufferCount = count;
   vp._bufferIdx = 0;
-  vp._matFP = malloc_uncached(sizeof(T3DMat4FP) * 2 * count);
+  vp._matFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP) * 2 * count);
   return vp;
 }
 

@@ -9,14 +9,13 @@
 
 struct Camera
 {
-  T3DViewport viewports[3]{};
+  T3DViewport viewport{};
   T3DVec3 pos{};
   T3DVec3 target{};
   float fov{};
   float near{};
   float far{};
 
-  uint8_t vpIdx{0};
   uint8_t needsProjUpdate{false};
 
   Camera();
@@ -38,7 +37,7 @@ struct Camera
     return dir;
   }
 
-  const T3DFrustum &getFrustum() {
-    return viewports[vpIdx].viewFrustum;
+  const T3DFrustum &getFrustum() const {
+    return viewport.viewFrustum;
   }
 };
