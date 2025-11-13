@@ -442,7 +442,7 @@ void t3d_matrix_set_proj(const T3DMat4FP *mat);
  *
  * @param vertices vertex buffer
  * @param offset offset in the target buffer (0-68)
- * @param count how many vertices to load (2-70), must be multiple of 2!
+ * @param count how many vertices to load (1-70)
  */
 void t3d_vert_load(const T3DVertPacked *vertices, uint32_t offset, uint32_t count);
 

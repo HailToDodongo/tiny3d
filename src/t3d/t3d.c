@@ -123,7 +123,7 @@ void t3d_matrix_set_proj(const T3DMat4FP *mat) {
 }
 
 void t3d_vert_load(const T3DVertPacked *vertices, uint32_t offset, uint32_t count) {
-  uint32_t inputSize = (count & ~1) * VERT_INPUT_SIZE; // always load in pairs of 2
+  uint32_t inputSize = ((count+1) & ~1) * VERT_INPUT_SIZE; // always load in pairs of 2
 
   // calculate where to start the DMA, this may overlap the buffer of transformed vertices
   // we have to place it so that racing the input data is possible
