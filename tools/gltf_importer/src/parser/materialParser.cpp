@@ -84,8 +84,11 @@ namespace {
             if(config.verbose)printf("Scanning textures...\n");
             for(auto &entry : fs::recursive_directory_iterator(config.assetPathFull)) {
               if(entry.path().extension() == ".png") {
-                scannedTextures.push_back(entry.path().string());
-                if(config.verbose)printf("Found texture: %s\n", entry.path().string().c_str());
+                std::string filePath = entry.path().string();
+                // force linux forward slashes, runtime paths are forced to used that too
+                std::replace(filePath.begin(), filePath.end(), '\\', '/');
+                scannedTextures.push_back(filePath);
+                if(config.verbose)printf("Found texture: %s\n", filePath.c_str());
               }
             }
           }
