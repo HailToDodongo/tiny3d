@@ -17,15 +17,6 @@
 #include "parser/parser.h"
 #include "converter/converter.h"
 
-namespace {
-  const std::vector<std::string> BAD_VERSIONS{
-    "Blender I/O v4.1",
-    "Blender I/O v4.2",
-    "Blender I/O v4.3",
-    "Blender I/O v4.4",
-  };
-}
-
 void printBoneTree(const Bone &bone, int depth)
 {
   for(int i=0; i<depth; ++i)printf("  ");
@@ -57,20 +48,6 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
   }
 
   cgltf_load_buffers(&options, data, gltfPath);
-
-  if(data->asset.generator) {
-    std::string metaData(data->asset.generator);
-    for(auto &badVer : BAD_VERSIONS) {
-      if(metaData.find(badVer) != std::string::npos) {
-        std::string err = "\n==============================\n"
-          "Error: Blender glTF version not supported: '" + badVer + "'\n"
-          "Blender versions after 4.0 have a broken or incorrect GLTF exporter (e.g. wrong vertex colors)\n"
-          "For the time being, please use Blender 4.0. A fix *may* arrive in 4.4\n"
-          "==============================\n";
-        throw std::runtime_error(err);
-      }
-    }
-  }
 
   // Bones / Armature
   int boneCount = 0;
