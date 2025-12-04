@@ -1,6 +1,7 @@
 /**
 * @copyright 2024 - Max Bebök
 * @license MIT
+* @file t3dmodel.h
 */
 #ifndef TINY3D_T3DMODEL_H
 #define TINY3D_T3DMODEL_H

@@ -1,6 +1,7 @@
 /**
 * @copyright 2024 - Max Bebök
 * @license MIT
+* @file tpx.h
 */
 #ifndef TINYPX_PTX_H
 #define TINYPX_PTX_H

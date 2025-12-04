@@ -1,6 +1,7 @@
 /**
 * @copyright 2024 - Max Bebök
 * @license MIT
+* @file t3danim.h
 */
 #ifndef TINY3D_T3DANIM_H
 #define TINY3D_T3DANIM_H

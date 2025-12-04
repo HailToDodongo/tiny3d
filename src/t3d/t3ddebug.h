@@ -1,6 +1,7 @@
 /**
 * @copyright 2024 - Max Bebök
 * @license MIT
+* @file t3ddebug.h
 */
 #ifndef TINY3D_T3DDEBUG_H
 #define TINY3D_T3DDEBUG_H

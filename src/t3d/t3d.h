@@ -1,6 +1,7 @@
 /**
 * @copyright 2023 - Max Bebök
 * @license MIT
+* @file t3d.h
 */
 #ifndef TINY3D_T3D_H
 #define TINY3D_T3D_H

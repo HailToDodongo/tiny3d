@@ -8,3 +8,4 @@ CMakeLists.txt
 *.t3dm
 *.blend1
 gltf_to_t3d
+website/html
