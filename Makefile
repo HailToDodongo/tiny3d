@@ -36,7 +36,7 @@ OBJ = $(BUILD_DIR)/t3dmath.o $(BUILD_DIR)/t3d.o \
 	$(BUILD_DIR)/rsp/rsp_tiny3d.o $(BUILD_DIR)/rsp/rsp_tiny3d_clipping.o \
 	$(BUILD_DIR)/rsp/rsp_tinypx.o
 
-all: $(BUILD_DIR)/libt3d.a
+all: $(BUILD_DIR)/libt3d.a gen-version
 
 # Static Library
 $(BUILD_DIR)/libt3d.a: $(OBJ)
@@ -96,11 +96,39 @@ $(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c
 
 install: all
 	mkdir -p $(INSTALLDIR)/$(N64_TARGET)/include/t3d
+	if [ -f "$(BUILD_DIR)/t3d.version" ]; then \
+		install -Cv -m 0644 $(BUILD_DIR)/t3d.version $(INSTALLDIR)/$(N64_TARGET)/include/; \
+	else \
+		rm -f $(INSTALLDIR)/$(N64_TARGET)/include/t3d.version; \
+	fi
 	install -cv -m 0644 t3d-inst.mk $(INSTALLDIR)/include/t3d.mk
 	for file in $(inc); do \
 		install -Cv -m 0644 $$file $(INSTALLDIR)/$(N64_TARGET)/include/t3d; \
 	done
 	install -Cv -m 0644 $(BUILD_DIR)/libt3d.a $(INSTALLDIR)/$(N64_TARGET)/lib
+
+gen-version:
+# Generate a version file for tiny3d. We go through git archive so that
+# the export-subst is applied to the template file.
+# If .git doesn't exist, assume export-subst ran and just copy the file.
+# Otherwise, use git-archive to generate the subst'd version file.
+# NOTE: git can fail to access the repository via sudo for security/permissions
+# reasons (for instance, it happens on Mac when using sudo on an external volume).
+# We check for this via git rev-parse. In these cases, we hope the file was
+# generated without sudo as part of the normal build process.
+	@mkdir -p $(BUILD_DIR)
+	if [ -e .git ]; then \
+		if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
+			git archive --format=tar HEAD t3d.version \
+				| tar -xOf - t3d.version > "$(BUILD_DIR)/t3d.version"; \
+			if ! git diff-index --quiet HEAD -- 2>/dev/null; then \
+				sed 's/"dirty":[[:space:]]*false/"dirty": true/' "$(BUILD_DIR)/t3d.version" > "$(BUILD_DIR)/version.tmp"; \
+				mv -f "$(BUILD_DIR)/version.tmp" "$(BUILD_DIR)/t3d.version"; \
+			fi; \
+		fi; \
+	else \
+		cp t3d.version "$(BUILD_DIR)/t3d.version"; \
+	fi;
 
 clean:
 	rm -rf $(BUILD_DIR)
@@ -108,4 +136,4 @@ clean:
 
 -include $(wildcard $(BUILD_DIR)/*.d)
 
-.PHONY: all clean
+.PHONY: all clean gen-version
