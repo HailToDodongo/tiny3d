@@ -57,9 +57,12 @@ These can be found in the `examples` directory, where each of them goes into det
 
 To start out, take a look at `examples/01_quad` which is the most basic setup drawing a single 3D quad.<br>
 
-### API Reference
+## Docs
 
-(@TODO: generate docs from comments, add github page for it)
+API docs for functions/structs can be found here: https://hailtododongo.github.io/tiny3d/ <br>
+In general, it is also recommended to include both libdragon and tiny3d in your include path to get proper auto-completion.
+
+To learn how to write actual games and demos with tiny3d, checkout the example projects under `/examples`.
 
 ### GLTF Model import
 Tiny3D comes with a build-in model format and an importer for GLTF files.<br>
