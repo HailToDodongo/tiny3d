@@ -123,6 +123,26 @@ void t3d_skeleton_destroy(T3DSkeleton* skeleton);
 int t3d_skeleton_find_bone(T3DSkeleton* skeleton, const char* name);
 
 /**
+ * Gets the position in model space of the bone with the given index from its matrix.
+ * This assumes the bone matrix has been updated beforehand with t3d_skeleton_update.
+ * @param skeleton The skeleton containing the bone
+ * @param boneIdx Index of the bone
+ * @return The T3DVec3 position of the bone in model space
+ */
+static inline T3DVec3 t3d_skeleton_get_bone_pos_model_space(const T3DSkeleton *skeleton, int boneIdx){
+  assertf(boneIdx >= 0 && boneIdx < skeleton->skeletonRef->boneCount, "Bone index is out of bounds, idx: %i, boneCount: %i", boneIdx, skeleton->skeletonRef->boneCount);
+  // Access the bone at the given index
+  const T3DBone *bone = &skeleton->bones[boneIdx];
+
+  // Extract the position from the matrix.
+  return (T3DVec3) {{
+    bone->matrix.m[3][0],
+    bone->matrix.m[3][1],
+    bone->matrix.m[3][2]
+  }};
+}
+
+/**
  * Draws a skinned model with default settings.
  * Alternatively, use 't3d_model_draw_custom' and set 'matrices' in the config.
  * @param model
