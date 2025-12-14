@@ -18,7 +18,10 @@
 #include "parser/rdp.h"
 #include "optimizer/optimizer.h"
 
-Config config;
+namespace T3DM
+{
+  constinit Config config{};
+}
 
 namespace fs = std::filesystem;
 
@@ -33,14 +36,14 @@ namespace {
     return strPos;
   }
 
-  int writeBone(BinaryFile &file, const Bone &bone, std::string &stringTable, int level) {
+  int writeBone(BinaryFile &file, const T3DM::Bone &bone, std::string &stringTable, int level) {
     //printf("Bone[%d]: %s -> %d\n", bone.index, bone.name.c_str(), bone.parentIndex);
 
     file.write(insertString(stringTable, bone.name));
     file.write<uint16_t>(bone.parentIndex);
     file.write<uint16_t>(level); // level
 
-    auto normPos = bone.pos * config.globalScale;
+    auto normPos = bone.pos * T3DM::config.globalScale;
     file.writeArray(bone.scale.data, 3);
     file.writeArray(bone.rot.data, 4);
     file.writeArray(normPos.data, 3);
@@ -84,6 +87,7 @@ int main(int argc, char* argv[])
   const std::string gltfPath = args.getFilenameArg(0);
   const std::string t3dmPath = args.getFilenameArg(1);
 
+  auto &config = T3DM::config;
   config.globalScale = (float)args.getU32Arg("--base-scale", 64);
   config.ignoreMaterials = args.checkArg("--ignore-materials");
   config.ignoreTransforms = args.checkArg("--ignore-transforms");
@@ -105,12 +109,12 @@ int main(int argc, char* argv[])
 
   config.animSampleRate = 60;
 
-  auto t3dm = parseGLTF(gltfPath.c_str(), config.globalScale);
+  auto t3dm = T3DM::parseGLTF(gltfPath.c_str(), config.globalScale);
   fs::path gltfBasePath{gltfPath};
 
   // sort models by transparency mode (opaque -> cutout -> transparent)
   // within the same transparency mode, sort by material
-  std::sort(t3dm.models.begin(), t3dm.models.end(), [](const Model &a, const Model &b) {
+  std::sort(t3dm.models.begin(), t3dm.models.end(), [](const T3DM::Model &a, const T3DM::Model &b) {
     bool isTranspA = a.material.blendMode == RDP::BLEND::MULTIPLY;
     bool isTranspB = b.material.blendMode == RDP::BLEND::MULTIPLY;
     if(isTranspA == isTranspB) {
@@ -129,7 +133,7 @@ int main(int argc, char* argv[])
 
   // de-dupe materials and determine material indices
   std::unordered_map<uint32_t, uint32_t> materialUUIDMap{};
-  std::vector<Material*> usedMaterials{};
+  std::vector<T3DM::Material*> usedMaterials{};
   {
     uint32_t nextMatIndex = 0;
     for(auto &model : t3dm.models) {
@@ -147,19 +151,19 @@ int main(int argc, char* argv[])
   uint32_t chunkCount = 2; // vertices + indices
   if(config.createBVH)chunkCount += 1;
   chunkCount += usedMaterials.size();
-  std::vector<ModelChunked> modelChunks{};
+  std::vector<T3DM::ModelChunked> modelChunks{};
   modelChunks.reserve(t3dm.models.size());
   for(const auto & model : t3dm.models) {
     auto chunks = chunkUpModel(model);
     if(config.verbose) {
-      printf("[%s] Vertices out: %d\n", model.name.c_str(), chunks.vertices.size());
+      printf("[%s] Vertices out: %ld\n", model.name.c_str(), chunks.vertices.size());
     }
     optimizeModelChunk(chunks);
 
     if(config.verbose) {
       int totalIdx=0, totalStrips=0, totalStripCmd = 0;
       for(auto &c : chunks.chunks) {
-        printf("[%s:part-%ld] Vert: %d | Idx-Tris: %d | Idx-Strip: %d %d %d %d\n",
+        printf("[%s:part-%ld] Vert: %d | Idx-Tris: %ld | Idx-Strip: %ld %ld %ld %ld\n",
           model.name.c_str(),
           &c - &chunks.chunks[0],
           c.vertexCount,
@@ -194,7 +198,7 @@ int main(int argc, char* argv[])
   // Main file
   BinaryFile file{};
   file.writeChars("T3M", 3);
-  file.write<uint8_t>(T3DM_VERSION);
+  file.write<uint8_t>(T3DM::T3DM_VERSION);
   file.write(chunkCount); // chunk count
 
   file.write<uint16_t>(0); // total vertex count (set later)
@@ -288,9 +292,9 @@ int main(int argc, char* argv[])
     f->write(insertString(stringTable, material.name));
 
     // @TODO: refactor materials to match file/runtime structure
-    std::vector<const MaterialTexture*> materials{&material.texA, &material.texB};
-    for(const MaterialTexture* mat_ : materials) {
-      const MaterialTexture&mat = *mat_;
+    std::vector<const T3DM::MaterialTexture*> materials{&material.texA, &material.texB};
+    for(const T3DM::MaterialTexture* mat_ : materials) {
+      const T3DM::MaterialTexture&mat = *mat_;
 
       f->write(mat.texReference);
       std::string texPath = "";
@@ -326,7 +330,7 @@ int main(int argc, char* argv[])
       f->write((uint16_t)mat.texWidth);
       f->write((uint16_t)mat.texHeight);
 
-      auto writeTile = [&](const TileParam &tile) {
+      auto writeTile = [&](const T3DM::TileParam &tile) {
         f->write(tile.low);
         f->write(tile.high);
         f->write(tile.mask);
@@ -364,7 +368,7 @@ int main(int argc, char* argv[])
     for(const auto& chunk : chunks.chunks)
     {
       //printf("  t3d_vert_load(vertices, %d, %d);\n", chunk.vertexOffset, chunk.vertexCount);
-      uint32_t partVertOffset = (chunk.vertexOffset * VertexT3D::byteSize());
+      uint32_t partVertOffset = (chunk.vertexOffset * T3DM::VertexT3D::byteSize());
       partVertOffset += chunkVerts.getPos();
 
       file.write(partVertOffset);

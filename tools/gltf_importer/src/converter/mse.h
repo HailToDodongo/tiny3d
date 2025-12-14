@@ -5,13 +5,13 @@
 #pragma once
 #include "../structs.h"
 
-inline const Keyframe& safeKf(const std::vector<Keyframe> &kfs, int idx) {
+inline const T3DM::Keyframe& safeKf(const std::vector<T3DM::Keyframe> &kfs, int idx) {
   if(idx < 0)return kfs[0];
   if(idx >= kfs.size())return kfs.back();
   return kfs[idx];
 }
 
-inline float calcMSE(const std::vector<Keyframe> &kfsNew, const std::vector<Keyframe> &kfsOrg, float timeStart, float timeEnd, bool isRotation) {
+inline float calcMSE(const std::vector<T3DM::Keyframe> &kfsNew, const std::vector<T3DM::Keyframe> &kfsOrg, float timeStart, float timeEnd, bool isRotation) {
   float sampleRate = 60.0f;
   float timeStep = 1.0f / sampleRate;
 
@@ -30,10 +30,10 @@ inline float calcMSE(const std::vector<Keyframe> &kfsNew, const std::vector<Keyf
       ++idxOrg; if(idxOrg >= kfsOrg.size())break;
     }
 
-    const Keyframe &kfOrg = safeKf(kfsOrg, idxOrg);
-    const Keyframe &kfOrgNext = safeKf(kfsOrg, idxOrg + 1);
-    const Keyframe &kfNew = safeKf(kfsNew, idxNew);
-    const Keyframe &kfNewNext = safeKf(kfsNew, idxNew + 1);
+    const T3DM::Keyframe &kfOrg = safeKf(kfsOrg, idxOrg);
+    const T3DM::Keyframe &kfOrgNext = safeKf(kfsOrg, idxOrg + 1);
+    const T3DM::Keyframe &kfNew = safeKf(kfsNew, idxNew);
+    const T3DM::Keyframe &kfNewNext = safeKf(kfsNew, idxNew + 1);
 
     float tDiffOrg = kfOrgNext.time - kfOrg.time;
     float tDiffNew = kfNewNext.time - kfNew.time;

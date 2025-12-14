@@ -6,5 +6,8 @@
 #pragma once
 #include "../structs.h"
 
-void optimizeModelChunk(ModelChunked &model);
-std::vector<int16_t> createMeshBVH(const std::vector<ModelChunked> &modelChunks);
+namespace T3DM
+{
+  void optimizeModelChunk(ModelChunked &model);
+  std::vector<int16_t> createMeshBVH(const std::vector<ModelChunked> &modelChunks);
+}

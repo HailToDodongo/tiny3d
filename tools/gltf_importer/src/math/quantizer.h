@@ -15,7 +15,7 @@ namespace Quantizer
     return (uint16_t)round((double)(value - offset) / scale * 65535.0);
   }
 
-  void floatsGetOffsetScale(const std::vector<Keyframe> &keyframes, float &offset, float &scale) {
+  inline void floatsGetOffsetScale(const std::vector<T3DM::Keyframe> &keyframes, float &offset, float &scale) {
     float valMin = INFINITY;
     float valMax = -INFINITY;
     for(auto &kf : keyframes) {

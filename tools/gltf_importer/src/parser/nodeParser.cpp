@@ -5,7 +5,7 @@
 
 #include "parser.h"
 
-Mat4 parseNodeMatrix(const cgltf_node *node, bool recursive)
+Mat4 T3DM::parseNodeMatrix(const cgltf_node *node, bool recursive)
 {
   Mat4 matScale{};
   if(node->has_scale)matScale.setScale({node->scale[0], node->scale[1], node->scale[2]});

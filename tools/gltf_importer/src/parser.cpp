@@ -17,7 +17,7 @@
 #include "parser/parser.h"
 #include "converter/converter.h"
 
-void printBoneTree(const Bone &bone, int depth)
+void printBoneTree(const T3DM::Bone &bone, int depth)
 {
   for(int i=0; i<depth; ++i)printf("  ");
   printf("%s\n", bone.name.c_str());
@@ -27,7 +27,7 @@ void printBoneTree(const Bone &bone, int depth)
   }
 }
 
-T3DMData parseGLTF(const char *gltfPath, float modelScale)
+T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, float modelScale)
 {
   T3DMData t3dm{};
   fs::path gltfBasePath{gltfPath};
@@ -300,7 +300,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
 
       if(config.verbose) {
         printf("[%s] Vertices input: %d\n", mesh->name, vertexCount);
-        printf("[%s] Indices input: %d\n", mesh->name, indices.size());
+        printf("[%s] Indices input: %ld\n", mesh->name, indices.size());
       }
     }
   }
