@@ -15,12 +15,11 @@
 
 #include "binaryFile.h"
 #include "converter/converter.h"
-#include "parser/rdp.h"
 #include "optimizer/optimizer.h"
 
 namespace T3DM
 {
-  constinit Config config{};
+  thread_local Config config{};
 }
 
 namespace fs = std::filesystem;
@@ -110,30 +109,20 @@ int main(int argc, char* argv[])
   config.animSampleRate = 60;
 
   auto t3dm = T3DM::parseGLTF(gltfPath.c_str(), config.globalScale);
-  fs::path gltfBasePath{gltfPath};
+  writeT3DM(t3dm, t3dmPath);
+}
 
-  // sort models by transparency mode (opaque -> cutout -> transparent)
-  // within the same transparency mode, sort by material
-  std::sort(t3dm.models.begin(), t3dm.models.end(), [](const T3DM::Model &a, const T3DM::Model &b) {
-    bool isTranspA = a.material.blendMode == RDP::BLEND::MULTIPLY;
-    bool isTranspB = b.material.blendMode == RDP::BLEND::MULTIPLY;
-    if(isTranspA == isTranspB) {
-      if(a.material.uuid == b.material.uuid) {
-        return a.name < b.name;
-      }
-      return a.material.uuid < b.material.uuid;
-    }
-    if(!isTranspA && !isTranspB) {
-       int isDecalA = (a.material.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
-       int isDecalB = (b.material.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
-       return isDecalA < isDecalB;
-    }
-    return isTranspB;
-  });
+void T3DM::writeT3DM(
+  const T3DM::T3DMData &t3dm,
+  const std::string &t3dmPath,
+  const std::vector<CustomChunk> &customChunks
+)
+{
+  auto &config = T3DM::config;
 
   // de-dupe materials and determine material indices
   std::unordered_map<uint32_t, uint32_t> materialUUIDMap{};
-  std::vector<T3DM::Material*> usedMaterials{};
+  std::vector<const Material*> usedMaterials{};
   {
     uint32_t nextMatIndex = 0;
     for(auto &model : t3dm.models) {
@@ -147,11 +136,14 @@ int main(int argc, char* argv[])
 
   int16_t aabbMin[3] = {32767, 32767, 32767};
   int16_t aabbMax[3] = {-32768, -32768, -32768};
+
   uint32_t chunkIndex = 0;
   uint32_t chunkCount = 2; // vertices + indices
   if(config.createBVH)chunkCount += 1;
   chunkCount += usedMaterials.size();
-  std::vector<T3DM::ModelChunked> modelChunks{};
+  chunkCount += customChunks.size();
+
+  std::vector<ModelChunked> modelChunks{};
   modelChunks.reserve(t3dm.models.size());
   for(const auto & model : t3dm.models) {
     auto chunks = chunkUpModel(model);
@@ -510,6 +502,12 @@ int main(int argc, char* argv[])
     file.align(8);
     addToChunkTable('S');
     file.writeMemFile(chunkSkel);
+  }
+
+  for(const auto &custom : customChunks) {
+    file.align(8);
+    addToChunkTable(custom.type);
+    file.writeArray(custom.data.data(), custom.data.size());
   }
 
   // String table

@@ -15,6 +15,10 @@
 #include "lib/meshopt/meshoptimizer.h"
 #include "math/mat4.h"
 #include "parser/parser.h"
+
+#include <algorithm>
+
+#include "parser/rdp.h"
 #include "converter/converter.h"
 
 void printBoneTree(const T3DM::Bone &bone, int depth)
@@ -306,5 +310,25 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, float modelScale)
   }
 
   cgltf_free(data);
+
+  // sort models by transparency mode (opaque -> cutout -> transparent)
+  // within the same transparency mode, sort by material
+  std::sort(t3dm.models.begin(), t3dm.models.end(), [](const T3DM::Model &a, const T3DM::Model &b) {
+    bool isTranspA = a.material.blendMode == RDP::BLEND::MULTIPLY;
+    bool isTranspB = b.material.blendMode == RDP::BLEND::MULTIPLY;
+    if(isTranspA == isTranspB) {
+      if(a.material.uuid == b.material.uuid) {
+        return a.name < b.name;
+      }
+      return a.material.uuid < b.material.uuid;
+    }
+    if(!isTranspA && !isTranspB) {
+       int isDecalA = (a.material.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
+       int isDecalB = (b.material.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
+       return isDecalA < isDecalB;
+    }
+    return isTranspB;
+  });
+
   return t3dm;
 }

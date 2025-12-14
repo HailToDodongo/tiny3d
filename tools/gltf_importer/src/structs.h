@@ -244,6 +244,12 @@ namespace T3DM
     std::vector<AnimChannelMapping> channelMap{};
   };
 
+  struct CustomChunk
+  {
+    char type{};
+    std::vector<uint8_t> data{};
+  };
+
   struct T3DMData {
     std::vector<Model> models{};
     std::vector<Bone> skeletons{};
@@ -265,5 +271,11 @@ namespace T3DM
   constexpr int CACHE_VERTEX_SIZE = 36;
   constexpr u8 T3DM_VERSION = 0x04;
 
-  extern Config config;
+  extern thread_local Config config;
+
+  void writeT3DM(
+    const T3DMData &t3dm,
+    const std::string &t3dmPath,
+    const std::vector<CustomChunk> &customChunks = {}
+  );
 }
