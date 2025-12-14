@@ -31,7 +31,7 @@ void printBoneTree(const T3DM::Bone &bone, int depth)
   }
 }
 
-T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, float modelScale)
+T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath)
 {
   T3DMData t3dm{};
   fs::path gltfBasePath{gltfPath};
@@ -282,7 +282,7 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, float modelScale)
       Mat4 mat = config.ignoreTransforms ? Mat4{} : parseNodeMatrix(node, true);
       for(int k = 0; k < vertices.size(); k++) {
         convertVertex(
-          modelScale, texSizeX, texSizeY, vertices[k], verticesT3D[k],
+          config.globalScale, texSizeX, texSizeY, vertices[k], verticesT3D[k],
           mat, matrixStack, model.material.uvFilterAdjust
         );
       }
