@@ -3,7 +3,7 @@ OBJDIR = build
 SRCDIR = src
 INSTALLDIR = $(N64_INST)
 
-OBJ = build/parser.o build/main.o build/lib/lodepng.o \
+OBJ = build/parser.o build/writer.o build/main.o build/lib/lodepng.o \
 	build/parser/materialParser.o build/parser/boneParser.o build/parser/nodeParser.o \
 	build/optimizer/meshOptimizer.o \
 	build/optimizer/meshBVH.o \
