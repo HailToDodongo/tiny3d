@@ -65,6 +65,7 @@ namespace {
 void T3DM::writeT3DM(
   const T3DMData &t3dm,
   const std::string &t3dmPath,
+  const std::filesystem::path &projectPath,
   const std::vector<CustomChunk> &customChunks
 )
 {
@@ -241,7 +242,7 @@ void T3DM::writeT3DM(
       f->write(mat.texReference);
       std::string texPath = "";
       if(!mat.texPath.empty()) {
-        texPath = fs::relative(mat.texPath, std::filesystem::current_path()).string();
+        texPath = fs::relative(mat.texPath, projectPath).string();
         std::replace(texPath.begin(), texPath.end(), '\\', '/');
 
         if(texPath.find(config.assetPath) == 0) {

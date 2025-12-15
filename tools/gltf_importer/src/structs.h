@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
@@ -276,6 +277,7 @@ namespace T3DM
   void writeT3DM(
     const T3DMData &t3dm,
     const std::string &t3dmPath,
+    const std::filesystem::path &projectPath,
     const std::vector<CustomChunk> &customChunks = {}
   );
 }

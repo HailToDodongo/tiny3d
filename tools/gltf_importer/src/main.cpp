@@ -58,5 +58,5 @@ int main(int argc, char* argv[])
   config.animSampleRate = 60;
 
   auto t3dm = T3DM::parseGLTF(gltfPath.c_str());
-  writeT3DM(t3dm, t3dmPath);
+  writeT3DM(t3dm, t3dmPath, std::filesystem::current_path());
 }
