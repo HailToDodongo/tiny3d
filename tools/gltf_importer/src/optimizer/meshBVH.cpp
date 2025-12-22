@@ -59,7 +59,7 @@ namespace
  * The result is a list of 16bit ints encoding both nodes, indices and AABB extends
  * @param modelChunks
  */
-std::vector<int16_t> createMeshBVH(const std::vector<ModelChunked> &modelChunks)
+std::vector<int16_t> T3DM::createMeshBVH(const std::vector<ModelChunked> &modelChunks)
 {
   std::vector<BBox> aabbs;
   std::vector<BVec3> centers;

@@ -14,8 +14,8 @@ namespace {
   }
 }
 
-Bone parseBoneTree(const cgltf_node *rootBone, Bone *parentBone, int &count) {
-  Bone bone;
+T3DM::Bone T3DM::parseBoneTree(const cgltf_node *rootBone, Bone *parentBone, int &count) {
+  Bone bone{};
   bone.name = rootBone->name;
 
   bone.pos = rootBone->has_translation ? Vec3(
@@ -42,7 +42,7 @@ Bone parseBoneTree(const cgltf_node *rootBone, Bone *parentBone, int &count) {
   bone.index = count;
   count += 1;
 
-  if(config.verbose)
+  if(T3DM::config.verbose)
   {
     printf("Bone[%d]: %s (parent: %d | %d)\n", count-1, bone.name.c_str(), bone.parentIndex, parentBone ? parentBone->index : -1);
     printf("      t: %.4f %.4f %.4f\n", rootBone->translation[0], rootBone->translation[1], rootBone->translation[2]);

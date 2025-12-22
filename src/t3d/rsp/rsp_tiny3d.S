@@ -480,9 +480,9 @@ pointLight:
   ldv $v23, 0, 8, $s3                                ## L:697  |      ^ | ptPos:sint.xyzw = load(ptrLight, 8).xyzw;
   ldv $v23, 8, 8, $s3                                ## L:698  |     30 | ptPos:sint.XYZW = load(ptrLight, 8).xyzw;
   andi $t7, $t7, 32767                               ## L:693  |  ***34 | lightSize &= 0x7FFF;
-  vmudm $v23, $v23, $v31.e7                          ## L:700  |      ^ | ptPos = ptPos:sint >> 8;
-  vmadn $v24, $v00, $v00                             ## L:700  |     35 | ptPos = ptPos:sint >> 8;
-  sll $t7, $t7, 13                                   ## L:694  |      ^ | lightSize <<= 13;
+  vmudm $v23, $v23, $v31.e5                          ## L:700  |      ^ | ptPos = ptPos:sint >> 6;
+  vmadn $v24, $v00, $v00                             ## L:700  |     35 | ptPos = ptPos:sint >> 6;
+  sll $t7, $t7, 16                                   ## L:694  |      ^ | lightSize <<= 16;
   vsubc $v24, $v24, $v28.v                           ## L:701  |  ***39 | ptPos = ptPos - vertPos;
   vsub $v23, $v23, $v27.v                            ## L:701  |     40 | ptPos = ptPos - vertPos;
   vmudl $v29, $v24, $v24.v                           ## L:704  |   **43 | lightVertDot = ptPos * ptPos;

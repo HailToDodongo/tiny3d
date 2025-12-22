@@ -474,14 +474,13 @@ void t3d_light_set_directional(int index, const uint8_t *color, const T3DVec3 *d
  * The position is expected to be in world-space, and will be transformed internally.
  * Before calling this function, make sure to have a viewport attached.
  *
- * The size argument is a normalized distance, in the range 0.0 - 1.0.
- * Internally in the ucode, this maps to scaling factors in eye-space.
- * So unlike 'pos', it doesn't have any concrete units.
+ * The size argument is roughly the maximum radius in world-space the light will cover.
+ * Note that due to precision limitations and the fact lighting happens per vertex, the size is not exact.
  *
  * @param index index (0-6)
  * @param color color in RGBA8 format
  * @param pos position in world-space
- * @param size distance, in range 0.0 - 1.0
+ * @param size distance, in world-space
  * @param ignoreNormals if true, the light will only check the distance, not the angle (useful for cutouts)
  */
 void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, float size, bool ignoreNormals);

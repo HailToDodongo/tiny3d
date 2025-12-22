@@ -9,9 +9,9 @@
 #include "../structs.h"
 
 void convertVertex(
-  float modelScale, float texSizeX, float texSizeY, const VertexNorm &v, VertexT3D &vT3D,
+  float modelScale, float texSizeX, float texSizeY, const T3DM::VertexNorm &v, T3DM::VertexT3D &vT3D,
   const Mat4 &mat, const std::vector<Mat4> &matrices, bool uvAdjust
 );
-ModelChunked chunkUpModel(const Model& model);
+T3DM::ModelChunked chunkUpModel(const T3DM::Model& model);
 
-void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bone*> &nodeMap);
+void convertAnimation(T3DM::Anim &anim, const std::unordered_map<std::string, const T3DM::Bone*> &nodeMap);

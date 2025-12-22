@@ -562,13 +562,13 @@ function pointLight(
   }
 
   lightSize &= 0x7FFF; // MSB is "use-normal" flag
-  lightSize <<= 13; // shift s16 into s16 range
+  lightSize <<= 16; // shift s16 into s16 range
 
   // get light position
   ptPos:sint.xyzw = load(ptrLight, 8).xyzw;
   ptPos:sint.XYZW = load(ptrLight, 8).xyzw;
 
-  ptPos = ptPos:sint >> 8; // light position into 16.16
+  ptPos = ptPos:sint >> 6; // light position into 16.16
   ptPos = ptPos - vertPos; // get distance from light to vertex
 
   // calc. dot product and normalize distance vector

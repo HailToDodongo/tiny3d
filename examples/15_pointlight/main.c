@@ -73,13 +73,12 @@ int main()
   );
 
   PointLight pointLights[5] = { // XYZ, strength, color
-    {{{ 150.0f, 20.0f,   -5.0f}},  0.055f, {0xFF, 0xFF, 0x1F, 0xFF}},
-    {{{-150.0f, 20.0f,   -5.0f}},  0.055f, {0x1F, 0xFF, 0x1F, 0xFF}},
-    {{{   0.0f, 40.0f, -190.0f}},  0.300f, {0x1F, 0x1F, 0xFF, 0xFF}},
-    {{{   0.0f, 20.0f,   30.0f}},  0.055f, {0xFF, 0x1F, 0x1F, 0xFF}},
-    {{{   0.0f, 25.0f,    0.0f}},  0.150f, {0xFF, 0x2F, 0x1F, 0xFF}},
+    {{{ 150.0f, 20.0f,   -5.0f}},  40.0f, {0xFF, 0xFF, 0x1F, 0xFF}},
+    {{{-150.0f, 20.0f,   -5.0f}},  40.0f, {0x1F, 0xFF, 0x1F, 0xFF}},
+    {{{   0.0f, 40.0f, -190.0f}},  80.0f, {0x1F, 0x1F, 0xFF, 0xFF}},
+    {{{   0.0f, 20.0f,   30.0f}},  40.0f, {0xFF, 0x1F, 0x1F, 0xFF}},
+    {{{   0.0f, 25.0f,    0.0f}},  60.0f, {0xFF, 0x2F, 0x1F, 0xFF}},
   };
-
   color_t lightColorOff = {0,0,0, 0xFF};
   uint32_t currLight = 0;
   uint8_t colorAmbient[4] = {20, 20, 20, 0xFF};
@@ -131,8 +130,8 @@ int main()
 
     // Light controls
     float moveSpeed = deltaTime * 0.75f;
-    light->strength += (float)joypad.cstick_x * deltaTime * 0.002f;
-    light->strength = fminf(1.0f, fmaxf(0.0f, light->strength));
+    light->strength += (float)joypad.cstick_x * deltaTime * 0.4f;
+    light->strength = fminf(190.0f, fmaxf(0.0f, light->strength));
 
     light->pos.v[0] -= camDir.v[2] * (float)joypad.stick_x * -moveSpeed;
     light->pos.v[2] += camDir.v[0] * (float)joypad.stick_x * -moveSpeed;
@@ -157,7 +156,7 @@ int main()
 
     // flickering and wobble of the crystal in the center of the room
     pointLights[4].pos.v[1] = 24.0f + (sinf(time*2.0f) * 3.5f);
-    pointLights[4].strength = 0.2f
+    pointLights[4].strength = 100.2f
        +  (fm_sinf(time * 5.1f) * 0.015f)
        + ((fm_cosf(time * 6.2f)+1) * 0.0025f)
        + ((fm_sinf(time * 2.2f)+0.9f) * 0.01f)
@@ -238,7 +237,7 @@ int main()
     rspq_block_run(dplDraw);
 
     for(int i=0; i<LIGHT_COUNT; ++i) {
-      rdpq_set_prim_color(pointLights[i].strength <= 0.0001f ? lightColorOff : pointLights[i].color);
+      rdpq_set_prim_color(pointLights[i].strength <= 0.01f ? lightColorOff : pointLights[i].color);
       t3d_matrix_set(&matLightFP[i * FB_COUNT + frameIdx], true);
       rspq_block_run(dplLight);
     }

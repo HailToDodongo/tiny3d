@@ -15,9 +15,13 @@
 #include "lib/meshopt/meshoptimizer.h"
 #include "math/mat4.h"
 #include "parser/parser.h"
+
+#include <algorithm>
+
+#include "parser/rdp.h"
 #include "converter/converter.h"
 
-void printBoneTree(const Bone &bone, int depth)
+void printBoneTree(const T3DM::Bone &bone, int depth)
 {
   for(int i=0; i<depth; ++i)printf("  ");
   printf("%s\n", bone.name.c_str());
@@ -27,7 +31,7 @@ void printBoneTree(const Bone &bone, int depth)
   }
 }
 
-T3DMData parseGLTF(const char *gltfPath, float modelScale)
+T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath)
 {
   T3DMData t3dm{};
   fs::path gltfBasePath{gltfPath};
@@ -278,7 +282,7 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
       Mat4 mat = config.ignoreTransforms ? Mat4{} : parseNodeMatrix(node, true);
       for(int k = 0; k < vertices.size(); k++) {
         convertVertex(
-          modelScale, texSizeX, texSizeY, vertices[k], verticesT3D[k],
+          config.globalScale, texSizeX, texSizeY, vertices[k], verticesT3D[k],
           mat, matrixStack, model.material.uvFilterAdjust
         );
       }
@@ -300,11 +304,31 @@ T3DMData parseGLTF(const char *gltfPath, float modelScale)
 
       if(config.verbose) {
         printf("[%s] Vertices input: %d\n", mesh->name, vertexCount);
-        printf("[%s] Indices input: %d\n", mesh->name, indices.size());
+        printf("[%s] Indices input: %ld\n", mesh->name, indices.size());
       }
     }
   }
 
   cgltf_free(data);
+
+  // sort models by transparency mode (opaque -> cutout -> transparent)
+  // within the same transparency mode, sort by material
+  std::sort(t3dm.models.begin(), t3dm.models.end(), [](const T3DM::Model &a, const T3DM::Model &b) {
+    bool isTranspA = a.material.blendMode == RDP::BLEND::MULTIPLY;
+    bool isTranspB = b.material.blendMode == RDP::BLEND::MULTIPLY;
+    if(isTranspA == isTranspB) {
+      if(a.material.uuid == b.material.uuid) {
+        return a.name < b.name;
+      }
+      return a.material.uuid < b.material.uuid;
+    }
+    if(!isTranspA && !isTranspB) {
+       int isDecalA = (a.material.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
+       int isDecalB = (b.material.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
+       return isDecalA < isDecalB;
+    }
+    return isTranspB;
+  });
+
   return t3dm;
 }

@@ -17,7 +17,7 @@ namespace {
     return (uint16_t)roundf(t * 60.0f);
   }
 
-  bool hasConstValue(const std::vector<Keyframe> &keyframes, bool isRotation) {
+  bool hasConstValue(const std::vector<T3DM::Keyframe> &keyframes, bool isRotation) {
     if(!isRotation) {
       float lastValue = keyframes[0].valScalar;
       for(int i=1; i < keyframes.size(); ++i) {
@@ -33,16 +33,16 @@ namespace {
   }
 
   // Filters any channel that has a constant value, and is also the identity value of the specific target
-  bool isEmptyChannel(AnimChannelMapping &channel)
+  bool isEmptyChannel(T3DM::AnimChannelMapping &channel)
   {
     if(hasConstValue(channel.keyframes, channel.isRotation())) {
       bool isIdentity = false;
       const auto &kf = channel.keyframes[0];
       switch(channel.targetType) {
-        case AnimChannelTarget::TRANSLATION  : isIdentity = fabsf(kf.valScalar) < MIN_VALUE_DELTA; break;
-        case AnimChannelTarget::ROTATION     : isIdentity = kf.valQuat.isIdentity(); break;
-        case AnimChannelTarget::SCALE_UNIFORM:
-        case AnimChannelTarget::SCALE        : isIdentity = kf.valScalar == 1.0f; break;
+        case T3DM::AnimChannelTarget::TRANSLATION  : isIdentity = fabsf(kf.valScalar) < MIN_VALUE_DELTA; break;
+        case T3DM::AnimChannelTarget::ROTATION     : isIdentity = kf.valQuat.isIdentity(); break;
+        case T3DM::AnimChannelTarget::SCALE_UNIFORM:
+        case T3DM::AnimChannelTarget::SCALE        : isIdentity = kf.valScalar == 1.0f; break;
       }
       //if(isIdentity)printf("  - Channel %s %d has identity value\n", channel.targetName.c_str(), channel.targetType);
       return isIdentity;
@@ -54,7 +54,7 @@ namespace {
    * Optimizes the keyframes of a channel.
    * This will attempt to remove keyframes while staying within a certain error threshold.
    */
-  void optimizeChannel(AnimChannelMapping &channel, float time) {
+  void optimizeChannel(T3DM::AnimChannelMapping &channel, float time) {
     if(channel.keyframes.size() < 2)return;
     auto channelOrg = channel;
     float mse = calcMSE(channel.keyframes, channelOrg.keyframes, 0, time, channel.isRotation());
@@ -82,7 +82,7 @@ namespace {
     }
   }
 
-  void quantizeRotation(Keyframe &kf)
+  void quantizeRotation(T3DM::Keyframe &kf)
   {
     uint32_t quatQuant = Quantizer::quatTo32Bit(kf.valQuat);
     if(quatQuant == 0) {
@@ -94,7 +94,7 @@ namespace {
   }
 }
 
-void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bone*> &nodeMap)
+void convertAnimation(T3DM::Anim &anim, const std::unordered_map<std::string, const T3DM::Bone*> &nodeMap)
 {
   // remove all empty channels
   anim.channelMap.erase(
@@ -148,7 +148,7 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bo
   }
 
   // sort keyframes by time, if the time is the same, sort by channel index
-  std::sort(anim.keyframes.begin(), anim.keyframes.end(), [](const Keyframe &a, const Keyframe &b) {
+  std::sort(anim.keyframes.begin(), anim.keyframes.end(), [](const T3DM::Keyframe &a, const T3DM::Keyframe &b) {
     if(a.timeNeededTicks == b.timeNeededTicks) {
       if(a.timeTicks == b.timeTicks) {
         return a.chanelIdx < b.chanelIdx;
@@ -162,7 +162,7 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bo
   for(auto &kf : anim.keyframes)
   {
     auto &ch = anim.channelMap[kf.chanelIdx];
-    if(ch.targetType == AnimChannelTarget::ROTATION) {
+    if(ch.targetType == T3DM::AnimChannelTarget::ROTATION) {
       quantizeRotation(kf);
     } else {
       kf.valQuantSize = 1;
@@ -174,7 +174,7 @@ void convertAnimation(Anim &anim, const std::unordered_map<std::string, const Bo
   anim.channelCountQuat = 0;
   anim.channelCountScalar = 0;
   for(auto &ch : anim.channelMap) {
-    if(ch.targetType == AnimChannelTarget::ROTATION) {
+    if(ch.targetType == T3DM::AnimChannelTarget::ROTATION) {
       anim.channelCountQuat++;
     } else {
       anim.channelCountScalar++;

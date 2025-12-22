@@ -29,7 +29,7 @@ namespace {
 
   std::vector<std::string> scannedTextures{};
 
-  void readMaterialTileAxisFromJson(TileParam &param, const json &tex)
+  void readMaterialTileAxisFromJson(T3DM::TileParam &param, const json &tex)
   {
     if(tex.empty())return;
     param.clamp = tex.value<uint8_t>("clamp", 0);
@@ -40,7 +40,7 @@ namespace {
     param.shift = tex["shift"].get<int8_t>();
   }
 
-  void readMaterialFromJson(MaterialTexture &material, const json &tex, const fs::path &gltfPath)
+  void readMaterialFromJson(T3DM::MaterialTexture &material, const json &tex, const fs::path &gltfPath)
   {
     if(tex.contains("S"))readMaterialTileAxisFromJson(material.s, tex["S"]);
     if(tex.contains("T"))readMaterialTileAxisFromJson(material.t, tex["T"]);
@@ -81,14 +81,14 @@ namespace {
         if(error) {
           // texture not found, try finding another one with the same name
           if(!scannedTextures.size()) {
-            if(config.verbose)printf("Scanning textures...\n");
-            for(auto &entry : fs::recursive_directory_iterator(config.assetPathFull)) {
+            if(T3DM::config.verbose)printf("Scanning textures...\n");
+            for(auto &entry : fs::recursive_directory_iterator(T3DM::config.assetPathFull)) {
               if(entry.path().extension() == ".png") {
                 std::string filePath = entry.path().string();
                 // force linux forward slashes, runtime paths are forced to used that too
                 std::replace(filePath.begin(), filePath.end(), '\\', '/');
                 scannedTextures.push_back(filePath);
-                if(config.verbose)printf("Found texture: %s\n", filePath.c_str());
+                if(T3DM::config.verbose)printf("Found texture: %s\n", filePath.c_str());
               }
             }
           }
@@ -117,9 +117,9 @@ namespace {
     }
   }
 
-  ColorCombiner readCCFromJson(const json &cc)
+  T3DM::ColorCombiner readCCFromJson(const json &cc)
   {
-    ColorCombiner res{};
+    T3DM::ColorCombiner res{};
     res.a = cc["A"].get<uint8_t>();
     res.b = cc["B"].get<uint8_t>();
     res.c = cc["C"].get<uint8_t>();
@@ -135,7 +135,9 @@ namespace {
     return res;
   }
 
-  bool isCCUsingTexture(const ColorCombiner &cc)
+  namespace CC = T3DM::CC;
+
+  bool isCCUsingTexture(const T3DM::ColorCombiner &cc)
   {
     if(cc.a == CC::TEX0 || cc.b == CC::TEX0 || cc.c == CC::TEX0 || cc.d == CC::TEX0)return true;
     if(cc.a == CC::TEX1 || cc.b == CC::TEX1 || cc.c == CC::TEX1 || cc.d == CC::TEX1)return true;
@@ -148,7 +150,7 @@ namespace {
     return false;
   }
 
-  bool isUsingShade(const ColorCombiner &cc)
+  bool isUsingShade(const T3DM::ColorCombiner &cc)
   {
     if(cc.a == CC::SHADE || cc.b == CC::SHADE || cc.c == CC::SHADE || cc.d == CC::SHADE)return true;
     if(cc.aAlpha == CC::SHADE || cc.bAlpha == CC::SHADE || cc.cAlpha == CC::SHADE || cc.dAlpha == CC::SHADE)return true;
@@ -178,7 +180,7 @@ namespace {
   }
 }
 
-void parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgltf_primitive *prim) {
+void T3DM::parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgltf_primitive *prim) {
   model.material.uuid = j * 1000 + i;
   if(prim->material->name) {
     model.material.uuid = stringHash(prim->material->name);

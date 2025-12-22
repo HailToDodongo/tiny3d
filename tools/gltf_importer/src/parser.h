@@ -7,4 +7,7 @@
 
 #include "structs.h"
 
-T3DMData parseGLTF(const char* gltfPath, float modelScale);
+namespace T3DM
+{
+  T3DMData parseGLTF(const char* gltfPath);
+}

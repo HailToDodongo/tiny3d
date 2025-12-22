@@ -20,7 +20,7 @@ namespace {
 
   // get amount of times each vertex is used in the input triangle list
   auto getVertexUsage(const TriList &tris) {
-    std::array<int, MAX_VERTEX_COUNT> usedVerts{};
+    std::array<int, T3DM::MAX_VERTEX_COUNT> usedVerts{};
     for(auto &tri : tris) {
       for(int i=0; i<3; ++i) {
         ++usedVerts[tri[i]];
@@ -30,7 +30,7 @@ namespace {
   }
 
   auto getVertexUsage(const std::vector<std::vector<int8_t>> strips) {
-    std::array<int, MAX_VERTEX_COUNT> usedVerts{};
+    std::array<int, T3DM::MAX_VERTEX_COUNT> usedVerts{};
     for(auto &strip : strips) {
       for(auto idx : strip) {
         ++usedVerts[idx];
@@ -39,9 +39,9 @@ namespace {
     return usedVerts;
   }
 
-  int countFreeVertsAtEnd(const std::array<int, MAX_VERTEX_COUNT> &usedVerts) {
+  int countFreeVertsAtEnd(const std::array<int, T3DM::MAX_VERTEX_COUNT> &usedVerts) {
     int freeVertsEnd = 0;
-    for(int i=MAX_VERTEX_COUNT-1; i>=0; --i) {
+    for(int i=T3DM::MAX_VERTEX_COUNT-1; i>=0; --i) {
       if(usedVerts[i] > 0)break;
       ++freeVertsEnd;
     }
@@ -49,7 +49,7 @@ namespace {
   }
 
   int calcUsableIndices(int freeVertices) {
-    int res = freeVertices * CACHE_VERTEX_SIZE / 2;
+    int res = freeVertices * T3DM::CACHE_VERTEX_SIZE / 2;
     // a single vertex is not aligned (2 are), sub. 8 bytes to not overwrite stuff
     if(freeVertices % 2 != 0)res -= 8 / 2;
     return res;
@@ -148,7 +148,7 @@ namespace {
   }
 }
 
-void optimizeModelChunk(ModelChunked &model)
+void T3DM::optimizeModelChunk(ModelChunked &model)
 {
   for(auto &chunk : model.chunks)
   {
@@ -183,7 +183,7 @@ void optimizeModelChunk(ModelChunked &model)
       && (seq.tris.size() < (tris.size() / 2))
     )
     {
-      if(config.verbose) {
+      if(T3DM::config.verbose) {
         printf("Sequence:\n  Tris: ");
         for(auto &tri : seq.tris) {
           printf("%d %d %d | ", tri[0], tri[1], tri[2]);
@@ -242,7 +242,7 @@ void optimizeModelChunk(ModelChunked &model)
 
     // now free until the last slots are free
     if(freeVertsEnd < targetFreeVerts) {
-      for(int i=MAX_VERTEX_COUNT-targetFreeVerts; i<MAX_VERTEX_COUNT; ++i) {
+      for(int i=T3DM::MAX_VERTEX_COUNT-targetFreeVerts; i<T3DM::MAX_VERTEX_COUNT; ++i) {
         freeVertexUsage(i);
       }
       vertUsage = getVertexUsage(tris);

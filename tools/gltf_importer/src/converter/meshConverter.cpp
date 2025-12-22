@@ -15,7 +15,7 @@ namespace
 {
   constexpr uint16_t INVALID_INDEX = 0xFFFF;
 
-  uint16_t getVertexIndex(const ModelChunked &model, const VertexT3D &v, uint16_t startIndex)
+  uint16_t getVertexIndex(const T3DM::ModelChunked &model, const T3DM::VertexT3D &v, uint16_t startIndex)
   {
     auto idxMaybe = model.vertIdxMap.find(v.hash);
     if(idxMaybe != model.vertIdxMap.end()) {
@@ -26,7 +26,7 @@ namespace
     return 0xFFFF;
   }
 
-  uint16_t emitVertex(ModelChunked &model, const VertexT3D &v)
+  uint16_t emitVertex(T3DM::ModelChunked &model, const T3DM::VertexT3D &v)
   {
     auto oldIdx = model.vertices.size();
     model.vertices.push_back(v);
@@ -34,7 +34,7 @@ namespace
     return oldIdx;
   }
 
-  int triConnectionCount(const TriangleT3D &tri, const ModelChunked &model, uint32_t chunkOffset)
+  int triConnectionCount(const T3DM::TriangleT3D &tri, const T3DM::ModelChunked &model, uint32_t chunkOffset)
   {
     int connCount = 0;
     for(const auto & vi : tri.vert) {
@@ -46,7 +46,7 @@ namespace
   }
 }
 
-uint64_t hashVertex(const VertexT3D &vT3D, uint32_t boneIndex)
+uint64_t hashVertex(const T3DM::VertexT3D &vT3D, uint32_t boneIndex)
 {
   uint64_t h = 0xcbf29ce484222325ULL;
   auto mix = [&](uint64_t v) {
@@ -65,7 +65,7 @@ uint64_t hashVertex(const VertexT3D &vT3D, uint32_t boneIndex)
 }
 
 void convertVertex(
-  float modelScale, float texSizeX, float texSizeY, const VertexNorm &v, VertexT3D &vT3D,
+  float modelScale, float texSizeX, float texSizeY, const T3DM::VertexNorm &v, T3DM::VertexT3D &vT3D,
   const Mat4 &mat, const std::vector<Mat4> &matrices, bool uvAdjust
 ) {
   //auto posInt = mat * v.pos * modelScale;
@@ -129,14 +129,14 @@ void convertVertex(
   vT3D.boneIndex = v.boneIndex;
 }
 
-ModelChunked chunkUpModel(const Model &model)
+T3DM::ModelChunked chunkUpModel(const T3DM::Model &model)
 {
-  ModelChunked res{
+  T3DM::ModelChunked res{
     .aabbMin = { 32767, 32767, 32767 },
     .aabbMax = { -32768, -32768, -32768 }
   };
-  res.chunks.reserve(model.triangles.size() * 3 / MAX_VERTEX_COUNT);
-  res.chunks.push_back(MeshChunk{});
+  res.chunks.reserve(model.triangles.size() * 3 / T3DM::MAX_VERTEX_COUNT);
+  res.chunks.push_back(T3DM::MeshChunk{});
   res.chunks.back().material = model.material;
   res.chunks.back().name = model.name;
 
@@ -146,7 +146,7 @@ ModelChunked chunkUpModel(const Model &model)
   // Emits a new chunk of data. This contains a set of indices referencing the global vertex buffer
   auto checkAndEmitChunk = [&](bool forceEmit)
   {
-     if(emittedVerts >= MAX_VERTEX_COUNT || forceEmit) {
+     if(emittedVerts >= T3DM::MAX_VERTEX_COUNT || forceEmit) {
         if(emittedVerts == 0 || res.vertices.empty())return false; // no need to emit empty chunks
 
         // make sure vertices can be interleaved later
@@ -158,8 +158,8 @@ ModelChunked chunkUpModel(const Model &model)
           ++emittedVerts;
         }
 
-        if(emittedVerts > MAX_VERTEX_COUNT) {
-          printf("Error: Too many vertices: %d (total: %d)\n", emittedVerts, res.vertices.size());
+        if(emittedVerts > T3DM::MAX_VERTEX_COUNT) {
+          printf("Error: Too many vertices: %d (total: %ld)\n", emittedVerts, res.vertices.size());
           throw std::runtime_error("Too many vertices!");
         }
 
@@ -171,7 +171,7 @@ ModelChunked chunkUpModel(const Model &model)
         // All except the last will only load vertices, but draw no faces. The last one will do the drawing.
 
         // iterate over all new verts and re-collect them into buffers
-        std::unordered_map<int32_t, std::vector<VertexT3D>> vertsByBone{};
+        std::unordered_map<int32_t, std::vector<T3DM::VertexT3D>> vertsByBone{};
 
         for(uint32_t v=chunkOffset; v<(chunkOffset+emittedVerts); ++v) {
           auto &vert = res.vertices[v];
@@ -235,7 +235,7 @@ ModelChunked chunkUpModel(const Model &model)
           }
         }
 
-        res.chunks.push_back(MeshChunk{.material = model.material, .name = model.name});
+        res.chunks.push_back(T3DM::MeshChunk{.material = model.material, .name = model.name});
 
         chunkOffset += emittedVerts;
         emittedVerts = 0;
@@ -245,7 +245,7 @@ ModelChunked chunkUpModel(const Model &model)
   };
 
   // Emit a single triangle into the local buffer
-  auto emitTriangle = [&](const TriangleT3D &tri, bool onlyExisting)
+  auto emitTriangle = [&](const T3DM::TriangleT3D &tri, bool onlyExisting)
   {
     // try to get existing indices in the local buffer
     uint16_t idx[3];
@@ -260,7 +260,7 @@ ModelChunked chunkUpModel(const Model &model)
     }
 
     // check if triangle would still fit into the buffer
-    if((emittedVerts + needsEmit.size()) >= MAX_VERTEX_COUNT) {
+    if((emittedVerts + needsEmit.size()) >= T3DM::MAX_VERTEX_COUNT) {
       //printf("Warning: Skipping triangle, not enough space for vertices!\n");
       return false;
     }
@@ -331,7 +331,7 @@ ModelChunked chunkUpModel(const Model &model)
     // First check 3 (no new vertex needed), then the ones with 2, then 1
     for(int maxCount=3; maxCount>0; --maxCount)
     {
-      auto freeVertLeft = MAX_VERTEX_COUNT - emittedVerts;
+      auto freeVertLeft = T3DM::MAX_VERTEX_COUNT - emittedVerts;
       if(freeVertLeft < maxCount)break;
 
       for(int triIdx= t + 1; triIdx < model.triangles.size(); ++triIdx)
@@ -360,7 +360,7 @@ ModelChunked chunkUpModel(const Model &model)
   checkAndEmitChunk(true);
 
   // remove empty chunks
-  res.chunks.erase(std::remove_if(res.chunks.begin(), res.chunks.end(), [](const MeshChunk &chunk) {
+  res.chunks.erase(std::remove_if(res.chunks.begin(), res.chunks.end(), [](const T3DM::MeshChunk &chunk) {
     return chunk.vertexCount == 0;
   }), res.chunks.end());
 
@@ -373,7 +373,7 @@ ModelChunked chunkUpModel(const Model &model)
 
     // we can go a little bit OOB (there is a tmp buffer after it, and the DMA doesn't overlap)
     // this may be needed to split vertices with bones properly
-    assert((chunk.vertexDestOffset + chunk.vertexCount) <= (MAX_VERTEX_COUNT+1));
+    assert((chunk.vertexDestOffset + chunk.vertexCount) <= (T3DM::MAX_VERTEX_COUNT+1));
   }
 
   // calculate AABB

@@ -8,11 +8,11 @@
 
 namespace
 {
-  AnimChannelTarget getTarget(cgltf_animation_path_type type) {
+  T3DM::AnimChannelTarget getTarget(cgltf_animation_path_type type) {
     switch(type) {
-      case cgltf_animation_path_type_translation: return AnimChannelTarget::TRANSLATION;
-      case cgltf_animation_path_type_rotation   : return AnimChannelTarget::ROTATION;
-      case cgltf_animation_path_type_scale      : return AnimChannelTarget::SCALE;
+      case cgltf_animation_path_type_translation: return T3DM::AnimChannelTarget::TRANSLATION;
+      case cgltf_animation_path_type_rotation   : return T3DM::AnimChannelTarget::ROTATION;
+      case cgltf_animation_path_type_scale      : return T3DM::AnimChannelTarget::SCALE;
       default:
         printf("Unknown animation target: %d\n", type);
         throw std::runtime_error("Unknown animation target");
@@ -30,9 +30,9 @@ namespace
     };
   }
 
-  void insertScalarKeyframe(Anim &anim, float time, uint32_t chIdx, Vec3 value, bool isTranslate) {
+  void insertScalarKeyframe(T3DM::Anim &anim, float time, uint32_t chIdx, Vec3 value, bool isTranslate) {
     value = cleanupVector(value);
-    if(isTranslate)value *= config.globalScale;
+    if(isTranslate)value *= T3DM::config.globalScale;
 
     for(int i=0; i<3; ++i) {
       anim.channelMap[chIdx + i].keyframes.push_back({.time = time, .valScalar = value[i]});
@@ -42,7 +42,7 @@ namespace
   }
 }
 
-Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::string, const Bone*> &nodeMap, uint32_t sampleRate)
+T3DM::Anim T3DM::parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::string, const Bone*> &nodeMap, uint32_t sampleRate)
 {
   Anim res{
     .name = std::string(anim.name),
