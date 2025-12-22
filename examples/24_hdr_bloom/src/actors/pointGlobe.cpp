@@ -173,8 +173,8 @@ namespace Actor
 
     float visibleFactor = ((float)lastDrawnPartCount / (float)particles.countMax);
     visibleFactor = fmaxf(visibleFactor, 0.7f);
-    float lightStrength = fade * visibleFactor * 0.35f;
-    lightStrength += fm_sinf(timerFlicker*20.0f) * 0.003f;
+    float lightStrength = fade * visibleFactor * 200.5f;
+    lightStrength += fm_sinf(timerFlicker*15.0f) * 4.0f;
     t3d_light_set_point(0, lightPointColor, &pos, lightStrength, false);
 
     timer += deltaTime * 0.25f;

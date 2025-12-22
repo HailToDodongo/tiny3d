@@ -61,8 +61,8 @@ namespace Actor
       pos
     );
 
-    t3d_light_set_point(args.index,   args.color,   pos, scale * 0.042f, false);
-    t3d_light_set_point(args.index+1, {0,0,0,0xFF}, pos, scale * 0.03f, true);
+    t3d_light_set_point(args.index,   args.color,   pos, scale * 35.0f, false);
+    t3d_light_set_point(args.index+1, {0,0,0,0xFF}, pos, scale * 15.0f, true);
   }
 
   void LightBlock::draw3D(float deltaTime)

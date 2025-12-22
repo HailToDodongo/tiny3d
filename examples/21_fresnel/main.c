@@ -209,7 +209,7 @@ int main()
         // Note: point lights exactly at the camera will not work properly, so offset it slightly
         t3d_light_set_point(0,
           (uint8_t[4]){0x00, 0x00, 0x00, 0xFF},
-          &(T3DVec3){{camPos.x, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false
+          &(T3DVec3){{camPos.x, camPos.y+1, camPos.z+1}}, 1000.0f, false
         );
         t3d_light_set_count(1);
       break;
@@ -218,11 +218,11 @@ int main()
         // This works since each light source is added together, and the CC inverts it
         t3d_light_set_point(0,
           (uint8_t[4]){0x00, 0x00, 0x00, 0xF0},
-          &(T3DVec3){{camPos.x+0.075f, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false
+          &(T3DVec3){{camPos.x+0.075f, camPos.y+1, camPos.z+1}}, 1000.0f, false
         );
         t3d_light_set_point(1,
           (uint8_t[4]){0x00, 0x00, 0x00, 0x90},
-          &(T3DVec3){{camPos.x+0.075f, camPos.y+0.1f, camPos.z+0.1f}}, 1.0f, false
+          &(T3DVec3){{camPos.x+0.075f, camPos.y+1, camPos.z+1}}, 1000.0f, false
         );
         t3d_light_set_count(2);
       break;

@@ -143,13 +143,13 @@ int main()
 
     if(currMode == MODE_LIGHT) {
       t3d_light_set_ambient(colorAmbientLight);
-      t3d_light_set_point(1, (uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF}, &lightPos, 0.125f, ignoreNormals);
+      t3d_light_set_point(1, (uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF}, &lightPos, 50.0f, ignoreNormals);
     } else {
       // cutout lighting, this works by using the alpha channel of the light color
       // by setting the ambient alpha to 0, only dir/point lights will affect the scene
       // this can be done completely independent of the actual color values
       t3d_light_set_ambient(colorAmbient);
-      t3d_light_set_point(1, (uint8_t[]){0, 0, 0, 0xFF}, &lightPos, 0.125f, ignoreNormals);
+      t3d_light_set_point(1, (uint8_t[]){0, 0, 0, 0xFF}, &lightPos, 50.0f, ignoreNormals);
     }
     t3d_light_set_count(2);
 
