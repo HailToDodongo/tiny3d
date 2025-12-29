@@ -74,9 +74,11 @@ int main()
   T3DModel *modelBox = t3d_model_load("rom:/box.t3dm");
   T3DModel *modelCRT = t3d_model_load("rom:/target.t3dm");
 
-  mpeg2_t *mp2 = mpeg2_open("rom:/video.m1v");
+  video_register_codec(&mpeg1_codec);
+  video_t *video = video_open("rom:/video.m1v");
+  video_info_t vinfo = video_get_info(video);
   yuv_blitter_t yuvBlitter = yuv_blitter_new_fmv(
-    mpeg2_get_width(mp2), mpeg2_get_height(mp2),
+    vinfo.width, vinfo.height,
     OFFSCREEN_SIZE, OFFSCREEN_SIZE, NULL);
 
   rspq_block_begin();
@@ -140,15 +142,15 @@ int main()
     rdpq_attach_clear(&offscreenSurf, &offscreenSurfZ);
 
     // while it is a bit outside the scope of t3d, we can draw other things like videos into buffers too.
-    // For more information on how to use the mpeg2 library, see the "videoplayer" example in libdragon
+    // For more information on how to use the video library, see the "videoplayer" example in libdragon
     if(videoFrameTime > 0.015f) {
       videoFrameTime = 0.0f;
-      if(!mpeg2_next_frame(mp2)) {
-        mpeg2_rewind(mp2);
-        mpeg2_next_frame(mp2);
+      if(!video_next_frame(video)) {
+        video_rewind(video);
+        video_next_frame(video);
       }
     }
-    yuv_frame_t frame = mpeg2_get_frame(mp2);
+    yuv_frame_t frame = video_get_frame(video);
     yuv_blitter_run(&yuvBlitter, &frame);
 
     // the 3D rendering part itself is exactly the same as before
