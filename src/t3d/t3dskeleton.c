@@ -63,8 +63,7 @@ void t3d_skeleton_update(T3DSkeleton *skeleton)
   int updateLevel = -1;
   bool forceUpdate = false;
 
-  skeleton->currentBufferIdx = (skeleton->currentBufferIdx + 1) % skeleton->bufferCount;
-  T3DMat4FP* matStackFP = &skeleton->boneMatricesFP[skeleton->skeletonRef->boneCount * skeleton->currentBufferIdx];
+  T3DMat4FP* matStackFP = nullptr;
 
   for(int i = 0; i < skeleton->skeletonRef->boneCount; i++)
   {
@@ -78,6 +77,14 @@ void t3d_skeleton_update(T3DSkeleton *skeleton)
 
     if(bone->hasChanged || forceUpdate)
     {
+      // only cycle through matrices if at least one bone changes.
+      // this avoids flickering at the end of an animation, since it would cycle through the last X frames otherwise.
+      if(matStackFP == nullptr)
+      {
+        skeleton->currentBufferIdx = (skeleton->currentBufferIdx + 1) % skeleton->bufferCount;
+        matStackFP = &skeleton->boneMatricesFP[skeleton->skeletonRef->boneCount * skeleton->currentBufferIdx];
+      }
+
       // if a bone changed we need to also update any children.
       // To do so, update all following bones until we hit one that has the same depth as the changed bone.
       if(!forceUpdate)updateLevel = boneDef->depth;
