@@ -156,6 +156,19 @@ inline static void t3d_anim_set_playing(T3DAnim* anim, bool isPlaying) {
 }
 
 /**
+ * Checks if a given animation is still playing.
+ * For looping animations this will always be true once started.
+ * For non-looping animations this will be false once the end is reached.
+ *
+ * @param anim animation to check
+ * @return true if playing, false if paused or ended
+ */
+inline static bool t3d_anim_is_playing(const T3DAnim* anim) {
+  return anim->isPlaying != 0;
+}
+
+
+/**
  * Sets the animation to loop or not.
  * If the animation is not set to loop, you will have to call 't3d_anim_set_playing' to play it again.
  * @param anim animation to set loop for
