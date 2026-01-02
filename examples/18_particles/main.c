@@ -65,13 +65,20 @@ int main()
   // Meaning you only have to allocate an buffer of arbitrary size here and fill it with data.
   uint32_t particleCountMax = 100'000;
   uint32_t particleCount = 2000;
+
   // NOTE: just like with vertices, particles are interleaved in pairs of 2.
-  // So one TPXParticle struct always contains 2 particles.
+  // So one TPXParticleS8 struct always contains 2 particles.
   // If you need an odd number, just set the second particle size to 0.
-  uint32_t allocSize = sizeof(TPXParticle) * particleCountMax / 2;
-  TPXParticle *particles = malloc_uncached(allocSize);
+  uint32_t allocSize = sizeof(TPXParticleS8) * particleCountMax / 2;
+  TPXParticleS8 *particlesS8 = malloc_uncached(allocSize);
   debugf("Particle-Buffer %ldkb\n", allocSize / 1024);
-  generate_particles_random(particles, particleCount);
+
+  // Additionally, a 16bit version of particles is available.
+  // This one takes up more space (24 bytes vs 16 bytes per pair) and is slightly slower.
+  // In return, it can cover a larger range which can be useful for 3D sprites placed in a scene.
+  // The 8bit variant should be preferred when possible (e.g. in local particle effects)
+  allocSize = sizeof(TPXParticleS16) * particleCountMax / 2;
+  TPXParticleS16 *particlesS16 = malloc_uncached(allocSize);
 
   // Now some regular 3D stuff, not related to particles.
   T3DModel *model = t3d_model_load("rom://scene.t3dm");
@@ -173,6 +180,7 @@ int main()
 
     // A few example particles systems.
     // This will modify the particle buffer on the CPU side.
+    bool isS16 = false;
     switch(example)
     {
       case 0: // Random
@@ -180,9 +188,9 @@ int main()
         particleRot = (T3DVec3){{time,time*0.77f,time*1.42f}};
         particleMatScale = (T3DVec3){{partMatScaleVal, partMatScaleVal, partMatScaleVal}};
 
-        if(needRebuild)generate_particles_random(particles, particleCount);
+        if(needRebuild)generate_particles_random(particlesS8, particleCount);
         rdpq_set_env_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
-      break;
+        break;
       case 1: // Flame
         particleRot = (T3DVec3){{0,0,0}};
         if(!joypad.btn.z)time += deltaTime * 1.0f;
@@ -190,17 +198,17 @@ int main()
         float posX = fm_cosf(time) * 80.0f;
         float posZ = fm_sinf(2*time) * 40.0f;
 
-        simulate_particles_fire(particles, particleCount, posX, posZ);
+        simulate_particles_fire(particlesS8, particleCount, posX, posZ);
         particleMatScale = (T3DVec3){{0.9f, partMatScaleVal, 0.9f}};
         particlePos.y = partMatScaleVal * 130.0f;
         rdpq_set_env_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
-      break;
+        break;
       case 2: // Grass
         time += deltaTime * 1.0f;
         particleRot = (T3DVec3){{0,0,0}};
         particlePos.y = 0;
         if(needRebuild) {
-          particleCount = simulate_particles_grass(particles, particleCount);
+          particleCount = simulate_particles_grass(particlesS16, particleCount);
         }
         particleMatScale = (T3DVec3){{partMatScaleVal, partSizeY * 2.9f, partMatScaleVal}};
         rdpq_set_env_color(blend_colors(
@@ -208,7 +216,8 @@ int main()
           (color_t){0xFF, 0xAA, 0x55, 0xFF},
           fm_sinf(time)*0.5f+0.5f
         ));
-      break;
+        isS16 = true;
+        break;
     }
     needRebuild = false;
 
@@ -270,7 +279,11 @@ int main()
     // Now draw particles. internally this will load, transform and draw them in one go on the RSP.
     // While the ucode can only handle a 344 at a time, this function will automatically batch them
     // so you can specify an arbitrary amount of particles (as long as it's an even count)
-    tpx_particle_draw(particles, particleCount);
+    if(isS16) {
+      tpx_particle_draw_s16(particlesS16, particleCount);
+    } else {
+      tpx_particle_draw_s8(particlesS8, particleCount);
+    }
 
     // Make sure end up at the same stack level as before.
     tpx_matrix_pop(1);

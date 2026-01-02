@@ -49,10 +49,27 @@ typedef struct {
   int8_t sizeB;
   uint8_t colorA[4];
   uint8_t colorB[4];
-}  __attribute__((packed, aligned(16))) TPXParticle;
+}  __attribute__((packed, aligned(16))) TPXParticleS8;
 
-_Static_assert(sizeof(TPXParticle) == 16, "TPXParticle size mismatch");
+_Static_assert(sizeof(TPXParticleS8) == 16, "TPXParticleS8 size mismatch");
 
+/**
+ * @deprecated Use 'TPXParticleS8' instead.
+ */
+[[deprecated]] typedef TPXParticleS8 TPXParticle;
+
+typedef struct {
+  int16_t posA[3];
+  int8_t sizeA;
+  uint8_t texOffsetA;
+  int16_t posB[3];
+  int8_t sizeB;
+  uint8_t texOffsetB;
+  uint8_t colorA[4];
+  uint8_t colorB[4];
+} __attribute__((packed, aligned(8))) TPXParticleS16;
+
+_Static_assert(sizeof(TPXParticleS16) == 24, "TPXParticle16 size mismatch");
 /**
  * @brief Initializes the tinyPX library
  * @param params settings to configure the library
@@ -103,25 +120,69 @@ void tpx_state_set_base_size(uint16_t baseSize);
 void tpx_state_set_tex_params(int16_t offsetX, uint16_t mirrorPoint);
 
 /**
- * Draws a given amount of particles.
+ * Draws a given amount of particles (8bit position precision).
  * In contrast to triangles in t3d, this works in a single command.
  * So load, transform and draw happens in one go.
  * @param particles pointer to the particle data
  * @param count number of particles to draw
  */
-void tpx_particle_draw(TPXParticle *particles, uint32_t count);
+void tpx_particle_draw_s8(TPXParticleS8 *particles, uint32_t count);
+
+/**
+ * @deprecated Use 'tpx_particle_draw_s8' instead.
+ */
+[[deprecated]] inline static void tpx_particle_draw(TPXParticleS8 *particles, uint32_t count) {
+  return tpx_particle_draw_s8(particles, count);
+}
+
+/**
+ * Draws a given amount of particles (16bit position precision).
+ * 16bit Precision gives you larger range but comes with slightly more memory and runtime cost.
+ * Whenever possible use the 8bit version instead.
+ * It is most useful if you need to cover large ranges, e.g. when using it for billboards in scene.
+ *
+ * In contrast to triangles in t3d, this works in a single command.
+ * So load, transform and draw happens in one go.
+ * @param particles pointer to the particle data
+ * @param count number of particles to draw
+ */
+void tpx_particle_draw_s16(TPXParticleS16 *particles, uint32_t count);
 
 /**
  * Draws a given amount of particles with a texture.
  * In contrast to triangles in t3d, this works in a single command.
  * So load, transform and draw happens in one go.
+ *
  * Note: this expects that you already setup textures.
  * It will also always use TILE0 for the rect-commands.
+ * The colors alpha channel acts as a texture offset.
  *
  * @param particles pointer to the particle data
  * @param count number of particles to draw
  */
-void tpx_particle_draw_tex(TPXParticle *particles, uint32_t count);
+void tpx_particle_draw_tex_s8(TPXParticleS8 *particles, uint32_t count);
+
+/**
+ * @deprecated Use 'tpx_particle_draw_tex_s8' instead.
+ */
+[[deprecated]] inline static void tpx_particle_draw_tex(TPXParticleS8 *particles, uint32_t count) {
+  return tpx_particle_draw_tex_s8(particles, count);
+}
+
+/**
+ * Draws a given amount of particles (16bit position precision).
+ * 16bit Precision gives you larger range but comes with slightly more memory and runtime cost.
+ * Whenever possible use the 8bit version instead.
+ * It is most useful if you need to cover large ranges, e.g. when using it for billboards in scene.
+ *
+ * Note: this expects that you already setup textures.
+ * It will also always use TILE0 for the rect-commands.
+ * A per-particle texture offset can be set in 'texOffsetA'/'texOffsetB'.
+ *
+ * @param particles pointer to the particle data
+ * @param count number of particles to draw
+ */
+void tpx_particle_draw_tex_s16(TPXParticleS16 *particles, uint32_t count);
 
 /**
  * Directly loads a matrix, overwriting the current stack position.
@@ -165,7 +226,7 @@ void tpx_matrix_push_pos(int count);
  * @param vert particle buffer
  * @param idx particle index
  */
-static inline int8_t* tpx_buffer_get_pos(TPXParticle pt[], int idx) {
+static inline int8_t* tpx_buffer_get_pos(TPXParticleS8 pt[], int idx) {
   return (idx & 1) ? pt[idx/2].posB : pt[idx/2].posA;
 }
 
@@ -174,7 +235,7 @@ static inline int8_t* tpx_buffer_get_pos(TPXParticle pt[], int idx) {
  * @param pt particle buffer
  * @param idx particle index
  */
-static inline int8_t* tpx_buffer_get_size(TPXParticle pt[], int idx) {
+static inline int8_t* tpx_buffer_get_size(TPXParticleS8 pt[], int idx) {
   return (idx & 1) ? &pt[idx/2].sizeB : &pt[idx/2].sizeA;
 }
 
@@ -183,7 +244,7 @@ static inline int8_t* tpx_buffer_get_size(TPXParticle pt[], int idx) {
  * @param pt particle buffer
  * @param idx particle index
  */
-static inline uint32_t* tpx_buffer_get_color(TPXParticle pt[], int idx) {
+static inline uint32_t* tpx_buffer_get_color(TPXParticleS8 pt[], int idx) {
   return (idx & 1) ? (uint32_t*)&pt[idx/2].colorB : (uint32_t*)&pt[idx/2].colorA;
 }
 
@@ -192,8 +253,45 @@ static inline uint32_t* tpx_buffer_get_color(TPXParticle pt[], int idx) {
  * @param pt particle buffer
  * @param idx particle index
  */
-static inline uint8_t* tpx_buffer_get_rgba(TPXParticle pt[], int idx) {
+static inline uint8_t* tpx_buffer_get_rgba(TPXParticleS8 pt[], int idx) {
   return (idx & 1) ? pt[idx/2].colorB : pt[idx/2].colorA;
+}
+
+/**
+ * Returns the pointer to a position of a particle in a buffer
+ * @param vert particle buffer
+ * @param idx particle index
+ */
+static inline int16_t* tpx_buffer_s16_get_pos(TPXParticleS16 pt[], int idx) {
+  return (idx & 1) ? pt[idx/2].posB : pt[idx/2].posA;
+}
+
+/**
+ * Returns the pointer to the size of a particle in a buffer
+ * @param pt particle buffer
+ * @param idx particle index
+ */
+static inline int8_t* tpx_buffer_s16_get_size(TPXParticleS16 pt[], int idx) {
+  return (idx & 1) ? &pt[idx/2].sizeB : &pt[idx/2].sizeA;
+}
+
+/**
+ * Returns the pointer to the color (as a u32) of a particle in a buffer
+ * @param pt particle buffer
+ * @param idx particle index
+ */
+static inline uint8_t* tpx_buffer_s16_get_rgba(TPXParticleS16 pt[], int idx) {
+  return (idx & 1) ? pt[idx/2].colorB : pt[idx/2].colorA;
+}
+
+/**
+ * Returns the pointer to the texture offset in the buffer.
+ * This is only present in the 16bit buffer, in the 8bit version this stored in alpha channel.
+ * @param pt particle buffer
+ * @param idx particle index
+*/
+static inline uint8_t* tpx_buffer_s16_get_tex_offset(TPXParticleS16 pt[], int idx) {
+  return (idx & 1) ? &pt[idx/2].texOffsetA : &pt[idx/2].texOffsetB;
 }
 
 /**
@@ -202,7 +300,7 @@ static inline uint8_t* tpx_buffer_get_rgba(TPXParticle pt[], int idx) {
  * @param idxA index of the first particle
  * @param idxB index of the second particle
  */
-void tpx_buffer_swap(TPXParticle pt[], uint32_t idxA, uint32_t idxB);
+void tpx_buffer_swap(TPXParticleS8 pt[], uint32_t idxA, uint32_t idxB);
 
 /**
  * Copies a particle into another place in a buffer
@@ -211,7 +309,7 @@ void tpx_buffer_swap(TPXParticle pt[], uint32_t idxA, uint32_t idxB);
  * @param idxDst destination index
  * @param idxSrc source index
  */
-void tpx_buffer_copy(TPXParticle pt[], uint32_t idxDst, uint32_t idxSrc);
+void tpx_buffer_copy(TPXParticleS8 pt[], uint32_t idxDst, uint32_t idxSrc);
 
 /**
  * Destroys the tinyPX library and frees all resources

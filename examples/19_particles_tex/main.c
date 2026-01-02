@@ -87,9 +87,16 @@ int main()
   // There is no special struct for textured particles compared to colored ones.
   // The only difference is that the alpha channel of the color is used for the texture offset.
   // You can still define a global alpha value via the CC ofc.
-  uint32_t allocSize = sizeof(TPXParticle) * particleCountMax / 2;
-  TPXParticle *particles = malloc_uncached(allocSize);
+  uint32_t allocSize = sizeof(TPXParticleS8) * particleCountMax / 2;
+  TPXParticleS8 *particlesS8 = malloc_uncached(allocSize);
   debugf("Particle-Buffer %ldkb\n", allocSize / 1024);
+
+  // Additionally, a 16bit version of particles is available.
+  // This one takes up more space (24 bytes vs 16 bytes per pair) and is slightly slower.
+  // In return, it can cover a larger range which can be useful for 3D sprites placed in a scene.
+  // The 8bit variant should be preferred when possible (e.g. in local particle effects)
+  allocSize = sizeof(TPXParticleS16) * particleCountMax / 2;
+  TPXParticleS16 *particlesS16 = malloc_uncached(allocSize);
 
   sprite_t *texTest[] = {
       sprite_load("rom://tex8.i8.sprite"),
@@ -200,6 +207,7 @@ int main()
       camTarget.v[2] = camPos.v[2] + camDir.v[2];
     }
 
+    bool is16Bit = false;
     bool isSpriteRot = false;
     switch(example)
     {
@@ -211,7 +219,7 @@ int main()
         float posX = fm_cosf(time) * 80.0f;
         float posZ = fm_sinf(2*time) * 40.0f;
 
-        simulate_particles_fire(particles, particleCount, posX, posZ);
+        simulate_particles_fire(particlesS8, particleCount, posX, posZ);
         particleMatScale = (T3DVec3){{0.9f, partMatScaleVal, 0.9f}};
         particlePos.y = partMatScaleVal * 130.0f;
         rdpq_set_env_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
@@ -223,10 +231,11 @@ int main()
         particleRot = (T3DVec3){{0,0,0}};
         particlePos.y = 0;
         if(needRebuild) {
-          particleCount = simulate_particles_coins(particles, particleCount);
+          particleCount = simulate_particles_coins(particlesS16, particleCount);
         }
         particleMatScale = (T3DVec3){{partMatScaleVal, partSizeY * 2.9f, partMatScaleVal}};
         rdpq_set_env_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
+        is16Bit = true;
       break;
       default: // Random
         time += deltaTime * 0.2f;
@@ -234,7 +243,7 @@ int main()
         particleRot = (T3DVec3){{time,time*0.77f,time*1.42f}};
         particleMatScale = (T3DVec3){{partMatScaleVal, partMatScaleVal, partMatScaleVal}};
 
-        if(needRebuild)generate_particles_random(particles, particleCount);
+        if(needRebuild)generate_particles_random(particlesS8, particleCount);
         rdpq_set_env_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
         isSpriteRot = true;
       break;
@@ -326,7 +335,11 @@ int main()
       case 5: tpx_state_set_tex_params((int16_t)tileIdx, 0); break;
     }
 
-    tpx_particle_draw_tex(particles, particleCount);
+    if(is16Bit) {
+      tpx_particle_draw_tex_s16(particlesS16, particleCount);
+    } else {
+      tpx_particle_draw_tex_s8(particlesS8, particleCount);
+    }
 
     tpx_matrix_pop(1);
 
