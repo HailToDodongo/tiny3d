@@ -571,84 +571,84 @@ TPXCmd_SetDMEM:
 TPXCmd_DrawTextured:
   andi $t0, $a0, 65535                               ## L:1081 |      ^ | u32<$t0> dmaSize = dataSize & 0xFFFF;
   ori $s4, $zero, %lo(PARTICLE_BUFF)                 ## L:1080 |      2 | u16<$s4> dmaDmem = PARTICLE_BUFF;
-  addu $s7, $s4, $t0                                 ## L:1096 |      3 | u32 ptrInEnd = dmaDmem + dmaSize;
-  or $t2, $zero, $zero                               ## L:1097 |      4 | dma_in_async(dmaDmem, rdramAddr, dmaSize);
-  or $s0, $zero, $a1                                 ## L:1097 |      5 | dma_in_async(dmaDmem, rdramAddr, dmaSize);
+  or $t2, $zero, $zero                               ## L:1097 |      3 | dma_in_async(dmaDmem, rdramAddr, dmaSize);
+  or $s0, $zero, $a1                                 ## L:1097 |      4 | dma_in_async(dmaDmem, rdramAddr, dmaSize);
+  addu $s7, $s4, $t0                                 ## L:1096 |      5 | u32 ptrInEnd = dmaDmem + dmaSize;
   jal DMAExec                                        ## L:1097 |      6 | dma_in_async(dmaDmem, rdramAddr, dmaSize); ## Args: $t0, $t1, $s0, $s4, $t2
   addiu $t0, $t0, -1                                 ## L:1097 |     *8 | dma_in_async(dmaDmem, rdramAddr, dmaSize);
   vmudl $v20, $v00, $v31.e3                          ## L:1112 |      9 | screenSize >>= 4;
   ori $at, $zero, %lo(MATRIX_MVP)                    ## L:1105 |      ^ | vec32 mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
-  ldv $v28, 0, 8, $at                                ## L:1105 |     10 | vec32 mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
-  ldv $v23, 0, 32, $at                               ## L:1107 |     11 | vec32 mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
-  ldv $v25, 0, 16, $at                               ## L:1106 |     12 | vec32 mat1 = load(MATRIX_MVP, 0x10).xyzwxyzw;
-  ldv $v24, 0, 40, $at                               ## L:1107 |     13 | vec32 mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
-  ldv $v21, 0, 48, $at                               ## L:1108 |     14 | vec32 mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
-  ldv $v22, 0, 56, $at                               ## L:1108 |     15 | vec32 mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
-  lw $s2, %lo(RDPQ_SCISSOR_RECT + 4)                 ## L:1212 |     16 | u32 extMax = load(RDPQ_SCISSOR_RECT, 4);
-  ldv $v28, 8, 8, $at                                ## L:1105 |     17 | vec32 mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
-  ldv $v27, 0, 0, $at                                ## L:1105 |     18 | vec32 mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
-  lw $s1, %lo(RDPQ_SCISSOR_RECT + 0)                 ## L:1213 |     19 | u32 extMin = load(RDPQ_SCISSOR_RECT, 0);
-  ldv $v25, 8, 16, $at                               ## L:1106 |     20 | vec32 mat1 = load(MATRIX_MVP, 0x10).xyzwxyzw;
-  ldv $v21, 8, 48, $at                               ## L:1108 |     21 | vec32 mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
-  ldv $v26, 0, 24, $at                               ## L:1106 |     22 | vec32 mat1 = load(MATRIX_MVP, 0x10).xyzwxyzw;
-  lui $t7, 0x3A00                                    ## L:1130 |     23 | cmdRdpColor = 0x3A00'0000;
-  ldv $v27, 8, 0, $at                                ## L:1105 |     24 | vec32 mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
-  ldv $v23, 8, 32, $at                               ## L:1107 |     25 | vec32 mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
-  srl $t4, $s2, 12                                   ## L:1215 |     26 | temp1 = extMax >> 12;
-  ldv $v22, 8, 56, $at                               ## L:1108 |     27 | vec32 mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
-  mtc2 $t4, $v15.e0                                  ## L:1216 |     28 | screenMax.x = temp1;  screenMax.X = temp1;
-  ldv $v26, 8, 24, $at                               ## L:1106 |     29 | vec32 mat1 = load(MATRIX_MVP, 0x10).xyzwxyzw;
-  ldv $v24, 8, 40, $at                               ## L:1107 |     30 | vec32 mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
-  ori $at, $zero, %lo(SCREEN_SCALE_OFFSET)           ## L:1110 |     31 | vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
-  ldv $v19, 0, 0, $at                                ## L:1110 |     32 | vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
-  mtc2 $s2, $v15.e1                                  ## L:1217 |     33 | screenMax.y = extMax; screenMax.Y = extMax;
-  ldv $v19, 8, 0, $at                                ## L:1110 |     34 | vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
-  ldv $v18, 0, 8, $at                                ## L:1114 |     35 | vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
-  ldv $v18, 8, 8, $at                                ## L:1114 |     36 | vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
-  ori $at, $zero, %lo(NORM_SCALE_W)                  ## L:1115 |     37 | vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
-  ldv $v17, 0, 0, $at                                ## L:1115 |     38 | vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
-  vmadm $v19, $v19, $v31.e3                          ## L:1112 |      ^ | screenSize >>= 4;
-  mtc2 $s1, $v16.e1                                  ## L:1221 |     39 | screenMin.y = extMin; screenMin.Y = extMin;
-  addiu $a0, $zero, 46                               ## L:1131 |     40 | cmdRdpDepth = 0x2E;
-  ldv $v17, 8, 0, $at                                ## L:1115 |     41 | vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
-  mtc2 $t4, $v15.e4                                  ## L:1216 |     42 | screenMax.x = temp1;  screenMax.X = temp1;
-  addiu $at, $zero, 4095                             ## L:1211 |     43 | screenMax.w = 0b1111'1111'1111;
+  ldv $v22, 0, 56, $at                               ## L:1108 |     10 | vec32 mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
+  lw $s2, %lo(RDPQ_SCISSOR_RECT + 4)                 ## L:1212 |     11 | u32 extMax = load(RDPQ_SCISSOR_RECT, 4);
+  ldv $v23, 0, 32, $at                               ## L:1107 |     12 | vec32 mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
+  ldv $v25, 0, 16, $at                               ## L:1106 |     13 | vec32 mat1 = load(MATRIX_MVP, 0x10).xyzwxyzw;
+  ldv $v24, 0, 40, $at                               ## L:1107 |     14 | vec32 mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
+  ldv $v21, 0, 48, $at                               ## L:1108 |     15 | vec32 mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
+  ldv $v25, 8, 16, $at                               ## L:1106 |     16 | vec32 mat1 = load(MATRIX_MVP, 0x10).xyzwxyzw;
+  ldv $v27, 0, 0, $at                                ## L:1105 |     17 | vec32 mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
+  ldv $v26, 0, 24, $at                               ## L:1106 |     18 | vec32 mat1 = load(MATRIX_MVP, 0x10).xyzwxyzw;
+  ldv $v27, 8, 0, $at                                ## L:1105 |     19 | vec32 mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
+  ldv $v22, 8, 56, $at                               ## L:1108 |     20 | vec32 mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
+  ldv $v26, 8, 24, $at                               ## L:1106 |     21 | vec32 mat1 = load(MATRIX_MVP, 0x10).xyzwxyzw;
+  ldv $v28, 0, 8, $at                                ## L:1105 |     22 | vec32 mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
+  ldv $v23, 8, 32, $at                               ## L:1107 |     23 | vec32 mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
+  ldv $v28, 8, 8, $at                                ## L:1105 |     24 | vec32 mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
+  ldv $v21, 8, 48, $at                               ## L:1108 |     25 | vec32 mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
+  ldv $v24, 8, 40, $at                               ## L:1107 |     26 | vec32 mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
+  ori $at, $zero, %lo(SCREEN_SCALE_OFFSET)           ## L:1110 |     27 | vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
+  ldv $v19, 0, 0, $at                                ## L:1110 |     28 | vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
+  mtc2 $s2, $v15.e5                                  ## L:1217 |     29 | screenMax.y = extMax; screenMax.Y = extMax;
+  ldv $v18, 0, 8, $at                                ## L:1114 |     30 | vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
+  ldv $v19, 8, 0, $at                                ## L:1110 |     31 | vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
+  ldv $v18, 8, 8, $at                                ## L:1114 |     32 | vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
+  srl $t4, $s2, 12                                   ## L:1215 |     33 | temp1 = extMax >> 12;
+  lw $s1, %lo(RDPQ_SCISSOR_RECT + 0)                 ## L:1213 |     34 | u32 extMin = load(RDPQ_SCISSOR_RECT, 0);
+  mtc2 $s2, $v15.e1                                  ## L:1217 |     35 | screenMax.y = extMax; screenMax.Y = extMax;
+  ori $at, $zero, %lo(NORM_SCALE_W)                  ## L:1115 |     36 | vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
+  ldv $v17, 0, 0, $at                                ## L:1115 |     37 | vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
+  mtc2 $s1, $v16.e5                                  ## L:1221 |     38 | screenMin.y = extMin; screenMin.Y = extMin;
+  lui $t7, 0x3A00                                    ## L:1130 |     39 | cmdRdpColor = 0x3A00'0000;
+  ori $s3, $zero, %lo(RDP_BUFF)                      ## L:1102 |     40 | u16<$s3> dmaDmemEnd = RDP_BUFF;
+  mtc2 $t4, $v15.e0                                  ## L:1216 |     41 | screenMax.x = temp1;  screenMax.X = temp1;
+  ldv $v17, 8, 0, $at                                ## L:1115 |     42 | vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
+  addiu $s5, $s3, 480                                ## L:1103 |     43 | u16 dmaDmemFlush = dmaDmemEnd + 480;
   or $s6, $zero, $s4                                 ## L:1099 |     44 | u32 ptrIn = dmaDmem;
-  mtc2 $s1, $v16.e5                                  ## L:1221 |     45 | screenMin.y = extMin; screenMin.Y = extMin;
-  mtc2 $at, $v15.e3                                  ## L:1211 |     46 | screenMax.w = 0b1111'1111'1111;
-  ori $at, $zero, %lo(PARTICLE_SCALE)                ## L:1122 |     47 | globalPartSize.xy = load(PARTICLE_SCALE).xy;
-  llv $v13, 0, 0, $at                                ## L:1122 |     48 | globalPartSize.xy = load(PARTICLE_SCALE).xy;
-  mtc2 $s2, $v15.e5                                  ## L:1217 |     49 | screenMax.y = extMax; screenMax.Y = extMax;
-  srl $t4, $s1, 12                                   ## L:1219 |     50 | temp1 = extMin >> 12;
-  ori $s2, $zero, %lo(RDP_BUFF)                      ## L:1128 |     51 | u16 buffRdp = RDP_BUFF;
-  mtc2 $t4, $v16.e4                                  ## L:1220 |     52 | screenMin.x = temp1;  screenMin.X = temp1;
+  addiu $at, $zero, 4095                             ## L:1211 |     45 | screenMax.w = 0b1111'1111'1111;
+  mtc2 $t4, $v15.e4                                  ## L:1216 |     46 | screenMax.x = temp1;  screenMax.X = temp1;
+  mtc2 $s1, $v16.e1                                  ## L:1221 |     47 | screenMin.y = extMin; screenMin.Y = extMin;
+  addiu $a0, $zero, 46                               ## L:1131 |     48 | cmdRdpDepth = 0x2E;
+  srl $t4, $s1, 12                                   ## L:1219 |     49 | temp1 = extMin >> 12;
+  mtc2 $at, $v15.e3                                  ## L:1211 |     50 | screenMax.w = 0b1111'1111'1111;
+  mtc2 $t4, $v16.e4                                  ## L:1220 |     51 | screenMin.x = temp1;  screenMin.X = temp1;
+  ori $at, $zero, %lo(PARTICLE_SCALE)                ## L:1122 |     52 | globalPartSize.xy = load(PARTICLE_SCALE).xy;
+  vmadm $v19, $v19, $v31.e3                          ## L:1112 |      ^ | screenSize >>= 4;
+  addiu $s1, $s5, 32                                 ## L:1129 |     53 | u16 buffRdpEnd = dmaDmemFlush + 32;
   vmadn $v20, $v00, $v00                             ## L:1112 |      ^ | screenSize >>= 4;
-  mtc2 $t4, $v16.e0                                  ## L:1220 |     53 | screenMin.x = temp1;  screenMin.X = temp1;
-  vand $v15, $v15, $v15.e3                           ## L:1223 |      ^ | screenMax &= screenMax.w;
-  llv $v13, 8, 0, $at                                ## L:1123 |     54 | globalPartSize.XY = load(PARTICLE_SCALE).xy;
-  ori $s4, $zero, %lo(RDP_BUFF)                      ## L:1101 |     55 | dmaDmem = RDP_BUFF;
-  ori $s3, $zero, %lo(RDP_BUFF)                      ## L:1102 |     56 | u16<$s3> dmaDmemEnd = RDP_BUFF;
-  addiu $s5, $s3, 480                                ## L:1103 |     57 | u16 dmaDmemFlush = dmaDmemEnd + 480;
-  addiu $s1, $s5, 32                                 ## L:1129 |     58 | u16 buffRdpEnd = dmaDmemFlush + 32;
+  vand $v15, $v15, $v15.e3                           ## L:1223 |     54 | screenMax &= screenMax.w;
+  mtc2 $t4, $v16.e0                                  ## L:1220 |      ^ | screenMin.x = temp1;  screenMin.X = temp1;
+  llv $v13, 0, 0, $at                                ## L:1122 |     55 | globalPartSize.xy = load(PARTICLE_SCALE).xy;
+  llv $v13, 8, 0, $at                                ## L:1123 |     56 | globalPartSize.XY = load(PARTICLE_SCALE).xy;
+  ori $s2, $zero, %lo(RDP_BUFF)                      ## L:1128 |     57 | u16 buffRdp = RDP_BUFF;
+  ori $s4, $zero, %lo(RDP_BUFF)                      ## L:1101 |     58 | dmaDmem = RDP_BUFF;
   vand $v16, $v16, $v15.e3                           ## L:1224 |      ^ | screenMin &= screenMax.w;
   LABEL_TPXCmd_DrawTextured_0013:
   sh $zero, 14($s2)                                  ## L:1135 |     59 | store(ZERO:u16, buffRdp, 0x0E);
-  sb $a0, 8($s2)                                     ## L:1134 |     60 | store(cmdRdpDepth, buffRdp, 8);
-  sw $t7, 0($s2)                                     ## L:1133 |     61 | store(cmdRdpColor, buffRdp, 0);
+  sw $t7, 0($s2)                                     ## L:1133 |     60 | store(cmdRdpColor, buffRdp, 0);
+  sb $a0, 8($s2)                                     ## L:1134 |     61 | store(cmdRdpDepth, buffRdp, 8);
   addiu $s2, $s2, 32                                 ## L:1136 |     62 | buffRdp += 32;
   bne $s2, $s1, LABEL_TPXCmd_DrawTextured_0013       ## L:1136 |     63 | buffRdp += 32;
   nop                                                ## L:1136 |    *65 | buffRdp += 32;
   LABEL_TPXCmd_DrawTextured_0014:
   lhu $s1, %lo(TILE_COUNT + 0)                       ## L:1147 |     66 | u16 tiles = load(TILE_COUNT);
   vxor $v12, $v00, $v00.e0                           ## L:1143 |      ^ | vec16 texMirrorMask = 0;
-  vmov $v12.e5, $v30.e7                              ## L:1150 |     67 | texMirrorMask.Y = 1;
-  vmov $v12.e1, $v30.e7                              ## L:1151 |    *69 | texMirrorMask.y = 1;
-  addu $fp, $s1, $s1                                 ## L:1148 |      ^ | u16 tilesEnd = tiles + tiles;
-  mtc2 $s1, $v12.e2                                  ## L:1152 |     70 | texMirrorMask.z = tiles;
-  mtc2 $fp, $v12.e3                                  ## L:1153 |     71 | texMirrorMask.w = tilesEnd;
-  addiu $fp, $fp, 65535                              ## L:1155 |     72 | tilesEnd -= 1;
-  vmov $v12.e7, $v31.e7                              ## L:1158 |      ^ | texMirrorMask.W = 0x100;
-  mtc2 $fp, $v12.e4                                  ## L:1157 |    *74 | texMirrorMask.X = tilesEnd;
+  addu $fp, $s1, $s1                                 ## L:1148 |   **69 | u16 tilesEnd = tiles + tiles;
+  vmov $v12.e5, $v30.e7                              ## L:1150 |      ^ | texMirrorMask.Y = 1;
+  mtc2 $fp, $v12.e3                                  ## L:1153 |     70 | texMirrorMask.w = tilesEnd;
+  mtc2 $s1, $v12.e2                                  ## L:1152 |     71 | texMirrorMask.z = tiles;
+  vmov $v12.e1, $v30.e7                              ## L:1151 |     72 | texMirrorMask.y = 1;
+  vmov $v12.e7, $v31.e7                              ## L:1158 |     73 | texMirrorMask.W = 0x100;
+  addiu $fp, $fp, 65535                              ## L:1155 |      ^ | tilesEnd -= 1;
+  mtc2 $fp, $v12.e4                                  ## L:1157 |     74 | texMirrorMask.X = tilesEnd;
   mtc2 $fp, $v12.e0                                  ## L:1156 |     75 | texMirrorMask.x = tilesEnd;
   vxor $v11, $v00, $v00.e0                           ## L:1144 |      ^ | vec16 texMirrorCompare = 0;
   vmudn $v12, $v12, $v12.e7                          ## L:1159 |  ***79 | texMirrorMask = texMirrorMask * texMirrorMask.W;
@@ -659,8 +659,8 @@ TPXCmd_DrawTextured:
   vor $v11, $v00, $v29.e2                            ## L:1163 |    *89 | texMirrorCompare = VTEMP.z;
   bgez $a1, LABEL_TPXCmd_DrawTextured_0015           ## L:1171 |     90 | if(rdramAddr < 0) {
   nop                                                ## L:1171 |    *92 | if(rdramAddr < 0) {
-  lqv $v08, 0, 0, $s6                                ## L:606  |     93 | vec16 posStart = load(ptrIn, 0x00);
-  vxor $v07, $v00, $v30.e7                           ## L:614  |      ^ | const vec16 vecOne = 1;
+  vxor $v07, $v00, $v30.e7                           ## L:614  |     93 | const vec16 vecOne = 1;
+  lqv $v08, 0, 0, $s6                                ## L:606  |      ^ | vec16 posStart = load(ptrIn, 0x00);
   vmulf $v14, $v13, $v08.h3                          ## L:607  |  ***97 | localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
   vmudn $v10, $v28, $v08.h0                          ## L:92   |     98 | out = mat0  * vec.xxxxXXXX;
   vmadh $v09, $v27, $v08.h0                          ## L:92   |     99 | out = mat0  * vec.xxxxXXXX;
@@ -675,29 +675,31 @@ TPXCmd_DrawTextured:
   cfc2 $t4, $vcc                                     ## L:619  |    111 | temp1 = clip(posClip, posClip.wwwwWWWW);
   LABEL_TPXCmd_DrawTextured_0017:
   vmudl $v10, $v10, $v17.v                           ## L:630  |      ^ | posClip *= normScaleW:ufract;
-  vmadm $v09, $v09, $v17.v                           ## L:630  |    112 | posClip *= normScaleW:ufract;
-  lb $a2, 7($s6)                                     ## L:674  |      ^ | temp0:s8 = load(ptrIn, 7);
-  addiu $t2, $zero, 36                               ## L:737  |    113 | cmdRdpRect = 0x24;
-  vmadn $v10, $v00, $v00                             ## L:630  |      ^ | posClip *= normScaleW:ufract;
-  addu $a2, $a2, $s2                                 ## L:680  |   *115 | temp0 += texOffset; temp0 <<= 3;
-  andi $t5, $t4, 16448                               ## L:627  |    116 | clipB = temp1 & 0b0100'0000'0100'0000;
-  vrcph $v05.e3, $v09.e3                             ## L:632  |      ^ | invW.w = invert_half(posClip).w;
-  ori $at, $zero, %lo(BASE_SIZE)                     ## L:636  |    117 | posClip:sint.w = load(BASE_SIZE).x;
+  lb $a2, 7($s6)                                     ## L:674  |    112 | temp0:s8 = load(ptrIn, 7);
+  vmadm $v09, $v09, $v17.v                           ## L:630  |      ^ | posClip *= normScaleW:ufract;
+  vmadn $v10, $v00, $v00                             ## L:630  |    113 | posClip *= normScaleW:ufract;
+  ori $at, $zero, %lo(BASE_SIZE)                     ## L:636  |      ^ | posClip:sint.w = load(BASE_SIZE).x;
+  vrcph $v05.e3, $v09.e3                             ## L:632  |  **116 | invW.w = invert_half(posClip).w;
+  andi $t1, $t4, 1028                                ## L:626  |      ^ | clipA = temp1 & 0b0000'0100'0000'0100;
+  andi $t5, $t4, 16448                               ## L:627  |    117 | clipB = temp1 & 0b0100'0000'0100'0000;
   vrcpl $v06.e3, $v10.e3                             ## L:632  |      ^ | invW.w = invert_half(posClip).w;
-  sll $a2, $a2, 3                                    ## L:680  |    118 | temp0 += texOffset; temp0 <<= 3;
+  lb $t4, 15($s6)                                    ## L:675  |    118 | temp1:s8 = load(ptrIn, 15);
   vrcph $v05.e3, $v09.e7                             ## L:633  |      ^ | invW.W = invert_half(posClip).W;
-  vrcpl $v06.e7, $v10.e7                             ## L:633  |    119 | invW.W = invert_half(posClip).W;
-  vmov $v10.e3, $v00.e0                              ## L:638  |    120 | posClip:sfract.w = 0;
+  addiu $t2, $zero, 36                               ## L:737  |    119 | cmdRdpRect = 0x24;
+  vrcpl $v06.e7, $v10.e7                             ## L:633  |      ^ | invW.W = invert_half(posClip).W;
+  vmov $v10.e7, $v00.e0                              ## L:639  |    120 | posClip:sfract.W = 0;
   lsv $v09, 6, 0, $at                                ## L:636  |      ^ | posClip:sint.w = load(BASE_SIZE).x;
   lsv $v09, 14, 0, $at                               ## L:637  |    121 | posClip:sint.W = load(BASE_SIZE).x;
-  vmov $v10.e7, $v00.e0                              ## L:639  |      ^ | posClip:sfract.W = 0;
-  addiu $at, $zero, 3                                ## L:771  |    122 | if(clipA == 0b0000'0011) {
+  vmov $v10.e3, $v00.e0                              ## L:638  |      ^ | posClip:sfract.w = 0;
+  addu $t4, $t4, $s2                                 ## L:681  |    122 | temp1 += texOffset; temp1 <<= 3;
+  sll $t4, $t4, 3                                    ## L:681  |    123 | temp1 += texOffset; temp1 <<= 3;
   vrcph $v05.e7, $v00.e7                             ## L:633  |      ^ | invW.W = invert_half(posClip).W;
-  vmudl $v29, $v10, $v06.h3                          ## L:642  |  **125 | posClip *= invW.wwwwWWWW;
-  andi $t1, $t4, 1028                                ## L:626  |      ^ | clipA = temp1 & 0b0000'0100'0000'0100;
-  lb $t4, 15($s6)                                    ## L:675  |    126 | temp1:s8 = load(ptrIn, 15);
+  addu $a2, $a2, $s2                                 ## L:680  |   *125 | temp0 += texOffset; temp0 <<= 3;
+  vmudl $v29, $v10, $v06.h3                          ## L:642  |      ^ | posClip *= invW.wwwwWWWW;
+  sll $a2, $a2, 3                                    ## L:680  |    126 | temp0 += texOffset; temp0 <<= 3;
   vmadm $v29, $v09, $v06.h3                          ## L:642  |      ^ | posClip *= invW.wwwwWWWW;
-  vmadn $v10, $v10, $v05.h3                          ## L:642  |    127 | posClip *= invW.wwwwWWWW;
+  addiu $at, $zero, 3                                ## L:771  |    127 | if(clipA == 0b0000'0011) {
+  vmadn $v10, $v10, $v05.h3                          ## L:642  |      ^ | posClip *= invW.wwwwWWWW;
   vmadh $v09, $v09, $v05.h3                          ## L:642  |    128 | posClip *= invW.wwwwWWWW;
   vmulf $v14, $v14, $v09.h3                          ## L:645  | ***132 | localPartSize:sfract *= posClip:sint.wwwwWWWW;
   vmudl $v29, $v10, $v20.v                           ## L:648  |    133 | vec32 posScreen = posClip * screenSize;
@@ -712,89 +714,87 @@ TPXCmd_DrawTextured:
   vrcph $v05.e0, $v14.e0                             ## L:660  |    147 | invW.x = invert_half(localPartSize).x;
   vrcp $v06.e1, $v14.e1                              ## L:661  |    148 | invW.y = invert_half(localPartSize).y;
   vrcph $v05.e1, $v14.e1                             ## L:661  |    149 | invW.y = invert_half(localPartSize).y;
-  addu $t4, $t4, $s2                                 ## L:681  |      ^ | temp1 += texOffset; temp1 <<= 3;
   vrcp $v06.e4, $v14.e4                              ## L:662  |    150 | invW.X = invert_half(localPartSize).X;
   vrcph $v05.e4, $v14.e4                             ## L:662  |    151 | invW.X = invert_half(localPartSize).X;
   vrcp $v06.e5, $v14.e5                              ## L:663  |    152 | invW.Y = invert_half(localPartSize).Y;
   vrcph $v05.e5, $v14.e5                             ## L:663  |    153 | invW.Y = invert_half(localPartSize).Y;
   vmudh $v01, $v08, $v05.v                           ## L:668  | ***157 | vec16 uvStart = posStart * invW:sint;
   vor $v03, $v00, $v05                               ## L:664  |    158 | vec16 uvDelta = invW:sint;
-  sll $t4, $t4, 3                                    ## L:681  |      ^ | temp1 += texOffset; temp1 <<= 3;
   vmudm $v01, $v01, $v31.e6                          ## L:669  |  **161 | uvStart >>= 7;
   vxor $v05, $v00, $v00.e0                           ## L:694  |    162 | vec16 texOffsetTotal = 0;
-  mtc2 $t4, $v05.e4                                  ## L:696  |  **165 | texOffsetTotal.X = temp1:s16;
-  vlt $v01, $v01, $v00.e0                            ## L:670  |      ^ | uvStart = uvStart < 0;
-  mtc2 $a2, $v05.e0                                  ## L:695  |    166 | texOffsetTotal.x = temp0:s16;
+  vlt $v01, $v01, $v00.e0                            ## L:670  |  **165 | uvStart = uvStart < 0;
+  mtc2 $a2, $v05.e0                                  ## L:695  |      ^ | texOffsetTotal.x = temp0:s16;
+  mtc2 $t4, $v05.e4                                  ## L:696  |    166 | texOffsetTotal.X = temp1:s16;
   slv $v03, 0, 28, $s3                               ## L:758  |  **169 | store(uvDelta.xy, dmaDmemEnd, 0x0C, 16);
   vsubc $v06, $v00, $v01.v                           ## L:692  |      ^ | vec16 uvStartNeg = VZERO - uvStart;
   vand $v05, $v05, $v12.e3                           ## L:697  |    170 | texOffsetTotal &= texMirrorMask.w;
   vge $v29, $v11, $v05.h0                            ## L:700  | ***174 | uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStartNeg : uvStart;
   vmrg $v01, $v06, $v01                              ## L:700  |    175 | uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStartNeg : uvStart;
   vlt $v04, $v04, $v15                               ## L:703  |    176 | posEnd = min(posEnd, screenMax);
-  vge $v08, $v08, $v16                               ## L:704  |    177 | posStart = max(posStart, screenMin);
   ssv $v02, 4, 12, $s3                               ## L:749  |      ^ | store(posCenter.z, dmaDmemEnd, 0x04, 8);
-  mfc2 $s1, $v08.e1                                  ## L:1190 | ***181 | outA = pos.y;
-  vaddc $v01, $v01, $v05.v                           ## L:706  |      ^ | uvStart += texOffsetTotal;
-  mfc2 $k0, $v08.e0                                  ## L:1192 |    182 | u32 tmp = pos.x;
-  andi $s1, $s1, 4095                                ## L:1191 |   *184 | outA &= 0b1111'1111'1111;
-  mfc2 $fp, $v08.e5                                  ## L:1196 |    185 | outB = pos.Y;
-  sll $k0, $k0, 12                                   ## L:1193 |    186 | tmp <<= 12;
-  vsubc $v06, $v12, $v01.v                           ## L:711  |      ^ | uvStartNeg = texMirrorMask - uvStart;
-  or $s1, $s1, $k0                                   ## L:1194 |    187 | outA |= tmp;
-  mfc2 $k0, $v08.e4                                  ## L:1198 |    188 | tmp = pos.X;
-  mfc2 $sp, $v04.e1                                  ## L:1190 |    189 | outA = pos.y;
-  andi $fp, $fp, 4095                                ## L:1197 |    190 | outB &= 0b1111'1111'1111;
-  vaddc $v06, $v06, $v12.e2                          ## L:712  |      ^ | uvStartNeg += texMirrorMask.z;
-  sll $k0, $k0, 12                                   ## L:1199 |    191 | tmp <<= 12;
-  or $fp, $fp, $k0                                   ## L:1200 |    192 | outB |= tmp;
-  mfc2 $k0, $v04.e0                                  ## L:1192 |    193 | u32 tmp = pos.x;
-  vge $v29, $v11, $v05.h0                            ## L:714  |      ^ | uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStart : uvStartNeg;
-  vmrg $v01, $v01, $v06                              ## L:714  |    194 | uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStart : uvStartNeg;
+  vge $v08, $v08, $v16                               ## L:704  |    177 | posStart = max(posStart, screenMin);
+  vaddc $v01, $v01, $v05.v                           ## L:706  |  **180 | uvStart += texOffsetTotal;
   mfc2 $k1, $v04.e5                                  ## L:1196 |      ^ | outB = pos.Y;
-  vlt $v06, $v08, $v04                               ## L:721  |    195 | vec16 extend = posStart < posEnd;
-  andi $sp, $sp, 4095                                ## L:1191 |      ^ | outA &= 0b1111'1111'1111;
-  sll $k0, $k0, 12                                   ## L:1193 |    196 | tmp <<= 12;
-  ldv $v05, 0, 16, $s6                               ## L:732  |    197 | vec16 color = load(ptrIn, 16).xyzw;
-  sw $s1, 4 + 16($s3)                                ## L:754  |    198 | store(posA, dmaDmemEnd, 0x04, 16);
-  andi $k1, $k1, 4095                                ## L:1197 |    199 | outB &= 0b1111'1111'1111;
-  slv $v01, 0, 24, $s3                               ## L:757  |    200 | store(uvStart.xy, dmaDmemEnd, 0x08, 16);
-  or $sp, $sp, $k0                                   ## L:1194 |    201 | outA |= tmp;
-  sw $sp, 0 + 16($s3)                                ## L:755  |    202 | @Barrier("pos-cmd") store(posEndA, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
-  cfc2 $t4, $vcc                                     ## L:722  |    203 | temp1 = get_vcc();
-  mfc2 $k0, $v04.e4                                  ## L:1198 |    204 | tmp = pos.X;
-  ldv $v08, 0, 24, $s6                               ## L:762  |    205 | posStart.xyzw = load(ptrIn, 24).xyzw;
-  andi $a2, $t4, 3                                   ## L:724  |    206 | temp0 = temp1 & 0b0000'0011;
+  mfc2 $s1, $v08.e1                                  ## L:1190 |    181 | outA = pos.y;
+  mfc2 $fp, $v08.e5                                  ## L:1196 |  **184 | outB = pos.Y;
+  vsubc $v06, $v12, $v01.v                           ## L:711  |      ^ | uvStartNeg = texMirrorMask - uvStart;
+  mfc2 $k0, $v08.e0                                  ## L:1192 |    185 | u32 tmp = pos.x;
+  andi $s1, $s1, 4095                                ## L:1191 |    186 | outA &= 0b1111'1111'1111;
+  andi $k1, $k1, 4095                                ## L:1197 |    187 | outB &= 0b1111'1111'1111;
+  sll $k0, $k0, 12                                   ## L:1193 |    188 | tmp <<= 12;
+  or $s1, $s1, $k0                                   ## L:1194 |    189 | outA |= tmp;
+  mfc2 $k0, $v08.e4                                  ## L:1198 |    190 | tmp = pos.X;
+  vaddc $v06, $v06, $v12.e2                          ## L:712  |      ^ | uvStartNeg += texMirrorMask.z;
+  mfc2 $sp, $v04.e1                                  ## L:1190 |    191 | outA = pos.y;
+  andi $fp, $fp, 4095                                ## L:1197 |    192 | outB &= 0b1111'1111'1111;
+  sll $k0, $k0, 12                                   ## L:1199 |    193 | tmp <<= 12;
+  or $fp, $fp, $k0                                   ## L:1200 |    194 | outB |= tmp;
+  mfc2 $k0, $v04.e0                                  ## L:1192 |    195 | u32 tmp = pos.x;
+  sw $s1, 4 + 16($s3)                                ## L:754  |    196 | store(posA, dmaDmemEnd, 0x04, 16);
+  vge $v29, $v11, $v05.h0                            ## L:714  |      ^ | uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStart : uvStartNeg;
+  andi $sp, $sp, 4095                                ## L:1191 |    197 | outA &= 0b1111'1111'1111;
+  vmrg $v01, $v01, $v06                              ## L:714  |      ^ | uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStart : uvStartNeg;
+  sll $k0, $k0, 12                                   ## L:1193 |    198 | tmp <<= 12;
+  or $sp, $sp, $k0                                   ## L:1194 |    199 | outA |= tmp;
+  sw $sp, 0 + 16($s3)                                ## L:755  |    200 | @Barrier("pos-cmd") store(posEndA, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
+  mfc2 $k0, $v04.e4                                  ## L:1198 |    201 | tmp = pos.X;
+  sb $t2, 0 + 16($s3)                                ## L:756  |    202 | @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
+  vlt $v06, $v08, $v04                               ## L:721  |      ^ | vec16 extend = posStart < posEnd;
+  ldv $v08, 0, 24, $s6                               ## L:762  |    203 | posStart.xyzw = load(ptrIn, 24).xyzw;
+  cfc2 $t4, $vcc                                     ## L:722  |    204 | temp1 = get_vcc();
+  ldv $v05, 0, 16, $s6                               ## L:732  |    205 | vec16 color = load(ptrIn, 16).xyzw;
+  sll $k0, $k0, 12                                   ## L:1199 |    206 | tmp <<= 12;
   ldv $v08, 8, 32, $s6                               ## L:763  |    207 | posStart.XYZW = load(ptrIn, 24).XYZW;
-  sll $k0, $k0, 12                                   ## L:1199 |    208 | tmp <<= 12;
-  or $k1, $k1, $k0                                   ## L:1200 |    209 | outB |= tmp;
-  slv $v05, 0, 4, $s3                                ## L:745  |    210 | store(color.xy, dmaDmemEnd, 4);
+  slv $v01, 0, 24, $s3                               ## L:757  |    208 | store(uvStart.xy, dmaDmemEnd, 0x08, 16);
+  andi $a2, $t4, 3                                   ## L:724  |    209 | temp0 = temp1 & 0b0000'0011;
+  or $k1, $k1, $k0                                   ## L:1200 |    210 | outB |= tmp;
   or $t1, $t1, $a2                                   ## L:725  |    211 | clipA |= temp0;
+  slv $v05, 0, 4, $s3                                ## L:745  |    212 | store(color.xy, dmaDmemEnd, 4);
   vmulf $v14, $v13, $v08.h3                          ## L:764  |      ^ | localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
-  andi $a2, $t4, 48                                  ## L:727  |    212 | temp0 = temp1 & 0b0011'0000;
-  or $t5, $t5, $a2                                   ## L:728  |    213 | clipB |= temp0;
+  andi $a2, $t4, 48                                  ## L:727  |    213 | temp0 = temp1 & 0b0011'0000;
   bne $t1, $at, LABEL_TPXCmd_DrawTextured_0019       ## L:771  |    214 | if(clipA == 0b0000'0011) {
-  sb $t2, 0 + 16($s3)                                ## L:756  |   *216 | @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
+  or $t5, $t5, $a2                                   ## L:728  |   *216 | clipB |= temp0;
   addiu $s3, $s3, 32                                 ## L:772  |    217 | dmaDmemEnd += 32;
   LABEL_TPXCmd_DrawTextured_0019:
   addiu $at, $zero, 48                               ## L:782  |    218 | if(clipB == 0b0011'0000) {
   bne $t5, $at, LABEL_TPXCmd_DrawTextured_001A       ## L:782  |    219 | if(clipB == 0b0011'0000) {
   addiu $s6, $s6, 24                                 ## L:776  |   *221 | ptrIn += 24;
   sw $k1, 0 + 16($s3)                                ## L:787  |    222 | @Barrier("pos-cmd") store(posEndB, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
-  slv $v01, 8, 24, $s3                               ## L:790  |    223 | store(uvStart.XY, dmaDmemEnd, 0x08, 16);
-  sw $fp, 4 + 16($s3)                                ## L:786  |    224 | store(posB, dmaDmemEnd, 0x04, 16);
-  slv $v03, 8, 28, $s3                               ## L:791  |    225 | store(uvDelta.XY, dmaDmemEnd, 0x0C, 16);
-  sb $t2, 0 + 16($s3)                                ## L:788  |    226 | @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
-  slv $v05, 4, 4, $s3                                ## L:783  |    227 | store(color.zw, dmaDmemEnd, 4);
-  ssv $v02, 12, 12, $s3                              ## L:784  |    228 | store(posCenter.Z, dmaDmemEnd, 0x04, 8);
+  sb $t2, 0 + 16($s3)                                ## L:788  |    223 | @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
+  ssv $v02, 12, 12, $s3                              ## L:784  |    224 | store(posCenter.Z, dmaDmemEnd, 0x04, 8);
+  slv $v01, 8, 24, $s3                               ## L:790  |    225 | store(uvStart.XY, dmaDmemEnd, 0x08, 16);
+  slv $v05, 4, 4, $s3                                ## L:783  |    226 | store(color.zw, dmaDmemEnd, 4);
+  sw $fp, 4 + 16($s3)                                ## L:786  |    227 | store(posB, dmaDmemEnd, 0x04, 16);
+  slv $v03, 8, 28, $s3                               ## L:791  |    228 | store(uvDelta.XY, dmaDmemEnd, 0x0C, 16);
   addiu $s3, $s3, 32                                 ## L:793  |    229 | dmaDmemEnd += 32;
   LABEL_TPXCmd_DrawTextured_001A:
   vmudn $v10, $v28, $v08.h0                          ## L:92   |      ^ | out = mat0  * vec.xxxxXXXX;
   vmadh $v09, $v27, $v08.h0                          ## L:92   |    230 | out = mat0  * vec.xxxxXXXX;
   vmadn $v10, $v26, $v08.h1                          ## L:93   |    231 | out = mat1 +* vec.yyyyYYYY;
-  sltu $at, $s3, $s5                                 ## L:800  |      ^ | if(dmaDmemEnd >= dmaDmemFlush) {
   vmadh $v09, $v25, $v08.h1                          ## L:93   |    232 | out = mat1 +* vec.yyyyYYYY;
   vmadn $v10, $v24, $v08.h2                          ## L:94   |    233 | out = mat2 +* vec.zzzzZZZZ;
   vmadh $v09, $v23, $v08.h2                          ## L:94   |    234 | out = mat2 +* vec.zzzzZZZZ;
+  sltu $at, $s3, $s5                                 ## L:800  |      ^ | if(dmaDmemEnd >= dmaDmemFlush) {
   vmadn $v10, $v22, $v30.e7                          ## L:95   |    235 | out = mat3 +* 1;
   bne $at, $zero, LABEL_TPXCmd_DrawTextured_001B     ## L:800  |      ^ | if(dmaDmemEnd >= dmaDmemFlush) {
   vmadh $v09, $v21, $v30.e7                          ## L:95   |   *237 | out = mat3 +* 1;
@@ -827,27 +827,24 @@ TPXCmd_DrawTextured:
   cfc2 $t4, $vcc                                     ## L:266  |    270 | temp1 = clip(posClip, posClip.wwwwWWWW);
   LABEL_TPXCmd_DrawTextured_001C:
   vmudl $v10, $v10, $v17.v                           ## L:277  |      ^ | posClip *= normScaleW:ufract;
-  ori $at, $zero, %lo(BASE_SIZE)                     ## L:283  |    271 | posClip:sint.w = load(BASE_SIZE).x;
+  lb $a2, 11($s6)                                    ## L:324  |    271 | temp0:s8 = load(ptrIn, 0x0B);
   vmadm $v09, $v09, $v17.v                           ## L:277  |      ^ | posClip *= normScaleW:ufract;
-  lb $a2, 11($s6)                                    ## L:324  |    272 | temp0:s8 = load(ptrIn, 0x0B);
-  vmadn $v10, $v00, $v00                             ## L:277  |      ^ | posClip *= normScaleW:ufract;
-  andi $t5, $t4, 16448                               ## L:274  |    273 | clipB = temp1 & 0b0100'0000'0100'0000;
-  addu $a2, $a2, $s2                                 ## L:327  |   *275 | temp0 += texOffset; temp0 <<= 3;
-  vrcph $v05.e3, $v09.e3                             ## L:279  |      ^ | invW.w = invert_half(posClip).w;
-  andi $t1, $t4, 1028                                ## L:273  |    276 | clipA = temp1 & 0b0000'0100'0000'0100;
-  vrcpl $v06.e3, $v10.e3                             ## L:279  |      ^ | invW.w = invert_half(posClip).w;
-  sll $a2, $a2, 3                                    ## L:327  |    277 | temp0 += texOffset; temp0 <<= 3;
+  vmadn $v10, $v00, $v00                             ## L:277  |    272 | posClip *= normScaleW:ufract;
+  ori $at, $zero, %lo(BASE_SIZE)                     ## L:283  |      ^ | posClip:sint.w = load(BASE_SIZE).x;
+  vrcph $v05.e3, $v09.e3                             ## L:279  |  **275 | invW.w = invert_half(posClip).w;
+  andi $t5, $t4, 16448                               ## L:274  |      ^ | clipB = temp1 & 0b0100'0000'0100'0000;
+  vrcpl $v06.e3, $v10.e3                             ## L:279  |    276 | invW.w = invert_half(posClip).w;
+  andi $t1, $t4, 1028                                ## L:273  |      ^ | clipA = temp1 & 0b0000'0100'0000'0100;
+  lb $t4, 15($s6)                                    ## L:325  |    277 | temp1:s8 = load(ptrIn, 0x0F);
   vrcph $v05.e3, $v09.e7                             ## L:280  |      ^ | invW.W = invert_half(posClip).W;
   vrcpl $v06.e7, $v10.e7                             ## L:280  |    278 | invW.W = invert_half(posClip).W;
-  lb $t4, 15($s6)                                    ## L:325  |      ^ | temp1:s8 = load(ptrIn, 0x0F);
   vmov $v10.e3, $v00.e0                              ## L:285  |    279 | posClip:sfract.w = 0;
   lsv $v09, 6, 0, $at                                ## L:283  |      ^ | posClip:sint.w = load(BASE_SIZE).x;
-  vmov $v10.e7, $v00.e0                              ## L:286  |    280 | posClip:sfract.W = 0;
-  lsv $v09, 14, 0, $at                               ## L:284  |      ^ | posClip:sint.W = load(BASE_SIZE).x;
+  lsv $v09, 14, 0, $at                               ## L:284  |    280 | posClip:sint.W = load(BASE_SIZE).x;
+  vmov $v10.e7, $v00.e0                              ## L:286  |      ^ | posClip:sfract.W = 0;
   vrcph $v05.e7, $v00.e7                             ## L:280  |    281 | invW.W = invert_half(posClip).W;
-  addu $t4, $t4, $s2                                 ## L:328  |      ^ | temp1 += texOffset; temp1 <<= 3;
-  sll $t4, $t4, 3                                    ## L:328  |  **284 | temp1 += texOffset; temp1 <<= 3;
-  vmudl $v29, $v10, $v06.h3                          ## L:289  |      ^ | posClip *= invW.wwwwWWWW;
+  vmudl $v29, $v10, $v06.h3                          ## L:289  |  **284 | posClip *= invW.wwwwWWWW;
+  addu $a2, $a2, $s2                                 ## L:327  |      ^ | temp0 += texOffset; temp0 <<= 3;
   vmadm $v29, $v09, $v06.h3                          ## L:289  |    285 | posClip *= invW.wwwwWWWW;
   vmadn $v10, $v10, $v05.h3                          ## L:289  |    286 | posClip *= invW.wwwwWWWW;
   vmadh $v09, $v09, $v05.h3                          ## L:289  |    287 | posClip *= invW.wwwwWWWW;
@@ -865,102 +862,105 @@ TPXCmd_DrawTextured:
   vrcp $v06.e1, $v14.e1                              ## L:308  |    307 | invW.y = invert_half(localPartSize).y;
   vrcph $v05.e1, $v14.e1                             ## L:308  |    308 | invW.y = invert_half(localPartSize).y;
   vrcp $v06.e4, $v14.e4                              ## L:309  |    309 | invW.X = invert_half(localPartSize).X;
+  addu $t4, $t4, $s2                                 ## L:328  |      ^ | temp1 += texOffset; temp1 <<= 3;
   vrcph $v05.e4, $v14.e4                             ## L:309  |    310 | invW.X = invert_half(localPartSize).X;
+  ssv $v02, 4, 12, $s3                               ## L:396  |      ^ | store(posCenter.z, dmaDmemEnd, 0x04, 8);
   vrcp $v06.e5, $v14.e5                              ## L:310  |    311 | invW.Y = invert_half(localPartSize).Y;
   vrcph $v05.e5, $v14.e5                             ## L:310  |    312 | invW.Y = invert_half(localPartSize).Y;
   vmudh $v01, $v08, $v05.v                           ## L:315  | ***316 | vec16 uvStart = posStart * invW:sint;
+  sll $t4, $t4, 3                                    ## L:328  |      ^ | temp1 += texOffset; temp1 <<= 3;
   vor $v03, $v00, $v05                               ## L:311  |    317 | vec16 uvDelta = invW:sint;
   vxor $v05, $v00, $v00.e0                           ## L:341  |    318 | vec16 texOffsetTotal = 0;
+  sll $a2, $a2, 3                                    ## L:327  |      ^ | temp0 += texOffset; temp0 <<= 3;
   vmudm $v01, $v01, $v31.e6                          ## L:316  |   *320 | uvStart >>= 7;
   mtc2 $a2, $v05.e0                                  ## L:342  |      ^ | texOffsetTotal.x = temp0:s16;
-  vlt $v01, $v01, $v00.e0                            ## L:317  | ***324 | uvStart = uvStart < 0;
-  mtc2 $t4, $v05.e4                                  ## L:343  |      ^ | texOffsetTotal.X = temp1:s16;
-  ssv $v02, 4, 12, $s3                               ## L:396  |    325 | store(posCenter.z, dmaDmemEnd, 0x04, 8);
-  slv $v03, 0, 28, $s3                               ## L:405  |  **328 | store(uvDelta.xy, dmaDmemEnd, 0x0C, 16);
-  vsubc $v06, $v00, $v01.v                           ## L:339  |      ^ | vec16 uvStartNeg = VZERO - uvStart;
+  mtc2 $t4, $v05.e4                                  ## L:343  | ***324 | texOffsetTotal.X = temp1:s16;
+  vlt $v01, $v01, $v00.e0                            ## L:317  |      ^ | uvStart = uvStart < 0;
+  vsubc $v06, $v00, $v01.v                           ## L:339  | ***328 | vec16 uvStartNeg = VZERO - uvStart;
   vand $v05, $v05, $v12.e3                           ## L:344  |    329 | texOffsetTotal &= texMirrorMask.w;
   vge $v29, $v11, $v05.h0                            ## L:347  | ***333 | uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStartNeg : uvStart;
   vmrg $v01, $v06, $v01                              ## L:347  |    334 | uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStartNeg : uvStart;
-  addiu $at, $zero, 3                                ## L:418  |      ^ | if(clipA == 0b0000'0011) {
   vlt $v04, $v04, $v15                               ## L:350  |    335 | posEnd = min(posEnd, screenMax);
-  vge $v08, $v08, $v16                               ## L:351  |    336 | posStart = max(posStart, screenMin);
-  addiu $t2, $zero, 36                               ## L:384  |      ^ | cmdRdpRect = 0x24;
-  vaddc $v01, $v01, $v05.v                           ## L:353  |  **339 | uvStart += texOffsetTotal;
-  mfc2 $sp, $v04.e1                                  ## L:1190 |      ^ | outA = pos.y;
-  mfc2 $s1, $v08.e1                                  ## L:1190 |    340 | outA = pos.y;
-  mfc2 $k0, $v08.e0                                  ## L:1192 |  **343 | u32 tmp = pos.x;
-  mfc2 $fp, $v08.e5                                  ## L:1196 |    344 | outB = pos.Y;
-  andi $s1, $s1, 4095                                ## L:1191 |    345 | outA &= 0b1111'1111'1111;
+  slv $v03, 0, 28, $s3                               ## L:405  |      ^ | store(uvDelta.xy, dmaDmemEnd, 0x0C, 16);
+  addiu $t2, $zero, 36                               ## L:384  |    336 | cmdRdpRect = 0x24;
+  vge $v08, $v08, $v16                               ## L:351  |      ^ | posStart = max(posStart, screenMin);
+  vaddc $v01, $v01, $v05.v                           ## L:353  |   *338 | uvStart += texOffsetTotal;
+  addiu $at, $zero, 3                                ## L:418  |      ^ | if(clipA == 0b0000'0011) {
+  mfc2 $k1, $v04.e5                                  ## L:1196 |    339 | outB = pos.Y;
+  mfc2 $k0, $v08.e0                                  ## L:1192 |    340 | u32 tmp = pos.x;
+  andi $k1, $k1, 4095                                ## L:1197 |   *342 | outB &= 0b1111'1111'1111;
   vsubc $v06, $v12, $v01.v                           ## L:358  |      ^ | uvStartNeg = texMirrorMask - uvStart;
-  sll $k0, $k0, 12                                   ## L:1193 |    346 | tmp <<= 12;
-  or $s1, $s1, $k0                                   ## L:1194 |    347 | outA |= tmp;
-  mfc2 $k0, $v08.e4                                  ## L:1198 |    348 | tmp = pos.X;
-  andi $sp, $sp, 4095                                ## L:1191 |    349 | outA &= 0b1111'1111'1111;
+  mfc2 $s1, $v08.e1                                  ## L:1190 |    343 | outA = pos.y;
+  mfc2 $fp, $v08.e5                                  ## L:1196 |    344 | outB = pos.Y;
+  sll $k0, $k0, 12                                   ## L:1193 |    345 | tmp <<= 12;
+  andi $s1, $s1, 4095                                ## L:1191 |    346 | outA &= 0b1111'1111'1111;
   vaddc $v06, $v06, $v12.e2                          ## L:359  |      ^ | uvStartNeg += texMirrorMask.z;
-  andi $fp, $fp, 4095                                ## L:1197 |    350 | outB &= 0b1111'1111'1111;
-  sll $k0, $k0, 12                                   ## L:1199 |    351 | tmp <<= 12;
-  or $fp, $fp, $k0                                   ## L:1200 |    352 | outB |= tmp;
-  mfc2 $k0, $v04.e0                                  ## L:1192 |    353 | u32 tmp = pos.x;
+  andi $fp, $fp, 4095                                ## L:1197 |    347 | outB &= 0b1111'1111'1111;
+  or $s1, $s1, $k0                                   ## L:1194 |    348 | outA |= tmp;
+  sw $s1, 4 + 16($s3)                                ## L:401  |    349 | store(posA, dmaDmemEnd, 0x04, 16);
   vge $v29, $v11, $v05.h0                            ## L:361  |      ^ | uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStart : uvStartNeg;
-  vmrg $v01, $v01, $v06                              ## L:361  |    354 | uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStart : uvStartNeg;
-  mfc2 $k1, $v04.e5                                  ## L:1196 |      ^ | outB = pos.Y;
-  vlt $v06, $v08, $v04                               ## L:368  |    355 | vec16 extend = posStart < posEnd;
-  ldv $v05, 0, 8, $s6                                ## L:381  |      ^ | vec16 color = load(ptrIn, 8).xyzw;
-  sll $k0, $k0, 12                                   ## L:1193 |    356 | tmp <<= 12;
-  or $sp, $sp, $k0                                   ## L:1194 |    357 | outA |= tmp;
-  cfc2 $t4, $vcc                                     ## L:369  |    358 | temp1 = get_vcc();
-  mfc2 $k0, $v04.e4                                  ## L:1198 |    359 | tmp = pos.X;
-  lpv $v08, 0, 16, $s6                               ## L:413  |    360 | posStart = load_vec_s8(ptrIn, 16);
-  andi $a2, $t4, 3                                   ## L:371  |    361 | temp0 = temp1 & 0b0000'0011;
-  or $t1, $t1, $a2                                   ## L:372  |    362 | clipA |= temp0;
-  slv $v05, 0, 4, $s3                                ## L:392  |    363 | store(color.xy, dmaDmemEnd, 4);
-  sw $sp, 0 + 16($s3)                                ## L:402  |    364 | @Barrier("pos-cmd") store(posEndA, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
-  sb $t2, 0 + 16($s3)                                ## L:403  |    365 | @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
-  sw $s1, 4 + 16($s3)                                ## L:401  |    366 | store(posA, dmaDmemEnd, 0x04, 16);
-  andi $k1, $k1, 4095                                ## L:1197 |    367 | outB &= 0b1111'1111'1111;
-  andi $a2, $t4, 48                                  ## L:374  |    368 | temp0 = temp1 & 0b0011'0000;
-  sll $k0, $k0, 12                                   ## L:1199 |    369 | tmp <<= 12;
+  mfc2 $k0, $v08.e4                                  ## L:1198 |    350 | tmp = pos.X;
+  vmrg $v01, $v01, $v06                              ## L:361  |      ^ | uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStart : uvStartNeg;
+  mfc2 $sp, $v04.e1                                  ## L:1190 |    351 | outA = pos.y;
+  ldv $v05, 0, 8, $s6                                ## L:381  |    352 | vec16 color = load(ptrIn, 8).xyzw;
+  sll $k0, $k0, 12                                   ## L:1199 |    353 | tmp <<= 12;
+  vlt $v06, $v08, $v04                               ## L:368  |      ^ | vec16 extend = posStart < posEnd;
+  or $fp, $fp, $k0                                   ## L:1200 |    354 | outB |= tmp;
+  cfc2 $t4, $vcc                                     ## L:369  |    355 | temp1 = get_vcc();
+  mfc2 $k0, $v04.e0                                  ## L:1192 |    356 | u32 tmp = pos.x;
+  lpv $v08, 0, 16, $s6                               ## L:413  |    357 | posStart = load_vec_s8(ptrIn, 16);
+  andi $sp, $sp, 4095                                ## L:1191 |    358 | outA &= 0b1111'1111'1111;
+  sll $k0, $k0, 12                                   ## L:1193 |    359 | tmp <<= 12;
+  or $sp, $sp, $k0                                   ## L:1194 |    360 | outA |= tmp;
+  slv $v05, 0, 4, $s3                                ## L:392  |    361 | store(color.xy, dmaDmemEnd, 4);
+  mfc2 $k0, $v04.e4                                  ## L:1198 |    362 | tmp = pos.X;
+  andi $a2, $t4, 3                                   ## L:371  |    363 | temp0 = temp1 & 0b0000'0011;
+  or $t1, $t1, $a2                                   ## L:372  |    364 | clipA |= temp0;
   vmulf $v14, $v13, $v08.h3                          ## L:414  |      ^ | localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
-  vmudm $v08, $v08, $v31.e7                          ## L:415  |    370 | posStart >>= 8;
-  slv $v01, 0, 24, $s3                               ## L:404  |      ^ | store(uvStart.xy, dmaDmemEnd, 0x08, 16);
-  or $t5, $t5, $a2                                   ## L:375  |    371 | clipB |= temp0;
-  bne $t1, $at, LABEL_TPXCmd_DrawTextured_001E       ## L:418  |    372 | if(clipA == 0b0000'0011) {
-  or $k1, $k1, $k0                                   ## L:1200 |   *374 | outB |= tmp;
-  addiu $s3, $s3, 32                                 ## L:419  |    375 | dmaDmemEnd += 32;
+  slv $v01, 0, 24, $s3                               ## L:404  |    365 | store(uvStart.xy, dmaDmemEnd, 0x08, 16);
+  andi $a2, $t4, 48                                  ## L:374  |    366 | temp0 = temp1 & 0b0011'0000;
+  sll $k0, $k0, 12                                   ## L:1199 |    367 | tmp <<= 12;
+  or $k1, $k1, $k0                                   ## L:1200 |    368 | outB |= tmp;
+  sw $sp, 0 + 16($s3)                                ## L:402  |    369 | @Barrier("pos-cmd") store(posEndA, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
+  or $t5, $t5, $a2                                   ## L:375  |    370 | clipB |= temp0;
+  vmudm $v08, $v08, $v31.e7                          ## L:415  |      ^ | posStart >>= 8;
+  bne $t1, $at, LABEL_TPXCmd_DrawTextured_001E       ## L:418  |    371 | if(clipA == 0b0000'0011) {
+  sb $t2, 0 + 16($s3)                                ## L:403  |   *373 | @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
+  addiu $s3, $s3, 32                                 ## L:419  |    374 | dmaDmemEnd += 32;
   LABEL_TPXCmd_DrawTextured_001E:
-  addiu $at, $zero, 48                               ## L:429  |    376 | if(clipB == 0b0011'0000) {
-  bne $t5, $at, LABEL_TPXCmd_DrawTextured_001F       ## L:429  |    377 | if(clipB == 0b0011'0000) {
-  addiu $s6, $s6, 16                                 ## L:425  |   *379 | ptrIn += 16;
-  sw $fp, 4 + 16($s3)                                ## L:433  |    380 | store(posB, dmaDmemEnd, 0x04, 16);
-  sw $k1, 0 + 16($s3)                                ## L:434  |    381 | @Barrier("pos-cmd") store(posEndB, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
-  slv $v03, 8, 28, $s3                               ## L:438  |    382 | store(uvDelta.XY, dmaDmemEnd, 0x0C, 16);
-  slv $v05, 4, 4, $s3                                ## L:430  |    383 | store(color.zw, dmaDmemEnd, 4);
-  sb $t2, 0 + 16($s3)                                ## L:435  |    384 | @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
-  ssv $v02, 12, 12, $s3                              ## L:431  |    385 | store(posCenter.Z, dmaDmemEnd, 0x04, 8);
-  slv $v01, 8, 24, $s3                               ## L:437  |    386 | store(uvStart.XY, dmaDmemEnd, 0x08, 16);
-  addiu $s3, $s3, 32                                 ## L:440  |    387 | dmaDmemEnd += 32;
+  addiu $at, $zero, 48                               ## L:429  |    375 | if(clipB == 0b0011'0000) {
+  bne $t5, $at, LABEL_TPXCmd_DrawTextured_001F       ## L:429  |    376 | if(clipB == 0b0011'0000) {
+  addiu $s6, $s6, 16                                 ## L:425  |   *378 | ptrIn += 16;
+  sw $k1, 0 + 16($s3)                                ## L:434  |    379 | @Barrier("pos-cmd") store(posEndB, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
+  slv $v01, 8, 24, $s3                               ## L:437  |    380 | store(uvStart.XY, dmaDmemEnd, 0x08, 16);
+  slv $v05, 4, 4, $s3                                ## L:430  |    381 | store(color.zw, dmaDmemEnd, 4);
+  ssv $v02, 12, 12, $s3                              ## L:431  |    382 | store(posCenter.Z, dmaDmemEnd, 0x04, 8);
+  sw $fp, 4 + 16($s3)                                ## L:433  |    383 | store(posB, dmaDmemEnd, 0x04, 16);
+  slv $v03, 8, 28, $s3                               ## L:438  |    384 | store(uvDelta.XY, dmaDmemEnd, 0x0C, 16);
+  sb $t2, 0 + 16($s3)                                ## L:435  |    385 | @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16); ## Barrier: 0x1
+  addiu $s3, $s3, 32                                 ## L:440  |    386 | dmaDmemEnd += 32;
   LABEL_TPXCmd_DrawTextured_001F:
   vmudn $v10, $v28, $v08.h0                          ## L:92   |      ^ | out = mat0  * vec.xxxxXXXX;
-  sltu $at, $s3, $s5                                 ## L:447  |    388 | if(dmaDmemEnd >= dmaDmemFlush) {
+  sltu $at, $s3, $s5                                 ## L:447  |    387 | if(dmaDmemEnd >= dmaDmemFlush) {
   vmadh $v09, $v27, $v08.h0                          ## L:92   |      ^ | out = mat0  * vec.xxxxXXXX;
-  vmadn $v10, $v26, $v08.h1                          ## L:93   |    389 | out = mat1 +* vec.yyyyYYYY;
-  vmadh $v09, $v25, $v08.h1                          ## L:93   |    390 | out = mat1 +* vec.yyyyYYYY;
-  vmadn $v10, $v24, $v08.h2                          ## L:94   |    391 | out = mat2 +* vec.zzzzZZZZ;
-  vmadh $v09, $v23, $v08.h2                          ## L:94   |    392 | out = mat2 +* vec.zzzzZZZZ;
-  vmadn $v10, $v22, $v30.e7                          ## L:95   |    393 | out = mat3 +* 1;
+  vmadn $v10, $v26, $v08.h1                          ## L:93   |    388 | out = mat1 +* vec.yyyyYYYY;
+  vmadh $v09, $v25, $v08.h1                          ## L:93   |    389 | out = mat1 +* vec.yyyyYYYY;
+  vmadn $v10, $v24, $v08.h2                          ## L:94   |    390 | out = mat2 +* vec.zzzzZZZZ;
+  vmadh $v09, $v23, $v08.h2                          ## L:94   |    391 | out = mat2 +* vec.zzzzZZZZ;
+  vmadn $v10, $v22, $v30.e7                          ## L:95   |    392 | out = mat3 +* 1;
   bne $at, $zero, LABEL_TPXCmd_DrawTextured_0020     ## L:447  |      ^ | if(dmaDmemEnd >= dmaDmemFlush) {
-  vmadh $v09, $v21, $v30.e7                          ## L:95   |   *395 | out = mat3 +* 1;
-  jal RDPQ_Send                                      ## L:448  |    396 | RDPQ_Send(dmaDmem, dmaDmemEnd); ## Args: $s4, $s3
-  nop                                                ## L:448  |   *398 | RDPQ_Send(dmaDmem, dmaDmemEnd);
-  or $s3, $zero, $s4                                 ## L:449  |    399 | dmaDmemEnd = dmaDmem;
+  vmadh $v09, $v21, $v30.e7                          ## L:95   |   *394 | out = mat3 +* 1;
+  jal RDPQ_Send                                      ## L:448  |    395 | RDPQ_Send(dmaDmem, dmaDmemEnd); ## Args: $s4, $s3
+  nop                                                ## L:448  |   *397 | RDPQ_Send(dmaDmem, dmaDmemEnd);
+  or $s3, $zero, $s4                                 ## L:449  |    398 | dmaDmemEnd = dmaDmem;
   LABEL_TPXCmd_DrawTextured_0020:
   vch $v29, $v09, $v09.h3                            ## L:452  |      ^ | temp1 = clip(posClip, posClip.wwwwWWWW);
-  vcl $v29, $v10, $v10.h3                            ## L:452  |    400 | temp1 = clip(posClip, posClip.wwwwWWWW);
+  vcl $v29, $v10, $v10.h3                            ## L:452  |    399 | temp1 = clip(posClip, posClip.wwwwWWWW);
   bne $s6, $s7, LABEL_TPXCmd_DrawTextured_001C       ## L:452  |      ^ | temp1 = clip(posClip, posClip.wwwwWWWW);
-  cfc2 $t4, $vcc                                     ## L:452  |   *402 | temp1 = clip(posClip, posClip.wwwwWWWW);
+  cfc2 $t4, $vcc                                     ## L:452  |   *401 | temp1 = clip(posClip, posClip.wwwwWWWW);
   LABEL_TPXCmd_DrawTextured_0016:
-  j RDPQ_Send                                        ## L:1179 |    403 | goto RDPQ_Send;
-  ori $ra, $zero, %lo(RSPQ_Loop)                     ## L:1178 |   *405 | RA = RSPQ_Loop;
+  j RDPQ_Send                                        ## L:1179 |    402 | goto RDPQ_Send;
+  ori $ra, $zero, %lo(RSPQ_Loop)                     ## L:1178 |   *404 | RA = RSPQ_Loop;
 
 OVERLAY_CODE_END:
 
