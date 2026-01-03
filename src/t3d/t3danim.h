@@ -122,7 +122,7 @@ void t3d_anim_set_time(T3DAnim* anim, float time);
  * @param anim animation to get time for
  * @return current time in seconds
  */
-static float t3d_anim_get_time(const T3DAnim* anim) {
+inline static float t3d_anim_get_time(const T3DAnim* anim) {
   return anim->time;
 }
 
@@ -131,7 +131,7 @@ static float t3d_anim_get_time(const T3DAnim* anim) {
  * @param anim animation to get length for
  * @return length in seconds
  */
-static float t3d_anim_get_length(const T3DAnim* anim) {
+inline static float t3d_anim_get_length(const T3DAnim* anim) {
   return anim->animRef->duration;
 }
 

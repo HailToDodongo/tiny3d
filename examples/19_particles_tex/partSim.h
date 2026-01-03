@@ -153,9 +153,9 @@ static int simulate_particles_coins(TPXParticleS16 *particles, uint32_t partCoun
 static void simulate_particles_fire(TPXParticleS8 *particles, uint32_t partCount, float posX, float posZ) {
   int p = currentPart / 2;
   if(currentPart % (1+(rand() % 3)) == 0) {
-    int8_t *ptPos  = tpx_buffer_get_pos(particles, p);
-    int8_t *size   = tpx_buffer_get_size(particles, p);
-    uint8_t *color = tpx_buffer_get_rgba(particles, p);
+    int8_t *ptPos  = tpx_buffer_s8_get_pos(particles, p);
+    int8_t *size   = tpx_buffer_s8_get_size(particles, p);
+    uint8_t *color = tpx_buffer_s8_get_rgba(particles, p);
 
     ptPos[0] = posX + (rand() % 16) - 8;
     ptPos[1] = -126;

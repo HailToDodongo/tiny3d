@@ -40,9 +40,9 @@ namespace Actor
     args.scale *= BASE_SCALE;
 
     for(uint32_t i=0; i<particles.countMax; ++i) {
-      auto p = tpx_buffer_get_pos(particles.particles, i);
-      auto col = tpx_buffer_get_rgba(particles.particles, i);
-      *tpx_buffer_get_size(particles.particles, i) = 6 + (rand()%4);
+      auto p = tpx_buffer_s8_get_pos(particles.particles, i);
+      auto col = tpx_buffer_s8_get_rgba(particles.particles, i);
+      *tpx_buffer_s8_get_size(particles.particles, i) = 6 + (rand()%4);
 
       float randAngle = (rand() % 1024) / 1024.0f * T3D_PI * 2.0f;
       float randX = fm_sinf(randAngle);
@@ -90,8 +90,8 @@ namespace Actor
     );
 
     for(uint32_t i=0; i<particles.countMax; ++i) {
-      auto p = tpx_buffer_get_pos(particles.particles, i);
-      auto col = tpx_buffer_get_rgba(particles.particles, i);
+      auto p = tpx_buffer_s8_get_pos(particles.particles, i);
+      auto col = tpx_buffer_s8_get_rgba(particles.particles, i);
       int8_t wiggleX = displace[(p[1] + 127) & 0xFF];
       int8_t wiggleZ = displace[(p[1] + 200) & 0xFF];
       p[1] += col[3];
@@ -103,7 +103,6 @@ namespace Actor
 
   void MagicSpell::draw3D(float deltaTime)
   {
-    auto &fr = state.activeScene->getCam().getFrustum();
     if(!checkFrustumSphere(pos, args.scale * 90.0f))return;
 
     t3d_matrix_set(matFP.get(), true);

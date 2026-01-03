@@ -12,7 +12,7 @@ extern rsp_ucode_t rsp_tiny3d;
 DEFINE_RSP_UCODE(rsp_tinypx);
 uint32_t TPX_RSP_ID = 0;
 
-#define SWAP_U32(a, b) {uint32_t tmp = a; a = b; b = tmp;}
+#define SWAP_VALUE(a, b) {auto tmp = a; a = b; b = tmp;}
 #define MAX_PARTICLES_S8 344
 #define MAX_PARTICLES_S16 228
 
@@ -153,18 +153,29 @@ void tpx_matrix_push_pos(int count) {
   tpx_matrix_stack(NULL, stackAdvance, false, true);
 }
 
-void tpx_buffer_swap(TPXParticleS8 pt[], uint32_t idxA, uint32_t idxB) {
+void tpx_buffer_s8_swap(TPXParticleS8 pt[], uint32_t idxA, uint32_t idxB) {
   uint32_t *dataA = (uint32_t*)&pt[idxA/2];
   uint32_t *dataB = (uint32_t*)&pt[idxB/2];
 
   dataA += idxA & 1;
   dataB += idxB & 1;
 
-  SWAP_U32(dataA[0], dataB[0]);
-  SWAP_U32(dataA[2], dataB[2]);
+  SWAP_VALUE(dataA[0], dataB[0]);
+  SWAP_VALUE(dataA[2], dataB[2]);
 }
 
-void tpx_buffer_copy(TPXParticleS8 *pt, uint32_t idxDst, uint32_t idxSrc) {
+void tpx_buffer_s16_swap(TPXParticleS16 pt[], uint32_t idxA, uint32_t idxB)
+{
+  auto val0_a = (uint64_t*)tpx_buffer_s16_get_pos(pt, idxA);
+  auto val0_b = (uint64_t*)tpx_buffer_s16_get_pos(pt, idxB);
+  SWAP_VALUE(*val0_a, *val0_b);
+
+  auto val1_a = (uint32_t*)tpx_buffer_s16_get_rgba(pt, idxA);
+  auto val1_b = (uint32_t*)tpx_buffer_s16_get_rgba(pt, idxB);
+  SWAP_VALUE(*val1_a, *val1_b);
+}
+
+void tpx_buffer_s8_copy(TPXParticleS8 *pt, uint32_t idxDst, uint32_t idxSrc) {
   uint32_t *dataDst = (uint32_t*)&pt[idxDst/2];
   uint32_t *dataSrc = (uint32_t*)&pt[idxSrc/2];
 
@@ -173,6 +184,17 @@ void tpx_buffer_copy(TPXParticleS8 *pt, uint32_t idxDst, uint32_t idxSrc) {
 
   dataDst[0] = dataSrc[0];
   dataDst[2] = dataSrc[2];
+}
+
+void tpx_buffer_s16_copy(TPXParticleS16 pt[], uint32_t idxDst, uint32_t idxSrc)
+{
+  auto val0_dst = (uint64_t*)tpx_buffer_s16_get_pos(pt, idxDst);
+  auto val0_src = (uint64_t*)tpx_buffer_s16_get_pos(pt, idxSrc);
+  *val0_dst = *val0_src;
+
+  auto val1_dst = (uint32_t*)tpx_buffer_s16_get_rgba(pt, idxDst);
+  auto val1_src = (uint32_t*)tpx_buffer_s16_get_rgba(pt, idxSrc);
+  *val1_dst = *val1_src;
 }
 
 void tpx_destroy()
