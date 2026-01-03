@@ -168,7 +168,9 @@ int main()
     if(joypad.btn.c_up)partSizeY += deltaTime * 0.6f;
     if(joypad.btn.c_down)partSizeY -= deltaTime * 0.6f;
 
+#if RSPQ_PROFILE
     measureTime = joypad.btn.z;
+#endif
 
     partSizeX = fmaxf(0.01f, fminf(1.0f, partSizeX));
     partSizeY = fmaxf(0.01f, fminf(1.0f, partSizeY));
