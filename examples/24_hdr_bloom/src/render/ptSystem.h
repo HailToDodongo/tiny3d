@@ -10,7 +10,7 @@ struct PTSystem
 {
   T3DVec3 pos{};
   T3DMat4FP *mat{};
-  TPXParticle *particles{};
+  TPXParticleS8 *particles{};
   uint32_t countMax{};
   uint32_t count{};
 
@@ -21,9 +21,9 @@ struct PTSystem
   [[nodiscard]] bool isFull() const { return count == countMax; }
 
   void removeParticle(uint32_t index) {
-    tpx_buffer_copy(particles, index, --count);
+    tpx_buffer_s8_copy(particles, index, --count);
     if(count & 1) {
-      *tpx_buffer_get_size(particles, count + 1u) = 0;
+      *tpx_buffer_s8_get_size(particles, count + 1u) = 0;
     }
   }
 

@@ -51,12 +51,12 @@ typedef struct {
   uint8_t colorB[4];
 }  __attribute__((packed, aligned(16))) TPXParticleS8;
 
-_Static_assert(sizeof(TPXParticleS8) == 16, "TPXParticleS8 size mismatch");
+static_assert(sizeof(TPXParticleS8) == 16, "TPXParticleS8 size mismatch");
 
 /**
  * @deprecated Use 'TPXParticleS8' instead.
  */
-[[deprecated]] typedef TPXParticleS8 TPXParticle;
+[[deprecated("Use 'TPXParticleS8' instead")]] typedef TPXParticleS8 TPXParticle;
 
 typedef struct {
   int16_t posA[3];
@@ -69,7 +69,8 @@ typedef struct {
   uint8_t colorB[4];
 } __attribute__((packed, aligned(8))) TPXParticleS16;
 
-_Static_assert(sizeof(TPXParticleS16) == 24, "TPXParticle16 size mismatch");
+static_assert(sizeof(TPXParticleS16) == 24, "TPXParticle16 size mismatch");
+
 /**
  * @brief Initializes the tinyPX library
  * @param params settings to configure the library
@@ -128,10 +129,8 @@ void tpx_state_set_tex_params(int16_t offsetX, uint16_t mirrorPoint);
  */
 void tpx_particle_draw_s8(TPXParticleS8 *particles, uint32_t count);
 
-/**
- * @deprecated Use 'tpx_particle_draw_s8' instead.
- */
-[[deprecated]] inline static void tpx_particle_draw(TPXParticleS8 *particles, uint32_t count) {
+[[deprecated("Use 'tpx_particle_draw_s8' instead")]]
+inline static void tpx_particle_draw(TPXParticleS8 *particles, uint32_t count) {
   return tpx_particle_draw_s8(particles, count);
 }
 
@@ -162,10 +161,8 @@ void tpx_particle_draw_s16(TPXParticleS16 *particles, uint32_t count);
  */
 void tpx_particle_draw_tex_s8(TPXParticleS8 *particles, uint32_t count);
 
-/**
- * @deprecated Use 'tpx_particle_draw_tex_s8' instead.
- */
-[[deprecated]] inline static void tpx_particle_draw_tex(TPXParticleS8 *particles, uint32_t count) {
+[[deprecated("Use 'tpx_particle_draw_tex_s8' instead")]]
+inline static void tpx_particle_draw_tex(TPXParticleS8 *particles, uint32_t count) {
   return tpx_particle_draw_tex_s8(particles, count);
 }
 
@@ -226,8 +223,13 @@ void tpx_matrix_push_pos(int count);
  * @param vert particle buffer
  * @param idx particle index
  */
-static inline int8_t* tpx_buffer_get_pos(TPXParticleS8 pt[], int idx) {
+static inline int8_t* tpx_buffer_s8_get_pos(TPXParticleS8 pt[], int idx) {
   return (idx & 1) ? pt[idx/2].posB : pt[idx/2].posA;
+}
+
+[[deprecated("Use 'tpx_buffer_s8_get_pos' instead")]]
+static inline int8_t* tpx_buffer_get_pos(TPXParticleS8 pt[], int idx) {
+  return tpx_buffer_s8_get_pos(pt, idx);
 }
 
 /**
@@ -235,8 +237,13 @@ static inline int8_t* tpx_buffer_get_pos(TPXParticleS8 pt[], int idx) {
  * @param pt particle buffer
  * @param idx particle index
  */
-static inline int8_t* tpx_buffer_get_size(TPXParticleS8 pt[], int idx) {
+static inline int8_t* tpx_buffer_s8_get_size(TPXParticleS8 pt[], int idx) {
   return (idx & 1) ? &pt[idx/2].sizeB : &pt[idx/2].sizeA;
+}
+
+[[deprecated("Use 'tpx_buffer_s8_get_size' instead")]]
+static inline int8_t* tpx_buffer_get_size(TPXParticleS8 pt[], int idx) {
+  return tpx_buffer_s8_get_size(pt, idx);
 }
 
 /**
@@ -244,8 +251,13 @@ static inline int8_t* tpx_buffer_get_size(TPXParticleS8 pt[], int idx) {
  * @param pt particle buffer
  * @param idx particle index
  */
-static inline uint32_t* tpx_buffer_get_color(TPXParticleS8 pt[], int idx) {
+static inline uint32_t* tpx_buffer_s8_get_color(TPXParticleS8 pt[], int idx) {
   return (idx & 1) ? (uint32_t*)&pt[idx/2].colorB : (uint32_t*)&pt[idx/2].colorA;
+}
+
+[[deprecated("Use 'tpx_buffer_s8_get_color' instead")]]
+static inline uint32_t* tpx_buffer_get_color(TPXParticleS8 pt[], int idx) {
+  return tpx_buffer_s8_get_color(pt, idx);
 }
 
 /**
@@ -253,8 +265,13 @@ static inline uint32_t* tpx_buffer_get_color(TPXParticleS8 pt[], int idx) {
  * @param pt particle buffer
  * @param idx particle index
  */
-static inline uint8_t* tpx_buffer_get_rgba(TPXParticleS8 pt[], int idx) {
+static inline uint8_t* tpx_buffer_s8_get_rgba(TPXParticleS8 pt[], int idx) {
   return (idx & 1) ? pt[idx/2].colorB : pt[idx/2].colorA;
+}
+
+[[deprecated("Use 'tpx_buffer_s8_get_rgba' instead")]]
+static inline uint8_t* tpx_buffer_get_rgba(TPXParticleS8 pt[], int idx) {
+  return tpx_buffer_s8_get_rgba(pt, idx);
 }
 
 /**
@@ -300,7 +317,20 @@ static inline uint8_t* tpx_buffer_s16_get_tex_offset(TPXParticleS16 pt[], int id
  * @param idxA index of the first particle
  * @param idxB index of the second particle
  */
-void tpx_buffer_swap(TPXParticleS8 pt[], uint32_t idxA, uint32_t idxB);
+void tpx_buffer_s8_swap(TPXParticleS8 pt[], uint32_t idxA, uint32_t idxB);
+
+[[deprecated("Use 'tpx_buffer_s8_swap' instead")]]
+static inline void tpx_buffer_swap(TPXParticleS8 pt[], uint32_t idxA, uint32_t idxB) {
+  tpx_buffer_s8_swap(pt, idxA, idxB);
+}
+
+/**
+ * Swaps two particles in a buffer
+ * @param pt buffer to swap particles in
+ * @param idxA index of the first particle
+ * @param idxB index of the second particle
+ */
+void tpx_buffer_s16_swap(TPXParticleS16 pt[], uint32_t idxA, uint32_t idxB);
 
 /**
  * Copies a particle into another place in a buffer
@@ -309,7 +339,21 @@ void tpx_buffer_swap(TPXParticleS8 pt[], uint32_t idxA, uint32_t idxB);
  * @param idxDst destination index
  * @param idxSrc source index
  */
-void tpx_buffer_copy(TPXParticleS8 pt[], uint32_t idxDst, uint32_t idxSrc);
+void tpx_buffer_s8_copy(TPXParticleS8 pt[], uint32_t idxDst, uint32_t idxSrc);
+
+[[deprecated("Use 'tpx_buffer_s8_copy' instead")]]
+static inline void tpx_buffer_copy(TPXParticleS8 pt[], uint32_t idxDst, uint32_t idxSrc) {
+  tpx_buffer_s8_copy(pt, idxDst, idxSrc);
+}
+
+/**
+ * Copies a particle into another place in a buffer
+ * This will overwrite the destination particle and keep the source particle unchanged.
+ * @param pt buffer to copy particles in
+ * @param idxDst destination index
+ * @param idxSrc source index
+ */
+void tpx_buffer_s16_copy(TPXParticleS16 pt[], uint32_t idxDst, uint32_t idxSrc);
 
 /**
  * Destroys the tinyPX library and frees all resources

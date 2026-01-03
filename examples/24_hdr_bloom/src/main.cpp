@@ -43,6 +43,8 @@ namespace {
   constexpr int BUFF_COUNT = 3;
 
   rspq_profile_data_t profileData{};
+
+  [[maybe_unused]]
   uint64_t lastUcodeTime = 0;
 }
 
