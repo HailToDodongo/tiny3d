@@ -12,8 +12,9 @@ extern rsp_ucode_t rsp_tiny3d;
 DEFINE_RSP_UCODE(rsp_tinypx);
 uint32_t TPX_RSP_ID = 0;
 
-#define SWAP_U32(a, b) {uint32_t tmp = a; a = b; b = tmp;}
-#define MAX_PARTICLES_COLOR 344
+#define SWAP_VALUE(a, b) {auto tmp = a; a = b; b = tmp;}
+#define MAX_PARTICLES_S8 344
+#define MAX_PARTICLES_S16 228
 
 static T3DMat4FP *matrixStack = NULL;
 
@@ -76,29 +77,54 @@ void tpx_state_set_tex_params(int16_t offsetX, uint16_t mirrorPoint)
   tpx_dmem_set_u32(RSP_TPX_TEX_OFFSET, val);
 }
 
-inline static void tpx_particle_draw_generic(TPXParticle *particles, uint32_t count, uint32_t rspCmd)
+inline static void tpx_particle_draw_generic_s8(TPXParticleS8 *particles, uint32_t count, uint32_t rspCmd)
 {
   assert((count & 1) == 0);
 
-  for(uint32_t i = 0; i < count; i += MAX_PARTICLES_COLOR) {
+  for(uint32_t i = 0; i < count; i += MAX_PARTICLES_S8) {
     uint32_t batchSize = (count - i);
-    if(batchSize > MAX_PARTICLES_COLOR)batchSize = MAX_PARTICLES_COLOR;
+    if(batchSize > MAX_PARTICLES_S8)batchSize = MAX_PARTICLES_S8;
 
-    uint32_t loadSize = sizeof(TPXParticle) * batchSize / 2;
+    uint32_t loadSize = sizeof(TPXParticleS8) * batchSize / 2;
     rdpq_write(-1, TPX_RSP_ID, rspCmd,
-        loadSize, (uint32_t)UncachedAddr(particles)
+        loadSize, ((uint32_t)(particles) & 0xFFFFFF)
     );
 
-    particles += MAX_PARTICLES_COLOR / 2;
+    particles += MAX_PARTICLES_S8 / 2;
   }
 }
 
-void tpx_particle_draw(TPXParticle *particles, uint32_t count) {
-  tpx_particle_draw_generic(particles, count, TPX_CMD_DRAW_COLOR);
+inline static void tpx_particle_draw_generic_s16(TPXParticleS16 *particles, uint32_t count, uint32_t rspCmd)
+{
+  assert((count & 1) == 0);
+
+  for(uint32_t i = 0; i < count; i += MAX_PARTICLES_S16) {
+    uint32_t batchSize = (count - i);
+    if(batchSize > MAX_PARTICLES_S16)batchSize = MAX_PARTICLES_S16;
+
+    uint32_t loadSize = sizeof(TPXParticleS16) * batchSize / 2;
+    rdpq_write(-1, TPX_RSP_ID, rspCmd,
+        loadSize, ((uint32_t)(particles) & 0xFFFFFF) | 0x8000'0000
+    );
+
+    particles += MAX_PARTICLES_S16 / 2;
+  }
 }
 
-void tpx_particle_draw_tex(TPXParticle *particles, uint32_t count) {
-  tpx_particle_draw_generic(particles, count, TPX_CMD_DRAW_TEXTURE);
+void tpx_particle_draw_s8(TPXParticleS8 *particles, uint32_t count) {
+  tpx_particle_draw_generic_s8(particles, count, TPX_CMD_DRAW_COLOR);
+}
+
+void tpx_particle_draw_s16(TPXParticleS16 *particles, uint32_t count) {
+  tpx_particle_draw_generic_s16(particles, count, TPX_CMD_DRAW_COLOR);
+}
+
+void tpx_particle_draw_tex_s8(TPXParticleS8 *particles, uint32_t count) {
+  tpx_particle_draw_generic_s8(particles, count, TPX_CMD_DRAW_TEXTURE);
+}
+
+void tpx_particle_draw_tex_s16(TPXParticleS16 *particles, uint32_t count) {
+  tpx_particle_draw_generic_s16(particles, count, TPX_CMD_DRAW_TEXTURE);
 }
 
 inline static void tpx_matrix_stack(void *mat, int32_t stackAdvance, bool doMultiply, bool onlyStackMove) {
@@ -127,18 +153,29 @@ void tpx_matrix_push_pos(int count) {
   tpx_matrix_stack(NULL, stackAdvance, false, true);
 }
 
-void tpx_buffer_swap(TPXParticle pt[], uint32_t idxA, uint32_t idxB) {
+void tpx_buffer_s8_swap(TPXParticleS8 pt[], uint32_t idxA, uint32_t idxB) {
   uint32_t *dataA = (uint32_t*)&pt[idxA/2];
   uint32_t *dataB = (uint32_t*)&pt[idxB/2];
 
   dataA += idxA & 1;
   dataB += idxB & 1;
 
-  SWAP_U32(dataA[0], dataB[0]);
-  SWAP_U32(dataA[2], dataB[2]);
+  SWAP_VALUE(dataA[0], dataB[0]);
+  SWAP_VALUE(dataA[2], dataB[2]);
 }
 
-void tpx_buffer_copy(TPXParticle *pt, uint32_t idxDst, uint32_t idxSrc) {
+void tpx_buffer_s16_swap(TPXParticleS16 pt[], uint32_t idxA, uint32_t idxB)
+{
+  auto val0_a = (uint64_t*)tpx_buffer_s16_get_pos(pt, idxA);
+  auto val0_b = (uint64_t*)tpx_buffer_s16_get_pos(pt, idxB);
+  SWAP_VALUE(*val0_a, *val0_b);
+
+  auto val1_a = (uint32_t*)tpx_buffer_s16_get_rgba(pt, idxA);
+  auto val1_b = (uint32_t*)tpx_buffer_s16_get_rgba(pt, idxB);
+  SWAP_VALUE(*val1_a, *val1_b);
+}
+
+void tpx_buffer_s8_copy(TPXParticleS8 *pt, uint32_t idxDst, uint32_t idxSrc) {
   uint32_t *dataDst = (uint32_t*)&pt[idxDst/2];
   uint32_t *dataSrc = (uint32_t*)&pt[idxSrc/2];
 
@@ -147,6 +184,17 @@ void tpx_buffer_copy(TPXParticle *pt, uint32_t idxDst, uint32_t idxSrc) {
 
   dataDst[0] = dataSrc[0];
   dataDst[2] = dataSrc[2];
+}
+
+void tpx_buffer_s16_copy(TPXParticleS16 pt[], uint32_t idxDst, uint32_t idxSrc)
+{
+  auto val0_dst = (uint64_t*)tpx_buffer_s16_get_pos(pt, idxDst);
+  auto val0_src = (uint64_t*)tpx_buffer_s16_get_pos(pt, idxSrc);
+  *val0_dst = *val0_src;
+
+  auto val1_dst = (uint32_t*)tpx_buffer_s16_get_rgba(pt, idxDst);
+  auto val1_src = (uint32_t*)tpx_buffer_s16_get_rgba(pt, idxSrc);
+  *val1_dst = *val1_src;
 }
 
 void tpx_destroy()

@@ -1,0 +1,348 @@
+macro mainLoop_color${LOOP_NAME}()
+{
+   // de-phase parts of the loop, this part is also at the end of the loop
+#ifdef LOOP_16BIT
+  vec16 posStart = load(ptrIn, 0x00);
+  localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
+#else
+  vec16 posStart = load_vec_s8(ptrIn, 0x00);
+  localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
+  posStart >>= 8;
+#endif
+  // point to clip space
+  mulMat4Vec3(mat0, mat1, mat2, mat3, posStart, posClip);
+  temp1 = clip(posClip, posClip.wwwwWWWW);
+
+  // Iterate over all points, transform + clip, save back those that need to be drawn
+  // the transformed amount might be smaller and shifted due to that
+  loop {
+    // only clip-check against Z to prevent overflow, X/Y is clamped in screen-space later
+
+    clipA = temp1 & 0b0000'0100'0000'0100;
+    clipB = temp1 & 0b0100'0000'0100'0000;
+
+    vec32 invW;
+    posClip *= normScaleW:ufract;
+
+    invW.w = invert_half(posClip).w;
+    invW.W = invert_half(posClip).W;
+
+    // store a particle base-size in W to only do one perspective division
+    posClip:sint.w = load(BASE_SIZE).x;
+    posClip:sint.W = load(BASE_SIZE).x;
+    posClip:sfract.w = 0;
+    posClip:sfract.W = 0;
+
+    // perspective division
+    posClip *= invW.wwwwWWWW;
+    undef invW;
+
+    // scale particle size by perspective
+    localPartSize:sfract *= posClip:sint.wwwwWWWW;
+
+    // transform to screen-space, this is the center of the particles and its depth-value
+    vec32 posScreen = posClip * screenSize;
+    vec16 posCenter = screenOffset:sint +* vecOne;
+
+    // extend to both sides for start/end point...
+    vec16 posEnd = vecOne +* localPartSize:sint;
+    posStart = posCenter - localPartSize:sint;
+
+    // ... and clamp to the edges of the screen
+    posEnd = min(posEnd, screenMax);
+    posStart = max(posStart, screenMin);
+
+    encodeRectPos(posA, posB, posStart);
+    encodeRectPos(posEndA, posEndB, posEnd);
+
+    // now check if it's completely outside the screen or has a zero-size
+    vec16 extend = posStart < posEnd;
+    temp1 = get_vcc();
+
+    temp0 = temp1 & 0b0000'0011; // only check X/Y
+    clipA |= temp0;
+
+    temp0 = temp1 & 0b0011'0000;
+    clipB |= temp0;
+
+    // load color and prepare RPD command IDs
+    #ifdef LOOP_16BIT
+      vec16 color = load(ptrIn, 16).xyzw;
+    #else
+      vec16 color = load(ptrIn, 8).xyzw;
+    #endif
+    cmdRdpRect = RDP_CMD_RECT;
+
+    // Save the rectangles now. Each one consists of 3 commands: color, depth, rect
+    // The first one is always saved here to allow better reordering,
+    // however both will only submit it by advancing 'dmaDmemEnd'
+
+    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
+    // "Prim Color": |0x3A |  -  |    LOD    ||      color (RGBA)     |
+    store(color.xy, dmaDmemEnd, 4);
+
+    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
+    // "Prim Depth": |0x2E |  -  |  -  |  -  ||   depth   |  delta-Z  |
+    store(posCenter.z, dmaDmemEnd, 0x04, 8);
+
+    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
+    //  "Fill Rect": |0x36 |   X0/Y0 (10.2)  ||  -  |  X1/Y1 (10.2)   |
+    store(posA, dmaDmemEnd, 0x04, 16);
+    @Barrier("pos-cmd") store(posEndA, dmaDmemEnd, 0x00, 16);
+    @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16);
+
+    // load particle for next iteration
+
+    #ifdef LOOP_16BIT
+      posStart.xyzw = load(ptrIn, PARTICLE_INPUT_SIZE_S16).xyzw;
+      posStart.XYZW = load(ptrIn, PARTICLE_INPUT_SIZE_S16).XYZW;
+      localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
+    #else
+      posStart = load_vec_s8(ptrIn, PARTICLE_INPUT_SIZE_S8);
+      localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
+      posStart >>= 8;
+    #endif
+
+    if(clipA == 0b0000'0011) {
+      dmaDmemEnd += 24;
+    }
+
+    #ifdef LOOP_16BIT
+      ptrIn += PARTICLE_INPUT_SIZE_S16;
+    #else
+      ptrIn += PARTICLE_INPUT_SIZE_S8;
+    #endif
+
+    // Second rectangle:
+    if(clipB == 0b0011'0000) {
+      store(color.zw, dmaDmemEnd, 4);
+      store(posCenter.Z, dmaDmemEnd, 0x04, 8);
+
+      store(posB, dmaDmemEnd, 0x04, 16);
+      @Barrier("pos-cmd") store(posEndB, dmaDmemEnd, 0x00, 16);
+      @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16);
+
+      dmaDmemEnd += 24;
+    }
+
+    mulMat4Vec3(mat0, mat1, mat2, mat3, posStart, posClip);
+
+    // When the RDP buffer in DMEM is full, submit and DMA them out.
+    // If anything is left, a last call after the loop will submit the rest.
+    if(dmaDmemEnd >= dmaDmemFlush) {
+      RDPQ_Send(dmaDmem, dmaDmemEnd);
+      dmaDmemEnd = dmaDmem;
+    }
+
+    temp1 = clip(posClip, posClip.wwwwWWWW);
+
+  } while (ptrIn != ptrInEnd)
+}
+
+macro mainLoop_tex${LOOP_NAME}()
+{
+ // de-phase parts of the loop, this part is also at the end of the loop
+#ifdef LOOP_16BIT
+  vec16 posStart = load(ptrIn, 0x00);
+  localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
+#else
+  vec16 posStart = load_vec_s8(ptrIn, 0x00);
+  localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
+  posStart >>= 8;
+#endif
+
+  const vec16 vecOne = 1;
+  u32<$a2> temp0;
+
+  // point to clip space
+  mulMat4Vec3(mat0, mat1, mat2, mat3, posStart, posClip);
+  temp1 = clip(posClip, posClip.wwwwWWWW);
+
+  // Iterate over all points, transform + clip, save back those that need to be drawn
+  // the transformed amount might be smaller and shifted due to that
+  loop {
+    // only clip-check against Z to prevent overflow, X/Y is clamped in screen-space later
+
+    clipA = temp1 & 0b0000'0100'0000'0100;
+    clipB = temp1 & 0b0100'0000'0100'0000;
+
+    vec32 invW;
+    posClip *= normScaleW:ufract;
+
+    invW.w = invert_half(posClip).w;
+    invW.W = invert_half(posClip).W;
+
+    // store a particle base-size in W to only do one perspective division
+    posClip:sint.w = load(BASE_SIZE).x;
+    posClip:sint.W = load(BASE_SIZE).x;
+    posClip:sfract.w = 0;
+    posClip:sfract.W = 0;
+
+    // perspective division
+    posClip *= invW.wwwwWWWW;
+
+    // scale particle size by perspective
+    localPartSize:sfract *= posClip:sint.wwwwWWWW;
+
+    // transform to screen-space, this is the center of the particles and its depth-value
+    vec32 posScreen = posClip * screenSize;
+    vec16 posCenter = screenOffset:sint +* vecOne;
+
+    undef posScreen;
+
+    // extend to both sides for start/end point
+    vec16 posEnd = vecOne +* localPartSize:sint;
+    posStart = posCenter - localPartSize:sint;
+
+    // calculate UV delta, this is the increment in texture-coords per screen-space pixel
+    // even if clipped, this doesn't need further adjustment
+    localPartSize *= 2;
+    invW.x = invert_half(localPartSize).x;
+    invW.y = invert_half(localPartSize).y;
+    invW.X = invert_half(localPartSize).X;
+    invW.Y = invert_half(localPartSize).Y;
+    vec16 uvDelta = invW:sint;
+
+    // offset of the UV, only actually used if it is clipped on the upper or left side
+    // since rect-pos can't be negative, we clamp it and need to adjust UVs instead
+    vec16 uvStart = posStart * invW:sint;
+    uvStart >>= 7;
+    uvStart = uvStart < 0;
+
+    // local UV offset, stored in alpha channel of color, this is added to the global
+    #ifdef LOOP_16BIT
+      temp0:s8 = load(ptrIn, 7);
+      temp1:s8 = load(ptrIn, 15);
+    #else
+      temp0:s8 = load(ptrIn, 0x0B);
+      temp1:s8 = load(ptrIn, 0x0F);
+    #endif
+    temp0 += texOffset; temp0 <<= 3;
+    temp1 += texOffset; temp1 <<= 3;
+
+    undef invW;
+
+    // Repeating & mirroring of UVs for half-rotation effect.
+    // E.g.: given a texture (64x16) animating a half-rotation in 4 frames, it will go through 8 steps:
+    // x-axis goes from 0-112 in steps of 16 repeating the 4 frames two times,
+    // y-axis stays 0 until half-way, then goes to 16 for the other half.
+    // The texture needs to be mirrored, which causes it to mirror on both axis after half the frames.
+    // (Note that clipping which shifts UVs needs to be taken into account here)
+    {
+      vec16 uvStartNeg = VZERO - uvStart;
+
+      vec16 texOffsetTotal = 0;
+      texOffsetTotal.x = temp0:s16;
+      texOffsetTotal.X = temp1:s16;
+      texOffsetTotal &= texMirrorMask.w; // mask to stay within out tile counts
+
+      // this check here is inverted since we would need to negate in the case of clipping beforehand too
+      uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStartNeg : uvStart;
+
+      // clamp Pos to the edges of the screen
+      posEnd = min(posEnd, screenMax);
+      posStart = max(posStart, screenMin);
+
+      uvStart += texOffsetTotal;
+
+      // shift range to middle to invert, only used if we are in the second half (the mirrored one)
+      // E.g.: with 4 frames: (4,5,6,7) becomes (7,6,5,4)
+      // this is needed since mirroring inverts the indices of an animation
+      uvStartNeg = texMirrorMask - uvStart;
+      uvStartNeg += texMirrorMask.z;
+
+      uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStart : uvStartNeg;
+    }
+
+    encodeRectPos(posA, posB, posStart);
+    encodeRectPos(posEndA, posEndB, posEnd);
+
+    // now check if it's completely outside the screen or has a zero-size
+    vec16 extend = posStart < posEnd;
+    temp1 = get_vcc();
+
+    temp0 = temp1 & 0b0000'0011; // only check X/Y
+    clipA |= temp0;
+
+    temp0 = temp1 & 0b0011'0000;
+    clipB |= temp0;
+
+    // load color and prepare RPD command IDs
+    #ifdef LOOP_16BIT
+      vec16 color = load(ptrIn, 16).xyzw;
+    #else
+      vec16 color = load(ptrIn, 8).xyzw;
+    #endif
+
+    cmdRdpRect = RDP_CMD_TEX_RECT;
+
+    // Save the rectangles now. Each one consists of 3 commands: color, depth, rect
+    // The first one is always saved here to allow better reordering,
+    // however both will only submit it by advancing 'dmaDmemEnd'
+
+    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
+    // "Prim Color": |0x3A |  -  |    LOD    ||      color (RGBA)     |
+    store(color.xy, dmaDmemEnd, 4);
+
+    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
+    // "Prim Depth": |0x2E |  -  |  -  |  -  ||   depth   |  delta-Z  |
+    store(posCenter.z, dmaDmemEnd, 0x04, 8);
+
+    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
+    //   "Tex Rect": |0x24 |   X0/Y0 (10.2)  ||  -  |  X1/Y1 (10.2)   |
+    //               |  S (5.10) | T (5.10)  || Ds (5.10) | Dt (5.10) |
+    store(posA, dmaDmemEnd, 0x04, 16);
+    @Barrier("pos-cmd") store(posEndA, dmaDmemEnd, 0x00, 16);
+    @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16);
+    store(uvStart.xy, dmaDmemEnd, 0x08, 16);
+    store(uvDelta.xy, dmaDmemEnd, 0x0C, 16);
+
+    // load particle for next iteration
+    #ifdef LOOP_16BIT
+      posStart.xyzw = load(ptrIn, PARTICLE_INPUT_SIZE_S16).xyzw;
+      posStart.XYZW = load(ptrIn, PARTICLE_INPUT_SIZE_S16).XYZW;
+      localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
+    #else
+      posStart = load_vec_s8(ptrIn, PARTICLE_INPUT_SIZE_S8);
+      localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
+      posStart >>= 8;
+    #endif
+
+    if(clipA == 0b0000'0011) {
+      dmaDmemEnd += 32;
+    }
+
+    #ifdef LOOP_16BIT
+      ptrIn += PARTICLE_INPUT_SIZE_S16;
+    #else
+      ptrIn += PARTICLE_INPUT_SIZE_S8;
+    #endif
+
+    // Second rectangle:
+    if(clipB == 0b0011'0000) {
+      store(color.zw, dmaDmemEnd, 4);
+      store(posCenter.Z, dmaDmemEnd, 0x04, 8);
+
+      store(posB, dmaDmemEnd, 0x04, 16);
+      @Barrier("pos-cmd") store(posEndB, dmaDmemEnd, 0x00, 16);
+      @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16);
+
+      store(uvStart.XY, dmaDmemEnd, 0x08, 16);
+      store(uvDelta.XY, dmaDmemEnd, 0x0C, 16);
+
+      dmaDmemEnd += 32;
+    }
+
+    mulMat4Vec3(mat0, mat1, mat2, mat3, posStart, posClip);
+
+    // When the RDP buffer in DMEM is full, submit and DMA them out.
+    // If anything is left, a last call after the loop will submit the rest.
+    if(dmaDmemEnd >= dmaDmemFlush) {
+      RDPQ_Send(dmaDmem, dmaDmemEnd);
+      dmaDmemEnd = dmaDmem;
+    }
+
+    temp1 = clip(posClip, posClip.wwwwWWWW);
+
+  } while (ptrIn != ptrInEnd)
+}

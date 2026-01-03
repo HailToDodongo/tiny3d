@@ -96,8 +96,8 @@ namespace Actor
     float latIncr = (T3D_PI * 32.0f) / sampleCount;
 
     for(uint32_t i=0; i<sampleCount; ++i) {
-      auto p = tpx_buffer_get_pos(particles.particles, particles.count);
-      auto col = tpx_buffer_get_rgba(particles.particles, particles.count);
+      auto p = tpx_buffer_s8_get_pos(particles.particles, particles.count);
+      auto col = tpx_buffer_s8_get_rgba(particles.particles, particles.count);
 
       float y = 1.0f - (i / (float)(sampleCount - 1)) * 2.0f;//  # y goes from 1 to -1
       float radius = sqrtf(1.0f - y * y);
@@ -123,7 +123,7 @@ namespace Actor
       p[1] = pt.y;
       p[2] = pt.z;
 
-      *tpx_buffer_get_size(particles.particles, particles.count) = 35 + (rand()%5);
+      *tpx_buffer_s8_get_size(particles.particles, particles.count) = 35 + (rand()%5);
 
       col[0] = colImg.r;
       col[1] = colImg.g;

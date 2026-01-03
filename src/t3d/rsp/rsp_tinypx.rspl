@@ -17,7 +17,8 @@ include "rdpq_macros.h"
 #define RDP_CMD_TEX_RECT_FLIP 0x25
 
 // size of the 'T3DParticle' struct, containing 2 interleaved particles each
-#define PARTICLE_INPUT_SIZE 16
+#define PARTICLE_INPUT_SIZE_S8 16
+#define PARTICLE_INPUT_SIZE_S16 24
 // max particles, this must be a multiple of 2
 #define PARTICLE_MAX_COUNT 344
 
@@ -29,6 +30,7 @@ include "rdpq_macros.h"
 #define RDP_TEX_FLUSH_SIZE 480
 
 #define RDP_POS_MASK 0b1111'1111'1111
+
 
 state
 {
@@ -64,6 +66,15 @@ temp_state {
 }
 
 #include "inc/math.rspl"
+
+#define LOOP_NAME 8Bit
+#include "tpxLoops.rspl"
+#undef LOOP_NAME
+
+#define LOOP_NAME 16Bit
+#define LOOP_16BIT 1
+#include "tpxLoops.rspl"
+#undef LOOP_NAME
 
 function RDPQ_Send(u16<$s4> dmemStart, u16<$s3> dmaDmemEnd);
 
@@ -149,132 +160,14 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
 
   u32 posA, posB, posEndA, posEndB;
   vec32 posClip;
-
-  // de-phase parts of the loop, this part is also at the end of the loop
-  vec16 posStart = load_vec_s8(ptrIn, 0x00);
-  localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
-  posStart >>= 8;
-  posStart.w = 1;
-  posStart.W = 1;
-
   const vec16 vecOne = 1;
   u32<$a2> temp0;
 
-  // point to clip space
-  mulMat4Vec8(mat0, mat1, mat2, mat3, posStart, posClip);
-  temp1 = clip(posClip, posClip.wwwwWWWW);
-
-  // Iterate over all points, transform + clip, save back those that need to be drawn
-  // the transformed amount might be smaller and shifted due to that
-  loop {
-    // only clip-check against Z to prevent overflow, X/Y is clamped in screen-space later
-
-    clipA = temp1 & 0b0000'0100'0000'0100;
-    clipB = temp1 & 0b0100'0000'0100'0000;
-
-    vec32 invW;
-    posClip *= normScaleW:ufract;
-
-    invW.w = invert_half(posClip).w;
-    invW.W = invert_half(posClip).W;
-
-    // store a particle base-size in W to only do one perspective division
-    posClip:sint.w = load(BASE_SIZE).x;
-    posClip:sint.W = load(BASE_SIZE).x;
-    posClip:sfract.w = 0;
-    posClip:sfract.W = 0;
-
-    // perspective division
-    posClip *= invW.wwwwWWWW;
-    undef invW;
-
-    // scale particle size by perspective
-    localPartSize:sfract *= posClip:sint.wwwwWWWW;
-
-    // transform to screen-space, this is the center of the particles and its depth-value
-    vec32 posScreen = posClip * screenSize;
-    vec16 posCenter = screenOffset:sint +* vecOne;
-
-    // extend to both sides for start/end point...
-    vec16 posEnd = vecOne +* localPartSize:sint;
-    posStart = posCenter - localPartSize:sint;
-
-    // ... and clamp to the edges of the screen
-    posEnd = min(posEnd, screenMax);
-    posStart = max(posStart, screenMin);
-
-    encodeRectPos(posA, posB, posStart);
-    encodeRectPos(posEndA, posEndB, posEnd);
-
-    // now check if it's completely outside the screen or has a zero-size
-    vec16 extend = posStart < posEnd;
-    temp1 = get_vcc();
-
-    temp0 = temp1 & 0b0000'0011; // only check X/Y
-    clipA |= temp0;
-
-    temp0 = temp1 & 0b0011'0000;
-    clipB |= temp0;
-
-    // load color and prepare RPD command IDs
-    vec16 color = load(ptrIn, 0x08).xyzw;
-    cmdRdpRect = RDP_CMD_RECT;
-
-    // Save the rectangles now. Each one consists of 3 commands: color, depth, rect
-    // The first one is always saved here to allow better reordering,
-    // however both will only submit it by advancing 'dmaDmemEnd'
-
-    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
-    // "Prim Color": |0x3A |  -  |    LOD    ||      color (RGBA)     |
-    store(color.xy, dmaDmemEnd, 4);
-
-    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
-    // "Prim Depth": |0x2E |  -  |  -  |  -  ||   depth   |  delta-Z  |
-    store(posCenter.z, dmaDmemEnd, 0x04, 8);
-
-    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
-    //  "Fill Rect": |0x36 |   X0/Y0 (10.2)  ||  -  |  X1/Y1 (10.2)   |
-    store(posA, dmaDmemEnd, 0x04, 16);
-    @Barrier("pos-cmd") store(posEndA, dmaDmemEnd, 0x00, 16);
-    @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16);
-
-    // load particle for next iteration
-    ptrIn += PARTICLE_INPUT_SIZE;
-    posStart = load_vec_s8(ptrIn, 0x00, PARTICLE_INPUT_SIZE);
-    localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
-    posStart >>= 8;
-
-    posStart.w = 1;
-
-    if(clipA == 0b0000'0011) {
-      dmaDmemEnd += 24;
-    }
-
-    posStart.W = 1;
-    // Second rectangle:
-    if(clipB == 0b0011'0000) {
-      store(color.zw, dmaDmemEnd, 4);
-      store(posCenter.Z, dmaDmemEnd, 0x04, 8);
-
-      store(posB, dmaDmemEnd, 0x04, 16);
-      @Barrier("pos-cmd") store(posEndB, dmaDmemEnd, 0x00, 16);
-      @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16);
-
-      dmaDmemEnd += 24;
-    }
-
-    mulMat4Vec8(mat0, mat1, mat2, mat3, posStart, posClip);
-
-    // When the RDP buffer in DMEM is full, submit and DMA them out.
-    // If anything is left, a last call after the loop will submit the rest.
-    if(dmaDmemEnd >= dmaDmemFlush) {
-      RDPQ_Send(dmaDmem, dmaDmemEnd);
-      dmaDmemEnd = dmaDmem;
-    }
-
-    temp1 = clip(posClip, posClip.wwwwWWWW);
-
-  } while (ptrIn != ptrInEnd)
+  if(rdramAddr < 0) {
+    mainLoop_color16Bit();
+  } else {
+    mainLoop_color8Bit();
+  }
 
   // submit the rest of the buffer (if any)
   RA = RSPQ_Loop; // @TODO: add RSPL auto-opt. for this (needs RA assign)
@@ -391,189 +284,11 @@ command<4> TPXCmd_DrawTextured(s16 dataSize, s32 rdramAddr)
   u32 posA, posB, posEndA, posEndB;
   vec32 posClip;
 
-  // de-phase parts of the loop, this part is also at the end of the loop
-  vec16 posStart = load_vec_s8(ptrIn, 0x00);
-  localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
-  posStart >>= 8;
-  posStart.w = 1;
-  posStart.W = 1;
-
-  const vec16 vecOne = 1;
-  u32<$a2> temp0;
-
-  // point to clip space
-  mulMat4Vec8(mat0, mat1, mat2, mat3, posStart, posClip);
-  temp1 = clip(posClip, posClip.wwwwWWWW);
-
-  // Iterate over all points, transform + clip, save back those that need to be drawn
-  // the transformed amount might be smaller and shifted due to that
-  loop {
-    // only clip-check against Z to prevent overflow, X/Y is clamped in screen-space later
-
-    clipA = temp1 & 0b0000'0100'0000'0100;
-    clipB = temp1 & 0b0100'0000'0100'0000;
-
-    vec32 invW;
-    posClip *= normScaleW:ufract;
-
-    invW.w = invert_half(posClip).w;
-    invW.W = invert_half(posClip).W;
-
-    // store a particle base-size in W to only do one perspective division
-    posClip:sint.w = load(BASE_SIZE).x;
-    posClip:sint.W = load(BASE_SIZE).x;
-    posClip:sfract.w = 0;
-    posClip:sfract.W = 0;
-
-    // perspective division
-    posClip *= invW.wwwwWWWW;
-
-    // scale particle size by perspective
-    localPartSize:sfract *= posClip:sint.wwwwWWWW;
-
-    // transform to screen-space, this is the center of the particles and its depth-value
-    vec32 posScreen = posClip * screenSize;
-    vec16 posCenter = screenOffset:sint +* vecOne;
-
-    undef posScreen;
-
-    // extend to both sides for start/end point
-    vec16 posEnd = vecOne +* localPartSize:sint;
-    posStart = posCenter - localPartSize:sint;
-
-    // calculate UV delta, this is the increment in texture-coords per screen-space pixel
-    // even if clipped, this doesn't need further adjustment
-    localPartSize *= 2;
-    invW.x = invert_half(localPartSize).x;
-    invW.y = invert_half(localPartSize).y;
-    invW.X = invert_half(localPartSize).X;
-    invW.Y = invert_half(localPartSize).Y;
-    vec16 uvDelta = invW:sint;
-
-    // offset of the UV, only actually used if it is clipped on the upper or left side
-    // since rect-pos can't be negative, we clamp it and need to adjust UVs instead
-    vec16 uvStart = posStart * invW:sint;
-    uvStart >>= 7;
-    uvStart = uvStart < 0;
-
-    // local UV offset, stored in alpha channel of color, this is added to the global
-    temp0:s8 = load(ptrIn, 0x0B);
-    temp1:s8 = load(ptrIn, 0x0F);
-    temp0 += texOffset; temp0 <<= 3;
-    temp1 += texOffset; temp1 <<= 3;
-
-    undef invW;
-
-    // Repeating & mirroring of UVs for half-rotation effect.
-    // E.g.: given a texture (64x16) animating a half-rotation in 4 frames, it will go through 8 steps:
-    // x-axis goes from 0-112 in steps of 16 repeating the 4 frames two times,
-    // y-axis stays 0 until half-way, then goes to 16 for the other half.
-    // The texture needs to be mirrored, which causes it to mirror on both axis after half the frames.
-    // (Note that clipping which shifts UVs needs to be taken into account here)
-    {
-      vec16 uvStartNeg = VZERO - uvStart;
-
-      vec16 texOffsetTotal = 0;
-      texOffsetTotal.x = temp0:s16;
-      texOffsetTotal.X = temp1:s16;
-      texOffsetTotal &= texMirrorMask.w; // mask to stay within out tile counts
-
-      // this check here is inverted since we would need to negate in the case of clipping beforehand too
-      uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStartNeg : uvStart;
-
-      // clamp Pos to the edges of the screen
-      posEnd = min(posEnd, screenMax);
-      posStart = max(posStart, screenMin);
-
-      uvStart += texOffsetTotal;
-
-      // shift range to middle to invert, only used if we are in the second half (the mirrored one)
-      // E.g.: with 4 frames: (4,5,6,7) becomes (7,6,5,4)
-      // this is needed since mirroring inverts the indices of an animation
-      uvStartNeg = texMirrorMask - uvStart;
-      uvStartNeg += texMirrorMask.z;
-
-      uvStart = texMirrorCompare >= texOffsetTotal.xxxxXXXX ? uvStart : uvStartNeg;
-    }
-
-    encodeRectPos(posA, posB, posStart);
-    encodeRectPos(posEndA, posEndB, posEnd);
-
-    // now check if it's completely outside the screen or has a zero-size
-    vec16 extend = posStart < posEnd;
-    temp1 = get_vcc();
-
-    temp0 = temp1 & 0b0000'0011; // only check X/Y
-    clipA |= temp0;
-
-    temp0 = temp1 & 0b0011'0000;
-    clipB |= temp0;
-
-    // load color and prepare RPD command IDs
-    vec16 color = load(ptrIn, 0x08).xyzw;
-    cmdRdpRect = RDP_CMD_TEX_RECT;
-
-    // Save the rectangles now. Each one consists of 3 commands: color, depth, rect
-    // The first one is always saved here to allow better reordering,
-    // however both will only submit it by advancing 'dmaDmemEnd'
-
-    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
-    // "Prim Color": |0x3A |  -  |    LOD    ||      color (RGBA)     |
-    store(color.xy, dmaDmemEnd, 4);
-
-    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
-    // "Prim Depth": |0x2E |  -  |  -  |  -  ||   depth   |  delta-Z  |
-    store(posCenter.z, dmaDmemEnd, 0x04, 8);
-
-    //       Offset: |  0  |  1  |  2  |  3  ||  4  |  5  |  6  |  7  |
-    //   "Tex Rect": |0x24 |   X0/Y0 (10.2)  ||  -  |  X1/Y1 (10.2)   |
-    //               |  S (5.10) | T (5.10)  || Ds (5.10) | Dt (5.10) |
-    store(posA, dmaDmemEnd, 0x04, 16);
-    @Barrier("pos-cmd") store(posEndA, dmaDmemEnd, 0x00, 16);
-    @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16);
-    store(uvStart.xy, dmaDmemEnd, 0x08, 16);
-    store(uvDelta.xy, dmaDmemEnd, 0x0C, 16);
-
-    // load particle for next iteration
-    ptrIn += PARTICLE_INPUT_SIZE;
-    posStart = load_vec_s8(ptrIn, 0x00, PARTICLE_INPUT_SIZE);
-    localPartSize = globalPartSize:sfract * posStart:sfract.wwwwWWWW;
-    posStart >>= 8;
-
-    posStart.w = 1;
-
-    if(clipA == 0b0000'0011) {
-      dmaDmemEnd += 32;
-    }
-
-    posStart.W = 1;
-    // Second rectangle:
-    if(clipB == 0b0011'0000) {
-      store(color.zw, dmaDmemEnd, 4);
-      store(posCenter.Z, dmaDmemEnd, 0x04, 8);
-
-      store(posB, dmaDmemEnd, 0x04, 16);
-      @Barrier("pos-cmd") store(posEndB, dmaDmemEnd, 0x00, 16);
-      @Barrier("pos-cmd") store(cmdRdpRect, dmaDmemEnd, 0x00, 16);
-
-      store(uvStart.XY, dmaDmemEnd, 0x08, 16);
-      store(uvDelta.XY, dmaDmemEnd, 0x0C, 16);
-
-      dmaDmemEnd += 32;
-    }
-
-    mulMat4Vec8(mat0, mat1, mat2, mat3, posStart, posClip);
-
-    // When the RDP buffer in DMEM is full, submit and DMA them out.
-    // If anything is left, a last call after the loop will submit the rest.
-    if(dmaDmemEnd >= dmaDmemFlush) {
-      RDPQ_Send(dmaDmem, dmaDmemEnd);
-      dmaDmemEnd = dmaDmem;
-    }
-
-    temp1 = clip(posClip, posClip.wwwwWWWW);
-
-  } while (ptrIn != ptrInEnd)
+  if(rdramAddr < 0) {
+    mainLoop_tex16Bit();
+  } else {
+    mainLoop_tex8Bit();
+  }
 
   // submit the rest of the buffer (if any)
   RA = RSPQ_Loop; // @TODO: add RSPL auto-opt. for this (needs RA assign)
@@ -600,6 +315,7 @@ macro encodeRectPos(u32 outA, u32 outB, vec16 pos)
   tmp <<= 12;
   outB |= tmp;
 }
+
 
 /**
  * Loads the current scissor area from the shared 'RDPQ_SCISSOR_RECT' setting

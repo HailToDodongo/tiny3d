@@ -2,16 +2,6 @@
 
 static int currentPart  = 0;
 
-static color_t blend_colors(color_t colorA, color_t colorB, float t) {
-  color_t color;
-  color.r = (uint8_t)(colorA.r * (1.0f - t) + colorB.r * t);
-  color.g = (uint8_t)(colorA.g * (1.0f - t) + colorB.g * t);
-  color.b = (uint8_t)(colorA.b * (1.0f - t) + colorB.b * t);
-  color.a = (uint8_t)(colorA.a * (1.0f - t) + colorB.a * t);
-  return color;
-}
-
-
 static color_t get_rainbow_color(float s, float brightness) {
   float r = fm_sinf(s) * 0.5f + 0.5f;
   float g = fm_sinf(s + 2.094f) * 0.5f + 0.5f;
@@ -82,7 +72,7 @@ static int noise_2d(int x, int y) {
   return (n * (n * n * 60493 + 19990303) + 89);
 }
 
-static void generate_particles_random(TPXParticle *particles, uint32_t count) {
+static void generate_particles_random(TPXParticleS8 *particles, uint32_t count) {
   for (int i = 0; i < count; i++) {
     int p = i / 2;
     int8_t *ptPos = i % 2 == 0 ? particles[p].posA : particles[p].posB;
@@ -114,7 +104,7 @@ static void generate_particles_random(TPXParticle *particles, uint32_t count) {
   }
 }
 
-static int simulate_particles_coins(TPXParticle *particles, uint32_t partCount) {
+static int simulate_particles_coins(TPXParticleS16 *particles, uint32_t partCount) {
 
   int dist = 3;
   int heightParts = 1;
@@ -122,14 +112,15 @@ static int simulate_particles_coins(TPXParticle *particles, uint32_t partCount) 
 
   int p = 0;
 
-  int8_t ptPosX = -(dist * sideLen) / 2;
+  int16_t ptPosX = -(dist * sideLen) / 2;
   for(int x=0; x<sideLen; ++x)
   {
-    int8_t ptPosZ = -(dist * sideLen) / 2;
+    int16_t ptPosZ = -(dist * sideLen) / 2;
     for(int z=0; z<sideLen; ++z)
     {
-      int8_t *ptPos = tpx_buffer_get_pos(particles, p);
-      color_t *ptColor = (color_t*)tpx_buffer_get_rgba(particles, p);
+      int16_t *ptPos = tpx_buffer_s16_get_pos(particles, p);
+      color_t *ptColor = (color_t*)tpx_buffer_s16_get_rgba(particles, p);
+      *tpx_buffer_s16_get_tex_offset(particles, p) = (rand() % 8) * 32;
 
       int rnd = noise_2d(x, z);
       float height = fm_sinf((x + z) * 0.1f) * 0.5f + 0.5f;
@@ -137,12 +128,11 @@ static int simulate_particles_coins(TPXParticle *particles, uint32_t partCount) 
       int8_t size = (rand() % 8)*4 + 50;
 
       *ptColor = (rnd & 1) ? get_rand_color(20) : get_rainbow_color((x + z) * 0.1f, 1.0f);
-      ptColor->a = (rand() % 8) * 32;
 
       ptPos[0] = ptPosX + ((rnd % 3) - 1);
       ptPos[1] = height;
       ptPos[2] = ptPosZ + ((rnd % 3) - 1);
-      *tpx_buffer_get_size(particles, p) = size;
+      *tpx_buffer_s16_get_size(particles, p) = size;
 
       ptPosZ += dist;
 
@@ -160,17 +150,17 @@ static int simulate_particles_coins(TPXParticle *particles, uint32_t partCount) 
  * This will simulate particles over time by moving them up and changing their color.
  * The current position is used to spawn new particles, so it can move over time leaving a trail behind.
  */
-static void simulate_particles_fire(TPXParticle *particles, uint32_t partCount, float posX, float posZ) {
-  uint32_t p = currentPart / 2;
+static void simulate_particles_fire(TPXParticleS8 *particles, uint32_t partCount, float posX, float posZ) {
+  int p = currentPart / 2;
   if(currentPart % (1+(rand() % 3)) == 0) {
-    int8_t *ptPos = currentPart % 2 == 0 ? particles[p].posA : particles[p].posB;
-    int8_t *size = currentPart % 2 == 0 ? &particles[p].sizeA : &particles[p].sizeB;
-    uint8_t *color = currentPart % 2 == 0 ? particles[p].colorA : particles[p].colorB;
+    int8_t *ptPos  = tpx_buffer_s8_get_pos(particles, p);
+    int8_t *size   = tpx_buffer_s8_get_size(particles, p);
+    uint8_t *color = tpx_buffer_s8_get_rgba(particles, p);
 
     ptPos[0] = posX + (rand() % 16) - 8;
     ptPos[1] = -126;
     gradient_fire(color, 0);
-    color[3] = (PhysicalAddr(ptPos) % 8) * 32;
+    color[3] = ((PhysicalAddr(ptPos) % 8) * 32);
 
     ptPos[2] = posZ + (rand() % 16) - 8;
     *size = 60 + (rand() % 10);

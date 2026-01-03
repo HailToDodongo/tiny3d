@@ -65,10 +65,10 @@ int main()
   rdpq_init();
   //rdpq_debug_start();
 
+  uint64_t rdpTimeBusy = 0;
+  uint64_t rspTimeTPX = 0;
   #if RSPQ_PROFILE
     rspq_profile_data_t profile_data = (rspq_profile_data_t){};
-    uint64_t rdpTimeBusy = 0;
-    uint64_t rspTimeTPX = 0;
     rspq_profile_start();
   #endif
 
@@ -87,9 +87,16 @@ int main()
   // There is no special struct for textured particles compared to colored ones.
   // The only difference is that the alpha channel of the color is used for the texture offset.
   // You can still define a global alpha value via the CC ofc.
-  uint32_t allocSize = sizeof(TPXParticle) * particleCountMax / 2;
-  TPXParticle *particles = malloc_uncached(allocSize);
+  uint32_t allocSize = sizeof(TPXParticleS8) * particleCountMax / 2;
+  TPXParticleS8 *particlesS8 = malloc_uncached(allocSize);
   debugf("Particle-Buffer %ldkb\n", allocSize / 1024);
+
+  // Additionally, a 16bit version of particles is available.
+  // This one takes up more space (24 bytes vs 16 bytes per pair) and is slightly slower.
+  // In return, it can cover a larger range which can be useful for 3D sprites placed in a scene.
+  // The 8bit variant should be preferred when possible (e.g. in local particle effects)
+  allocSize = sizeof(TPXParticleS16) * particleCountMax / 2;
+  TPXParticleS16 *particlesS16 = malloc_uncached(allocSize);
 
   sprite_t *texTest[] = {
       sprite_load("rom://tex8.i8.sprite"),
@@ -137,6 +144,7 @@ int main()
   float time = 0;
   float timeTile = 0;
   bool needRebuild = true;
+  bool measureTime = false;
   int frameIdx = 0;
 
   for(;;)
@@ -159,6 +167,10 @@ int main()
     if(joypad.btn.c_left)partSizeX -= deltaTime * 0.6f;
     if(joypad.btn.c_up)partSizeY += deltaTime * 0.6f;
     if(joypad.btn.c_down)partSizeY -= deltaTime * 0.6f;
+
+#if RSPQ_PROFILE
+    measureTime = joypad.btn.z;
+#endif
 
     partSizeX = fmaxf(0.01f, fminf(1.0f, partSizeX));
     partSizeY = fmaxf(0.01f, fminf(1.0f, partSizeY));
@@ -200,6 +212,7 @@ int main()
       camTarget.v[2] = camPos.v[2] + camDir.v[2];
     }
 
+    bool is16Bit = false;
     bool isSpriteRot = false;
     switch(example)
     {
@@ -211,7 +224,7 @@ int main()
         float posX = fm_cosf(time) * 80.0f;
         float posZ = fm_sinf(2*time) * 40.0f;
 
-        simulate_particles_fire(particles, particleCount, posX, posZ);
+        simulate_particles_fire(particlesS8, particleCount, posX, posZ);
         particleMatScale = (T3DVec3){{0.9f, partMatScaleVal, 0.9f}};
         particlePos.y = partMatScaleVal * 130.0f;
         rdpq_set_env_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
@@ -223,10 +236,11 @@ int main()
         particleRot = (T3DVec3){{0,0,0}};
         particlePos.y = 0;
         if(needRebuild) {
-          particleCount = simulate_particles_coins(particles, particleCount);
+          particleCount = simulate_particles_coins(particlesS16, particleCount);
         }
         particleMatScale = (T3DVec3){{partMatScaleVal, partSizeY * 2.9f, partMatScaleVal}};
         rdpq_set_env_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
+        is16Bit = true;
       break;
       default: // Random
         time += deltaTime * 0.2f;
@@ -234,7 +248,7 @@ int main()
         particleRot = (T3DVec3){{time,time*0.77f,time*1.42f}};
         particleMatScale = (T3DVec3){{partMatScaleVal, partMatScaleVal, partMatScaleVal}};
 
-        if(needRebuild)generate_particles_random(particles, particleCount);
+        if(needRebuild)generate_particles_random(particlesS8, particleCount);
         rdpq_set_env_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
         isSpriteRot = true;
       break;
@@ -326,7 +340,26 @@ int main()
       case 5: tpx_state_set_tex_params((int16_t)tileIdx, 0); break;
     }
 
-    tpx_particle_draw_tex(particles, particleCount);
+    if(measureTime) {
+      rspq_wait();
+      rspq_highpri_begin();
+      wait_ms(2);
+      rspTimeTPX = get_ticks();
+    }
+
+    if(is16Bit) {
+      tpx_particle_draw_tex_s16(particlesS16, particleCount);
+    } else {
+      tpx_particle_draw_tex_s8(particlesS8, particleCount);
+    }
+
+    if(measureTime)
+    {
+      rspq_highpri_end();
+      rspq_highpri_sync();
+      rspTimeTPX = get_ticks() - rspTimeTPX;
+      rspTimeTPX = TICKS_TO_US(rspTimeTPX);
+    }
 
     tpx_matrix_pop(1);
 
@@ -335,7 +368,8 @@ int main()
     t3d_debug_printf(20,  30, "[C] %.2f %.2f", partSizeX, partSizeY);
     t3d_debug_printf(220, 18, "FPS: %.2f", display_get_fps());
 
-    #if RSPQ_PROFILE
+    if(measureTime)
+    {
       double timePerPart = 0;
       if(particleCount > 0) {
         timePerPart = (double)rspTimeTPX / (double)particleCount * 1000;
@@ -343,9 +377,9 @@ int main()
       t3d_debug_printf(20, 240-34, "RSP/tpx: %6lldus %.1f", rspTimeTPX, timePerPart);
       //t3d_debug_printf(20, 240-34, "RSP/tpx: %6lldus", rspTimeTPX);
       t3d_debug_printf(20, 240-24, "RDP    : %6lldus", rdpTimeBusy);
-    #else
+    } else {
       t3d_debug_printf(20, 240-24, "[L/R]: %s", EXAMPLE_NAMES[example]);
-    #endif
+    }
 
     rdpq_detach_show();
 

@@ -28,7 +28,7 @@ void PTSystem::resize(uint32_t maxSize)
   assert(sizeof(countMax) % 2 == 0);
   if(countMax > 0) {
     mat = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP));
-    particles = static_cast<TPXParticle*>(malloc_uncached(countMax * sizeof(TPXParticle) / 2));
+    particles = static_cast<TPXParticleS8*>(malloc_uncached(countMax * sizeof(TPXParticleS8) / 2));
   }
 }
 
@@ -36,7 +36,7 @@ void PTSystem::draw() const {
   if(count == 0)return;
   tpx_matrix_push(mat);
   uint32_t safeCount = count & ~1;
-  tpx_particle_draw(particles, safeCount);
+  tpx_particle_draw_s8(particles, safeCount);
   tpx_matrix_pop(1);
 }
 
@@ -44,7 +44,7 @@ void PTSystem::drawTextured() const {
   if(count == 0)return;
   tpx_matrix_push(mat);
   uint32_t safeCount = count & ~1;
-  tpx_particle_draw_tex(particles, safeCount);
+  tpx_particle_draw_tex_s8(particles, safeCount);
   tpx_matrix_pop(1);
 }
 
@@ -59,7 +59,7 @@ int PTSystem::drawTexturedSlice(int begin, int end) const
   auto size = end - begin;
   if(size <= 0)return 0;
   tpx_matrix_push(mat);
-  tpx_particle_draw_tex(particles + (begin/2), size);
+  tpx_particle_draw_tex_s8(particles + (begin/2), size);
   tpx_matrix_pop(1);
 
   return size;
