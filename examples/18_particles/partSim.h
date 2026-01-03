@@ -56,10 +56,10 @@ static int simulate_particles_grass(TPXParticleS16 *particles, uint32_t partCoun
   int p = 0;
   for(int y=heightParts-1; y>=0; --y)
   {
-    int8_t ptPosX = -(dist * sideLen) / 2;
+    int16_t ptPosX = -(dist * sideLen) / 2;
     for(int x=0; x<sideLen; ++x)
     {
-      int8_t ptPosZ = -(dist * sideLen) / 2;
+      int16_t ptPosZ = -(dist * sideLen) / 2;
       for(int z=0; z<sideLen; ++z)
       {
         int16_t *ptPos = tpx_buffer_s16_get_pos(particles, p);

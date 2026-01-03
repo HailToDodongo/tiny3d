@@ -43,10 +43,10 @@ int main()
   rdpq_init();
   //rdpq_debug_start();
 
+  uint64_t rspTimeTPX = 0;
+  uint64_t rdpTimeBusy = 0;
   #if RSPQ_PROFILE
     rspq_profile_data_t profile_data = (rspq_profile_data_t){};
-    uint64_t rdpTimeBusy = 0;
-    uint64_t rspTimeTPX = 0;
     rspq_profile_start();
   #endif
 
@@ -118,6 +118,7 @@ int main()
   float time = 0;
   bool needRebuild = true;
   int frameIdx = 0;
+  bool measureTime = false;
 
   for(;;)
   {
@@ -138,6 +139,8 @@ int main()
     if(joypad.btn.c_left)partSizeX -= deltaTime * 0.6f;
     if(joypad.btn.c_up)partSizeY += deltaTime * 0.6f;
     if(joypad.btn.c_down)partSizeY -= deltaTime * 0.6f;
+
+    measureTime = joypad.btn.z;
 
     partSizeX = fmaxf(0.01f, fminf(1.0f, partSizeX));
     partSizeY = fmaxf(0.01f, fminf(1.0f, partSizeY));
@@ -276,6 +279,13 @@ int main()
     // This can only scale particles down, so the range is 0.0 - 1.0.
     tpx_state_set_scale(partSizeX, partSizeY);
 
+    if(measureTime) {
+      rspq_wait();
+      rspq_highpri_begin();
+      wait_ms(2);
+      rspTimeTPX = get_ticks();
+    }
+
     // Now draw particles. internally this will load, transform and draw them in one go on the RSP.
     // While the ucode can only handle a 344 at a time, this function will automatically batch them
     // so you can specify an arbitrary amount of particles (as long as it's an even count)
@@ -283,6 +293,14 @@ int main()
       tpx_particle_draw_s16(particlesS16, particleCount);
     } else {
       tpx_particle_draw_s8(particlesS8, particleCount);
+    }
+
+    if(measureTime)
+    {
+      rspq_highpri_end();
+      rspq_highpri_sync();
+      rspTimeTPX = get_ticks() - rspTimeTPX;
+      rspTimeTPX = TICKS_TO_US(rspTimeTPX);
     }
 
     // Make sure end up at the same stack level as before.
@@ -296,7 +314,8 @@ int main()
     t3d_debug_printf(20,  30, "[C] %.2f %.2f", partSizeX, partSizeY);
     t3d_debug_printf(220, 18, "FPS: %.2f", display_get_fps());
 
-    #if RSPQ_PROFILE
+    if(measureTime)
+    {
       double timePerPart = 0;
       if(particleCount > 0) {
         timePerPart = (double)rspTimeTPX / (double)particleCount * 1000;
@@ -304,10 +323,9 @@ int main()
       t3d_debug_printf(20, 240-34, "RSP/tpx: %6lldus %.1f", rspTimeTPX, timePerPart);
       //t3d_debug_printf(20, 240-34, "RSP/tpx: %6lldus", rspTimeTPX);
       t3d_debug_printf(20, 240-24, "RDP    : %6lldus", rdpTimeBusy);
-    #else
+    } else {
       t3d_debug_printf(20, 240-24, "[L/R]: %s", EXAMPLE_NAMES[example]);
-    #endif
-
+    }
     rdpq_detach_show();
 
     #if RSPQ_PROFILE
