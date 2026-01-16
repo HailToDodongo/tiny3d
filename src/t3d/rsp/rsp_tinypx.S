@@ -159,7 +159,7 @@ TPXCmd_DrawColor:
   addiu $t0, $t0, -1                                 ## L:850  |      5 | dma_in_async(dmaDmem, rdramAddr, dmaSize);
   jal DMAExec                                        ## L:850  |      6 | dma_in_async(dmaDmem, rdramAddr, dmaSize); ## Args: $t0, $t1, $s0, $s4, $t2
   or $t2, $zero, $zero                               ## L:850  |     *8 | dma_in_async(dmaDmem, rdramAddr, dmaSize);
-  vmudl $v20, $v00, $v31.e3                          ## L:865  |      9 | screenSize >>= 4;
+  vmudl $v20, $v00, $v31.e7                          ## L:865  |      9 | screenSize >>= 4;
   lw $s2, %lo(RDPQ_SCISSOR_RECT + 4)                 ## L:1213 |      ^ | u32 extMax = load(RDPQ_SCISSOR_RECT, 4);
   lw $s1, %lo(RDPQ_SCISSOR_RECT + 0)                 ## L:1214 |     10 | u32 extMin = load(RDPQ_SCISSOR_RECT, 0);
   ori $at, $zero, %lo(MATRIX_MVP)                    ## L:858  |     11 | vec32 mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
@@ -203,7 +203,7 @@ TPXCmd_DrawColor:
   ori $at, $zero, %lo(PARTICLE_SCALE)                ## L:875  |     49 | globalPartSize.xy = load(PARTICLE_SCALE).xy;
   addiu $a0, $zero, 46                               ## L:884  |     50 | cmdRdpDepth = 0x2E;
   srl $t4, $s1, 12                                   ## L:1220 |     51 | temp1 = extMin >> 12;
-  vmadm $v19, $v19, $v31.e3                          ## L:865  |      ^ | screenSize >>= 4;
+  vmadm $v19, $v19, $v31.e7                          ## L:865  |      ^ | screenSize >>= 4;
   vmadn $v20, $v00, $v00                             ## L:865  |     52 | screenSize >>= 4;
   mtc2 $t4, $v16.e0                                  ## L:1221 |      ^ | screenMin.x = temp1;  screenMin.X = temp1;
   mtc2 $t4, $v16.e4                                  ## L:1221 |     53 | screenMin.x = temp1;  screenMin.X = temp1;
@@ -576,7 +576,7 @@ TPXCmd_DrawTextured:
   addu $s7, $s4, $t0                                 ## L:1096 |      5 | u32 ptrInEnd = dmaDmem + dmaSize;
   jal DMAExec                                        ## L:1097 |      6 | dma_in_async(dmaDmem, rdramAddr, dmaSize); ## Args: $t0, $t1, $s0, $s4, $t2
   addiu $t0, $t0, -1                                 ## L:1097 |     *8 | dma_in_async(dmaDmem, rdramAddr, dmaSize);
-  vmudl $v20, $v00, $v31.e3                          ## L:1112 |      9 | screenSize >>= 4;
+  vmudl $v20, $v00, $v31.e7                          ## L:1112 |      9 | screenSize >>= 4;
   ori $at, $zero, %lo(MATRIX_MVP)                    ## L:1105 |      ^ | vec32 mat0 = load(MATRIX_MVP, 0x00).xyzwxyzw;
   ldv $v22, 0, 56, $at                               ## L:1108 |     10 | vec32 mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
   lw $s2, %lo(RDPQ_SCISSOR_RECT + 4)                 ## L:1212 |     11 | u32 extMax = load(RDPQ_SCISSOR_RECT, 4);
@@ -621,7 +621,7 @@ TPXCmd_DrawTextured:
   mtc2 $at, $v15.e3                                  ## L:1211 |     50 | screenMax.w = 0b1111'1111'1111;
   mtc2 $t4, $v16.e4                                  ## L:1220 |     51 | screenMin.x = temp1;  screenMin.X = temp1;
   ori $at, $zero, %lo(PARTICLE_SCALE)                ## L:1122 |     52 | globalPartSize.xy = load(PARTICLE_SCALE).xy;
-  vmadm $v19, $v19, $v31.e3                          ## L:1112 |      ^ | screenSize >>= 4;
+  vmadm $v19, $v19, $v31.e7                          ## L:1112 |      ^ | screenSize >>= 4;
   addiu $s1, $s5, 32                                 ## L:1129 |     53 | u16 buffRdpEnd = dmaDmemFlush + 32;
   vmadn $v20, $v00, $v00                             ## L:1112 |      ^ | screenSize >>= 4;
   vand $v15, $v15, $v15.e3                           ## L:1223 |     54 | screenMax &= screenMax.w;

@@ -143,6 +143,15 @@ void t3d_screen_clear_color(color_t color);
 /// @brief Clears the entire depth buffer with a fixed value (0xFFFC)
 void t3d_screen_clear_depth();
 
+/*
+typedef struct {
+  uint32_t trisPreCull;
+  uint32_t trisPostCull;
+} T3DMetrics;
+
+void t3d_metrics_fetch(T3DMetrics* data);
+*/
+
 /**
  * Creates a viewport struct, this only creates a struct and doesn't change any setting.
  * Most likely you want to update the camera and projection matrix over time,

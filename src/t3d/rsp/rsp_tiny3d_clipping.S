@@ -418,11 +418,11 @@ triToScreenSpace:
   ori $at, $zero, %lo(SCREEN_SCALE_OFFSET)           ## L:574  |      ^ | vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzw;
   ldv $v01, 0, 0, $at                                ## L:574  |      2 | vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzw;
   ldv $v07, 0, 16, $s6                               ## L:589  |      3 | vec32 posClip = load(ptr, 0x10).xyzw;
-  vmudl $v02, $v00, $v31.e3                          ## L:576  |      ^ | screenSize >>= 4;
+  vmudl $v02, $v00, $v31.e7                          ## L:576  |      ^ | screenSize >>= 4;
   ldv $v08, 0, 24, $s6                               ## L:589  |      4 | vec32 posClip = load(ptr, 0x10).xyzw;
   lhu $t0, %lo(RSPQ_SCRATCH_MEM + 20)                ## L:582  |      5 | u16<$t0> oldClipFlag = load(RSPQ_SCRATCH_MEM, 20);
   ldv $v04, 0, 8, $at                                ## L:586  |      6 | vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzw;
-  vmadm $v01, $v01, $v31.e3                          ## L:576  |      ^ | screenSize >>= 4;
+  vmadm $v01, $v01, $v31.e7                          ## L:576  |      ^ | screenSize >>= 4;
   vmadn $v02, $v00, $v00                             ## L:576  |      7 | screenSize >>= 4;
   vrcph $v05.e3, $v07.e3                             ## L:590  |      8 | invW.w = invert_half(posClip).w;
   vrcpl $v06.e3, $v08.e3                             ## L:590  |      9 | invW.w = invert_half(posClip).w;

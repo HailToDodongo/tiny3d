@@ -1,3 +1,5 @@
+#define T3D_METRICS__ 1
+
 #########################################################################
 #
 #  RDPQ_Triangle: assemble a RDP triangle command
@@ -230,6 +232,13 @@ RDPQ_Triangle_Send_Async:
 
     mtc2 vtx1, vall1.e3
     mtc2 vtx2, vall2.e3
+
+    #ifdef T3D_METRICS
+      lw t0, %lo(SEGMENT_TABLE) + (8)
+      addiu t0, 1
+      sw t0, %lo(SEGMENT_TABLE) + (8)
+    #endif
+
     llv vall1, VTX_ATTR_XY,vtx1
     llv vall2, VTX_ATTR_XY,vtx2
     llv vall3, VTX_ATTR_XY,vtx3;                # Create a vector for negative pow2 constants
@@ -613,6 +622,12 @@ rdpq_triangle_change_buffer_done:
                                                     slv vdy_f.e6, 0x0C,z_dmem
                                                     addiu prim_size, -1
                                                     sdv vzout1.e0, 0x00,z_dmem
+
+#ifdef T3D_METRICS
+  lw t0, %lo(SEGMENT_TABLE) + (8+4)
+  addiu t0, 1
+  sw t0, %lo(SEGMENT_TABLE) + (8+4)
+#endif
 
     jr ra
     mtc0 prim_size, COP0_DMA_WRITE
