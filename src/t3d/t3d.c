@@ -100,7 +100,6 @@ inline static void t3d_dmem_set_u16(uint32_t addr, uint32_t value) {
   rspq_write(T3D_RSP_ID, T3D_CMD_SET_WORD, addr | 0x8000, value);
 }
 
-/*
 void t3d_metrics_fetch(T3DMetrics* data)
 {
   t3d_dmem_set_u32((RSP_T3D_SEGMENT_TABLE & 0xFFF) + 0, 0); // force ucode switch
@@ -108,7 +107,6 @@ void t3d_metrics_fetch(T3DMetrics* data)
   t3d_dmem_set_u32((RSP_T3D_SEGMENT_TABLE & 0xFFF) + 8, 0); // reset counter
   t3d_dmem_set_u32((RSP_T3D_SEGMENT_TABLE & 0xFFF) + 8+4, 0); // reset counter
 }
-*/
 
 void t3d_matrix_set(const T3DMat4FP *mat, bool doMultiply) {
   t3d_matrix_stack((void*)mat, 0, doMultiply, false);
