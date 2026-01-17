@@ -128,7 +128,7 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
 
   vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
   screenSize:sfract = 0;
-  screenSize >>= 4;
+  screenSize >>= 8;
 
   vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
   vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
@@ -225,7 +225,7 @@ command<4> TPXCmd_DrawTextured(s16 dataSize, s32 rdramAddr)
 
   vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
   screenSize:sfract = 0;
-  screenSize >>= 4;
+  screenSize >>= 8;
 
   vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
   vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;

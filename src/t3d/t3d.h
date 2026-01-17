@@ -121,6 +121,15 @@ typedef struct {
 } T3DInitParams;
 
 /**
+ * Struct containing rendering metrics.
+ * Retrieved via `t3d_metrics_fetch`.
+ */
+typedef struct {
+  uint32_t trisPreCull;
+  uint32_t trisPostCull;
+} T3DMetrics;
+
+/**
  * @brief Initializes the tiny3d library
  * @param params settings to configure the library
  */
@@ -142,6 +151,15 @@ void t3d_screen_clear_color(color_t color);
 
 /// @brief Clears the entire depth buffer with a fixed value (0xFFFC)
 void t3d_screen_clear_depth();
+
+/**
+ * NOTE: This function is a stub and does nothing for now!
+ *
+ * Fetches rendering metrics into the given struct.
+ * @param data pointer to struct to fill
+ * @deprecated DO NOT USE
+ */
+void t3d_metrics_fetch(T3DMetrics* data);
 
 /**
  * Creates a viewport struct, this only creates a struct and doesn't change any setting.

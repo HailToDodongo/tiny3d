@@ -241,10 +241,10 @@ T3DCmd_VertLoad:
   ori $at, $zero, %lo(FOG_SCALE_OFFSET)              ## L:358  |     35 | vec16 fogScaleOffset = load(FOG_SCALE_OFFSET).xyzw;
   vor $v15, $v00, $v15.e1                            ## L:351  |      ^ | guardBandScale = guardBandScale.y;
   ldv $v11, 0, 0, $at                                ## L:358  |     36 | vec16 fogScaleOffset = load(FOG_SCALE_OFFSET).xyzw;
-  vmudl $v14, $v00, $v31.e3                          ## L:355  |      ^ | screenSize >>= 4;
+  vmudl $v14, $v00, $v31.e7                          ## L:355  |      ^ | screenSize >>= 4;
   lbu $k0, %lo(TRI_COMMAND + 0)                      ## L:384  |     37 | u8 isUnlit = load(TRI_COMMAND);
   lbu $s0, %lo(CLIP_CODE_ORG_ADDR + 0)               ## L:388  |     38 | u8<$s0> baseTileMask = load(CLIP_CODE_ORG_ADDR);
-  vmadm $v13, $v13, $v31.e3                          ## L:355  |      ^ | screenSize >>= 4;
+  vmadm $v13, $v13, $v31.e7                          ## L:355  |      ^ | screenSize >>= 4;
   ori $at, $zero, %lo(NORM_SCALE_W)                  ## L:361  |     39 | vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
   vmadn $v14, $v00, $v00                             ## L:355  |      ^ | screenSize >>= 4;
   ldv $v10, 0, 0, $at                                ## L:361  |     40 | vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
