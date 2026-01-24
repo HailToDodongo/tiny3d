@@ -27,8 +27,6 @@ namespace {
   #define rdpq_2cyc_comb2b_rgb(suba, subb, mul, add)   ((((uint64_t)suba)<<37) | (((uint64_t)subb)<<24) | (((uint64_t)mul)<<32) | (((uint64_t)add)<<6))
   #define rdpq_2cyc_comb2b_alpha(suba, subb, mul, add) ((((uint64_t)suba)<<21) | (((uint64_t)subb)<<3)  | (((uint64_t)mul)<<18) | (((uint64_t)add)<<0))
 
-  std::vector<std::string> scannedTextures{};
-
   void readMaterialTileAxisFromJson(T3DM::TileParam &param, const json &tex)
   {
     if(tex.empty())return;
@@ -79,6 +77,7 @@ namespace {
         std::vector<unsigned char> image; // pixels
         auto error = lodepng::decode(image, material.texWidth, material.texHeight, material.texPath);
         if(error) {
+          std::vector<std::string> scannedTextures{};
           // texture not found, try finding another one with the same name
           if(!scannedTextures.size()) {
             if(T3DM::config.verbose)printf("Scanning textures...\n");
