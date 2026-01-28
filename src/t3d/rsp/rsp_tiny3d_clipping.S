@@ -190,7 +190,11 @@
     .align 4
     CLIP_BUFFER_TMP: .ds.b 252
     .align 4
-    CLIP_BUFFER_RESULT: .ds.b 288
+    #if RSPQ_PROFILE
+      CLIP_BUFFER_RESULT: .ds.b 272
+    #else
+      CLIP_BUFFER_RESULT: .ds.b 288
+    #endif
   TEMP_STATE_MEM_END:
 
 .text

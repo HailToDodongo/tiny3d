@@ -4,6 +4,7 @@
 */
 #include <t3d/t3d.h>
 #include "rsp/rsp_tiny3d.h"
+#include <rspq_profile.h>
 
 _Static_assert((RSP_T3D_RSPQ_SCRATCH_MEM & 0xFFFF) == 0x80, "Scratch-Memory location changed!");
 _Static_assert(RSP_T3D_BSS_TEMP_STATE_MEM_END == RSP_T3D_CLIP_BSS_TEMP_STATE_MEM_END, "Overlay data doesn't match!");
@@ -169,6 +170,9 @@ void t3d_frame_start(void) {
 
 void t3d_light_set_count(int count)
 {
+  #if RSPQ_PROFILE
+    if(count > 2)count = 2;
+  #endif
   t3d_dmem_set_u16((RSP_T3D_ACTIVE_LIGHT_SIZE & 0xFFF), (count * 16) << 8);
 }
 
@@ -189,6 +193,10 @@ void t3d_light_set_ambient(const uint8_t *color)
 
 void t3d_light_set_directional(int index, const uint8_t *color, const T3DVec3 *dir)
 {
+  #if RSPQ_PROFILE
+    if(index >= 2)return;
+  #endif
+
   assertf(currentViewport, "t3d_light_set_directional needs a viewport to be attached!");
   T3DVec3 lightDirView;
   t3d_mat3_mul_vec3(&lightDirView, &currentViewport->matCamera, dir);
@@ -213,6 +221,10 @@ void t3d_light_set_directional(int index, const uint8_t *color, const T3DVec3 *d
 
 void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, float size, bool ignoreNormals)
 {
+  #if RSPQ_PROFILE
+    if(index >= 2)return;
+  #endif
+
   assertf(currentViewport, "t3d_light_set_point needs a viewport to be attached!");
   T3DVec4 posView;
   t3d_mat4_mul_vec3(&posView, &currentViewport->matCamera, pos);
