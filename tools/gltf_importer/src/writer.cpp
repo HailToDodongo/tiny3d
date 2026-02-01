@@ -49,8 +49,10 @@ namespace {
   };
 
   std::string getRomPath(const std::string &path) {
-    if(path.find("filesystem/") == 0) {
-      return std::string("rom:/") + path.substr(11);
+    std::string basDir = "filesystem/";
+    auto fsPos = path.find(basDir);
+    if(fsPos != std::string::npos) {
+      return std::string("rom:/") + path.substr(fsPos + basDir.length());
     }
     return path;
   }
