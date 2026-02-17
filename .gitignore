@@ -9,3 +9,4 @@ CMakeLists.txt
 *.blend1
 gltf_to_t3d
 website/html
+*.exe
