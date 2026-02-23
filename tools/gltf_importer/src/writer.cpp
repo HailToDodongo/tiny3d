@@ -20,7 +20,7 @@ namespace fs = std::filesystem;
 
 namespace {
   uint32_t insertString(std::string &stringTable, const std::string &newString) {
-    auto strPos = stringTable.find(newString);
+    auto strPos = stringTable.find(newString + '\0');
     if(strPos == std::string::npos) {
       strPos = stringTable.size();
       stringTable += newString;
