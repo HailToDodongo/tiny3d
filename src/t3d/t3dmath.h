@@ -154,12 +154,10 @@ inline static void t3d_quat_identity(T3DQuat *quat) {
  */
 inline static void t3d_quat_from_euler(T3DQuat *quat, const float rotEuler[3])
 {
-  float c1 = fm_cosf(rotEuler[0] / 2.0f);
-  float s1 = fm_sinf(rotEuler[0] / 2.0f);
-  float c2 = fm_cosf(rotEuler[1] / 2.0f);
-  float s2 = fm_sinf(rotEuler[1] / 2.0f);
-  float c3 = fm_cosf(rotEuler[2] / 2.0f);
-  float s3 = fm_sinf(rotEuler[2] / 2.0f);
+  float c1, c2, c3, s1, s2, s3;
+  fm_sincosf(rotEuler[0] / 2.0f, &s1, &c1);
+  fm_sincosf(rotEuler[1] / 2.0f, &s2, &c2);
+  fm_sincosf(rotEuler[2] / 2.0f, &s3, &c3);
 
   quat->v[0] = c1 * c2 * s3 - s1 * s2 * c3;
   quat->v[1] = s1 * c2 * c3 - c1 * s2 * s3;
@@ -175,8 +173,8 @@ inline static void t3d_quat_from_euler(T3DQuat *quat, const float rotEuler[3])
  */
 inline static void t3d_quat_from_rotation(T3DQuat *quat, float axis[3], float angleRad)
 {
-  float s = fm_sinf(angleRad / 2.0f);
-  float c = fm_cosf(angleRad / 2.0f);
+  float s, c;
+  fm_sincosf(angleRad / 2.0f, &s, &c);
   *quat = (T3DQuat){{axis[0] * s, axis[1] * s, axis[2] * s, c}};
 }
 
