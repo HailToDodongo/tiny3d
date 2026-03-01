@@ -71,6 +71,53 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath)
         continue;
       }
 
+      constexpr auto EPSILON = 0.0001;
+      bool ancestorHasTransforms = false;
+      cgltf_node* p = bone->parent;
+      while (p != nullptr) {
+        if (p->has_translation || p->has_rotation || p->has_scale || p->has_matrix) {
+          if(config.verbose)  printf("Ancestor '%s' of skin armature/root bone '%s' has transforms: t:%d r:%d s:%d m:%d\n", p->name, bone->name, p->has_translation, p->has_rotation, p->has_scale, p->has_matrix);
+          if (p->has_translation) {
+            if (fabs(p->translation[0]) > EPSILON || fabs(p->translation[1]) > EPSILON || fabs(p->translation[2]) > EPSILON) {
+              ancestorHasTransforms = true;
+            }
+            if(config.verbose)  printf("t: %f %f %f\n", p->translation[0], p->translation[1], p->translation[2]);
+          }
+          if (p->has_rotation) {
+            if (fabs(p->rotation[0]) > EPSILON || fabs(p->rotation[1]) > EPSILON || fabs(p->rotation[2]) > EPSILON || fabs(p->rotation[3] - 1) > EPSILON) {
+              ancestorHasTransforms = true;
+            }
+            if(config.verbose)  printf("r: %f %f %f %f\n", p->rotation[0], p->rotation[1], p->rotation[2], p->rotation[3]);
+          }
+          if (p->has_scale) {
+            if (fabs(p->scale[0] - 1) > EPSILON || fabs(p->scale[1] - 1) > EPSILON || fabs(p->scale[2] - 1) > EPSILON) {
+              ancestorHasTransforms = true;
+            }
+            if(config.verbose)  printf("s: %f %f %f\n", p->scale[0], p->scale[1], p->scale[2]);
+          }
+          if (p->has_matrix) {
+            for (int y=0; y<4; y++) {
+              for (int x=0; x<4; x++) {
+                float reference = x==y ? 1 : 0;
+                if (fabs(p->matrix[y*4+x] - reference) > EPSILON) {
+                  ancestorHasTransforms = true;
+                }
+              }
+            }
+            if(config.verbose)  printf("m: %f %f %f %f\n   %f %f %f %f\n   %f %f %f %f\n   %f %f %f %f\n",
+              p->matrix[0], p->matrix[1], p->matrix[2], p->matrix[3],
+              p->matrix[4], p->matrix[5], p->matrix[6], p->matrix[7],
+              p->matrix[8], p->matrix[9], p->matrix[10], p->matrix[11],
+              p->matrix[12], p->matrix[13], p->matrix[14], p->matrix[15]
+            );
+          }
+        }
+        p = p->parent;
+      }
+      if (ancestorHasTransforms) {
+        throw std::runtime_error("At least one ancestor of armature/skin root bone has significant transforms! (in file: " + std::string(gltfPath) + ")");
+      }
+
       Bone armature = parseBoneTree(bone, nullptr, boneCount);
 
       //printBoneTree(armature, 0);
