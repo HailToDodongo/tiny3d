@@ -186,7 +186,18 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath)
       //printf("   - Primitive %d:\n", j);
 
       if(prim->material) {
-        parseMaterial(gltfBasePath, i, j, model, prim);
+        auto matName = prim->material->name;
+        if(matName && matName[0] && t3dm.materials.find(matName) == t3dm.materials.end()) {
+          t3dm.materials[matName] = parseMaterial(gltfBasePath, prim);
+        }
+        model.materialName = matName ? matName : "";
+      }
+
+      if(model.materialName.empty())
+      {
+        printf("Skipping model '%s', no material assigned!\n", model.name.c_str());
+        t3dm.models.pop_back();
+        continue;
       }
 
       // find vertex count
@@ -319,8 +330,9 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath)
       std::vector<VertexT3D> verticesT3D{};
       verticesT3D.resize(vertices.size());
 
-      float texSizeX = model.material.texA.texWidth;
-      float texSizeY = model.material.texA.texHeight;
+      auto &material = t3dm.materials[model.materialName];
+      float texSizeX = material.texA.texWidth;
+      float texSizeY = material.texA.texHeight;
 
       if(texSizeX == 0)texSizeX = 32;
       if(texSizeY == 0)texSizeY = 32;
@@ -330,7 +342,7 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath)
       for(int k = 0; k < vertices.size(); k++) {
         convertVertex(
           config.globalScale, texSizeX, texSizeY, vertices[k], verticesT3D[k],
-          mat, matrixStack, model.material.uvFilterAdjust
+          mat, matrixStack, material.uvFilterAdjust
         );
       }
 
@@ -360,18 +372,17 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath)
 
   // sort models by transparency mode (opaque -> cutout -> transparent)
   // within the same transparency mode, sort by material
-  std::sort(t3dm.models.begin(), t3dm.models.end(), [](const T3DM::Model &a, const T3DM::Model &b) {
-    bool isTranspA = a.material.blendMode == RDP::BLEND::MULTIPLY;
-    bool isTranspB = b.material.blendMode == RDP::BLEND::MULTIPLY;
+  std::sort(t3dm.models.begin(), t3dm.models.end(), [&t3dm](const T3DM::Model &a, const T3DM::Model &b) {
+    auto &matA = t3dm.materials[a.materialName];
+    auto &matB = t3dm.materials[b.materialName];
+    bool isTranspA = matA.blendMode == RDP::BLEND::MULTIPLY;
+    bool isTranspB = matB.blendMode == RDP::BLEND::MULTIPLY;
     if(isTranspA == isTranspB) {
-      if(a.material.uuid == b.material.uuid) {
-        return a.name < b.name;
-      }
-      return a.material.uuid < b.material.uuid;
+      return a.name < b.name;
     }
     if(!isTranspA && !isTranspB) {
-       int isDecalA = (a.material.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
-       int isDecalB = (b.material.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
+       int isDecalA = (matA.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
+       int isDecalB = (matB.otherModeValue & RDP::SOM::ZMODE_DECAL) ? 1 : 0;
        return isDecalA < isDecalB;
     }
     return isTranspB;

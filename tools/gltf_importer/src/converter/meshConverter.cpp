@@ -137,7 +137,7 @@ T3DM::ModelChunked chunkUpModel(const T3DM::Model &model)
   };
   res.chunks.reserve(model.triangles.size() * 3 / T3DM::MAX_VERTEX_COUNT);
   res.chunks.push_back(T3DM::MeshChunk{});
-  res.chunks.back().material = model.material;
+  res.chunks.back().materialName = model.materialName;
   res.chunks.back().name = model.name;
 
   uint32_t emittedVerts = 0;
@@ -235,7 +235,7 @@ T3DM::ModelChunked chunkUpModel(const T3DM::Model &model)
           }
         }
 
-        res.chunks.push_back(T3DM::MeshChunk{.material = model.material, .name = model.name});
+        res.chunks.push_back(T3DM::MeshChunk{.materialName = model.materialName, .name = model.name});
 
         chunkOffset += emittedVerts;
         emittedVerts = 0;

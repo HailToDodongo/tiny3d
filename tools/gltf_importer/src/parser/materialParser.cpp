@@ -179,17 +179,17 @@ namespace {
   }
 }
 
-void T3DM::parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &model, cgltf_primitive *prim) {
-  model.material.uuid = j * 1000 + i;
+T3DM::Material T3DM::parseMaterial(const fs::path &gltfBasePath, cgltf_primitive *prim) {
+
+  Material material{};
   if(prim->material->name) {
-    model.material.uuid = stringHash(prim->material->name);
-    model.material.name = prim->material->name;
+    material.name = prim->material->name;
   }
   //printf("     Material: %s\n", prim->material->name);
 
-  if(config.ignoreMaterials) {
+  if(config.ignoreMaterials || material.name.empty()) {
     printf("Ignoring material\n");
-    return;
+    return material;
   }
 
   if(prim->material->extras.data == nullptr) {
@@ -219,23 +219,23 @@ void T3DM::parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &mode
     auto cc2 = readCCFromJson(f3dData["combiner2"]);
     bool is2Cycle = true;
 
-    model.material.drawFlags = DrawFlags::DEPTH;
-    model.material.blendColor[3] = 128; // default in case cutout is used
+    material.drawFlags = DrawFlags::DEPTH;
+    material.blendColor[3] = 128; // default in case cutout is used
 
-    model.material.setPrimColor = false;
+    material.setPrimColor = false;
     if(f3dData.contains("set_prim")) {
-      model.material.setPrimColor = f3dData["set_prim"].get<uint32_t>() != 0;
-      readColor(f3dData["prim_color"], model.material.primColor);
+      material.setPrimColor = f3dData["set_prim"].get<uint32_t>() != 0;
+      readColor(f3dData["prim_color"], material.primColor);
     }
 
     if(f3dData.contains("set_env")) {
-      model.material.setEnvColor = f3dData["set_env"].get<uint32_t>() != 0;
-      readColor(f3dData["env_color"], model.material.envColor);
+      material.setEnvColor = f3dData["set_env"].get<uint32_t>() != 0;
+      readColor(f3dData["env_color"], material.envColor);
     }
 
     if(f3dData.contains("set_blend")) {
-      model.material.setBlendColor = f3dData["set_blend"].get<uint32_t>() != 0;
-      readColor(f3dData["blend_color"], model.material.blendColor);
+      material.setBlendColor = f3dData["set_blend"].get<uint32_t>() != 0;
+      readColor(f3dData["blend_color"], material.blendColor);
     }
 
     if(f3dData.contains("rdp_settings"))
@@ -244,13 +244,13 @@ void T3DM::parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &mode
       is2Cycle = rdpSettings["g_mdsft_cycletype"].get<uint32_t>() != 0;
 
       if(rdpSettings["g_cull_back"].get<uint32_t>() != 0) {
-        model.material.drawFlags |= DrawFlags::CULL_BACK;
+        material.drawFlags |= DrawFlags::CULL_BACK;
       }
       if(rdpSettings["g_cull_front"].get<uint32_t>() != 0) {
-        model.material.drawFlags |= DrawFlags::CULL_FRONT;
+        material.drawFlags |= DrawFlags::CULL_FRONT;
       }
 
-      model.material.fogMode = rdpSettings["g_fog"].get<uint32_t>() + 1;
+      material.fogMode = rdpSettings["g_fog"].get<uint32_t>() + 1;
 
       uint32_t texFilter = rdpSettings["g_mdsft_text_filt"].get<uint32_t>() & 0b11;
       uint64_t textFilterMap[3] = {
@@ -260,10 +260,10 @@ void T3DM::parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &mode
       };
       otherModeValue |= textFilterMap[texFilter];
 
-      model.material.uvFilterAdjust = texFilter != 0;
+      material.uvFilterAdjust = texFilter != 0;
 
       uint32_t texGen = rdpSettings["g_tex_gen"].get<uint32_t>();
-      model.material.vertexFxFunc = (texGen != 0) ? UvGenFunc::SPHERE : UvGenFunc::NONE;
+      material.vertexFxFunc = (texGen != 0) ? UvGenFunc::SPHERE : UvGenFunc::NONE;
 
       /*uint32_t alphaComp = rdpSettings["g_mdsft_alpha_compare"].get<uint32_t>();
       if(alphaComp == 1) {
@@ -288,7 +288,7 @@ void T3DM::parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &mode
           otherModeValue |= RDP::SOM::BLALPHA_CVG_X_CC | RDP::SOM::BLALPHA_CVG;
         }*/
 
-        model.material.blendMode = is2Cycle ? blenderMode2 : blenderMode1;
+        material.blendMode = is2Cycle ? blenderMode2 : blenderMode1;
 
       } else {
         // if no render mode is set, we need to check the draw layer
@@ -300,46 +300,46 @@ void T3DM::parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &mode
         if(layerOOT > layerSM64) {
           switch(layerOOT) {
             default: // has only 3 distinct layers:
-            case 0: model.material.blendMode = RDP::BLEND::NONE; break; // Opaque
-            case 1: model.material.blendMode = RDP::BLEND::MULTIPLY; break; // Transparent
+            case 0: material.blendMode = RDP::BLEND::NONE; break; // Opaque
+            case 1: material.blendMode = RDP::BLEND::MULTIPLY; break; // Transparent
             case 2:
-              model.material.blendMode = RDP::BLEND::NONE;
+              material.blendMode = RDP::BLEND::NONE;
               otherModeValue |= RDP::SOM::ALPHA_COMPARE;
             break; // Overlay
           }
         } else {
           // has multiple layers with variants (e.g. intersecting) ignore the finer details here:
           if(layerSM64 <= 1) {
-            model.material.blendMode = RDP::BLEND::NONE;
+            material.blendMode = RDP::BLEND::NONE;
           } else if(layerSM64 <= 4) {
-            model.material.blendMode = RDP::BLEND::NONE;
+            material.blendMode = RDP::BLEND::NONE;
             otherModeValue |= RDP::SOM::ALPHA_COMPARE;
           } else {
-            model.material.blendMode = RDP::BLEND::MULTIPLY;
+            material.blendMode = RDP::BLEND::MULTIPLY;
           }
         }
       }
     }
 
-    if(model.material.fogMode == FogMode::ACTIVE || isUsingShade(cc1) || (is2Cycle && isUsingShade(cc2))) {
-      model.material.drawFlags |= DrawFlags::SHADED;
+    if(material.fogMode == FogMode::ACTIVE || isUsingShade(cc1) || (is2Cycle && isUsingShade(cc2))) {
+      material.drawFlags |= DrawFlags::SHADED;
     }
 
     if(isCCUsingTexture(cc1) || (is2Cycle && isCCUsingTexture(cc2))) {
-      model.material.drawFlags |= DrawFlags::TEXTURED;
+      material.drawFlags |= DrawFlags::TEXTURED;
 
-      if(f3dData.contains("tex0"))readMaterialFromJson(model.material.texA, f3dData["tex0"], gltfBasePath);
-      if(f3dData.contains("tex1"))readMaterialFromJson(model.material.texB, f3dData["tex1"], gltfBasePath);
+      if(f3dData.contains("tex0"))readMaterialFromJson(material.texA, f3dData["tex0"], gltfBasePath);
+      if(f3dData.contains("tex1"))readMaterialFromJson(material.texB, f3dData["tex1"], gltfBasePath);
     }
 
     if(is2Cycle) {
-      model.material.colorCombiner  = RDPQ_COMBINER_2PASS |
+      material.colorCombiner  = RDPQ_COMBINER_2PASS |
         rdpq_2cyc_comb2a_rgb(cc1.a, cc1.b, cc1.c, cc1.d) |
         rdpq_2cyc_comb2a_alpha(cc1.aAlpha, cc1.bAlpha, cc1.cAlpha, cc1.dAlpha) |
         rdpq_2cyc_comb2b_rgb(cc2.a, cc2.b, cc2.c, cc2.d) |
         rdpq_2cyc_comb2b_alpha(cc2.aAlpha, cc2.bAlpha, cc2.cAlpha, cc2.dAlpha);
     } else {
-      model.material.colorCombiner  =
+      material.colorCombiner  =
         rdpq_1cyc_comb_rgb(cc1.a, cc1.b, cc1.c, cc1.d) |
         rdpq_1cyc_comb_alpha(cc1.aAlpha, cc1.bAlpha, cc1.cAlpha, cc1.dAlpha);
     }
@@ -348,6 +348,7 @@ void T3DM::parseMaterial(const fs::path &gltfBasePath, int i, int j, Model &mode
     printf("No Fast64 Material data found!\n");
   }
 
-  model.material.otherModeValue = otherModeValue;
-  model.material.otherModeMask = otherModeMask;
+  material.otherModeValue = otherModeValue;
+  material.otherModeMask = otherModeMask;
+  return material;
 }

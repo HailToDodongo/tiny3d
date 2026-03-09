@@ -133,7 +133,6 @@ namespace T3DM
     uint32_t blendMode{};
     uint32_t drawFlags{};
 
-    uint32_t uuid{};
     uint8_t fogMode{};
     uint8_t vertexFxFunc{};
 
@@ -152,7 +151,7 @@ namespace T3DM
     std::vector<int16_t> stripIndices[4]{};
     uint8_t seqStart{0};
     uint8_t seqCount{0};
-    Material material{};
+    std::string materialName{};
     uint32_t vertexOffset{0};
     uint32_t vertexCount{0};
     uint32_t vertexDestOffset{0};
@@ -164,7 +163,7 @@ namespace T3DM
   struct Model {
     std::vector<TriangleT3D> triangles{};
     std::string name{};
-    Material material{};
+    std::string materialName{};
   };
 
   struct ModelChunked {
@@ -255,6 +254,7 @@ namespace T3DM
     std::vector<Model> models{};
     std::vector<Bone> skeletons{};
     std::vector<Anim> animations{};
+    std::unordered_map<std::string, Material> materials{};
   };
 
   struct Config {

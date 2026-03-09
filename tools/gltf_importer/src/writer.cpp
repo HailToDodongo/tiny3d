@@ -73,27 +73,13 @@ void T3DM::writeT3DM(
 {
   auto &config = T3DM::config;
 
-  // de-dupe materials and determine material indices
-  std::unordered_map<uint32_t, uint32_t> materialUUIDMap{};
-  std::vector<const Material*> usedMaterials{};
-  {
-    uint32_t nextMatIndex = 0;
-    for(auto &model : t3dm.models) {
-      auto matIdxIt = materialUUIDMap.find(model.material.uuid);
-      if(matIdxIt == materialUUIDMap.end()) {
-        materialUUIDMap.emplace(model.material.uuid, nextMatIndex++);
-        usedMaterials.push_back(&model.material);
-      }
-    }
-  }
-
   int16_t aabbMin[3] = {32767, 32767, 32767};
   int16_t aabbMax[3] = {-32768, -32768, -32768};
 
   uint32_t chunkIndex = 0;
   uint32_t chunkCount = 2; // vertices + indices
   if(config.createBVH)chunkCount += 1;
-  chunkCount += usedMaterials.size();
+  chunkCount += t3dm.materials.size();
   chunkCount += customChunks.size();
 
   std::vector<ModelChunked> modelChunks{};
@@ -213,8 +199,10 @@ void T3DM::writeT3DM(
   }
 
   // write used materials
-  for(auto &material_ : usedMaterials) {
-    auto &material = *material_;
+  std::unordered_map<std::string, uint32_t> materialMap{};
+  for(auto &material_ : t3dm.materials) {
+    auto &material = material_.second;
+    materialMap[material.name] = materialMap.size();
     auto f = std::make_shared<BinaryFile>();
     f->write(material.colorCombiner);
     f->write(material.otherModeValue);
@@ -236,10 +224,9 @@ void T3DM::writeT3DM(
     f->writeArray(material.blendColor, 4);
     f->write(insertString(stringTable, material.name));
 
-    // @TODO: refactor materials to match file/runtime structure
-    std::vector<const T3DM::MaterialTexture*> materials{&material.texA, &material.texB};
-    for(const T3DM::MaterialTexture* mat_ : materials) {
-      const T3DM::MaterialTexture&mat = *mat_;
+    std::vector materials{&material.texA, &material.texB};
+    for(const MaterialTexture* mat_ : materials) {
+      const MaterialTexture&mat = *mat_;
 
       f->write(mat.texReference);
       std::string texPath = "";
@@ -294,7 +281,7 @@ void T3DM::writeT3DM(
   for(auto &model : t3dm.models)
   {
     addToChunkTable('O');
-    uint32_t matIdx = materialUUIDMap[model.material.uuid];
+    uint32_t matIdx = materialMap[model.materialName];
 
     // write object chunk
     const auto &chunks = modelChunks[m];
