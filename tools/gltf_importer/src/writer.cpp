@@ -428,7 +428,7 @@ void T3DM::writeT3DM(
   addChunkTypeIndex();
   for(auto &f : chunkMaterials) {
     file.align(8);
-    addToChunkTable('M');
+    addToChunkTable(config.materialWriter ? 'm' : 'M');
     file.writeMemFile(*f);
   }
 
