@@ -9,5 +9,5 @@
 
 namespace T3DM
 {
-  T3DMData parseGLTF(const char* gltfPath);
+  T3DMData parseGLTF(const char* gltfPath, const Config &config);
 }

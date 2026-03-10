@@ -30,9 +30,9 @@ namespace
     };
   }
 
-  void insertScalarKeyframe(T3DM::Anim &anim, float time, uint32_t chIdx, Vec3 value, bool isTranslate) {
+  void insertScalarKeyframe(T3DM::Anim &anim, float time, uint32_t chIdx, Vec3 value, bool isTranslate, float globalScale) {
     value = cleanupVector(value);
-    if(isTranslate)value *= T3DM::config.globalScale;
+    if(isTranslate)value *= globalScale;
 
     for(int i=0; i<3; ++i) {
       anim.channelMap[chIdx + i].keyframes.push_back({.time = time, .valScalar = value[i]});
@@ -42,7 +42,10 @@ namespace
   }
 }
 
-T3DM::Anim T3DM::parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::string, const Bone*> &nodeMap, uint32_t sampleRate)
+T3DM::Anim T3DM::parseAnimation(
+  const cgltf_animation &anim, const std::unordered_map<std::string, const Bone*> &nodeMap,
+  uint32_t sampleRate, float globalScale
+)
 {
   Anim res{
     .name = std::string(anim.name),
@@ -151,7 +154,7 @@ T3DM::Anim T3DM::parseAnimation(const cgltf_animation &anim, const std::unordere
         Vec3 valueNext = Gltf::readAsVec3(dataOutputNext, samplerOut.type, samplerOut.component_type);
         value = value.mix(valueNext, sampleInterpol);
         // printf("    - %.4fs/%.4f [f:%d]: b:%.4f i=%d: %.4f %.4f %.4f\n", t, timeEnd, frame, sampleInterpol, samplerIn.count, value[0], value[1], value[2]);
-        insertScalarKeyframe(res, t, chIdx, value, isTranslate);
+        insertScalarKeyframe(res, t, chIdx, value, isTranslate, globalScale);
       }
       ++frame;
     }
@@ -163,7 +166,7 @@ T3DM::Anim T3DM::parseAnimation(const cgltf_animation &anim, const std::unordere
         res.channelMap.back().keyframes.push_back({.time = timeEnd, .chanelIdx = chIdx, .valQuat = value});
       } else {
         Vec3 value = Gltf::readAsVec3(dataOutputEnd - samplerOut.stride, samplerOut.type, samplerOut.component_type);
-        insertScalarKeyframe(res, timeEnd, chIdx, value, isTranslate);
+        insertScalarKeyframe(res, timeEnd, chIdx, value, isTranslate, globalScale);
       }
     }
 

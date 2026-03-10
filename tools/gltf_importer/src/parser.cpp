@@ -31,7 +31,7 @@ void printBoneTree(const T3DM::Bone &bone, int depth)
   }
 }
 
-T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath)
+T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
 {
   T3DMData t3dm{};
   fs::path gltfBasePath{gltfPath};
@@ -118,7 +118,7 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath)
         throw std::runtime_error("At least one ancestor of armature/skin root bone has significant transforms! (in file: " + std::string(gltfPath) + ")");
       }
 
-      Bone armature = parseBoneTree(bone, nullptr, boneCount);
+      Bone armature = parseBoneTree(config, bone, nullptr, boneCount);
 
       //printBoneTree(armature, 0);
       t3dm.skeletons.push_back(armature);
@@ -145,7 +145,7 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath)
   //printf("Animations: %d\n", data->animations_count);
 
   for(int i=0; i<data->animations_count; ++i) {
-    auto anim = parseAnimation(data->animations[i], boneMap, config.animSampleRate);
+    auto anim = parseAnimation(data->animations[i], boneMap, config.animSampleRate, config.globalScale);
     if(anim.duration < 0.0001f)continue; // ignore empty animations
     convertAnimation(anim, boneMap);
     t3dm.animations.push_back(anim);
@@ -188,7 +188,7 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath)
       if(prim->material) {
         auto matName = prim->material->name;
         if(matName && matName[0] && t3dm.materials.find(matName) == t3dm.materials.end()) {
-          t3dm.materials[matName] = parseMaterial(gltfBasePath, prim);
+          t3dm.materials[matName] = parseMaterial(config, gltfBasePath, prim);
         }
         model.materialName = matName ? matName : "";
       }

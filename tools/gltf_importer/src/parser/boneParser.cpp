@@ -14,7 +14,7 @@ namespace {
   }
 }
 
-T3DM::Bone T3DM::parseBoneTree(const cgltf_node *rootBone, Bone *parentBone, int &count) {
+T3DM::Bone T3DM::parseBoneTree(const Config &config, const cgltf_node *rootBone, Bone *parentBone, int &count) {
   Bone bone{};
   bone.name = rootBone->name;
 
@@ -42,7 +42,7 @@ T3DM::Bone T3DM::parseBoneTree(const cgltf_node *rootBone, Bone *parentBone, int
   bone.index = count;
   count += 1;
 
-  if(T3DM::config.verbose)
+  if(config.verbose)
   {
     printf("Bone[%d]: %s (parent: %d | %d)\n", count-1, bone.name.c_str(), bone.parentIndex, parentBone ? parentBone->index : -1);
     printf("      t: %.4f %.4f %.4f\n", rootBone->translation[0], rootBone->translation[1], rootBone->translation[2]);
@@ -59,7 +59,7 @@ T3DM::Bone T3DM::parseBoneTree(const cgltf_node *rootBone, Bone *parentBone, int
 
   for(int i=0; i<rootBone->children_count; ++i) {
     bone.children.push_back(std::make_shared<Bone>(
-      parseBoneTree(rootBone->children[i], &bone, count)
+      parseBoneTree(config, rootBone->children[i], &bone, count)
     ));
   }
   return bone;

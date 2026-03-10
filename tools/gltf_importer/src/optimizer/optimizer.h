@@ -8,6 +8,6 @@
 
 namespace T3DM
 {
-  void optimizeModelChunk(ModelChunked &model);
+  void optimizeModelChunk(const Config &config, ModelChunked &model);
   std::vector<int16_t> createMeshBVH(const std::vector<ModelChunked> &modelChunks);
 }

@@ -10,15 +10,11 @@
 #include "parser.h"
 #include "args.h"
 
-namespace T3DM
-{
-  thread_local Config config{};
-}
-
 namespace fs = std::filesystem;
 
 int main(int argc, char* argv[])
 {
+  T3DM::Config config{};
   EnvArgs args{argc, argv};
   if(args.checkArg("--help")) {
     printf("Usage: %s <gltf-file> <t3dm-file> [--bvh] [--base-scale=64] [--ignore-materials] [--ignore-transforms] [--asset-path=assets] [--verbose]\n", argv[0]);
@@ -35,7 +31,6 @@ int main(int argc, char* argv[])
   const std::string gltfPath = args.getFilenameArg(0);
   const std::string t3dmPath = args.getFilenameArg(1);
 
-  auto &config = T3DM::config;
   config.globalScale = (float)args.getU32Arg("--base-scale", 64);
   config.ignoreMaterials = args.checkArg("--ignore-materials");
   config.ignoreTransforms = args.checkArg("--ignore-transforms");
@@ -57,6 +52,6 @@ int main(int argc, char* argv[])
 
   config.animSampleRate = 60;
 
-  auto t3dm = T3DM::parseGLTF(gltfPath.c_str());
-  writeT3DM(t3dm, t3dmPath, std::filesystem::current_path());
+  auto t3dm = T3DM::parseGLTF(gltfPath.c_str(), config);
+  writeT3DM(config, t3dm, t3dmPath);
 }

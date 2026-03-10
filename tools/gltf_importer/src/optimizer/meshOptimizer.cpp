@@ -148,7 +148,7 @@ namespace {
   }
 }
 
-void T3DM::optimizeModelChunk(ModelChunked &model)
+void T3DM::optimizeModelChunk(const Config &config, ModelChunked &model)
 {
   for(auto &chunk : model.chunks)
   {
@@ -183,7 +183,7 @@ void T3DM::optimizeModelChunk(ModelChunked &model)
       && (seq.tris.size() < (tris.size() / 2))
     )
     {
-      if(T3DM::config.verbose) {
+      if(config.verbose) {
         printf("Sequence:\n  Tris: ");
         for(auto &tri : seq.tris) {
           printf("%d %d %d | ", tri[0], tri[1], tri[2]);

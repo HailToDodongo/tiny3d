@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
@@ -13,6 +14,7 @@
 #include <string>
 #include <memory>
 
+#include "binaryFile.h"
 #include "math/vec2.h"
 #include "math/vec3.h"
 #include "math/mat4.h"
@@ -113,6 +115,7 @@ namespace T3DM
 
   struct MaterialTexture {
     std::string texPath{};
+    std::string texPathRom{};
     uint32_t texWidth{};
     uint32_t texHeight{};
     uint32_t texReference{};
@@ -266,18 +269,21 @@ namespace T3DM
     bool ignoreTransforms{false};
     std::string assetPath{};
     std::string assetPathFull{};
+    std::function<bool(
+      std::shared_ptr<BinaryFile> f,
+      const Material &material,
+      uint32_t matIdx
+    )> materialWriter{};
   };
 
   constexpr int MAX_VERTEX_COUNT = 70;
   constexpr int CACHE_VERTEX_SIZE = 36;
   constexpr u8 T3DM_VERSION = 0x04;
 
-  extern thread_local Config config;
-
   void writeT3DM(
+    const Config &config,
     const T3DMData &t3dm,
     const std::string &t3dmPath,
-    const std::filesystem::path &projectPath,
     const std::vector<CustomChunk> &customChunks = {}
   );
 }

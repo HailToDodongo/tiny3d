@@ -29,21 +29,21 @@ namespace {
     return strPos;
   }
 
-  int writeBone(BinaryFile &file, const T3DM::Bone &bone, std::string &stringTable, int level) {
+  int writeBone(BinaryFile &file, const T3DM::Bone &bone, std::string &stringTable, float globalScale, int level) {
     //printf("Bone[%d]: %s -> %d\n", bone.index, bone.name.c_str(), bone.parentIndex);
 
     file.write(insertString(stringTable, bone.name));
     file.write<uint16_t>(bone.parentIndex);
     file.write<uint16_t>(level); // level
 
-    auto normPos = bone.pos * T3DM::config.globalScale;
+    auto normPos = bone.pos * globalScale;
     file.writeArray(bone.scale.data, 3);
     file.writeArray(bone.rot.data, 4);
     file.writeArray(normPos.data, 3);
 
     int boneCount = 1;
     for(const auto& child : bone.children) {
-      boneCount += writeBone(file, *child, stringTable, level+1);
+      boneCount += writeBone(file, *child, stringTable, globalScale, level+1);
     }
     return boneCount;
   };
@@ -65,14 +65,12 @@ namespace {
 }
 
 void T3DM::writeT3DM(
+  const Config &config,
   const T3DMData &t3dm,
   const std::string &t3dmPath,
-  const std::filesystem::path &projectPath,
   const std::vector<CustomChunk> &customChunks
 )
 {
-  auto &config = T3DM::config;
-
   int16_t aabbMin[3] = {32767, 32767, 32767};
   int16_t aabbMax[3] = {-32768, -32768, -32768};
 
@@ -89,7 +87,7 @@ void T3DM::writeT3DM(
     if(config.verbose) {
       printf("[%s] Vertices out: %ld\n", model.name.c_str(), chunks.vertices.size());
     }
-    optimizeModelChunk(chunks);
+    optimizeModelChunk(config, chunks);
 
     if(config.verbose) {
       int totalIdx=0, totalStrips=0, totalStripCmd = 0;
@@ -186,7 +184,7 @@ void T3DM::writeT3DM(
 
     int boneCount = 0;
     for(auto &skel : t3dm.skeletons) {
-      boneCount += writeBone(chunkBone, skel, stringTable, 0);
+      boneCount += writeBone(chunkBone, skel, stringTable, config.globalScale, 0);
     }
 
     chunkBone.setPos(0);
@@ -200,10 +198,18 @@ void T3DM::writeT3DM(
 
   // write used materials
   std::unordered_map<std::string, uint32_t> materialMap{};
-  for(auto &material_ : t3dm.materials) {
+  for(auto &material_ : t3dm.materials)
+  {
     auto &material = material_.second;
-    materialMap[material.name] = materialMap.size();
+    uint32_t matIdx = materialMap.size();
+    materialMap[material.name] = matIdx;
     auto f = std::make_shared<BinaryFile>();
+
+    if(config.materialWriter && config.materialWriter(f, material, matIdx)) {
+      chunkMaterials.push_back(f);
+      continue;
+    }
+
     f->write(material.colorCombiner);
     f->write(material.otherModeValue);
     f->write(material.otherModeMask);
@@ -229,24 +235,12 @@ void T3DM::writeT3DM(
       const MaterialTexture&mat = *mat_;
 
       f->write(mat.texReference);
-      std::string texPath = "";
-      if(!mat.texPath.empty()) {
-        texPath = fs::relative(mat.texPath, projectPath).string();
-        std::replace(texPath.begin(), texPath.end(), '\\', '/');
 
-        if(texPath.find(config.assetPath) == 0) {
-          texPath.replace(0, config.assetPath.size(), "rom:/");
-        }
-        if(texPath.find(".png") != std::string::npos) {
-          texPath.replace(texPath.find(".png"), 4, ".sprite");
-        }
-      }
-
-      if(!texPath.empty()) {
+      if(!mat.texPathRom.empty()) {
         // check if string already exits
-        auto strPos = insertString(stringTable, texPath);
+        auto strPos = insertString(stringTable, mat.texPathRom);
 
-        uint32_t hash = stringHash(texPath);
+        uint32_t hash = stringHash(mat.texPathRom);
         //printf("Texture: %s (%d)\n", texPath.c_str(), hash);
         f->write((uint32_t)strPos);
         f->write(hash);

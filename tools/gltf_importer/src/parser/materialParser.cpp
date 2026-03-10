@@ -38,7 +38,7 @@ namespace {
     param.shift = tex["shift"].get<int8_t>();
   }
 
-  void readMaterialFromJson(T3DM::MaterialTexture &material, const json &tex, const fs::path &gltfPath)
+  void readMaterialFromJson(const T3DM::Config &config, T3DM::MaterialTexture &material, const json &tex, const fs::path &gltfPath)
   {
     if(tex.contains("S"))readMaterialTileAxisFromJson(material.s, tex["S"]);
     if(tex.contains("T"))readMaterialTileAxisFromJson(material.t, tex["T"]);
@@ -80,14 +80,14 @@ namespace {
           std::vector<std::string> scannedTextures{};
           // texture not found, try finding another one with the same name
           if(!scannedTextures.size()) {
-            if(T3DM::config.verbose)printf("Scanning textures...\n");
-            for(auto &entry : fs::recursive_directory_iterator(T3DM::config.assetPathFull)) {
+            if(config.verbose)printf("Scanning textures...\n");
+            for(auto &entry : fs::recursive_directory_iterator(config.assetPathFull)) {
               if(entry.path().extension() == ".png") {
                 std::string filePath = entry.path().string();
                 // force linux forward slashes, runtime paths are forced to used that too
                 std::replace(filePath.begin(), filePath.end(), '\\', '/');
                 scannedTextures.push_back(filePath);
-                if(T3DM::config.verbose)printf("Found texture: %s\n", filePath.c_str());
+                if(config.verbose)printf("Found texture: %s\n", filePath.c_str());
               }
             }
           }
@@ -179,7 +179,7 @@ namespace {
   }
 }
 
-T3DM::Material T3DM::parseMaterial(const fs::path &gltfBasePath, cgltf_primitive *prim) {
+T3DM::Material T3DM::parseMaterial(const Config &config, const fs::path &gltfBasePath, cgltf_primitive *prim) {
 
   Material material{};
   if(prim->material->name) {
@@ -328,8 +328,8 @@ T3DM::Material T3DM::parseMaterial(const fs::path &gltfBasePath, cgltf_primitive
     if(isCCUsingTexture(cc1) || (is2Cycle && isCCUsingTexture(cc2))) {
       material.drawFlags |= DrawFlags::TEXTURED;
 
-      if(f3dData.contains("tex0"))readMaterialFromJson(material.texA, f3dData["tex0"], gltfBasePath);
-      if(f3dData.contains("tex1"))readMaterialFromJson(material.texB, f3dData["tex1"], gltfBasePath);
+      if(f3dData.contains("tex0"))readMaterialFromJson(config, material.texA, f3dData["tex0"], gltfBasePath);
+      if(f3dData.contains("tex1"))readMaterialFromJson(config, material.texB, f3dData["tex1"], gltfBasePath);
     }
 
     if(is2Cycle) {
@@ -342,6 +342,29 @@ T3DM::Material T3DM::parseMaterial(const fs::path &gltfBasePath, cgltf_primitive
       material.colorCombiner  =
         rdpq_1cyc_comb_rgb(cc1.a, cc1.b, cc1.c, cc1.d) |
         rdpq_1cyc_comb_alpha(cc1.aAlpha, cc1.bAlpha, cc1.cAlpha, cc1.dAlpha);
+    }
+
+    material.texA.texPathRom = "";
+    material.texB.texPathRom = "";
+
+    auto mapRomPath = [&](const std::string &path) -> std::string {
+      auto texPath = fs::relative(path, std::filesystem::current_path()).string();
+      std::replace(texPath.begin(), texPath.end(), '\\', '/');
+
+      if(texPath.find(config.assetPath) == 0) {
+        texPath.replace(0, config.assetPath.size(), "rom:/");
+      }
+      if(texPath.find(".png") != std::string::npos) {
+        texPath.replace(texPath.find(".png"), 4, ".sprite");
+      }
+      return texPath;
+    };
+
+    if(!material.texA.texPath.empty()) {
+      material.texA.texPathRom = mapRomPath(material.texA.texPath);
+    }
+    if(!material.texB.texPath.empty()) {
+      material.texB.texPathRom = mapRomPath(material.texB.texPath);
     }
 
   } else {

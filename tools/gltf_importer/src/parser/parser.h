@@ -18,8 +18,8 @@ namespace fs = std::filesystem;
 
 namespace T3DM
 {
-  Material parseMaterial(const fs::path &gltfBasePath, cgltf_primitive *prim);
+  Material parseMaterial(const Config &config, const fs::path &gltfBasePath, cgltf_primitive *prim);
   Mat4 parseNodeMatrix(const cgltf_node *node, bool recursive);
-  Bone parseBoneTree(const cgltf_node *rootBone, Bone *parentBone, int &count);
-  Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::string, const Bone*> &nodeMap, uint32_t sampleRate);
+  Bone parseBoneTree(const Config &config, const cgltf_node *rootBone, Bone *parentBone, int &count);
+  Anim parseAnimation(const cgltf_animation &anim, const std::unordered_map<std::string, const Bone*> &nodeMap, uint32_t sampleRate, float globalScale);
 }
