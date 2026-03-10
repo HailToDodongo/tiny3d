@@ -348,7 +348,7 @@ T3DM::Material T3DM::parseMaterial(const Config &config, const fs::path &gltfBas
     material.texB.texPathRom = "";
 
     auto mapRomPath = [&](const std::string &path) -> std::string {
-      auto texPath = fs::relative(path, std::filesystem::current_path()).string();
+      auto texPath = fs::relative(path, config.projectPath).string();
       std::replace(texPath.begin(), texPath.end(), '\\', '/');
 
       if(texPath.find(config.assetPath) == 0) {

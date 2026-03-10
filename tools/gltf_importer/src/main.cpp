@@ -31,6 +31,7 @@ int main(int argc, char* argv[])
   const std::string gltfPath = args.getFilenameArg(0);
   const std::string t3dmPath = args.getFilenameArg(1);
 
+  config.projectPath = std::filesystem::current_path();
   config.globalScale = (float)args.getU32Arg("--base-scale", 64);
   config.ignoreMaterials = args.checkArg("--ignore-materials");
   config.ignoreTransforms = args.checkArg("--ignore-transforms");

@@ -269,6 +269,8 @@ namespace T3DM
     bool ignoreTransforms{false};
     std::string assetPath{};
     std::string assetPathFull{};
+    std::filesystem::path projectPath{};
+
     std::function<bool(
       std::shared_ptr<BinaryFile> f,
       const Material &material,
