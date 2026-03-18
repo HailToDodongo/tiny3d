@@ -32,8 +32,6 @@ void Scene::draw(float deltaTime)
   t3d_matrix_pop(1);
 
  // particles
-  rdpq_sync_pipe();
-
   rdpq_mode_begin();
     rdpq_mode_zbuf(true, true);
     rdpq_mode_zoverride(true, 0, 0);

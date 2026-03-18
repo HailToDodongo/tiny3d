@@ -152,7 +152,6 @@ static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *co
     if(tex->texReference) {
       if(conf && conf->dynTextureCb)conf->dynTextureCb(conf->userData, mat, &texParam, tile);
     } else {
-      rdpq_sync_tile();
       if(tile == TILE1 && mat->textureA.textureHash == mat->textureB.textureHash) {
         rdpq_tex_reuse(TILE1, &texParam);
       } else {
@@ -395,15 +394,10 @@ void t3d_model_draw_material(T3DMaterial *mat, T3DModelState *state)
     bool setBlendColor = (mat->setColorFlags & 0b100) || (mat->otherModeValue & SOM_ALPHACOMPARE_THRESHOLD);
     setBlendColor = setBlendColor && color_to_packed32(state->lastBlendColor) != color_to_packed32(mat->blendColor);
 
-    if(setBlendMode || setCC || setOtherMode || setTexture) {
-      rdpq_sync_pipe();
-    }
-
     if(setTexture)
     {
       state->lastTextureHashA = mat->textureA.textureHash;
       state->lastTextureHashB = mat->textureB.textureHash;
-      rdpq_sync_load();
 
       rdpq_tex_multi_begin();
         set_texture(mat, TILE0, state->drawConf);

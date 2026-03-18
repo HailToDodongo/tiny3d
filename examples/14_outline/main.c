@@ -176,8 +176,6 @@ int main()
     {
       rspq_block_begin();
 
-      rdpq_sync_pipe();
-      rdpq_sync_tile();
       rdpq_set_mode_standard();
       rdpq_mode_combiner(RDPQ_COMBINER1((0,0,0,PRIM), (PRIM,0,TEX0,0)));
       rdpq_mode_blender(RDPQ_BLENDER_MULTIPLY);

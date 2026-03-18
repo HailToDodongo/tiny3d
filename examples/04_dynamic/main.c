@@ -194,7 +194,6 @@ int main()
     t3d_matrix_pop(1);
 
     // ======== Draw (2D) ======== //
-    rdpq_sync_pipe();
     rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 16.0f, 20.0f, "[A] Scroll: %c\n", scrollEnabled ? 'Y' : '-');
     rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 16.0f, 32.0f, "[B] Transf: %c\n", transformEnabled ? 'Y' : '-');
     rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 220.0f, 20.0f, "FPS: %.4f\n", display_get_fps());

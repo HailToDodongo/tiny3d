@@ -135,7 +135,6 @@ void ScenePixel::draw3D(float deltaTime)
   rspq_block_run(objSky->userBlock);
 
    // Main map mesh
-  rdpq_sync_pipe();
   rdpq_mode_zbuf(true, true);
   rdpq_set_prim_color({0xFF, 0xFF, 0xFF, 0xFF});
   rdpq_set_env_color({0xFF, 0xFF, 0xFF, (uint8_t)(doCutout ? 0x00 : 0x70)});

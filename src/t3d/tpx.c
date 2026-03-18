@@ -12,6 +12,9 @@ extern rsp_ucode_t rsp_tiny3d;
 DEFINE_RSP_UCODE(rsp_tinypx);
 uint32_t TPX_RSP_ID = 0;
 
+// @TODO: temporary hack until libdragon exposes an official API
+extern void __rdpq_autosync_use(uint32_t res);
+
 #define SWAP_VALUE(a, b) {auto tmp = a; a = b; b = tmp;}
 #define MAX_PARTICLES_S8 344
 #define MAX_PARTICLES_S16 228
@@ -112,18 +115,22 @@ inline static void tpx_particle_draw_generic_s16(TPXParticleS16 *particles, uint
 }
 
 void tpx_particle_draw_s8(TPXParticleS8 *particles, uint32_t count) {
+  __rdpq_autosync_use(AUTOSYNC_PIPE);
   tpx_particle_draw_generic_s8(particles, count, TPX_CMD_DRAW_COLOR);
 }
 
 void tpx_particle_draw_s16(TPXParticleS16 *particles, uint32_t count) {
+  __rdpq_autosync_use(AUTOSYNC_PIPE);
   tpx_particle_draw_generic_s16(particles, count, TPX_CMD_DRAW_COLOR);
 }
 
 void tpx_particle_draw_tex_s8(TPXParticleS8 *particles, uint32_t count) {
+  __rdpq_autosync_use(AUTOSYNC_PIPE | AUTOSYNC_TILES | AUTOSYNC_TMEM(0));
   tpx_particle_draw_generic_s8(particles, count, TPX_CMD_DRAW_TEXTURE);
 }
 
 void tpx_particle_draw_tex_s16(TPXParticleS16 *particles, uint32_t count) {
+  __rdpq_autosync_use(AUTOSYNC_PIPE | AUTOSYNC_TILES | AUTOSYNC_TMEM(0));
   tpx_particle_draw_generic_s16(particles, count, TPX_CMD_DRAW_TEXTURE);
 }
 

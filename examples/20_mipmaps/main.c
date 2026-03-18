@@ -163,8 +163,6 @@ int main()
     t3d_matrix_pop(1);
 
     // ======== 2D ======== //
-    rdpq_sync_pipe();
-    rdpq_sync_tile();
     rdpq_set_mode_standard();
 
     // clear coverage + backdrop for text

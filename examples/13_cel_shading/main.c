@@ -269,8 +269,6 @@ int main()
     t3d_matrix_pop(1);
 
     // ======== 2D ======== //
-    rdpq_sync_pipe();
-
     rdpq_textparms_t texParam = {
         .width = display_get_width(),
         .align = ALIGN_CENTER,

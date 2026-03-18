@@ -283,9 +283,6 @@ int main()
     }
 
     // ======== Draw (Particles) ======== //
-    rdpq_sync_pipe();
-    rdpq_sync_tile();
-    rdpq_sync_load();
     rdpq_set_mode_standard();
     rdpq_mode_antialias(AA_NONE);
     rdpq_mode_zbuf(true, true);

@@ -17,10 +17,6 @@ void Debug::init() {
   font = sprite_load("rom:/font.ia4.sprite");
 
   rspq_block_begin();
-    rdpq_sync_pipe();
-    rdpq_sync_tile();
-    rdpq_sync_load();
-
     rdpq_mode_begin();
       rdpq_mode_blender(0);
       rdpq_mode_persp(false);

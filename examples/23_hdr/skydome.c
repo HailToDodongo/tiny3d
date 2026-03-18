@@ -166,7 +166,7 @@ void skydome_draw(skydome_t* skydome){
 
         rdpq_set_blend_color(skydome->color.clouds);
         rdpq_set_fog_color(skydome->color.fog);
-        rdpq_sync_pipe();
+
     if(!skydome->__vars.modelblock) {
         rspq_block_begin();
         rdpq_mode_mipmap(MIPMAP_NONE, 0);
@@ -180,15 +180,13 @@ void skydome_draw(skydome_t* skydome){
 
         rdpq_mode_antialias(AA_NONE);
         rdpq_mode_zbuf(false,false);
-        rdpq_sync_pipe();
+
         t3d_model_draw_object(obj, NULL);
-        rdpq_sync_pipe();
         skydome->__vars.modelblock = rspq_block_end();
     }
 
     // for the actual draw, you can use the generic rspq-api.
     rspq_block_run(skydome->__vars.modelblock);
-    rdpq_sync_pipe();
     t3d_frame_start();
 }
 

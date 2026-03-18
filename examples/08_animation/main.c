@@ -210,7 +210,6 @@ int main()
     float posX = 16;
     float posY = 24;
 
-    rdpq_sync_pipe();
     rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, "[A] Attack: %d", isAttack);
 
     posY = 216;

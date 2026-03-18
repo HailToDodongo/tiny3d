@@ -134,7 +134,6 @@ int main()
   rspq_block_begin();
     t3d_matrix_set(modelMatFP, true);
 
-    rdpq_sync_pipe();
     rdpq_mode_antialias(AA_STANDARD);
 
     // then all objects with depth
@@ -248,23 +247,20 @@ int main()
 
     t3d_light_set_exposure(exposure);
     t3d_matrix_push(t3d_segment_address(1, rotMatFP));
-    rdpq_sync_pipe();
+
     skydome_set_viewport(sky, &viewport);
     skydome_cloud_pass(sky, display_get_delta_time() * 1000); // move the clouds with time
-    rdpq_sync_pipe();
+
     // Draw sky without any depth first
     rdpq_mode_zbuf(false, false);
     rdpq_mode_antialias(AA_NONE);
-    rdpq_sync_pipe();
+
     skydome_draw(sky); // draw the main halfsphere first with no zbuf
-    rdpq_sync_pipe();
+
     t3d_light_set_ambient(colorAmbient);
     t3d_light_set_count(0);
-    rdpq_sync_pipe();
+
     rspq_block_run(model->userBlock);
-    rdpq_sync_pipe();
-    rdpq_sync_tile();
-    rdpq_sync_load();
     //rdpq_text_printf(NULL, 1, 240, 210, "%llu", TICKS_TO_US(ticks));
     //rdpq_text_printf(NULL, 1, 260, 220, "%.2f", display_get_fps());
 

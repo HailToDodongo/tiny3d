@@ -255,9 +255,6 @@ int main()
       height = fminf(1.0f, fmaxf(0.0f, height));
       height = (height*height) * -74.0f;
 
-      rdpq_sync_pipe();
-      rdpq_sync_tile();
-
       rdpq_textparms_t txtParam = {.align = ALIGN_CENTER, .width = 320, .wrap = WRAP_WORD};
       rdpq_text_printf(&txtParam, FONT_BUILTIN_DEBUG_MONO, 0, 240 - height - 64, "L/R - Change Light");
       rdpq_text_printf(&txtParam, FONT_BUILTIN_DEBUG_MONO, 0, 240 - height - 48, "C - Height / Strength");
@@ -266,8 +263,6 @@ int main()
     }
 
     if(joypad.btn.a) {
-      rdpq_sync_pipe();
-      rdpq_sync_tile();
       rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 20, 240-20, "FPS: %.2f", display_get_fps());
     }
 

@@ -190,7 +190,6 @@ int main()
     t3d_matrix_pop(1);
 
     // ======== Draw (UI) ======== //
-    rdpq_sync_pipe();
 
     // Bone View
     float posX = 12;
