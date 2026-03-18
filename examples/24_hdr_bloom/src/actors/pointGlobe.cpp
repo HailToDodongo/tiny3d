@@ -54,8 +54,6 @@ namespace Actor
       ptTex = sprite_load("rom:/spheres.i8.sprite");
 
       rspq_block_begin();
-        rdpq_sync_pipe();
-        rdpq_sync_tile();
 
         rdpq_mode_combiner(RDPQ_COMBINER1((PRIM,0,TEX0,0),    (0,0,0,TEX0)));
         rdpq_mode_zbuf(true, true);

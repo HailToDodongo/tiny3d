@@ -89,7 +89,6 @@ HDModel::HDModel(const std::string &t3dmPath, Textures& textures) {
   dplDraw = rspq_block_end();
 
   rspq_block_begin();
-    rdpq_sync_pipe();
     rdpq_mode_combiner(RDPQ_COMBINER1((1, SHADE, PRIM, 0), (0,0,0,1)));
     rdpq_mode_blender(0);
     rdpq_mode_alphacompare(0);
@@ -103,7 +102,6 @@ HDModel::HDModel(const std::string &t3dmPath, Textures& textures) {
         int noDepth = obj->material->name[0] == '_' ? 1 : 0;
         if(noDepth != lastNoDepth)
         {
-          rdpq_sync_pipe();
           if(noDepth) {
             rdpq_change_other_modes_raw(SOM_ZMODE_MASK  | SOM_Z_COMPARE | SOM_Z_WRITE, 0);
           } else {

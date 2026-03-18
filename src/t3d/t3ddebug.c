@@ -15,10 +15,6 @@ void t3d_debug_print_init() {
 }
 
 void t3d_debug_print_start() {
-  rdpq_sync_pipe();
-  rdpq_sync_tile();
-  rdpq_sync_load();
-
   rdpq_set_mode_standard();
   rdpq_mode_antialias(AA_NONE);
   rdpq_mode_combiner(RDPQ_COMBINER1((TEX0,0,PRIM,0), (TEX0,0,PRIM,0)));

@@ -172,8 +172,6 @@ int main()
     t3d_matrix_pop(1);
 
     // ======== Draw (2D) ======== //
-    rdpq_sync_pipe();
-
     int totalTris = 0;
     for(int i=0; i<actorCount; ++i) {
       totalTris += triangleCount[(i*3) % 2];

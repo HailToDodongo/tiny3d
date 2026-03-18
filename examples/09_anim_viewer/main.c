@@ -212,7 +212,6 @@ int main()
     float posX = 16;
     float posY = 20;
 
-    rdpq_sync_pipe();
     rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "[L/R] Model: %d/%d", modelIdx+1, MODEL_COUNT);
     posY += 10;
     rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, posX, posY, STYLE(STYLE_TITLE) "[C] Animations:");

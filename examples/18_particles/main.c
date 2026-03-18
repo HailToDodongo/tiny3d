@@ -262,8 +262,6 @@ int main()
     //
     // In our case, we want to combine it with env. color in the CC.
     // In order to have depth, you also need to enable `rdpq_mode_zoverride` so the ucode can set this correctly.
-    rdpq_sync_pipe();
-    rdpq_sync_tile();
     rdpq_set_mode_standard();
     rdpq_mode_zbuf(true, true);
     rdpq_mode_zoverride(true, 0, 0);

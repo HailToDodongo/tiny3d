@@ -134,15 +134,11 @@ int main()
     postProc[frameIdx].endFrame();
     auto surfBlur = postProc[frameIdxLast].applyEffects(*fb);
 
-    rdpq_sync_pipe();
     rdpq_set_color_image(fb);
 
     // Debug: show last offscreen buffer (downscaled and/or blur)
     if(state.showOffscreen)
     {
-      rdpq_sync_tile();
-      rdpq_sync_load();
-
       rdpq_set_mode_standard();
       rdpq_mode_combiner(RDPQ_COMBINER_TEX);
       rdpq_mode_blender(0);

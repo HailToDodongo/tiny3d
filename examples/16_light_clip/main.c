@@ -165,8 +165,6 @@ int main()
     t3d_matrix_pop(1);
 
     // ----------- DRAW (2D) ------------ //
-    rdpq_sync_pipe();
-    rdpq_sync_tile();
     const char* MODES[] = {"Reveal", "Cutout", "Mixed", "Light"};
     const char* DITHER[] = {"None", "Square", "Noise"};
 

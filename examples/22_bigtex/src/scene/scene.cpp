@@ -94,7 +94,6 @@ void Scene::draw(const Memory::FrameBuffers &buffers, surface_t *surf)
   skybox.draw();
   if(state.drawMap)mapModel.draw();
 
-  rdpq_sync_pipe();
   rdpq_mode_zbuf(false, false);
 
   // Second draw, if shading is enabled, this will draw the lighting + vertex colors into a different buffer
@@ -105,13 +104,10 @@ void Scene::draw(const Memory::FrameBuffers &buffers, surface_t *surf)
       rdpq_fill_rectangle(0,0, SCREEN_WIDTH, SCREEN_HEIGHT);
     rdpq_mode_pop();
     mapModel.drawShade();
-    rdpq_sync_pipe();
   }
 
   t3d_matrix_pop(1);
 
-  rdpq_sync_tile();
-  rdpq_sync_load();
   rdpq_set_color_image(surf);
   rdpq_set_mode_standard();
 

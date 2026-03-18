@@ -16,7 +16,6 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
   if(tile != TILE0)return; // this callback can happen 2 times per mesh, you are allowed to skip calls
 
   surface_t *offscreenSurf = (surface_t*)userData;
-  rdpq_sync_tile();
 
   int sHalf = OFFSCREEN_SIZE / 2;
   int sFull = OFFSCREEN_SIZE;
@@ -166,7 +165,6 @@ int main()
       rspq_block_run(dplBox);
       t3d_matrix_pop(1);
 
-      rdpq_sync_pipe();
       rdpq_text_printf(NULL, FONT_BUILTIN_DEBUG_MONO, 16, 14, "%.1f FPS\n", display_get_fps());
     }
 

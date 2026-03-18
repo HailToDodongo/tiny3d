@@ -178,7 +178,6 @@ int main()
     }
 
     // ======== Draw (2D) ======== //
-    rdpq_sync_pipe();
     rdpq_set_scissor(0, 0, sizeX, sizeY);
     rdpq_set_mode_standard();
     rdpq_set_mode_fill(RGBA32(0, 0, 0, 0xFF));
@@ -190,7 +189,7 @@ int main()
     // minimap
     rdpq_set_mode_standard();
     rdpq_mode_alphacompare(128);
-    rdpq_sync_load();
+    
     rdpq_sprite_blit(spriteMinimap,
       display_get_width()/2 - 29,
       display_get_height()/2 - 29,

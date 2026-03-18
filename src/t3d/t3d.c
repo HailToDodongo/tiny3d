@@ -6,6 +6,9 @@
 #include "rsp/rsp_tiny3d.h"
 #include <rspq_profile.h>
 
+// @TODO: temporary hack until libdragon exposes an official API
+extern void __rdpq_autosync_use(uint32_t res);
+
 _Static_assert((RSP_T3D_RSPQ_SCRATCH_MEM & 0xFFFF) == 0x80, "Scratch-Memory location changed!");
 _Static_assert(RSP_T3D_BSS_TEMP_STATE_MEM_END == RSP_T3D_CLIP_BSS_TEMP_STATE_MEM_END, "Overlay data doesn't match!");
 _Static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_Async == RSP_T3D_CODE_CLIP_RDPQ_Triangle_Send_Async, "Overlay code doesn't match!");
@@ -376,6 +379,8 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
   v1 += RSP_T3D_VERT_BUFFER & 0xFFFF;
   v2 += RSP_T3D_VERT_BUFFER & 0xFFFF;
 
+  __rdpq_autosync_use(AUTOSYNC_PIPE | AUTOSYNC_TILES | AUTOSYNC_TMEM(0));
+
   uint32_t v12 = (v1 << 16) | v2;
   rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_DRAW,
     v0, v12
@@ -395,6 +400,7 @@ static void t3d_tri_draw_sequence(uint32_t baseVertex, uint8_t polyCount, bool i
   // increment per step (+ 3*VERT_OUTPUT_SIZE), also serves as a flag for tri vs. quad
   baseVertexEnd |= (VERT_OUTPUT_SIZE * (isQuad ? 1 : 0)) << 16;
 
+  __rdpq_autosync_use(AUTOSYNC_PIPE | AUTOSYNC_TILES | AUTOSYNC_TMEM(0));
   rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_SEQ, baseVertex, baseVertexEnd);
 }
 
@@ -415,6 +421,7 @@ inline static void t3d_tri_draw_strip_generic(int16_t* indexBuff, int count, boo
   dmemAddr &= ~7; // align start to 8 bytes
   dmemAddr |= (doSync ? 0x8000 : 0); // make negative if we want to sync
 
+  __rdpq_autosync_use(AUTOSYNC_PIPE | AUTOSYNC_TILES | AUTOSYNC_TMEM(0));
   rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_STRIP,
     loadAddr, (dmemAddr << 16) | ((count*2-1) & 0xFFFF)
   );

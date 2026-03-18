@@ -109,7 +109,6 @@ void SceneMagic::draw3D(float deltaTime)
   rspq_block_run(objSky->userBlock);
 
   // Main map mesh
-  rdpq_sync_pipe();
   rdpq_mode_zbuf(true, true);
 
   t3d_matrix_set(mapMatFP, true);

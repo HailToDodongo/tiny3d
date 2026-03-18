@@ -20,7 +20,6 @@ void dynamic_tex_cb(void* userData, const T3DMaterial* material, rdpq_texparms_t
   // 'userData' is a value you can pass into 't3d_model_draw_custom', this can be any value or struct you want...
   surface_t* surface = (surface_t*)userData; // ...in this case it is a surface pointer
 
-  rdpq_sync_tile();
   rdpq_mode_tlut(TLUT_NONE);
   rdpq_tex_upload(TILE0, surface, NULL);
 }

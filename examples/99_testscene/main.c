@@ -18,12 +18,7 @@ int main()
 {
   profile_data.frame_count = 0;
 
-  // @TODO: game random slows down under different code.
-  // investigate what part of the shifting code/data is causing this
-  #if RSPQ_PROFILE == 1
-	  debug_init_isviewer();
-    debug_init_usblog();
-  #endif
+	debug_init_isviewer();
 
 	asset_init_compression(2);
 
