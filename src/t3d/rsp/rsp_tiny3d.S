@@ -116,7 +116,7 @@
     RSPQ_DefineCommand T3DCmd_LightSet, 16
     RSPQ_DefineCommand T3DCmd_RenderMode, 8
     RSPQ_DefineCommand T3DCmd_MatProjectionSet, 4
-    RSPQ_DefineCommand T3DCmd_SetFogRange, 8
+    RSPQ_DefineCommand T3DCmd_Patch, 12
     RSPQ_DefineCommand T3DCmd_SetFogState, 4
     RSPQ_DefineCommand T3DCmd_TriSync, 4
     RSPQ_DefineCommand T3DCmd_TriDraw_Strip, 8
@@ -322,7 +322,7 @@ T3DCmd_VertLoad:
   vch $v29, $v05, $v01                               ## L:484  |      ^ | u32 clipCodes = clip(posClip, clipPlaneW);
   vcl $v29, $v06, $v02                               ## L:484  |    101 | u32 clipCodes = clip(posClip, clipPlaneW);
   addu $sp, $s5, $s1                                 ## L:541  |      ^ | fogB = ptrBuffB + fogStoreOffset;
-  vmulf $v04, $v04, $v03.v                           ## L:499  |    102 | color:sfract *= lightColor:ufract;
+  TAG_LightMul: vmulf $v04, $v04, $v03.v                           ## L:499  |    102 | color:sfract *= lightColor:ufract;
   lqv $v08, 0, 32, $s4                               ## L:565  |      ^ | pos = load(prt3d, 0x20);
   vmudl $v06, $v06, $v10.v                           ## L:501  |    103 | posClip *= normScaleW:ufract;
   cfc2 $t3, $vcc                                     ## L:484  |      ^ | u32 clipCodes = clip(posClip, clipPlaneW);
@@ -563,10 +563,6 @@ T3DCmd_SetScreenSize:
   sw $a2, %lo(0 + SCREEN_SCALE_OFFSET)($zero)        ## L:737  |     11 | store(screenScaleXY, SCREEN_SCALE_OFFSET, 0x00);
   j RSPQ_Loop                                        ## L:754  |     12 | }
   sw $a1, %lo(8 + SCREEN_SCALE_OFFSET)($zero)        ## L:738  |    *14 | store(screenOffsetXY, SCREEN_SCALE_OFFSET, 0x08);
-T3DCmd_SetFogRange:
-  sw $a1, %lo(0 + FOG_SCALE_OFFSET)($zero) ## L:616
-  j RSPQ_Loop ## L:617
-  sh $a0, %lo(6 + FOG_SCALE_OFFSET)($zero) ## L:615
 T3DCmd_SetFogState:
   j RSPQ_Loop
   sb $a0, %lo(FOG_STORE_OFFSET)($zero)
@@ -810,6 +806,13 @@ T3DCmd_TriDraw_Seq:
   addiu $s2, $s2, 36                                 ## L:1161 |     21 | baseVtx += 36;
   j SEQ_LOOP_NEXT                                    ## L:1163 |     22 | goto SEQ_LOOP_NEXT;
   or $s1, $zero, $zero                               ## L:1158 |    *24 | isQuad = 0;
+T3DCmd_Patch:
+  or $s0, $zero, $a0                                 ## L:1181 |      ^ | u32<$s0> rdramAddr = rdramAddr_;
+  ori $s4, $zero, %lo(RSPQ_SCRATCH_MEM)              ## L:1182 |      2 | s16<$s4> dmemAddr = RSPQ_SCRATCH_MEM;
+  sw $a1, 0($s4)                                     ## L:1184 |      3 | store(opcode0, dmemAddr, 0);
+  sw $a2, 4($s4)                                     ## L:1185 |      4 | store(opcode1, dmemAddr, 4);
+  j DMAOut                                           ## L:1187 |      5 | DMAOut(size, rdramAddr, dmemAddr); ## Args: $t0, $s0, $s4
+  addiu $t0, $zero, 7                                ## L:1180 |     *7 | u16<$t0> size = 8 - 1;
 
 OVERLAY_CODE_END:
 

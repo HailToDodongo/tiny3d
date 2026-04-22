@@ -9,18 +9,21 @@
 // @TODO: temporary hack until libdragon exposes an official API
 extern void __rdpq_autosync_use(uint32_t res);
 
-_Static_assert((RSP_T3D_RSPQ_SCRATCH_MEM & 0xFFFF) == 0x80, "Scratch-Memory location changed!");
-_Static_assert(RSP_T3D_BSS_TEMP_STATE_MEM_END == RSP_T3D_CLIP_BSS_TEMP_STATE_MEM_END, "Overlay data doesn't match!");
-_Static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_Async == RSP_T3D_CODE_CLIP_RDPQ_Triangle_Send_Async, "Overlay code doesn't match!");
-_Static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_End == RSP_T3D_CODE_CLIP_RDPQ_Triangle_Send_End, "Overlay code doesn't match!");
-_Static_assert(RSP_T3D_CODE_RSPQCmd_RdpAppendBuffer == RSP_T3D_CODE_CLIP_RSPQCmd_RdpAppendBuffer, "Overlay code doesn't match!");
+static_assert((RSP_T3D_RSPQ_SCRATCH_MEM & 0xFFFF) == 0x80, "Scratch-Memory location changed!");
+static_assert(RSP_T3D_BSS_TEMP_STATE_MEM_END == RSP_T3D_CLIP_BSS_TEMP_STATE_MEM_END, "Overlay data doesn't match!");
+static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_Async == RSP_T3D_CODE_CLIP_RDPQ_Triangle_Send_Async, "Overlay code doesn't match!");
+static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_End == RSP_T3D_CODE_CLIP_RDPQ_Triangle_Send_End, "Overlay code doesn't match!");
+static_assert(RSP_T3D_CODE_RSPQCmd_RdpAppendBuffer == RSP_T3D_CODE_CLIP_RSPQCmd_RdpAppendBuffer, "Overlay code doesn't match!");
 
-_Static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_Async < RSP_T3D_CODE_CLIPPING_CODE_TARGET, "Triangle functions must come before the clipping code!");
-_Static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_End < RSP_T3D_CODE_CLIPPING_CODE_TARGET, "Triangle functions must come before the clipping code!");
-_Static_assert(RSP_T3D_CODE_RSPQCmd_RdpAppendBuffer < RSP_T3D_CODE_CLIPPING_CODE_TARGET, "Triangle functions must come before the clipping code!");
+static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_Async < RSP_T3D_CODE_CLIPPING_CODE_TARGET, "Triangle functions must come before the clipping code!");
+static_assert(RSP_T3D_CODE_RDPQ_Triangle_Send_End < RSP_T3D_CODE_CLIPPING_CODE_TARGET, "Triangle functions must come before the clipping code!");
+static_assert(RSP_T3D_CODE_RSPQCmd_RdpAppendBuffer < RSP_T3D_CODE_CLIPPING_CODE_TARGET, "Triangle functions must come before the clipping code!");
 
-_Static_assert(RSP_T3D_CODE_CLIPPING_CODE_TARGET % 8 == 0, "Clipping code must be aligned to 8 bytes!");
-_Static_assert(RSP_T3D_CODE_CLIPPING_CODE_TARGET == RSP_T3D_CODE_CLIP_clipTriangle, "Clipping code and target must have the same address");
+static_assert(RSP_T3D_CODE_CLIPPING_CODE_TARGET % 8 == 0, "Clipping code must be aligned to 8 bytes!");
+static_assert(RSP_T3D_CODE_CLIPPING_CODE_TARGET == RSP_T3D_CODE_CLIP_clipTriangle, "Clipping code and target must have the same address");
+
+// @TODO: this could be handled to allow either alignment, but it is simpler to force this for now
+static_assert((RSP_T3D_CODE_TAG_LightMul & 0x0FFF) % 8 == 0, "Light-Mul must be aligned to 8 bytes!");
 
 DEFINE_RSP_UCODE(rsp_tiny3d);
 DEFINE_RSP_UCODE(rsp_tiny3d_clipping);
@@ -36,6 +39,8 @@ uint32_t T3D_RSP_ID = 0;
 static T3DViewport *currentViewport = NULL;
 static T3DMat4FP *matrixStack = NULL;
 static uint32_t clipCodeAddrOrg = 0; // 'CLIP_CODE_ORG_ADDR' in ucode
+
+static uint64_t orgInstrLightMul = 0; // backup of the lighting mul. instruction + the one after
 
 void t3d_init(T3DInitParams params)
 {
@@ -62,6 +67,9 @@ void t3d_init(T3DInitParams params)
   clipAddrPtr[0] = (uint32_t)PhysicalAddr(rsp_tiny3d_clipping.code + (RSP_T3D_CODE_CLIP_clipTriangle & 0xFFF));
   clipAddrPtr[1] = clipCodeAddrOrg;
   *clipSizePtr = RSP_T3D_CODE_CLIP_OVERLAY_CODE_END - RSP_T3D_CODE_CLIP_clipTriangle + 7;
+
+  uint32_t imemAddrMul = (RSP_T3D_CODE_TAG_LightMul & 0x0FFF);
+  orgInstrLightMul = *(uint64_t*)(rsp_tiny3d.code + imemAddrMul);
 
   T3D_RSP_ID = rspq_overlay_register(&rsp_tiny3d);
 }
@@ -102,6 +110,10 @@ inline static void t3d_dmem_set_u32(uint32_t addr, uint32_t value) {
 
 inline static void t3d_dmem_set_u16(uint32_t addr, uint32_t value) {
   rspq_write(T3D_RSP_ID, T3D_CMD_SET_WORD, addr | 0x8000, value);
+}
+
+inline static void t3d_imem_patch(void* rdram, uint32_t opcode0, uint32_t opcode1) {
+  rspq_write(T3D_RSP_ID, T3D_CMD_PATCH, PhysicalAddr(rdram), opcode0, opcode1);
 }
 
 void t3d_metrics_fetch(T3DMetrics* data)
@@ -361,6 +373,24 @@ void t3d_state_set_vertex_fx_scale(uint16_t scale)
   t3d_dmem_set_u16((RSP_T3D_SCREEN_UVGEN_SCALE & 0xFFF), scale);
 }
 
+void t3d_state_set_lighting_mode(enum T3DLightingMode mode)
+{
+  const uint64_t OPCODE_VMULF = 0b000'000;
+  const uint64_t OPCODE_VADD  = 0b010'000;
+
+  uint64_t newOpcodes = orgInstrLightMul | ((mode == T3D_LIGHTING_MODE_MUL ? OPCODE_VMULF : OPCODE_VADD) << 32);
+  uint32_t imemAddrMul = (RSP_T3D_CODE_TAG_LightMul & 0x0FFF);
+
+  // Now enqueue a DMA back to RDRAM to patch the ucode, one the next ucode switch this would be used.
+  // Note that we can't patch it CPU side, as the RSP runs in parallel and we would patch too early.
+  // This also handles the case where this is embedded in a block or queue.
+  t3d_imem_patch(
+    rsp_tiny3d.code + imemAddrMul,
+    (uint32_t)(newOpcodes >> 32),
+    (uint32_t)(newOpcodes & 0xFFFF'FFFF)
+  );
+}
+
 void t3d_segment_set(uint8_t segmentId, void *address) {
   assert(segmentId >= 1 && segmentId <= 7);
   t3d_dmem_set_u32(
@@ -438,8 +468,10 @@ void t3d_tri_draw_strip_and_sync(int16_t* indexBuff, int count)
 }
 
 void t3d_fog_set_range(float near, float far) {
+  uint32_t dmemAddr = RSP_T3D_FOG_SCALE_OFFSET & 0xFFF;
   if(near == 0.0f && far == 0.0f) {
-    rspq_write(T3D_RSP_ID, T3D_CMD_FOG_RANGE, 0, 0);
+    t3d_dmem_set_u32(dmemAddr + 0, 0); // offset
+    t3d_dmem_set_u16(dmemAddr + 6, 0); // scale
     return;
   }
 
@@ -459,9 +491,8 @@ void t3d_fog_set_range(float near, float far) {
   uint16_t fogMul16   = (int16_t)scale & 0xFFFF;
   int32_t fogOffset32 = T3D_F32_TO_FIXED(offset);
 
-  rspq_write(T3D_RSP_ID, T3D_CMD_FOG_RANGE,
-    fogMul16, fogOffset32
-  );
+  t3d_dmem_set_u32(dmemAddr + 0, fogOffset32); // offset
+  t3d_dmem_set_u16(dmemAddr + 6, fogMul16); // scale
 }
 
 void t3d_viewport_attach(T3DViewport *viewport) {

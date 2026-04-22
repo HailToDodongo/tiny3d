@@ -28,7 +28,7 @@ enum T3DCmd {
   T3D_CMD_LIGHT_SET    = 0x5,
   T3D_CMD_DRAWFLAGS    = 0x6,
   T3D_CMD_PROJ_SET     = 0x7,
-  T3D_CMD_FOG_RANGE    = 0x8,
+  T3D_CMD_PATCH        = 0x8,
   T3D_CMD_FOG_STATE    = 0x9,
   T3D_CMD_TRI_SYNC     = 0xA,
   T3D_CMD_TRI_STRIP    = 0xB,
@@ -80,6 +80,13 @@ enum T3DVertexFX {
   T3D_VERTEX_FX_CELSHADE_ALPHA = 3,
   T3D_VERTEX_FX_OUTLINE        = 4,
   T3D_VERTEX_FX_UV_OFFSET      = 5,
+};
+
+// computation to use to combine lighting and vertex color
+enum T3DLightingMode
+{
+  T3D_LIGHTING_MODE_MUL = 0,
+  T3D_LIGHTING_MODE_ADD = 1,
 };
 
 /**
@@ -612,6 +619,29 @@ void t3d_state_set_vertex_fx(enum T3DVertexFX func, int16_t arg0, int16_t arg1);
  * @param scale scale factor
  */
 void t3d_state_set_vertex_fx_scale(uint16_t scale);
+
+/**
+ * Changes the way lighting is combined with vertex color in the ucode.
+ * Each light source is always added together to form the total light intensity per vertex.
+ * This color is then multiplied by the vertex color to produce the final SHADE value for the CC.
+ * This function allows changing this to do a (saturated) addition instead.
+ *
+ * Use-cases can be baking lighting into vertex colors to have dynamic lighting on top.
+ * Note that you are still able to preserve the original vertex alpha by setting all
+ * light sources alpha value to 0.
+ * That allows you to even bake AO into alpha in the model, and then later do a multiplication in the CC.
+ *
+ * NOTE:<br>
+ * Changing this mode internally patches the ucode.
+ * The process is not particularly expensive, but still a lot more than other settings.
+ * It should not be used on a per-material basis, but rather as a global setting you set once per scene or draw layer.
+ *
+ * Since the ucode is only refreshed on the next ucode switch, you have to make sure this happens before any draws.
+ * This can be done by making sure that after this call, and before the next vertex load, any RDPQ call was made.
+ *
+ * @param mode additive or multiplicative lighting, multiplicative by default
+ */
+void t3d_state_set_lighting_mode(enum T3DLightingMode mode);
 
 /**
  * Sets a new address in the segment table.

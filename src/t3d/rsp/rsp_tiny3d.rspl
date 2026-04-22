@@ -192,6 +192,7 @@ function RDPQ_Triangle_Send_Async(u16<$a0> ptrVert0, u16<$a1> ptrVert1, u16<$a2>
 function RDPQ_Triangle_Send_End();
 
 function DMAExec(u16<$t0> size, u32<$s0> rdramAddr, s16<$s4> dmemAddr);
+function DMAOut(u16<$t0> size, u32<$s0> rdramAddr, s16<$s4> dmemAddr);
 
 macro dmaInAsync(u32 addrRDRAM, u32 addrDMEM, u32 size)
 {
@@ -459,6 +460,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     }
     undef clipPlaneW;
 
+    @Tag("LightMul")
     color:sfract *= lightColor:ufract;
 
     posClip *= normScaleW:ufract;
@@ -642,18 +644,6 @@ command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 scre
   //store(guardBandFactor,    CLIPPING_PLANES, 11); // +Z Plane
   store(guardBandFactorNeg, CLIPPING_PLANES, 15); // -X Plane
   store(guardBandFactorNeg, CLIPPING_PLANES, 19); // -Y Plane
-}
-
-/**
- * Sets the range of fog.
- *
- * @param fogScale 16.16 scale factor
- * @param fogOffset 16.16 offset
- */
-command<8> T3DCmd_SetFogRange(s16 fogScale, s32 fogOffset)
-{
-  store(fogScale,  FOG_SCALE_OFFSET, 0x06);
-  store(fogOffset, FOG_SCALE_OFFSET, 0x00);
 }
 
 /**
@@ -904,6 +894,17 @@ command<12> T3DCmd_TriDraw_Seq(u32 sizeAndIndex, u16 endIndex)
     }
 
     goto T3DCmd_TriSync;
+}
+
+command<13> T3DCmd_Patch(u32 rdramAddr_, u32 opcode0, u32 opcode1) {
+    u16<$t0> size = 8 - 1;
+    u32<$s0> rdramAddr = rdramAddr_;
+    s16<$s4> dmemAddr = RSPQ_SCRATCH_MEM;
+
+    store(opcode0, dmemAddr, 0);
+    store(opcode1, dmemAddr, 4);
+
+    DMAOut(size, rdramAddr, dmemAddr);
 }
 
 #endif
