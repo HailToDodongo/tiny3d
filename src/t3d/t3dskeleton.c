@@ -100,7 +100,13 @@ void t3d_skeleton_update(T3DSkeleton *skeleton)
       }
 
       t3d_mat4_to_fixed(&matStackFP[i], &bone->matrix);
-      skeleton->bones[i].hasChanged = false;
+
+      // if a bone has changed, we need to force updating it until it reached all buffers.
+      // otherwise once the updating stops, and we cycle through buffers still, it would flicker.
+      // counting up here is also safe when this flag is set to 1 or 'true' externally (e.g.: in t3d_anim_update)
+      if(skeleton->bones[i].hasChanged++ == skeleton->bufferCount) {
+        skeleton->bones[i].hasChanged = 0;
+      }
     }
   }
 }
