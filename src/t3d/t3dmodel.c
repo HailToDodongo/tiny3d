@@ -125,7 +125,7 @@ static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *co
 
     if(tex->s.clamp) {
       if(is_power_of_two(tex->texWidth)) {
-        texParam.s.repeats = (tex->s.height+1.0f) / (float)tex->texWidth;
+        texParam.s.repeats = (tex->s.height-tex->s.low+1) / (float)tex->texWidth;
       } else {
         texParam.s.repeats = 1;
       }
@@ -138,7 +138,7 @@ static void set_texture(T3DMaterial *mat, rdpq_tile_t tile, T3DModelDrawConf *co
 
     if(tex->t.clamp) {
       if(is_power_of_two(tex->texHeight)) {
-        texParam.t.repeats = (tex->t.height+1.0f) / (float)tex->texHeight;
+        texParam.t.repeats = (tex->t.height-tex->t.low+1) / (float)tex->texHeight;
       } else {
         texParam.t.repeats = 1;
       }
