@@ -76,9 +76,12 @@ int main()
   video_register_codec(&mpeg1_codec);
   video_t *video = video_open("rom:/video.m1v", NULL);
   video_info_t vinfo = video_get_info(video);
+
+  yuv_fmv_parms_t yuvParam = {};
+  yuvParam.display_aspect_ratio = 1.0f;
   yuv_blitter_t yuvBlitter = yuv_blitter_new_fmv(
     vinfo.width, vinfo.height,
-    OFFSCREEN_SIZE, OFFSCREEN_SIZE, NULL);
+    OFFSCREEN_SIZE, OFFSCREEN_SIZE, &yuvParam);
 
   rspq_block_begin();
   t3d_model_draw(modelBox);
