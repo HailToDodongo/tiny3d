@@ -561,7 +561,6 @@ T3DCmd_MatrixStack:
   jal mulMat4Mat4 ## Args: $s2, $s3, $s4
   ori $s3, $zero, %lo(MATRIX_PROJ)
   j RSPQ_Loop
-  nop
 TPXCmd_SetDMEM:
   andi $s7, $a0, 32768
   bne $s7, $zero, RSPQ_Loop
