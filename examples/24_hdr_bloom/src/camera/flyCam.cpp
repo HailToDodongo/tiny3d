@@ -23,11 +23,11 @@ void FlyCam::update(float deltaTime)
   camRotXCurr = t3d_lerp_angle(camRotXCurr, camRotX, smoothFactor);
   camRotYCurr = t3d_lerp_angle(camRotYCurr, camRotY, smoothFactor);
 
-  T3DVec3 camDir{};
+  fm_vec3_t camDir{};
   camDir.v[0] = fm_cosf(camRotXCurr) * fm_cosf(camRotYCurr);
   camDir.v[1] = fm_sinf(camRotYCurr);
   camDir.v[2] = fm_sinf(camRotXCurr) * fm_cosf(camRotYCurr);
-  t3d_vec3_norm(&camDir);
+  fm_vec3_norm(&camDir, &camDir);
 
   if(joypad.btn.z) {
     camRotX += (float)joypad.stick_x * camRotSpeed;
@@ -38,7 +38,7 @@ void FlyCam::update(float deltaTime)
     camPos.v[2] -= camDir.v[0] * (float)joypad.stick_x * -camSpeed;
   }
 
-  t3d_vec3_lerp(cam.pos, cam.pos, camPos, smoothFactor);
+  fm_vec3_lerp(&cam.pos, &cam.pos, &camPos, smoothFactor);
   auto actualTarget = cam.pos + camDir;
   cam.target = actualTarget;
 }

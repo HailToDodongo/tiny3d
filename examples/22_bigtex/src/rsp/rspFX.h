@@ -4,7 +4,7 @@
 */
 #pragma once
 #include <libdragon.h>
-#include <t3d/t3dmath.h>
+
 
 extern "C" {
   extern volatile uint32_t *rspq_cur_pointer, *rspq_cur_sentinel;

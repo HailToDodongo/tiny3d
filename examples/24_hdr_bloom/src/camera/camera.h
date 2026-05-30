@@ -5,13 +5,13 @@
 #pragma once
 
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
+
 
 struct Camera
 {
   T3DViewport viewport{};
-  T3DVec3 pos{};
-  T3DVec3 target{};
+  fm_vec3_t pos{};
+  fm_vec3_t target{};
   float fov{};
   float near{};
   float far{};
@@ -23,7 +23,7 @@ struct Camera
   void update(float deltaTime);
   void attach();
 
-  void move(T3DVec3 dir) {
+  void move(fm_vec3_t dir) {
     target += dir;
     pos += dir;
   }
@@ -33,7 +33,7 @@ struct Camera
 
   [[nodiscard]] fm_vec3_t getDirection() const {
     auto dir = target - pos;
-    t3d_vec3_norm(&dir);
+    fm_vec3_norm(&dir, &dir);
     return dir;
   }
 

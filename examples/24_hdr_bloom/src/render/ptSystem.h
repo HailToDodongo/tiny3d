@@ -8,7 +8,7 @@
 
 struct PTSystem
 {
-  T3DVec3 pos{};
+  fm_vec3_t pos{};
   T3DMat4FP *mat{};
   TPXParticleS8 *particles{};
   uint32_t countMax{};

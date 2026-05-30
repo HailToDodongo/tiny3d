@@ -154,9 +154,9 @@ int main()
     t3d_matrix_pop(1);
   model->userBlock = rspq_block_end();
 
-  T3DVec3 camPos = {{0.0, 0.0, 0.0}};
-  T3DVec3 camTarget = {{0,0,0}};
-  T3DVec3 camDir = {{0,0,1}};
+  fm_vec3_t camPos = {{0.0, 0.0, 0.0}};
+  fm_vec3_t camTarget = {{0,0,0}};
+  fm_vec3_t camDir = {{0,0,1}};
 
   float camRotX = 3.14f;
   float camRotY = 0.24f;
@@ -190,7 +190,7 @@ int main()
       camDir.v[0] = fm_cosf(camRotX) * fm_cosf(camRotY);
       camDir.v[1] = fm_sinf(camRotY);
       camDir.v[2] = fm_sinf(camRotX) * fm_cosf(camRotY);
-      t3d_vec3_norm(&camDir);
+      fm_vec3_norm(&camDir, &camDir);
 
       if(joypad.btn.z) {
         camRotX += (float)joypad.stick_x * camRotSpeed;
@@ -223,7 +223,7 @@ int main()
     }
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 2.5f, 150.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     t3d_mat4fp_from_srt_euler(&rotMatFP[frameIdx],
       (float[3]){modelScale, modelScale, modelScale},

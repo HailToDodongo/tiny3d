@@ -1,6 +1,6 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
+
 #include <t3d/t3dmodel.h>
 #include "skydome.h"
 
@@ -125,7 +125,7 @@ void skydome_draw(skydome_t* skydome){
     fm_vec3_dir_from_euler(&lightdir, &euler);
 
     t3d_light_set_ambient((uint8_t*)&skydome->sun.ambient);
-    t3d_light_set_directional(0, (uint8_t*)&skydome->sun.direct, (T3DVec3*)&lightdir);
+    t3d_light_set_directional(0, (uint8_t*)&skydome->sun.direct, (fm_vec3_t*)&lightdir);
     t3d_light_set_count(1);
 
     T3DObject* obj = t3d_model_get_object_by_index(skydome->__vars.model, 0);
@@ -225,9 +225,9 @@ void skydome_draw_lensflare(skydome_t* skydome){
 
     fm_vec3_dir_from_euler(&worldpos, &sunangles);
     fm_vec3_scale(&worldpos, &worldpos, 99999);
-    t3d_viewport_calc_viewspace_pos(skydome->__vars.viewport, (T3DVec3*)&viewpos, (T3DVec3*)&worldpos);
-    T3DVec4 posScreen;  
-    t3d_mat4_mul_vec3(&posScreen, &skydome->__vars.viewport->matCamProj, (T3DVec3*)&worldpos);
+    t3d_viewport_calc_viewspace_pos(skydome->__vars.viewport, (fm_vec3_t*)&viewpos, (fm_vec3_t*)&worldpos);
+    fm_vec4_t posScreen;
+    fm_mat4_mul_vec3(&posScreen, &skydome->__vars.viewport->matCamProj, (fm_vec3_t*)&worldpos);
 
     float xpos = viewpos.v[0];
     float ypos = viewpos.v[1];

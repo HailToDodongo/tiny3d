@@ -21,7 +21,7 @@ class HDModel
     HDModel(const std::string &t3dmPath, Textures& textures);
     ~HDModel();
 
-    void setPos(const T3DVec3 &pos);
+    void setPos(const fm_vec3_t &pos);
     void draw();
     void drawShade();
 };

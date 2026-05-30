@@ -17,7 +17,7 @@
  * For simplicity, this example just always uses 5 lights without anything fancy.
  */
 
-static float getFloorHeight(const T3DVec3 *pos) {
+static float getFloorHeight(const fm_vec3_t *pos) {
   // Usually you would have some collision / raycast for this
   // Here we just hardcode the floor height and the one stair
   if(pos->v[2] < -75.0f) {
@@ -29,7 +29,7 @@ static float getFloorHeight(const T3DVec3 *pos) {
 }
 
 typedef struct {
-    T3DVec3 pos;
+    fm_vec3_t pos;
     float strength;
     color_t color;
 } PointLight;
@@ -98,9 +98,9 @@ int main()
   float time = 0.0f;
   float rotAngle = 0.0f;
 
-  T3DVec3 camTarget = {{0,0,0}};
-  T3DVec3 camTargetCurr = {{0,0,0}};
-  T3DVec3 camDir = {{1,1,1}};
+  fm_vec3_t camTarget = {{0,0,0}};
+  fm_vec3_t camTargetCurr = {{0,0,0}};
+  fm_vec3_t camDir = {{1,1,1}};
   float viewZoom = 96.0f;
   bool isOrtho = true;
   bool dirLightOn = false;
@@ -145,14 +145,14 @@ int main()
 
     // setup camera, look at an isometric angle onto the floor below the selected light
     // and interpolate the camera position to make it smooth
-    camTarget = (T3DVec3){{
+    camTarget = (fm_vec3_t){{
       light->pos.v[0], getFloorHeight(&light->pos) + 2.0f, light->pos.v[2]
     }};
-    t3d_vec3_lerp(&camTargetCurr, &camTargetCurr, &camTarget, 0.2f);
+    fm_vec3_lerp(&camTargetCurr, &camTargetCurr, &camTarget, 0.2f);
 
-    T3DVec3 camPos;
-    t3d_vec3_scale(&camPos, &camDir, 65.0f);
-    t3d_vec3_add(&camPos, &camTargetCurr, &camPos);
+    fm_vec3_t camPos;
+    fm_vec3_scale(&camPos, &camDir, 65.0f);
+    fm_vec3_add(&camPos, &camTargetCurr, &camPos);
 
     // flickering and wobble of the crystal in the center of the room
     pointLights[4].pos.v[1] = 24.0f + (sinf(time*2.0f) * 3.5f);
@@ -199,7 +199,7 @@ int main()
       t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(65.0f), 3.0f, 220.0f);
     }
 
-    t3d_viewport_look_at(&viewport, &camPos, &camTargetCurr, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTargetCurr, &(fm_vec3_t){{0,1,0}});
 
     // ----------- DRAW (3D) ------------ //
     rdpq_attach(display_get(), display_get_zbuf());
@@ -218,7 +218,7 @@ int main()
 
     for(int i=0; i<5; ++i) {
       // Sets the actual point light
-      t3d_light_set_point(i, &pointLights[i].color.r, &(T3DVec3){{
+      t3d_light_set_point(i, &pointLights[i].color.r, &(fm_vec3_t){{
         pointLights[i].pos.v[0],
         pointLights[i].pos.v[1] + getFloorHeight(&pointLights[i].pos),
         pointLights[i].pos.v[2]
@@ -228,7 +228,7 @@ int main()
 
     // directional lights can still be used together with point lights
     if(dirLightOn) {
-      t3d_light_set_directional(5, (uint8_t[]){0xAA, 0xAA, 0xFF, 0xFF}, &(T3DVec3){{1.0f, 0.0f, 0.0f}});
+      t3d_light_set_directional(5, (uint8_t[]){0xAA, 0xAA, 0xFF, 0xFF}, &(fm_vec3_t){{1.0f, 0.0f, 0.0f}});
       t3d_light_set_count(6);
     }
 

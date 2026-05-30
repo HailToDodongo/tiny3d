@@ -1,7 +1,6 @@
 #include <libdragon.h>
 
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 
 /**
  * Simple example with a spinning quad.
@@ -18,25 +17,25 @@ int main()
 
   t3d_init((T3DInitParams){}); // Init library itself, use empty params for default settings
 
-  T3DMat4 modelMat; // matrix for our model, this is a "normal" float matrix
-  t3d_mat4_identity(&modelMat);
+  fm_mat4_t modelMat; // matrix for our model, this is a "normal" float matrix
+  fm_mat4_identity(&modelMat);
   // Now allocate a fixed-point matrix, this is what t3d uses internally.
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
 
-  const T3DVec3 camPos = {{0,0,-18}};
-  const T3DVec3 camTarget = {{0,0,0}};
+  const fm_vec3_t camPos = {{0,0,-18}};
+  const fm_vec3_t camTarget = {{0,0,0}};
 
   uint8_t colorAmbient[4] = {50, 50, 50, 0xFF};
   uint8_t colorDir[4]     = {0xFF, 0xFF, 0xFF, 0xFF};
 
-  T3DVec3 lightDirVec = {{0.0f, 0.0f, 1.0f}};
-  t3d_vec3_norm(&lightDirVec);
+  fm_vec3_t lightDirVec = {{0.0f, 0.0f, 1.0f}};
+  fm_vec3_norm(&lightDirVec, &lightDirVec);
 
   // Allocate vertices (make sure to have an uncached pointer before passing it to the API!)
   // For performance reasons, 'T3DVertPacked' contains two vertices at once in one struct.
   T3DVertPacked* vertices = malloc_uncached(sizeof(T3DVertPacked) * 2);
 
-  uint16_t norm = t3d_vert_pack_normal(&(T3DVec3){{ 0, 0, 1}}); // normals are packed in a 5.6.5 format
+  uint16_t norm = t3d_vert_pack_normal(&(fm_vec3_t){{ 0, 0, 1}}); // normals are packed in a 5.6.5 format
   vertices[0] = (T3DVertPacked){
     .posA = {-16, -16, 0}, .rgbaA = 0xFF0000'FF, .normA = norm,
     .posB = { 16, -16, 0}, .rgbaB = 0x00FF00'FF, .normB = norm,
@@ -47,8 +46,8 @@ int main()
   };
 
   float rotAngle = 0.0f;
-  T3DVec3 rotAxis = {{-1.0f, 2.5f, 0.25f}};
-  t3d_vec3_norm(&rotAxis);
+  fm_vec3_t rotAxis = {{-1.0f, 2.5f, 0.25f}};
+  fm_vec3_norm(&rotAxis, &rotAxis);
 
   // create a viewport, this defines the section to draw to (by default the whole screen)
   // and contains the projection & view (camera) matrices
@@ -63,12 +62,12 @@ int main()
 
     // we can set up our viewport settings beforehand here
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 100.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // Model-Matrix, t3d offers some basic matrix functions
-    t3d_mat4_identity(&modelMat);
-    t3d_mat4_rotate(&modelMat, &rotAxis, rotAngle);
-    t3d_mat4_scale(&modelMat, 0.4f, 0.4f, 0.4f);
+    fm_mat4_identity(&modelMat);
+    fm_mat4_from_axis_angle(&modelMat, &rotAxis, rotAngle);
+    fm_mat4_scale(&modelMat, &(fm_vec3_t){{0.4f, 0.4f, 0.4f}});
     t3d_mat4_to_fixed(modelMatFP, &modelMat);
 
     // ======== Draw (3D) ======== //

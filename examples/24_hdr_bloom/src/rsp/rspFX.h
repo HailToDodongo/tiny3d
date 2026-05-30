@@ -4,7 +4,7 @@
 */
 #pragma once
 #include <libdragon.h>
-#include <t3d/t3dmath.h>
+
 
 namespace RspFX
 {

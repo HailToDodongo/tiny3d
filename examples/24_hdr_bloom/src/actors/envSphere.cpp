@@ -62,7 +62,7 @@ namespace Actor
 
     pos = {stick.stick_x / 8.0f, stick.stick_y / 8.0f, 0};
 
-    t3d_vec3_lerp(&realPos, &realPos, &pos, 0.15f);
+    fm_vec3_lerp(&realPos, &realPos, &pos, 0.15f);
     t3d_mat4fp_from_srt_euler(matFP.getNext(),
       {BASE_SCALE, BASE_SCALE, BASE_SCALE},
       {timer, timer*1.2f, timer*0.7f},

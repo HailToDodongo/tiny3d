@@ -1,6 +1,5 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 
 #define FB_COUNT 3
@@ -46,7 +45,7 @@ int main()
     (float[3]){0,0,0}
   );
 
-  const T3DVec3 camTarget = {{0,0,0}};
+  const fm_vec3_t camTarget = {{0,0,0}};
   float camAngle = 0.0f;
 
   uint8_t colorAmbient[4] = {0xF0, 0xF0, 0xF0, 0xFF};
@@ -104,10 +103,10 @@ int main()
     camAngle -= 0.005f;
     tileOffset += 0.1f;
 
-    T3DVec3 camPos = {{sinf(camAngle) * 45.0f, 35.0f, cosf(camAngle) * 60.0f}};
+    fm_vec3_t camPos = {{sinf(camAngle) * 45.0f, 35.0f, cosf(camAngle) * 60.0f}};
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // transform mesh
     if(transformEnabled)

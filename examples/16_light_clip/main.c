@@ -68,10 +68,10 @@ int main()
   float time = 0.0f;
   float rotAngle = 0.0f;
 
-  T3DVec3 camTarget = {{0,0,0}};
-  T3DVec3 camPos = camTarget;
-  T3DVec3 camPosCurrent = camPos;
-  T3DVec3 lightPos = {{0.0f, 0.0f, 0.0f}};
+  fm_vec3_t camTarget = {{0,0,0}};
+  fm_vec3_t camPos = camTarget;
+  fm_vec3_t camPosCurrent = camPos;
+  fm_vec3_t lightPos = {{0.0f, 0.0f, 0.0f}};
 
   float angleHor, angleVer;
   float camDist = 130.0f;
@@ -117,10 +117,10 @@ int main()
     camPos.v[0] = fm_cosf(angleHor) * fm_cosf(angleVer) * camDist;
     camPos.v[1] = fm_sinf(angleVer) * camDist;
     camPos.v[2] = fm_sinf(angleHor) * fm_cosf(angleVer) * camDist;
-    t3d_vec3_lerp(&camPosCurrent, &camPosCurrent, &camPos, deltaTime * 5.0f);
+    fm_vec3_lerp(&camPosCurrent, &camPosCurrent, &camPos, deltaTime * 5.0f);
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(64.0f), 2.0f, 200.0f);
-    t3d_viewport_look_at(&viewport, &camPosCurrent, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPosCurrent, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // ----------- DRAW (3D) ------------ //
     rdpq_attach(display_get(), display_get_zbuf());
@@ -139,7 +139,7 @@ int main()
     t3d_screen_clear_depth();
     t3d_fog_set_enabled(false);
 
-    t3d_light_set_directional(0, (uint8_t[]){0x99, 0x99, 0xAA, 0}, &(T3DVec3){{0.0f, 1.0f, 0.0f}});
+    t3d_light_set_directional(0, (uint8_t[]){0x99, 0x99, 0xAA, 0}, &(fm_vec3_t){{0.0f, 1.0f, 0.0f}});
 
     if(currMode == MODE_LIGHT) {
       t3d_light_set_ambient(colorAmbientLight);

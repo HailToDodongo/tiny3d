@@ -147,7 +147,7 @@ namespace Actor
 
   void PointGlobe::update(float deltaTime)
   {
-    float camDist = t3d_vec3_distance(
+    float camDist = fm_vec3_distance(
       &state.activeScene->getCam().pos,
       &pos
     );

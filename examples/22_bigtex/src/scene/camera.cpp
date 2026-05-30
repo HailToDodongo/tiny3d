@@ -24,7 +24,7 @@ void Camera::update(float deltaTime) {
   dir.v[0] = fm_cosf(rotX) * fm_cosf(rotY);
   dir.v[1] = fm_sinf(rotY);
   dir.v[2] = fm_sinf(rotX) * fm_cosf(rotY);
-  t3d_vec3_norm(&dir);
+  fm_vec3_norm(&dir, &dir);
 
   if(joypad.btn.z) {
     targetRotX += (float)joypad.stick_x * camRotSpeed;
@@ -52,7 +52,7 @@ void Camera::update(float deltaTime) {
 
   if(camLerpSpeed > 0.0f) {
     float lerpFactor = 1.0f - powf(camLerpSpeed, deltaTime);
-    t3d_vec3_lerp(pos, pos, targetPos, lerpFactor);
+    fm_vec3_lerp(&pos, &pos, &targetPos, lerpFactor);
     rotX = t3d_lerp(rotX, targetRotX, lerpFactor);
     rotY = t3d_lerp(rotY, targetRotY, lerpFactor);
   } else {

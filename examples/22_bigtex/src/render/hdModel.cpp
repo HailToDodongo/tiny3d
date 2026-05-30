@@ -132,6 +132,6 @@ void HDModel::drawShade() {
   rspq_block_run(dplDrawShade);
 }
 
-void HDModel::setPos(const T3DVec3 &pos) {
+void HDModel::setPos(const fm_vec3_t &pos) {
   t3d_mat4fp_set_pos(matFP.getNext(), pos);
 }

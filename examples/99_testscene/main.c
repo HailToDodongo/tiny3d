@@ -44,15 +44,15 @@ int main()
   sprite_t *spriteLogo = sprite_load("rom:/logo.ia8.sprite");
   T3DModel *model = t3d_model_load("rom://scene.t3dm");
 
-  T3DMat4 modelMat; // matrix for our model, this is a "normal" float matrix
-  t3d_mat4_identity(&modelMat);
+  fm_mat4_t modelMat; // matrix for our model, this is a "normal" float matrix
+  fm_mat4_identity(&modelMat);
   // Now allocate a fixed-point matrix, this is what t3d uses internally.
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
 
-  T3DVec3 camPos = {{2.9232f, 67.6248f, 61.1093f}};
-  if(testClip)camPos = (T3DVec3){{2.9232f, 37.6248f, 31.1093f}};
-  T3DVec3 camTarget = {{0,0,0}};
-  T3DVec3 camDir = {{0,0,1}};
+  fm_vec3_t camPos = {{2.9232f, 67.6248f, 61.1093f}};
+  if(testClip)camPos = (fm_vec3_t){{2.9232f, 37.6248f, 31.1093f}};
+  fm_vec3_t camTarget = {{0,0,0}};
+  fm_vec3_t camDir = {{0,0,1}};
 
   float camRotX = 1.544792654048f;
   float camRotY = 4.05f;
@@ -61,12 +61,12 @@ int main()
   //uint8_t colorAmbient[4] = {40, 40, 40, 0xFF};
   uint8_t colorDir[4]     = {0xFF, 0xFF, 0xFF, 0xFF};
 
-  T3DVec3 lightDirVec = {{0.0f, 1.0f, 1.0f}};
-  t3d_vec3_norm(&lightDirVec);
+  fm_vec3_t lightDirVec = {{0.0f, 1.0f, 1.0f}};
+  fm_vec3_norm(&lightDirVec, &lightDirVec);
 
   float rotAngle = 0.0f;
-  T3DVec3 rotAxis = {{1.0f, 2.5f, 0.25f}};
-  t3d_vec3_norm(&rotAxis);
+  fm_vec3_t rotAxis = {{1.0f, 2.5f, 0.25f}};
+  fm_vec3_norm(&rotAxis, &rotAxis);
 
   double lastTimeMs = 0;
   float time = 0.0f;
@@ -102,7 +102,7 @@ int main()
       camDir.v[0] = fm_cosf(camRotX) * fm_cosf(camRotY);
       camDir.v[1] = fm_sinf(camRotY);
       camDir.v[2] = fm_sinf(camRotX) * fm_cosf(camRotY);
-      t3d_vec3_norm(&camDir);
+      fm_vec3_norm(&camDir, &camDir);
 
       if(joypad.btn.z) {
         camRotX += (float)joypad.stick_x * camRotSpeed;
@@ -158,7 +158,7 @@ int main()
       lightDirVec.v[0] = fm_cosf(time * 0.002f);
       lightDirVec.v[1] = 0.0f;//fm_sinf(time * 0.002f);
       lightDirVec.v[2] = fm_sinf(time * 0.002f);
-      t3d_vec3_norm(&lightDirVec);
+      fm_vec3_norm(&lightDirVec, &lightDirVec);
     }
 
     if(btn.l) {
@@ -176,13 +176,13 @@ int main()
     rotAngle += 0.03f;
 
     float modelScale = 0.15f;
-    t3d_mat4_identity(&modelMat);
-    //t3d_mat4_rotate(&modelMat, &rotAxis, rotAngle);
-    t3d_mat4_scale(&modelMat, modelScale, modelScale, modelScale);
+    fm_mat4_identity(&modelMat);
+    //fm_mat4_from_axis_angle(&modelMat, &rotAxis, rotAngle);
+    fm_mat4_scale(&modelMat, &(fm_vec3_t){{modelScale, modelScale, modelScale}});
     t3d_mat4_to_fixed(modelMatFP, &modelMat);
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 2.0f, 150.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // ----------- DRAW ------------ //
     rdpq_attach(display_get(), display_get_zbuf());
@@ -204,8 +204,8 @@ int main()
     t3d_light_set_directional(0, colorDir, &lightDirVec); // optional directional light, can be disabled
     t3d_light_set_count(1);
 
-    /*t3d_light_set_point(0, colorDir, &(T3DVec3){{-10.0f, 10.0f, 0.0f}}, 0.3f, false); // optional point light, can be disabled
-    t3d_light_set_point(1, colorDir, &(T3DVec3){{10.0f, 10.0f, 0.0f}}, 0.3f, false); // optional point light, can be disabled
+    /*t3d_light_set_point(0, colorDir, &(fm_vec3_t){{-10.0f, 10.0f, 0.0f}}, 0.3f, false); // optional point light, can be disabled
+    t3d_light_set_point(1, colorDir, &(fm_vec3_t){{10.0f, 10.0f, 0.0f}}, 0.3f, false); // optional point light, can be disabled
     t3d_light_set_count(2);*/
 
     // t3d functions can be recorded into a display list:

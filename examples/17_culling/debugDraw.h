@@ -37,7 +37,7 @@ static void debugDrawLine(uint16_t *fb, int px0, int py0, int px1, int py1, uint
   }
 }
 
-static inline void debugDrawLineVec3(uint16_t *fb, const T3DVec3 *p0, const T3DVec3 *p1, uint16_t color)
+static inline void debugDrawLineVec3(uint16_t *fb, const fm_vec3_t *p0, const fm_vec3_t *p1, uint16_t color)
 {
   if(p0->v[2] < 1.0 && p1->v[2] < 1.0) {
     debugDrawLine(fb, (int)p0->v[0], (int)p0->v[1], (int)p1->v[0], (int)p1->v[1], color);
@@ -47,9 +47,9 @@ static inline void debugDrawLineVec3(uint16_t *fb, const T3DVec3 *p0, const T3DV
 static void debugDrawAABB(uint16_t *fb, const int16_t *min, const int16_t *max, T3DViewport *vp, float scale, uint16_t color)
 {
   // transform min/max to screen space
-  T3DVec3 points[8];
-  T3DVec3 pt0 = {{min[0]*scale, min[1]*scale, min[2]*scale}};
-  T3DVec3 pt1 = {{max[0]*scale, min[1]*scale, min[2]*scale}};
+  fm_vec3_t points[8];
+  fm_vec3_t pt0 = {{min[0]*scale, min[1]*scale, min[2]*scale}};
+  fm_vec3_t pt1 = {{max[0]*scale, min[1]*scale, min[2]*scale}};
   t3d_viewport_calc_viewspace_pos(vp, &points[0], &pt0);
   t3d_viewport_calc_viewspace_pos(vp, &points[1], &pt1); pt0.v[1] = max[1]*scale;
   t3d_viewport_calc_viewspace_pos(vp, &points[2], &pt0); pt1.v[1] = max[1]*scale;
