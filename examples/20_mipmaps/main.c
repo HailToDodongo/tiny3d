@@ -1,6 +1,5 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 
 /**
@@ -45,8 +44,8 @@ int main()
   t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
-  T3DVec3 camPos = {{0,0.0f,50.0f}};
-  T3DVec3 camTarget = {{0,0,0}};
+  fm_vec3_t camPos = {{0,0.0f,50.0f}};
+  fm_vec3_t camTarget = {{0,0,0}};
 
   uint8_t colorAmbient[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 
@@ -109,7 +108,7 @@ int main()
 
   uint32_t currModelIdx = 0;
   float rotAngle = 0.0f;
-  T3DVec3 currentPos = {{0,0,0}};
+  fm_vec3_t currentPos = {{0,0,0}};
   int frameIdx = 0;
 
   for(;;)
@@ -130,15 +129,15 @@ int main()
     if(joypad.btn.a)rotAngle += 0.04f;
     if(joypad.btn.b)rotAngle = 0;
 
-    T3DVec3 trargetPos = (T3DVec3){{
+    fm_vec3_t trargetPos = (fm_vec3_t){{
       joypad.stick_x * 0.4f,
       joypad.stick_y * 0.4f,
       (sinf(rotAngle*0.4f) * 0.5f + 0.5f) * 260.0f
     }};
-    t3d_vec3_lerp(&currentPos, &currentPos, &trargetPos, 0.2f);
+    fm_vec3_lerp(&currentPos, &currentPos, &trargetPos, 0.2f);
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 14.0f, 240.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     t3d_mat4fp_from_srt_euler(&model->modelMatFP[frameIdx],
       (float[3]){model->scale, model->scale, model->scale},

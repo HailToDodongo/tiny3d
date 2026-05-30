@@ -1,6 +1,5 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 #include <t3d/t3ddebug.h>
 
@@ -67,8 +66,8 @@ int main()
     (float[3]){0,0,0}, (float[3]){0,-1,0}
   );
 
-  T3DVec3 lightDirVec = {{1.0f, 1.0f, 1.0f}};
-  t3d_vec3_norm(&lightDirVec);
+  fm_vec3_t lightDirVec = {{1.0f, 1.0f, 1.0f}};
+  fm_vec3_norm(&lightDirVec, &lightDirVec);
 
   T3DModel *modelBox = t3d_model_load("rom:/box.t3dm");
   T3DModel *modelCRT = t3d_model_load("rom:/target.t3dm");
@@ -125,13 +124,13 @@ int main()
 
     // zoom-in / out
     camDist = fmaxf(14.0f, fminf(30.0f, camDist + (float)joypad.stick_y * -deltaTime * 0.6f));
-    T3DVec3 camPos = {{sinf(rotAngle) * camDist, 1.5f, cosf(rotAngle) * camDist}};
+    fm_vec3_t camPos = {{sinf(rotAngle) * camDist, 1.5f, cosf(rotAngle) * camDist}};
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 1.5f, 100.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &(T3DVec3){{0,0,0}}, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &(fm_vec3_t){{0,0,0}}, &(fm_vec3_t){{0,1,0}});
 
     t3d_viewport_set_projection(&viewportOffscreen, T3D_DEG_TO_RAD(85.0f), 5.0f, 150.0f);
-    t3d_viewport_look_at(&viewportOffscreen, &(T3DVec3){{0,5.0f,40.0f}}, &(T3DVec3){{0,0,0}}, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewportOffscreen, &(fm_vec3_t){{0,5.0f,40.0f}}, &(fm_vec3_t){{0,0,0}}, &(fm_vec3_t){{0,1,0}});
 
     t3d_mat4fp_from_srt_euler(&matrixBox[frameIdx],
       (float[3]){0.2f, 0.2f, 0.2f},

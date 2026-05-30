@@ -44,10 +44,10 @@ int main()
 
   T3DMat4FP* modelMatFP = (T3DMat4FP*)malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
 
-  T3DVec3 camPos = {{-60.0f, 70.0f, 20.f}};
-  T3DVec3 camPosTarget = camPos;
-  T3DVec3 camDir = {{0,0,1}};
-  T3DVec3 camPosScreen, camTargetScreen;
+  fm_vec3_t camPos = {{-60.0f, 70.0f, 20.f}};
+  fm_vec3_t camPosTarget = camPos;
+  fm_vec3_t camDir = {{0,0,1}};
+  fm_vec3_t camPosScreen, camTargetScreen;
 
   float camRotX = 0.2f;
   float camRotY = -0.2f;
@@ -101,7 +101,7 @@ int main()
     camDir.v[0] = fm_cosf(camRotX) * fm_cosf(camRotY);
     camDir.v[1] = fm_sinf(camRotY);
     camDir.v[2] = fm_sinf(camRotX) * fm_cosf(camRotY);
-    t3d_vec3_norm(&camDir);
+    fm_vec3_norm(&camDir, &camDir);
 
     if(joypad.btn.z) {
       camRotXTarget += (float)joypad.stick_x * camRotSpeed;
@@ -117,20 +117,20 @@ int main()
     if(joypad.btn.c_up)camPosTarget.v[1] += camSpeed * 35.0f;
     if(joypad.btn.c_down)camPosTarget.v[1] -= camSpeed * 35.0f;
 
-    t3d_vec3_lerp(&camPos, &camPos, &camPosTarget, 0.8f);
+    fm_vec3_lerp(&camPos, &camPos, &camPosTarget, 0.8f);
     camRotX = t3d_lerp(camRotX, camRotXTarget, 0.8f);
     camRotY = t3d_lerp(camRotY, camRotYTarget, 0.8f);
     const T3DModel *model = models[currentModel];
 
-    T3DVec3 camTarget;
-    t3d_vec3_add(&camTarget, &camPos, &camDir);
+    fm_vec3_t camTarget;
+    fm_vec3_add(&camTarget, &camPos, &camDir);
 
     if(currentModel == 0) {
       t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(75.0f), 1.0f, 160.0f);
     } else {
       t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(60.0f), 4.0f, 110.0f);
     }
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     float modelScale = currentModel == 0 ? 0.5f : 0.15f;
     t3d_mat4fp_from_srt_euler(&modelMatFP[frameIdx],
@@ -172,11 +172,11 @@ int main()
     // Debug top-down view, since visibility was already calculated
     // we can switch the camera to view the mesh independently of culling
     if(debugView) {
-      T3DVec3 camPosDebug = (T3DVec3){{camTarget.v[0]+2, currentModel == 0 ? 225.0f : 130.0f, camTarget.v[2]}};
-      t3d_viewport_look_at(&viewport, &camPosDebug, &camTarget, &(T3DVec3){{0,1,0}});
+      fm_vec3_t camPosDebug = (fm_vec3_t){{camTarget.v[0]+2, currentModel == 0 ? 225.0f : 130.0f, camTarget.v[2]}};
+      t3d_viewport_look_at(&viewport, &camPosDebug, &camTarget, &(fm_vec3_t){{0,1,0}});
       t3d_viewport_calc_viewspace_pos(&viewport, &camPosScreen, &camPos);
 
-      t3d_vec3_add(&camTarget, &camPos, &(T3DVec3){{camDir.v[0]*100, camDir.v[1]*100, camDir.v[2]*100}});
+      fm_vec3_add(&camTarget, &camPos, &(fm_vec3_t){{camDir.v[0]*100, camDir.v[1]*100, camDir.v[2]*100}});
       t3d_viewport_calc_viewspace_pos(&viewport, &camTargetScreen, &camTarget);
     }
 
@@ -252,9 +252,9 @@ int main()
     // Top-down debug view, this shows the camera position and direction
     if(debugView) {
       int points = 12;
-      T3DVec3 step;
-      t3d_vec3_diff(&step, &camTargetScreen, &camPosScreen);
-      t3d_vec3_scale(&step, &step, 1.0f / points);
+      fm_vec3_t step;
+      fm_vec3_sub(&step, &camTargetScreen, &camPosScreen);
+      fm_vec3_scale(&step, &step, 1.0f / points);
 
       rdpq_set_mode_fill(RGBA32(0x00, 0x00, 0xFF, 0xFF));
       rdpq_fill_rectangle(camPosScreen.v[0]-4, camPosScreen.v[1]-4, camPosScreen.v[0]+4, camPosScreen.v[1]+4);

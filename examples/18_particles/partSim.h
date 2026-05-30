@@ -14,13 +14,13 @@ static void generate_particles_random(TPXParticleS8 *particles, uint32_t count) 
     particles[p].sizeA = 20 + (rand() % 10);
     particles[p].sizeB = 20 + (rand() % 10);
 
-    T3DVec3 pos = {{
+    fm_vec3_t pos = {{
        (i * 1 + rand()) % 128 - 64,
        (i * 3 + rand()) % 128 - 64,
        (i * 4 + rand()) % 128 - 64
      }};
 
-    t3d_vec3_norm(&pos);
+    fm_vec3_norm(&pos, &pos);
     float len = rand() % 40;
     pos.v[0] *= len;
     pos.v[1] *= len;

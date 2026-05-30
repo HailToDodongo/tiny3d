@@ -110,13 +110,13 @@ int main()
     actors[i] = actor_create(i, dpls[i*3 % 2]);
   }
 
-  const T3DVec3 camPos = {{100.0f,25.0f,0}};
-  const T3DVec3 camTarget = {{0,0,0}};
+  const fm_vec3_t camPos = {{100.0f,25.0f,0}};
+  const fm_vec3_t camTarget = {{0,0,0}};
 
   uint8_t colorAmbient[4] = {80, 50, 50, 0xFF};
-  T3DVec3 lightDirVec = {{1.0f, 1.0f, 0.0f}};
+  fm_vec3_t lightDirVec = {{1.0f, 1.0f, 0.0f}};
   uint8_t lightDirColor[4] = {120, 120, 120, 0xFF};
-  t3d_vec3_norm(&lightDirVec);
+  fm_vec3_norm(&lightDirVec, &lightDirVec);
 
   int actorCount = 50;
 
@@ -149,7 +149,7 @@ int main()
     timeUpdate = get_time_ms() - timeUpdate;
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(65.0f), 10.0f, 100.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // ======== Draw (3D) ======== //
     rdpq_attach(display_get(), display_get_zbuf());

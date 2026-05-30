@@ -19,7 +19,7 @@ static AABB mapColl[MAP_COLL_AABB_COUNT] = {
   {{  500-AABB_BORDER, -270-AABB_BORDER}, {1020+AABB_BORDER, 270+AABB_BORDER}}
 };
 
-static void resolve_aabb_collision(AABB *aabb, T3DVec3 *pos) {
+static void resolve_aabb_collision(AABB *aabb, fm_vec3_t *pos) {
   // Check if the point is inside the AABB
   if(pos->v[0] >= aabb->min[0] && pos->v[0] <= aabb->max[0]
   && pos->v[2] >= aabb->min[1] && pos->v[2] <= aabb->max[1])
@@ -40,7 +40,7 @@ static void resolve_aabb_collision(AABB *aabb, T3DVec3 *pos) {
   }
 }
 
-static void check_map_collision(T3DVec3 *pos) {
+static void check_map_collision(fm_vec3_t *pos) {
   // in a real-world scenario, you would use a more sophisticated collision logic
   // for example, by having a broad-phase to pre-filter AABBs
   for(int i=0; i<MAP_COLL_AABB_COUNT; ++i) {

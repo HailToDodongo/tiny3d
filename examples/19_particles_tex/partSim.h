@@ -58,8 +58,8 @@ float randNoise3d_rand(float coX, float coY){
   return fract(fm_sinf(coX) * 65979.1347f);
 }
 
-T3DVec3 randNoise3d(float uvX, float uvY) {
-  return (T3DVec3){{
+fm_vec3_t randNoise3d(float uvX, float uvY) {
+  return (fm_vec3_t){{
     randNoise3d_rand(uvX + 0.23f * 382.567f, uvX + 0.23f * 382.567f),
     randNoise3d_rand(uvY + 0.65f * 330.356f, uvX + 0.65f * 330.356f),
     randNoise3d_rand(uvX + 0.33f * 356.346f, uvY + 0.33f * 356.346f)
@@ -81,13 +81,13 @@ static void generate_particles_random(TPXParticleS8 *particles, uint32_t count) 
     particles[p].sizeA = 20 + (rand() % 10);
     particles[p].sizeB = 20 + (rand() % 10);
 
-    T3DVec3 pos = {{
+    fm_vec3_t pos = {{
        (i * 1 + rand()) % 128 - 64,
        (i * 3 + rand()) % 128 - 64,
        (i * 4 + rand()) % 128 - 64
      }};
 
-    t3d_vec3_norm(&pos);
+    fm_vec3_norm(&pos, &pos);
     float len = rand() % 40;
     pos.v[0] *= len;
     pos.v[1] *= len;

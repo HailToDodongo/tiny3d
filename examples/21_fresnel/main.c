@@ -1,6 +1,5 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 
 /**
@@ -68,8 +67,8 @@ int main()
   t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
-  T3DVec3 camPos = {{0,10.0f,50.0f}};
-  T3DVec3 camTarget = {{0,0,0}};
+  fm_vec3_t camPos = {{0,10.0f,50.0f}};
+  fm_vec3_t camTarget = {{0,0,0}};
 
   uint8_t colorAmbient[4] = {0xFF, 0xFF, 0xFF, 0x00};
 
@@ -146,7 +145,7 @@ int main()
 
   int currModelIdx = 0;
   float rotAngle = 0.0f;
-  T3DVec3 currentPos = {{0,0,0}};
+  fm_vec3_t currentPos = {{0,0,0}};
   int frameIdx = 0;
 
   for(;;)
@@ -168,15 +167,15 @@ int main()
     if(joypad.btn.a)rotAngle += 0.04f;
     if(joypad.btn.b)rotAngle = 0;
 
-    T3DVec3 trargetPos = (T3DVec3){{
+    fm_vec3_t trargetPos = (fm_vec3_t){{
       joypad.stick_x * 0.4f,
       joypad.stick_y * 0.4f,
       0.0f
     }};
-    t3d_vec3_lerp(&currentPos, &currentPos, &trargetPos, 0.2f);
+    fm_vec3_lerp(&currentPos, &currentPos, &trargetPos, 0.2f);
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 4.0f, 100.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     t3d_mat4fp_from_srt_euler(&models->modelMatFP[frameIdx],
       (float[3]){model->scale, model->scale, model->scale},
@@ -201,7 +200,7 @@ int main()
     {
       case LIGHT_TYPE_DIR:
         // Approx. using a directional light, only works for curved surfaces but is very fast
-        t3d_light_set_directional(0, (uint8_t[4]){0x00, 0x00, 0x00, 0xFF}, &(T3DVec3){{0, 0, 1}});
+        t3d_light_set_directional(0, (uint8_t[4]){0x00, 0x00, 0x00, 0xFF}, &(fm_vec3_t){{0, 0, 1}});
         t3d_light_set_count(1);
       break;
       case LIGHT_TYPE_POINT:
@@ -209,7 +208,7 @@ int main()
         // Note: point lights exactly at the camera will not work properly, so offset it slightly
         t3d_light_set_point(0,
           (uint8_t[4]){0x00, 0x00, 0x00, 0xFF},
-          &(T3DVec3){{camPos.x, camPos.y+1, camPos.z+1}}, 1000.0f, false
+          &(fm_vec3_t){{camPos.x, camPos.y+1, camPos.z+1}}, 1000.0f, false
         );
         t3d_light_set_count(1);
       break;
@@ -218,11 +217,11 @@ int main()
         // This works since each light source is added together, and the CC inverts it
         t3d_light_set_point(0,
           (uint8_t[4]){0x00, 0x00, 0x00, 0xF0},
-          &(T3DVec3){{camPos.x+0.075f, camPos.y+1, camPos.z+1}}, 1000.0f, false
+          &(fm_vec3_t){{camPos.x+0.075f, camPos.y+1, camPos.z+1}}, 1000.0f, false
         );
         t3d_light_set_point(1,
           (uint8_t[4]){0x00, 0x00, 0x00, 0x90},
-          &(T3DVec3){{camPos.x+0.075f, camPos.y+1, camPos.z+1}}, 1000.0f, false
+          &(fm_vec3_t){{camPos.x+0.075f, camPos.y+1, camPos.z+1}}, 1000.0f, false
         );
         t3d_light_set_count(2);
       break;

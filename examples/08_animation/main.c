@@ -1,6 +1,5 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 #include <t3d/t3dskeleton.h>
 #include <t3d/t3danim.h>
@@ -38,11 +37,11 @@ int main()
   T3DMat4FP* mapMatFP = malloc_uncached(sizeof(T3DMat4FP));
   t3d_mat4fp_from_srt_euler(mapMatFP, (float[3]){0.3f, 0.3f, 0.3f}, (float[3]){0, 0, 0}, (float[3]){0, 0, -10});
 
-  T3DVec3 camPos = {{0, 45.0f, 80.0f}};
-  T3DVec3 camTarget = {{0, 0,-10}};
+  fm_vec3_t camPos = {{0, 45.0f, 80.0f}};
+  fm_vec3_t camTarget = {{0, 0,-10}};
 
-  T3DVec3 lightDirVec = {{1.0f, 1.0f, 1.0f}};
-  t3d_vec3_norm(&lightDirVec);
+  fm_vec3_t lightDirVec = {{1.0f, 1.0f, 1.0f}};
+  fm_vec3_norm(&lightDirVec, &lightDirVec);
 
   uint8_t colorAmbient[4] = {0xAA, 0xAA, 0xAA, 0xFF};
   uint8_t colorDir[4]     = {0xFF, 0xAA, 0xAA, 0xFF};
@@ -92,8 +91,8 @@ int main()
 
   float lastTime = get_time_s() - (1.0f / 60.0f);
 
-  T3DVec3 moveDir = {{0,0,0}};
-  T3DVec3 playerPos = {{0,0.15f,0}};
+  fm_vec3_t moveDir = {{0,0,0}};
+  fm_vec3_t playerPos = {{0,0.15f,0}};
 
   float rotY = 0.0f;
   float currSpeed = 0.0f;
@@ -114,11 +113,11 @@ int main()
     joypad_inputs_t joypad = joypad_get_inputs(JOYPAD_PORT_1);
     joypad_buttons_t btn = joypad_get_buttons_pressed(JOYPAD_PORT_1);
 
-    T3DVec3 newDir = {{
+    fm_vec3_t newDir = {{
        (float)joypad.stick_x * 0.05f, 0,
       -(float)joypad.stick_y * 0.05f
     }};
-    float speed = sqrtf(t3d_vec3_len2(&newDir));
+    float speed = sqrtf(fm_vec3_len2(&newDir));
 
     // Player Attack
     if((btn.a || btn.b) && !animAttack.isPlaying) {
@@ -162,7 +161,7 @@ int main()
     camPos.v[2] = camTarget.v[2] + 65;
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // Update the animation and modify the skeleton, this will however NOT recalculate the matrices
     t3d_anim_update(&animIdle, deltaTime);

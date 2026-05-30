@@ -11,7 +11,7 @@ struct FlyCam
   float camRotX{};
   float camRotY{};
 
-  T3DVec3 camPos{};
+  fm_vec3_t camPos{};
   float camRotXCurr{};
   float camRotYCurr{};
 

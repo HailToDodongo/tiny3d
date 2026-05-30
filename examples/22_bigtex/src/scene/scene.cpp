@@ -57,12 +57,12 @@ void Scene::draw(const Memory::FrameBuffers &buffers, surface_t *surf)
   rdpq_mode_pop();
 
 
-  T3DVec3 lightDir{
+  fm_vec3_t lightDir{
     fm_sinf(lightTimer*0.8f) * 0.75f,
     0.75f,
     fm_cosf(lightTimer*0.8f) * 0.75f
   };
-  t3d_vec3_norm(lightDir);
+  fm_vec3_norm(&lightDir, &lightDir);
 
   switch(state.currSkybox) {
     case 0: default:

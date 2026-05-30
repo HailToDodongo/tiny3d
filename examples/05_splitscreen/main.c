@@ -5,7 +5,6 @@
 
 #include <libdragon.h>
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 
 #include "collision.h"
@@ -14,7 +13,7 @@
 #define PLAYER_COUNT 3
 
 typedef struct {
-  T3DVec3 position;
+  fm_vec3_t position;
   float rot;
   T3DMat4FP* mat;
   color_t color;
@@ -40,10 +39,10 @@ int main()
   joypad_init();
   t3d_init((T3DInitParams){});
 
-  T3DMat4 tmpMatrix;
+  fm_mat4_t tmpMatrix;
 
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
-  t3d_mat4_identity(&tmpMatrix);
+  fm_mat4_identity(&tmpMatrix);
   t3d_mat4_to_fixed(modelMatFP, &tmpMatrix);
 
   int sizeX = display_get_width();
@@ -105,12 +104,12 @@ int main()
 
     // Player movement
     players[selPlayer].rot += joypad.stick_x * 0.06f * deltaTime;
-    T3DVec3 moveDir = {{
+    fm_vec3_t moveDir = {{
         fm_cosf(players[selPlayer].rot) * (joypad.stick_y * 6.0f * deltaTime), 0.0f,
         fm_sinf(players[selPlayer].rot) * (joypad.stick_y * 6.0f * deltaTime)
     }};
 
-    t3d_vec3_add(&players[selPlayer].position, &players[selPlayer].position, &moveDir);
+    fm_vec3_add(&players[selPlayer].position, &players[selPlayer].position, &moveDir);
     check_map_collision(&players[selPlayer].position);
 
     for(int p=0; p<PLAYER_COUNT; ++p) {
@@ -140,12 +139,12 @@ int main()
       T3DViewport *vp = &viewports[v];
       float fov = v == 2 ? T3D_DEG_TO_RAD(50.0f) : T3D_DEG_TO_RAD(75.0f);
 
-      T3DVec3 camTarget = {{
+      fm_vec3_t camTarget = {{
         players[v].position.v[0] + fm_cosf(players[v].rot) * 10.0f,
         players[v].position.v[1] + 90.0f,
         players[v].position.v[2] + fm_sinf(players[v].rot) * 10.0f
       }};
-      T3DVec3 camPos = {{
+      fm_vec3_t camPos = {{
         players[v].position.v[0],
         players[v].position.v[1] + 90.0f,
         players[v].position.v[2]
@@ -154,7 +153,7 @@ int main()
       // after that apply the viewport and draw your scene
       // Since each of the viewport-structs has its own matrices, no conflicts will occur
       t3d_viewport_set_projection(vp, fov, 20.0f, 2000.0f);
-      t3d_viewport_look_at(vp, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+      t3d_viewport_look_at(vp, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
       t3d_viewport_attach(vp);
 
       // if you need directional light, re-apply it here after a new viewport has been attached
@@ -206,9 +205,9 @@ int main()
     // draw icons in 3d view of player pos
     for(int i=0; i<PLAYER_COUNT; ++i) {
       if(selPlayer == i)continue;
-      T3DVec3 posView;
-      T3DVec3 posCenter;
-      t3d_vec3_add(&posCenter, &players[selPlayer].position, &(T3DVec3){{0, 60.0f, 0}});
+      fm_vec3_t posView;
+      fm_vec3_t posCenter;
+      fm_vec3_add(&posCenter, &players[selPlayer].position, &(fm_vec3_t){{0, 60.0f, 0}});
       t3d_viewport_calc_viewspace_pos(&viewports[i], &posView, &posCenter);
       rdpq_set_mode_fill(RGBA32(0x00, 0x00, 0x00, 0xFF));
       posView.v[0] -= 2;

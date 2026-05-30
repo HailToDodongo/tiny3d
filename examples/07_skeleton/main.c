@@ -1,6 +1,5 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 #include <t3d/t3dskeleton.h>
 #include <t3d/t3ddebug.h>
@@ -10,6 +9,12 @@ color_t get_rainbow_color(float s) {
   float g = fm_sinf(s + 2.0f) * 75.0f + 128.0f;
   float b = fm_sinf(s + 4.0f) * 75.0f + 128.0f;
   return RGBA32(r, g, b, 255);
+}
+
+static inline void quat_rotate_axis_in_place(fm_quat_t *quat, const fm_vec3_t *axis, float angleRad) {
+  fm_quat_t out;
+  fm_quat_rotate(&out, quat, axis, angleRad);
+  *quat = out;
 }
 
 #define STRINGIFY(x) #x
@@ -54,14 +59,14 @@ int main()
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
   T3DMat4FP* matrixBoxFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
 
-  T3DVec3 camPos = {{0,40.0f,40.0f}};
-  T3DVec3 camTarget = {{0,30,0}};
+  fm_vec3_t camPos = {{0,40.0f,40.0f}};
+  fm_vec3_t camTarget = {{0,30,0}};
 
   uint8_t colorAmbient[4] = {0xBB, 0xBB, 0xBB, 0xFF};
   uint8_t colorDir[4]     = {0xEE, 0xAA, 0xAA, 0xFF};
 
-  T3DVec3 lightDirVec = {{1.0f, 1.0f, 1.0f}};
-  t3d_vec3_norm(&lightDirVec);
+  fm_vec3_t lightDirVec = {{1.0f, 1.0f, 1.0f}};
+  fm_vec3_norm(&lightDirVec, &lightDirVec);
 
   T3DModel *model = t3d_model_load("rom:/chicken.t3dm"); // Credits (CC0): https://vertexcat.itch.io/farm-animals-set
   T3DModel *modelBox = t3d_model_load("rom:/box.t3dm");
@@ -115,11 +120,11 @@ int main()
         skel.bones[activeBone].scale.v[2] += joypad.stick_y * SPEED_SCALE;
       break;
       case 1:
-        t3d_quat_rotate_euler(&skel.bones[activeBone].rotation, (float[3]){1,0,0}, joypad.stick_x * SPEED_ROT);
+        quat_rotate_axis_in_place(&skel.bones[activeBone].rotation, &(fm_vec3_t){{1,0,0}}, joypad.stick_x * SPEED_ROT);
         if(joypad.btn.z) {
-          t3d_quat_rotate_euler(&skel.bones[activeBone].rotation, (float[3]){0,0,1}, joypad.stick_y * SPEED_ROT);
+          quat_rotate_axis_in_place(&skel.bones[activeBone].rotation, &(fm_vec3_t){{0,0,1}}, joypad.stick_y * SPEED_ROT);
         } else {
-          t3d_quat_rotate_euler(&skel.bones[activeBone].rotation, (float[3]){0,1,0}, joypad.stick_y * SPEED_ROT);
+          quat_rotate_axis_in_place(&skel.bones[activeBone].rotation, &(fm_vec3_t){{0,1,0}}, joypad.stick_y * SPEED_ROT);
         }
       break;
       case 2:
@@ -143,7 +148,7 @@ int main()
     rotAngleAdd *= 0.9f;
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // This function updates any matrices that need re-calculating after scale/rot/pos changes
     t3d_skeleton_update(&skel);

@@ -10,11 +10,11 @@ class Camera
   private:
     T3DViewport viewport{};
 
-    T3DVec3 pos{{0,0,0}};
-    T3DVec3 target{{0,0,0}};
-    T3DVec3 dir{{1,0,0}};
+    fm_vec3_t pos{{0,0,0}};
+    fm_vec3_t target{{0,0,0}};
+    fm_vec3_t dir{{1,0,0}};
 
-    T3DVec3 targetPos{pos};
+    fm_vec3_t targetPos{pos};
 
     float rotX{0};
     float rotY{0};
@@ -30,5 +30,5 @@ class Camera
     void attach();
     void setCamLerpSpeed(float speed) { camLerpSpeed = speed; }
 
-    const T3DVec3& getPosition() const { return pos; }
+    const fm_vec3_t& getPosition() const { return pos; }
 };

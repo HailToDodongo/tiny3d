@@ -22,6 +22,6 @@ class Skybox
 
     void change(int id);
 
-    inline void update(const T3DVec3 &camPos) { skyboxModel.setPos(camPos); }
+    inline void update(const fm_vec3_t &camPos) { skyboxModel.setPos(camPos); }
     inline void draw() { skyboxModel.draw(); }
 };

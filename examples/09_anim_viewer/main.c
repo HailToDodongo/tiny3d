@@ -1,6 +1,5 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 #include <t3d/t3dskeleton.h>
 #include <t3d/t3danim.h>
@@ -72,14 +71,14 @@ int main()
 
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
 
-  T3DVec3 camPos = {{0,40.0f,40.0f}};
-  T3DVec3 camTarget = {{0,30,0}};
+  fm_vec3_t camPos = {{0,40.0f,40.0f}};
+  fm_vec3_t camTarget = {{0,30,0}};
 
   uint8_t colorAmbient[4] = {0xBB, 0xBB, 0xBB, 0xFF};
   uint8_t colorDir[4]     = {0xEE, 0xAA, 0xAA, 0xFF};
 
-  T3DVec3 lightDirVec = {{1.0f, 1.0f, 1.0f}};
-  t3d_vec3_norm(&lightDirVec);
+  fm_vec3_t lightDirVec = {{1.0f, 1.0f, 1.0f}};
+  fm_vec3_norm(&lightDirVec, &lightDirVec);
 
   #define MODEL_COUNT 3
   ModelAnim modelData[MODEL_COUNT] = {
@@ -173,7 +172,7 @@ int main()
     lastTime = newTime;
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     t3d_anim_update(&md->animInst[activeAnim], deltaTime);
 

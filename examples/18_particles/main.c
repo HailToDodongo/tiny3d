@@ -3,7 +3,7 @@
 
 #include <t3d/t3d.h>
 #include <t3d/t3ddebug.h>
-#include <t3d/t3dmath.h>
+
 #include <t3d/t3dmodel.h>
 #include <t3d/tpx.h>
 
@@ -95,26 +95,26 @@ int main()
     (float[]){0,-1,0}
   );
 
-  T3DVec3 camPos = {{-50.0f, 20.0f, 0.0f}};
-  T3DVec3 camTarget = {{0,0,0}};
-  T3DVec3 camDir = {{0,0,1}};
+  fm_vec3_t camPos = {{-50.0f, 20.0f, 0.0f}};
+  fm_vec3_t camTarget = {{0,0,0}};
+  fm_vec3_t camDir = {{0,0,1}};
   float camRotX = 0.0f;
   float camRotY = -0.2f;
   bool showModel = true;
   uint32_t example = 0;
 
   uint8_t colorAmbient[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-  T3DVec3 lightDirVec = {{0.0f, 0.0f, 1.0f}};
-  t3d_vec3_norm(&lightDirVec);
+  fm_vec3_t lightDirVec = {{0.0f, 0.0f, 1.0f}};
+  fm_vec3_norm(&lightDirVec, &lightDirVec);
 
   T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
   float partSizeX = 0.4f;
   float partSizeY = 0.9f;
 
   float partMatScaleVal = 0.8f;
-  T3DVec3 particleMatScale = {{1, 1, 1}};
-  T3DVec3 particlePos = {{0, 0, 0}};
-  T3DVec3 particleRot = {{0, 0, 0}};
+  fm_vec3_t particleMatScale = {{1, 1, 1}};
+  fm_vec3_t particlePos = {{0, 0, 0}};
+  fm_vec3_t particleRot = {{0, 0, 0}};
   float time = 0;
   bool needRebuild = true;
   int frameIdx = 0;
@@ -165,7 +165,7 @@ int main()
       camDir.v[0] = fm_cosf(camRotX) * fm_cosf(camRotY);
       camDir.v[1] = fm_sinf(camRotY);
       camDir.v[2] = fm_sinf(camRotX) * fm_cosf(camRotY);
-      t3d_vec3_norm(&camDir);
+      fm_vec3_norm(&camDir, &camDir);
 
       if(joypad.btn.z) {
         camRotX += (float)joypad.stick_x * camRotSpeed;
@@ -190,32 +190,32 @@ int main()
     {
       case 0: // Random
         time += deltaTime * 0.2f;
-        particleRot = (T3DVec3){{time,time*0.77f,time*1.42f}};
-        particleMatScale = (T3DVec3){{partMatScaleVal, partMatScaleVal, partMatScaleVal}};
+        particleRot = (fm_vec3_t){{time,time*0.77f,time*1.42f}};
+        particleMatScale = (fm_vec3_t){{partMatScaleVal, partMatScaleVal, partMatScaleVal}};
 
         if(needRebuild)generate_particles_random(particlesS8, particleCount);
         rdpq_set_env_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
         break;
       case 1: // Flame
-        particleRot = (T3DVec3){{0,0,0}};
+        particleRot = (fm_vec3_t){{0,0,0}};
         if(!joypad.btn.z)time += deltaTime * 1.0f;
         particleCount = 128;
         float posX = fm_cosf(time) * 80.0f;
         float posZ = fm_sinf(2*time) * 40.0f;
 
         simulate_particles_fire(particlesS8, particleCount, posX, posZ);
-        particleMatScale = (T3DVec3){{0.9f, partMatScaleVal, 0.9f}};
+        particleMatScale = (fm_vec3_t){{0.9f, partMatScaleVal, 0.9f}};
         particlePos.y = partMatScaleVal * 130.0f;
         rdpq_set_env_color((color_t){0xFF, 0xFF, 0xFF, 0xFF});
         break;
       case 2: // Grass
         time += deltaTime * 1.0f;
-        particleRot = (T3DVec3){{0,0,0}};
+        particleRot = (fm_vec3_t){{0,0,0}};
         particlePos.y = 0;
         if(needRebuild) {
           particleCount = simulate_particles_grass(particlesS16, particleCount);
         }
-        particleMatScale = (T3DVec3){{partMatScaleVal, partSizeY * 2.9f, partMatScaleVal}};
+        particleMatScale = (fm_vec3_t){{partMatScaleVal, partSizeY * 2.9f, partMatScaleVal}};
         rdpq_set_env_color(blend_colors(
           (color_t){0xAA, 0xFF, 0x55, 0xFF},
           (color_t){0xFF, 0xAA, 0x55, 0xFF},
@@ -229,7 +229,7 @@ int main()
     t3d_mat4fp_from_srt_euler(&matPartFP[frameIdx], particleMatScale.v, particleRot.v, particlePos.v);
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(80.0f), 5.0f, 250.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // ======== Draw (3D) ======== //
 

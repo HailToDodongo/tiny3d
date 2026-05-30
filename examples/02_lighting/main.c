@@ -1,13 +1,12 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 
 #define FB_COUNT 3
 
 typedef struct {
   color_t color;
-  T3DVec3 dir;
+  fm_vec3_t dir;
 } DirLight;
 
 /**
@@ -37,8 +36,8 @@ int main()
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
   T3DMat4FP* lightMatFP = malloc_uncached(sizeof(T3DMat4FP) * 4 * FB_COUNT);
 
-  T3DVec3 camPos = {{40.0f,15.0f,0}};
-  const T3DVec3 camTarget = {{0,0,0}};
+  fm_vec3_t camPos = {{40.0f,15.0f,0}};
+  const fm_vec3_t camTarget = {{0,0,0}};
 
   DirLight dirLights[4] = {
     {.color = {0xFF, 0x00, 0x00, 0xFF}, .dir = {{ 1.0f,  1.0f, 0.0f}}},
@@ -48,8 +47,8 @@ int main()
   };
   uint8_t colorAmbient[4] = {0, 0, 0, 0xFF};
 
-  T3DVec3 lightDirVec = {{1.0f, 1.0f, 0.0f}};
-  t3d_vec3_norm(&lightDirVec);
+  fm_vec3_t lightDirVec = {{1.0f, 1.0f, 0.0f}};
+  fm_vec3_norm(&lightDirVec, &lightDirVec);
 
   T3DModel *model = t3d_model_load("rom:/model.t3dm");
   T3DModel *modelLight = t3d_model_load("rom:/light.t3dm");
@@ -79,7 +78,7 @@ int main()
     lightCountTimer += 0.003f;
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(65.0f), 10.0f, 250.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // Model Matrix
     t3d_mat4fp_from_srt_euler(&modelMatFP[frameIdx],

@@ -1,6 +1,5 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 
 #define FB_COUNT 3
@@ -56,11 +55,11 @@ int main()
   T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
   T3DMat4FP* mapMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
-  T3DVec3 camPos    = {{-84, 12, 0}};
-  T3DVec3 camTarget = {{-82, 12,-10}};
+  fm_vec3_t camPos    = {{-84, 12, 0}};
+  fm_vec3_t camTarget = {{-82, 12,-10}};
 
-  T3DVec3 lightDirVec = {{1.0f, 1.0f, 1.0f}};
-  t3d_vec3_norm(&lightDirVec);
+  fm_vec3_t lightDirVec = {{1.0f, 1.0f, 1.0f}};
+  fm_vec3_norm(&lightDirVec, &lightDirVec);
 
   uint8_t colorAmbient[4] = {0, 0, 100, 0x4F};
   color_t fogColor;
@@ -109,7 +108,7 @@ int main()
     }
 
     t3d_viewport_set_perspective(&viewport, T3D_DEG_TO_RAD(85.0f), aspectRatio, 10.0f, 150.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     t3d_mat4fp_from_srt_euler(&mapMatFP[frameIdx],
       (float[3]){0.2f, 0.2f, 0.2f},

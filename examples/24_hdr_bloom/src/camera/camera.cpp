@@ -18,7 +18,7 @@ void Camera::update(float deltaTime)
     //needsProjUpdate = false;
   //}
 
-  t3d_viewport_look_at(viewport, pos, target, T3DVec3{{0, 1, 0}});
+  t3d_viewport_look_at(viewport, pos, target, fm_vec3_t{{0, 1, 0}});
 }
 
 void Camera::attach() {

@@ -1,6 +1,5 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 
 #define FB_COUNT 3
@@ -39,14 +38,14 @@ int main()
   // In an actual game make sure to free this viewport via 't3d_viewport_destroy' if no longer needed.
   T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
-  const T3DVec3 camPos = {{0,10.0f,40.0f}};
-  const T3DVec3 camTarget = {{0,0,0}};
+  const fm_vec3_t camPos = {{0,10.0f,40.0f}};
+  const fm_vec3_t camTarget = {{0,0,0}};
 
   uint8_t colorAmbient[4] = {80, 80, 100, 0xFF};
   uint8_t colorDir[4]     = {0xEE, 0xAA, 0xAA, 0xFF};
 
-  T3DVec3 lightDirVec = {{-1.0f, 1.0f, 1.0f}};
-  t3d_vec3_norm(&lightDirVec);
+  fm_vec3_t lightDirVec = {{-1.0f, 1.0f, 1.0f}};
+  fm_vec3_norm(&lightDirVec, &lightDirVec);
 
   // Load a model-file, this contains the geometry and some metadata
   T3DModel *model = t3d_model_load("rom:/model.t3dm");
@@ -65,7 +64,7 @@ int main()
     float modelScale = 0.1f;
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // slowly rotate model, for more information on matrices and how to draw objects
     // see the example: "03_objects"

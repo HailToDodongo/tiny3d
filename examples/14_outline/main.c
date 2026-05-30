@@ -1,6 +1,5 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 
 /**
@@ -57,13 +56,13 @@ int main()
   t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
-  T3DVec3 camPos = {{0,10.0f,50.0f}};
-  T3DVec3 camTarget = {{0,0,0}};
+  fm_vec3_t camPos = {{0,10.0f,50.0f}};
+  fm_vec3_t camTarget = {{0,0,0}};
 
-  T3DVec3 lightDirVec = {{1.0f, 1.0f, 0.0f}};
-  T3DVec3 lightDirVec2 = {{1.0f, 1.0f, 0.0f}};
-  t3d_vec3_norm(&lightDirVec);
-  t3d_vec3_norm(&lightDirVec2);
+  fm_vec3_t lightDirVec = {{1.0f, 1.0f, 0.0f}};
+  fm_vec3_t lightDirVec2 = {{1.0f, 1.0f, 0.0f}};
+  fm_vec3_norm(&lightDirVec, &lightDirVec);
+  fm_vec3_norm(&lightDirVec2, &lightDirVec2);
 
   // Thew model we want to draw is already smooth-shaded, and only contains a single mesh
   T3DModel *itemModel = t3d_model_load("rom:/potion.t3dm");
@@ -93,13 +92,13 @@ int main()
   rspq_block_t *dplTextbox = NULL;
 
   float rotAngle = 0.0f;
-  T3DVec3 currentPos = {{0,0,0}};
+  fm_vec3_t currentPos = {{0,0,0}};
 
   float colorPos = 0.0f;
   float colorValue = 1.0f;
   float outlineSize = 16.0f;
 
-  T3DVec3 targetPos = (T3DVec3){{0.0f, 7.0f, -4.0f}};
+  fm_vec3_t targetPos = (fm_vec3_t){{0.0f, 7.0f, -4.0f}};
   int frameIdx = 0;
 
   for(;;)
@@ -126,10 +125,10 @@ int main()
     targetPos.v[2] += joypad.cstick_y * 0.1f;
     targetPos.v[2] = fminf(fmaxf(targetPos.v[2], -100.0f), 12.0f);
 
-    t3d_vec3_lerp(&currentPos, &currentPos, &targetPos, 0.2f);
+    fm_vec3_lerp(&currentPos, &currentPos, &targetPos, 0.2f);
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 5.0f, 120.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     float scale = 0.13f;
     t3d_mat4fp_from_srt_euler(&itemMatFP[frameIdx],

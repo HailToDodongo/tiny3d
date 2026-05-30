@@ -1,6 +1,5 @@
 #include <libdragon.h>
 #include <t3d/t3d.h>
-#include <t3d/t3dmath.h>
 #include <t3d/t3dmodel.h>
 
 /**
@@ -44,13 +43,13 @@ int main()
   t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
 
-  T3DVec3 camPos = {{0,10.0f,50.0f}};
-  T3DVec3 camTarget = {{0,0,0}};
+  fm_vec3_t camPos = {{0,10.0f,50.0f}};
+  fm_vec3_t camTarget = {{0,0,0}};
 
-  T3DVec3 lightDirVec = {{1.0f, 1.0f, 0.0f}};
-  T3DVec3 lightDirVec2 = {{1.0f, 1.0f, 0.0f}};
-  t3d_vec3_norm(&lightDirVec);
-  t3d_vec3_norm(&lightDirVec2);
+  fm_vec3_t lightDirVec = {{1.0f, 1.0f, 0.0f}};
+  fm_vec3_t lightDirVec2 = {{1.0f, 1.0f, 0.0f}};
+  fm_vec3_norm(&lightDirVec, &lightDirVec);
+  fm_vec3_norm(&lightDirVec2, &lightDirVec2);
 
   T3DModel *arrowModel = t3d_model_load("rom:/arrow.t3dm");
   T3DMat4FP *arrowMatFP = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
@@ -171,7 +170,7 @@ int main()
 
   uint32_t currModelIdx = 0;
   float rotAngle = 0.0f;
-  T3DVec3 currentPos = {{0,0,0}};
+  fm_vec3_t currentPos = {{0,0,0}};
   bool useTwoLights = false;
   int frameIdx = 0;
 
@@ -194,15 +193,15 @@ int main()
     if(joypad.btn.a)rotAngle += 0.04f;
     if(joypad.btn.b)rotAngle = 0;
 
-    T3DVec3 targetPos = (T3DVec3){{
+    fm_vec3_t targetPos = (fm_vec3_t){{
       joypad.stick_x * 0.4f,
       joypad.stick_y * 0.4f,
       0.0f
     }};
-    t3d_vec3_lerp(&currentPos, &currentPos, &targetPos, 0.2f);
+    fm_vec3_lerp(&currentPos, &currentPos, &targetPos, 0.2f);
 
     t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 5.0f, 120.0f);
-    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(T3DVec3){{0,1,0}});
+    t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     t3d_mat4fp_from_srt_euler(&model->modelMatFP[frameIdx],
       (float[3]){model->scale, model->scale, model->scale},
@@ -213,20 +212,20 @@ int main()
     lightDirVec.v[0] = sinf(rotAngle * 0.5f);
     lightDirVec.v[1] = sinf(rotAngle * 0.3f);
     lightDirVec.v[2] = cosf(rotAngle * 0.5f) + 0.25f;
-    t3d_vec3_norm(&lightDirVec);
+    fm_vec3_norm(&lightDirVec, &lightDirVec);
 
     lightDirVec2.v[0] = sinf(1.0f + rotAngle * -0.35f);
     lightDirVec2.v[1] = sinf(1.2f + rotAngle * -0.2f);
     lightDirVec2.v[2] = cosf(1.4f + rotAngle * 0.2f) + 0.22f;
-    t3d_vec3_norm(&lightDirVec2);
+    fm_vec3_norm(&lightDirVec2, &lightDirVec2);
 
-    T3DMat4 rotMat;
-    t3d_mat4_rot_from_dir(&rotMat, &lightDirVec, &(T3DVec3){{0,1,0}});
-    t3d_mat4_scale(&rotMat, 0.1f, 0.1f, 0.1f);
+    fm_mat4_t rotMat;
+    t3d_mat4_rot_from_dir(&rotMat, &lightDirVec, &(fm_vec3_t){{0,1,0}});
+    fm_mat4_scale(&rotMat, &(fm_vec3_t){{0.1f, 0.1f, 0.1f}});
     t3d_mat4_to_fixed(&arrowMatFP[frameIdx], &rotMat);
 
-    t3d_mat4_rot_from_dir(&rotMat, &lightDirVec2, &(T3DVec3){{0,1,0}});
-    t3d_mat4_scale(&rotMat, 0.1f, 0.1f, 0.1f);
+    t3d_mat4_rot_from_dir(&rotMat, &lightDirVec2, &(fm_vec3_t){{0,1,0}});
+    fm_mat4_scale(&rotMat, &(fm_vec3_t){{0.1f, 0.1f, 0.1f}});
     t3d_mat4_to_fixed(&arrowMat2FP[frameIdx], &rotMat);
 
     // ======== Draw ======== //
