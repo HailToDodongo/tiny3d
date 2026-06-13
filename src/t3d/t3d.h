@@ -513,7 +513,7 @@ void t3d_light_set_point(int index, const uint8_t *color, const T3DVec3 *pos, fl
 /**
  * Sets the amount of active lights (excl. ambient light).
  * Note that the ambient light does not count towards this limit and is always applied.
- * @param count amount of lights (0-6)
+ * @param count amount of lights (0-7)
  */
 void t3d_light_set_count(int count);
 
