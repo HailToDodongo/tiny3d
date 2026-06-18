@@ -8,6 +8,10 @@
 #include "rsp/rsp_tiny3d.h"
 #include "rsp/rsp_tinypx.h"
 
+#ifndef RDPQ_WRITE_COUNT_UNKNOWN
+  #define RDPQ_WRITE_COUNT_UNKNOWN -1
+#endif
+
 extern rsp_ucode_t rsp_tiny3d;
 DEFINE_RSP_UCODE(rsp_tinypx);
 uint32_t TPX_RSP_ID = 0;
@@ -89,7 +93,7 @@ inline static void tpx_particle_draw_generic_s8(TPXParticleS8 *particles, uint32
     if(batchSize > MAX_PARTICLES_S8)batchSize = MAX_PARTICLES_S8;
 
     uint32_t loadSize = sizeof(TPXParticleS8) * batchSize / 2;
-    rdpq_write(-1, TPX_RSP_ID, rspCmd,
+    rdpq_write(RDPQ_WRITE_COUNT_UNKNOWN, TPX_RSP_ID, rspCmd,
         loadSize, ((uint32_t)(particles) & 0xFFFFFF)
     );
 
@@ -106,7 +110,7 @@ inline static void tpx_particle_draw_generic_s16(TPXParticleS16 *particles, uint
     if(batchSize > MAX_PARTICLES_S16)batchSize = MAX_PARTICLES_S16;
 
     uint32_t loadSize = sizeof(TPXParticleS16) * batchSize / 2;
-    rdpq_write(-1, TPX_RSP_ID, rspCmd,
+    rdpq_write(RDPQ_WRITE_COUNT_UNKNOWN, TPX_RSP_ID, rspCmd,
         loadSize, ((uint32_t)(particles) & 0xFFFFFF) | 0x8000'0000
     );
 

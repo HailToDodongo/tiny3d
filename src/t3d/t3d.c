@@ -6,6 +6,12 @@
 #include "rsp/rsp_tiny3d.h"
 #include <rspq_profile.h>
 
+#ifndef RDPQ_WRITE_COUNT_UNKNOWN
+  #define RDPQ_WRITE_COUNT_UNKNOWN -1
+  #define RDPQ_WRITE_READS_OTHER_MODES -1
+  #define T3D_RDPQ_NO_FROZEN_BLOCKS 1
+#endif
+
 // @TODO: temporary hack until libdragon exposes an official API
 extern void __rdpq_autosync_use(uint32_t res);
 
@@ -312,7 +318,15 @@ void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags)
 
   uint32_t cmd = drawFlags | RDPQ_CMD_TRI;
   cmd = 0xC000 | (cmd << 8);
-  rspq_write(T3D_RSP_ID, T3D_CMD_DRAWFLAGS, cullMask, cmd);
+
+  #ifdef T3D_RDPQ_NO_FROZEN_BLOCKS
+    rspq_write(T3D_RSP_ID, T3D_CMD_DRAWFLAGS, cullMask, cmd);
+  #else
+    rdpq_write(
+      RDPQ_WRITE_READS_OTHER_MODES,
+      T3D_RSP_ID, T3D_CMD_DRAWFLAGS, cullMask, cmd
+    );
+  #endif
 }
 
 void t3d_state_set_depth_offset(int16_t offset) {
@@ -412,7 +426,8 @@ void t3d_tri_draw(uint32_t v0, uint32_t v1, uint32_t v2)
   __rdpq_autosync_use(AUTOSYNC_PIPE | AUTOSYNC_TILES | AUTOSYNC_TMEM(0));
 
   uint32_t v12 = (v1 << 16) | v2;
-  rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_DRAW,
+  rdpq_write(RDPQ_WRITE_COUNT_UNKNOWN,
+    T3D_RSP_ID, T3D_CMD_TRI_DRAW,
     v0, v12
   );
 }
@@ -431,7 +446,8 @@ static void t3d_tri_draw_sequence(uint32_t baseVertex, uint8_t polyCount, bool i
   baseVertexEnd |= (VERT_OUTPUT_SIZE * (isQuad ? 1 : 0)) << 16;
 
   __rdpq_autosync_use(AUTOSYNC_PIPE | AUTOSYNC_TILES | AUTOSYNC_TMEM(0));
-  rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_SEQ, baseVertex, baseVertexEnd);
+  rdpq_write(RDPQ_WRITE_COUNT_UNKNOWN,
+    T3D_RSP_ID, T3D_CMD_TRI_SEQ, baseVertex, baseVertexEnd);
 }
 
 void t3d_tri_draw_unindexed(uint32_t baseIndex, uint32_t triCount) {
@@ -452,7 +468,8 @@ inline static void t3d_tri_draw_strip_generic(int16_t* indexBuff, int count, boo
   dmemAddr |= (doSync ? 0x8000 : 0); // make negative if we want to sync
 
   __rdpq_autosync_use(AUTOSYNC_PIPE | AUTOSYNC_TILES | AUTOSYNC_TMEM(0));
-  rdpq_write(-1, T3D_RSP_ID, T3D_CMD_TRI_STRIP,
+  rdpq_write(RDPQ_WRITE_COUNT_UNKNOWN,
+    T3D_RSP_ID, T3D_CMD_TRI_STRIP,
     loadAddr, (dmemAddr << 16) | ((count*2-1) & 0xFFFF)
   );
 }
