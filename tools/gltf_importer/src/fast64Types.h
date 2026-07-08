@@ -13,7 +13,7 @@ namespace {
     RDP::BLEND::NONE, // Opaque
     RDP::BLEND::NONE, // Opaque Decal
     RDP::BLEND::NONE, // Opaque Intersecting
-    RDP::BLEND::NONE, // Cutout
+    RDP::BLEND::MULTIPLY, // Cutout
     RDP::BLEND::MULTIPLY, // Transparent
     RDP::BLEND::MULTIPLY, // Transparent Decal
     RDP::BLEND::MULTIPLY, // Transparent Intersecting
@@ -36,7 +36,7 @@ namespace {
     RDP::BLEND::NONE, // Opaque
     RDP::BLEND::NONE, // Opaque Decal
     RDP::BLEND::NONE, // Opaque Intersecting
-    RDP::BLEND::NONE, // Cutout
+    RDP::BLEND::MULTIPLY, // Cutout
     RDP::BLEND::MULTIPLY, // Transparent
     RDP::BLEND::MULTIPLY, // Transparent Decal
     RDP::BLEND::MULTIPLY, // Transparent Intersecting
