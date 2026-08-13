@@ -389,10 +389,26 @@ void t3d_state_set_vertex_fx_scale(uint16_t scale)
 
 void t3d_state_set_lighting_mode(enum T3DLightingMode mode)
 {
-  const uint64_t OPCODE_VMULF = 0b000'000;
-  const uint64_t OPCODE_VADD  = 0b010'000;
+  const uint32_t OPCODE_VMULF = 0b000'000;
+  const uint32_t OPCODE_VADD  = 0b010'000;
+  const uint32_t OPCODE_VOR   = 0b101'010;
+  uint32_t instruction = (uint32_t)(orgInstrLightMul >> 32);
+  instruction &= ~0x3F;
+  switch(mode) {
+    case T3D_LIGHTING_MODE_MUL:
+      instruction |= OPCODE_VMULF;
+      break;
+    case T3D_LIGHTING_MODE_ADD:
+      instruction |= OPCODE_VADD;
+      break;
+    case T3D_LIGHTING_MODE_REPLACE:
+      // `vor color, ZERO, lightColor`; VS is bits 15..11.
+      instruction = (instruction & ~(0x1F << 11)) | OPCODE_VOR;
+      break;
+  }
 
-  uint64_t newOpcodes = orgInstrLightMul | ((mode == T3D_LIGHTING_MODE_MUL ? OPCODE_VMULF : OPCODE_VADD) << 32);
+  uint64_t newOpcodes = ((uint64_t)instruction << 32) |
+                        (uint32_t)orgInstrLightMul;
   uint32_t imemAddrMul = (RSP_T3D_CODE_TAG_LightMul & 0x0FFF);
 
   // Now enqueue a DMA back to RDRAM to patch the ucode, one the next ucode switch this would be used.

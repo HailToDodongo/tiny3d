@@ -87,6 +87,7 @@ enum T3DLightingMode
 {
   T3D_LIGHTING_MODE_MUL = 0,
   T3D_LIGHTING_MODE_ADD = 1,
+  T3D_LIGHTING_MODE_REPLACE = 2,
 };
 
 /**
@@ -639,7 +640,7 @@ void t3d_state_set_vertex_fx_scale(uint16_t scale);
  * Since the ucode is only refreshed on the next ucode switch, you have to make sure this happens before any draws.
  * This can be done by making sure that after this call, and before the next vertex load, any RDPQ call was made.
  *
- * @param mode additive or multiplicative lighting, multiplicative by default
+ * @param mode additive, multiplicative, or plain lighting; multiplicative by default
  */
 void t3d_state_set_lighting_mode(enum T3DLightingMode mode);
 
