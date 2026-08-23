@@ -233,6 +233,7 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
         auto acc = attr->data;
         auto basePtr = ((uint8_t*)acc->buffer_view->buffer->data) + acc->buffer_view->offset + acc->offset;
         auto elemSize = Gltf::getDataSize(acc->component_type);
+        auto stride = acc->stride;
 
         //printf("     - Attribute %d: %s\n", k, attr->name);
         if(attr->type == cgltf_attribute_type_position)
@@ -242,9 +243,10 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
           for(int l = 0; l < acc->count; l++)
           {
             auto &v = vertices[l];
-            v.pos[0] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
-            v.pos[1] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
-            v.pos[2] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
+            auto ptr = basePtr + (l * stride);
+            v.pos[0] = Gltf::readAsFloat(ptr, acc->component_type); ptr += elemSize;
+            v.pos[1] = Gltf::readAsFloat(ptr, acc->component_type); ptr += elemSize;
+            v.pos[2] = Gltf::readAsFloat(ptr, acc->component_type);
           }
         }
 
@@ -253,7 +255,8 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
           for(int l = 0; l < acc->count; l++)
           {
             auto &v = vertices[l];
-            auto color = Gltf::readAsColor(basePtr, attr->data->type, acc->component_type);
+            auto ptr = basePtr + (l * stride);
+            auto color = Gltf::readAsColor(ptr, attr->data->type, acc->component_type);
             //printf("Color[%s]: %f %f %f %f\n", attr->name, color[0], color[1], color[2], color[3]);
 
             if(!attr->name || strcmp(attr->name, "COLOR_0") == 0) {
@@ -277,9 +280,10 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
           for(int l = 0; l < acc->count; l++)
           {
             auto &v = vertices[l];
-            v.norm[0] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
-            v.norm[1] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
-            v.norm[2] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
+            auto ptr = basePtr + (l * stride);
+            v.norm[0] = Gltf::readAsFloat(ptr, acc->component_type); ptr += elemSize;
+            v.norm[1] = Gltf::readAsFloat(ptr, acc->component_type); ptr += elemSize;
+            v.norm[2] = Gltf::readAsFloat(ptr, acc->component_type);
           }
         }
 
@@ -290,8 +294,9 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
           for(int l = 0; l < acc->count; l++)
           {
             auto &v = vertices[l];
-            v.uv[0] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
-            v.uv[1] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
+            auto ptr = basePtr + (l * stride);
+            v.uv[0] = Gltf::readAsFloat(ptr, acc->component_type); ptr += elemSize;
+            v.uv[1] = Gltf::readAsFloat(ptr, acc->component_type);
           }
         }
 
@@ -302,8 +307,9 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
           {
             auto &v = vertices[l];
             u32 joins[4];
+            auto ptr = basePtr + (l * stride);
             for(int c=0; c<4; ++c) {
-              joins[c] = Gltf::readAsU32(basePtr, acc->component_type); basePtr += elemSize;
+              joins[c] = Gltf::readAsU32(ptr, acc->component_type); ptr += elemSize;
             }
             //printf("  - %d %d %d %d\n", joins[0], joins[1], joins[2], joins[3]);
             v.boneIndex = joins[0];
@@ -319,8 +325,9 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
           {
             auto &v = vertices[l];
             float weights[4];
+            auto ptr = basePtr + (l * stride);
             for(int c=0; c<4; ++c) {
-              weights[c] = Gltf::readAsFloat(basePtr, acc->component_type); basePtr += elemSize;
+              weights[c] = Gltf::readAsFloat(ptr, acc->component_type); ptr += elemSize;
             }
             //printf("  - %f %f %f %f\n", weights[0], weights[1], weights[2], weights[3]);
           }
