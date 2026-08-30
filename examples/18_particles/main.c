@@ -275,6 +275,8 @@ int main()
     // so any push/pop here will not affect t3d and vice versa.
     // Also make sure that the first stack operation you do after 'tpx_state_from_t3d' is a push and not a set.
     tpx_matrix_push(&matPartFP[frameIdx]);
+    tpx_state_set_base_size(72);
+
     // While each particle has its own size, there is a global scaling factor that can be set.
     // This can only scale particles down, so the range is 0.0 - 1.0.
     tpx_state_set_scale(partSizeX, partSizeY);

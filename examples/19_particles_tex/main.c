@@ -317,6 +317,7 @@ int main()
 
     tpx_state_from_t3d();
     tpx_matrix_push(&matPartFP[frameIdx]);
+    tpx_state_set_base_size(72);
     tpx_state_set_scale(partSizeX, partSizeY);
 
     float tileIdx = fm_floorf(timeTile) * 32;
