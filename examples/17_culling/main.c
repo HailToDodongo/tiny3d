@@ -126,9 +126,9 @@ int main()
     fm_vec3_add(&camTarget, &camPos, &camDir);
 
     if(currentModel == 0) {
-      t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(75.0f), 1.0f, 160.0f);
+      t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(75.0f), 2.0f, 320.0f);
     } else {
-      t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(60.0f), 4.0f, 110.0f);
+      t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(60.0f), 8.0f, 220.0f);
     }
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 

@@ -200,7 +200,7 @@ int main()
     }};
     fm_vec3_lerp(&currentPos, &currentPos, &targetPos, 0.2f);
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 5.0f, 120.0f);
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 5.0f, 240.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     t3d_mat4fp_from_srt_euler(&model->modelMatFP[frameIdx],

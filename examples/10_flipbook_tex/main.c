@@ -107,7 +107,7 @@ int main()
       colorAmbient[1] = colorAmbient[2];
     }
 
-    t3d_viewport_set_perspective(&viewport, T3D_DEG_TO_RAD(85.0f), aspectRatio, 10.0f, 150.0f);
+    t3d_viewport_set_perspective(&viewport, T3D_DEG_TO_RAD(85.0f), aspectRatio, 10.0f, 250.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     t3d_mat4fp_from_srt_euler(&mapMatFP[frameIdx],

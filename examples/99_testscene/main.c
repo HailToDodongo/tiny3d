@@ -181,7 +181,7 @@ int main()
     fm_mat4_scale(&modelMat, &(fm_vec3_t){{modelScale, modelScale, modelScale}});
     t3d_mat4_to_fixed(modelMatFP, &modelMat);
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 2.0f, 150.0f);
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 2.0f, 300.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // ----------- DRAW ------------ //

@@ -24,7 +24,7 @@ SceneMagic::SceneMagic()
 {
   camera.fov = T3D_DEG_TO_RAD(75.0f);
   camera.near = 3.0f;
-  camera.far = 200.0f;
+  camera.far = 400.0f;
 
   camera.target = {0,0,0};
   flyCam.camPos = {-50.0, 0.0, 0.0};

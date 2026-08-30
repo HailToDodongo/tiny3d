@@ -119,7 +119,7 @@ int main()
     camPos.v[2] = fm_sinf(angleHor) * fm_cosf(angleVer) * camDist;
     fm_vec3_lerp(&camPosCurrent, &camPosCurrent, &camPos, deltaTime * 5.0f);
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(64.0f), 2.0f, 200.0f);
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(64.0f), 5.0f, 320.0f);
     t3d_viewport_look_at(&viewport, &camPosCurrent, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // ----------- DRAW (3D) ------------ //
