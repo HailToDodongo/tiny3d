@@ -68,7 +68,10 @@ for (const g of GROUPS) {
 
 console.log("=========================================");
 //console.log(perfMap);
-const lastPerf = {"tiny3d/Tri Strip":3608.464,"tiny3d/Vert Load":2445.296,"tiny3d/Tri Seq":979.744,"tiny3d/Tri Draw":47.024,"tiny3d/Matrix Stack":17.12,"tiny3d/Proj Set":0.816,"tiny3d/Set Word":0.56,"tiny3d/Light Set":0.4341333333333333,"tiny3d/Screen Size":0.336,"tiny3d/Fog State":0.32,"tiny3d/Draw Flags":0.24};
+// og rdpq tri:
+//const lastPerf = {"tiny3d/Tri Strip":3608.464,"tiny3d/Vert Load":2445.296,"tiny3d/Tri Seq":979.744,"tiny3d/Tri Draw":47.024,"tiny3d/Matrix Stack":17.12,"tiny3d/Proj Set":0.816,"tiny3d/Set Word":0.56,"tiny3d/Light Set":0.4341333333333333,"tiny3d/Screen Size":0.336,"tiny3d/Fog State":0.32,"tiny3d/Draw Flags":0.24};
+// curr:
+const lastPerf = {"tiny3d/Tri Strip":3583.76,"tiny3d/Vert Load":2445.296,"tiny3d/Tri Seq":972.656,"tiny3d/Tri Draw":45.792,"tiny3d/Matrix Stack":17.12,"tiny3d/Proj Set":0.816,"tiny3d/Set Word":0.56,"tiny3d/Light Set":0.43306666666666666,"tiny3d/Screen Size":0.336,"tiny3d/Fog State":0.32,"tiny3d/Draw Flags":0.24};
 
 // now compare and check if something got slower:
 let foundWorse = false;

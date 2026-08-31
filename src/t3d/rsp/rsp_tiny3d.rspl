@@ -104,7 +104,7 @@ state
   // X  Y  Z | guard
      1, 0, 0,   1,
      0, 1, 0,   1,
-     0, 0, 1,   1,
+     0, 0, 0,   1, // near plane is ignored and sits at w=0
      1, 0, 0,  -1,
      0, 1, 0,  -1
   };
@@ -181,8 +181,9 @@ temp_state {
 
   // Last buffer where final clipping triangles are stored.
   // During clipping, vertices alternate between CLIP_BUFFER_TMP & B.
+  // For clipping: 7 is the maximum, 3 + one per plane. near-plane sits at w=0 and avoids an extra clip
   alignas(16)
-  u8 CLIP_BUFFER_RESULT[8][TRI_SIZE];
+  u8 CLIP_BUFFER_RESULT[7][TRI_SIZE];
 }
 
 #include "inc/math.rspl"
@@ -201,21 +202,23 @@ macro dmaInAsync(u32 addrRDRAM, u32 addrDMEM, u32 size)
   @Barrier("DMA") set_dma_read(size);
 }
 
-// Packs +xyz & -xyz into a single byte
+// Packs the clipping code into a single byte: bit 0/1 = -x/-y, bit 3/4 = +x/+y (guard-band).
+// Bit 2 (camera plane, w < 0) is left empty, clipping fills it in from the reject code.
+// Current tile is stored in the 3 MSBs.
 macro packClipCode(u32 res, u32 clipCode)
 {
-  // Note: z-far is not clipped, only rejected
-  // instead the current tile is stored in the 3 MSB
   res = clipCode & 0b0000'0011'0000'0111;
   u32 tmp = res >> 5; //  -zyx      +xyx
   res |= tmp;
 }
 
-// Same as packClipCode, inverts the clipcode to only use one operation later on
+// Same for rejection, inverted (NOR) so the triangle code can AND the three bytes.
+// Layout: bit 0/1 = -x/-y, bit 3 = w < 0 (camera plane, no near plane),
+// bit 4/5 = +x/+y, bit 6 = far, bits 2/7 are always 1.
 macro packRejectCode(u32 res, u32 clipCode)
 {
-  res = clipCode & 0b0000'0111'0000'0111;
-  u32 tmp = res >> 5; //  -zyx      +xyx
+  res = clipCode & 0b0000'0111'0000'1011;
+  u32 tmp = res >> 4; // far,+y,+x   w,-y,-x
   res = res ~| tmp;
 }
 
@@ -313,12 +316,14 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
   vec16 guardBandScale = load(CLIPPING_PLANES).xy;
   guardBandScale = guardBandScale.y;
+  guardBandScale.z = 0x4000; // forces Z clip flag to be zero (W is used instead)
+  guardBandScale.Z = 0x4000;
 
   vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
   screenSize:sfract = 0;
   screenSize >>= 8;
 
-  vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
+  vec16<$v12> screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
   vec16 fogScaleOffset = load(FOG_SCALE_OFFSET).xyzw;
   fogScaleOffset.Z = fogScaleOffset.z;
 
@@ -333,7 +338,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   ptrLightEnd += LIGHT_DIR_COLOR;
 
   // Note: also loads COLOR_EXPOSURE into .z, and 0 into .w
-  vec16 uvGenArgs;
+  vec16<$v09> uvGenArgs;
   uvGenArgs.XYZW = load(UV_GEN_PARAMS).xyzw;
   uvGenArgs.W = load(SCREEN_UVGEN_SCALE).x;
   uvGenArgs.xy = load(UV_GEN_PARAMS).xy;
@@ -366,8 +371,8 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     LOOP_START:
     // asm("emux_trace_start");
     // Position & Normals
-    vec32 posClip;
-    vec16 color;
+    vec32<$v05> posClip;
+    vec16<$v04> color;
 
     // loads 1.0 to force full light by default (aka unlit)
     // later the ambient light is loaded over this in case lighting is enabled
@@ -508,15 +513,19 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     // save fog here, to make this branch-less, fogStoreOffset contains the offset to save it to.
     // if enabled this points to alpha of VTX_ATTR_RGBA, otherwise to UVs which get overwritten later
     posClip:sint = screenOffset:sint +* 1;
+    // No near plane: z/w < -1 gives negative Z, clamp it to Z >= 0
+    vec16<$v01> zClamp = posClip:sint >= 0;
 
     VTEMP <<= 1;
     @Barrier("color-fog") store(VTEMP:sint.z, fogA);
     @Barrier("color-fog") store(VTEMP:sint.Z, fogB);
 
-    vec16 uv = load(prt3d, 0x18).xyzw;
+    vec16<$v03> uv = load(prt3d, 0x18).xyzw;
 
     @Barrier("pos-cc") store(posClip:sint.xyzw, ptrBuffA, VTX_ATTR_XY);
     @Barrier("pos-cc") store(posClip:sint.XYZW, ptrBuffB, VTX_ATTR_XY);
+    @Barrier("pos-cc") store(zClamp.z, ptrBuffA, VTX_ATTR_Z);
+    @Barrier("pos-cc") store(zClamp.Z, ptrBuffB, VTX_ATTR_Z);
 
     // pack the first clip-code to get rid of one save + have more SUs
     @Barrier("pos-cc") store(clipCodeA:u8, ptrBuffA, VTX_ATTR_CLIPFLAGS);
@@ -528,7 +537,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     uv += uvGenArgs;
 
     pos = load(prt3d, 0x20); // load next pos
-    vec16 oldNorm = norm;
+    vec16<$v02> oldNorm = norm;
     norm = normMask & pos.wwwwWWWW;
     norm *= normShift;
 

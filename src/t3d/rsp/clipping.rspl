@@ -99,6 +99,7 @@ macro intersection(
   vec32 clipBase = resPosUV * normScaleWInv:ufract;
   vec32 clipPlaneW = guardBandScale * resPosUV.wwwwWWWW;
 
+  clipBase.z = clipBase.w;
   newClipCode = clip(clipBase, clipPlaneW.w);
   newClipCode = packClipCode(newClipCode);
 }
@@ -134,11 +135,34 @@ function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, 
     copyClippingVertex(ptrWrite, ptrVertC);
   }
 
+  // @TODO: get rid of this ideally (blocked by DMEM size for triangles / per-vertex tile feature)
+  POST_VTX_COPY:
+  {
+    // No near plane: the vertex loop leaves clip-code bit 2 empty, set it to 'w < 0'
+    vec16 codes;
+    
+    #define MASK_W 0b1000
+    #define MASK_Z 0b100'0000'0000
+
+    codes.x = load(ptrWrite, 6).x;  // vert 0 (TRI_SIZE*n + VTX_ATTR_CLIPFLAGS)
+    codes.y = load(ptrWrite, 42).x; // vert 1
+    codes.z = load(ptrWrite, 78).x; // vert 2
+    vec16 wBit = codes ^ MASK_W;
+    vec16 oldBit = codes & MASK_Z;
+    wBit &= MASK_W;
+    codes ^= oldBit;
+    wBit <<= 7;
+    codes |= wBit;
+    store(codes.x, ptrWrite, 6);
+    store(codes.y, ptrWrite, 42);
+    store(codes.z, ptrWrite, 78);
+  }
+
   u32 planePtr = CLIPPING_PLANES;
   s32 planeIdx = 1;
 
   {
-    // backup old tile-index whicg is stored in the clip-code
+    // backup old tile-index which is stored in the clip-code
     u8 oldClip = load(ptrVertA, VTX_ATTR_CLIPFLAGS);
     store(oldClip, RSPQ_SCRATCH_MEM, 20);
   }
@@ -320,8 +344,10 @@ function triToScreenSpace(u32<$s6> ptr)
   posClip *= screenSize;
 
   posClip:sint = screenOffset:sint +* 1;
+  vec16 zClamp = posClip:sint >= 0; // no near plane: clamp Z >= 0 (see T3DCmd_VertLoad)
 
   @Barrier("cc") store(posClip:sint.xyzw, ptr, VTX_ATTR_XY);
+  @Barrier("cc") store(zClamp.z, ptr, VTX_ATTR_Z);
   @Barrier("cc") store(oldClipFlag, ptr, VTX_ATTR_CLIPFLAGS);
 
   ptr -= TRI_SIZE;
