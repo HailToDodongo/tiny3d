@@ -30,6 +30,8 @@
 #define DRAW_TRIS 1
 #define DP_STATUS_END_VALID 512
 #define RDPQ_DYNAMIC_BUFFER_SIZE 65536
+#define MASK_W 0b1000
+#define MASK_Z 0b100'0000'0000
 #include <rsp_queue.inc>
 #include <rdpq_macros.h>
 #include "./rspq_triangle.inc"
@@ -140,7 +142,7 @@
     .align 4
     NORMAL_MASK_SHIFT: .half 63488, 2016, 31, 0, 1, 32, 2048, 0
     .align 3
-    CLIPPING_PLANES: .byte 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, -1, 0, 1, 0, -1
+    CLIPPING_PLANES: .byte 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, -1, 0, 1, 0, -1
     .align 1
     RDPQ_TRI_BUFF_OFFSET: .half 0
     .align 1
@@ -156,14 +158,9 @@
     .align 2
     SEGMENT_TABLE: .word 0, 0, 0, 0, 0, 0, 0, 0
     .align 2
-    COLOR_AMBIENT: .ds.b 8
+    COLOR_AMBIENT: .word 4294967295, 4294967295
     .align 2
-    #if RSPQ_PROFILE
-    LIGHT_DIR_COLOR: .ds.b 32
-    _RSPQ_OVL_PROFILESLOT: .long 0, 0
-    #else
     LIGHT_DIR_COLOR: .ds.b 112
-    #endif
     .align 2
     TRI_COMMAND: .word 0
     .align 2
@@ -190,11 +187,7 @@
     .align 4
     CLIP_BUFFER_TMP: .ds.b 252
     .align 4
-    #if RSPQ_PROFILE
-      CLIP_BUFFER_RESULT: .ds.b 272
-    #else
-      CLIP_BUFFER_RESULT: .ds.b 288
-    #endif
+    CLIP_BUFFER_RESULT: .ds.b 252
   TEMP_STATE_MEM_END:
 
 .text
@@ -202,254 +195,276 @@ OVERLAY_CODE_START:
 
 .align 3
 clipTriangle:
-  ldv $v02, 0, 8, $a0                                ## L:536  |      ^ | vec16 tmp2 = load(ptrSrc, 0x08).xyzw;
-  ldv $v01, 0, 0, $a0                                ## L:535  |      2 | vec16 tmp1 = load(ptrSrc, 0x00).xyzw;
-  ldv $v04, 0, 24, $a0                               ## L:538  |      3 | vec16 tmp4 = load(ptrSrc, 0x18).xyzw;
-  ldv $v03, 0, 16, $a0                               ## L:537  |      4 | vec16 tmp3 = load(ptrSrc, 0x10).xyzw;
-  ori $t3, $zero, %lo(CLIP_BUFFER_TMP)               ## L:402  |      5 | u32 ptrWrite = CLIP_BUFFER_TMP;
-  ori $at, $zero, %lo(NORM_SCALE_W)                  ## L:421  |      6 | normScaleWInv.x = load(NORM_SCALE_W).w;
-  sdv $v01, 0, 0, $t3                                ## L:540  |      7 | store(tmp1.xyzw, ptrDst, 0x00);
-  sdv $v02, 0, 8, $t3                                ## L:541  |      8 | store(tmp2.xyzw, ptrDst, 0x08);
-  sdv $v04, 0, 24, $t3                               ## L:543  |      9 | store(tmp4.xyzw, ptrDst, 0x18);
-  sdv $v03, 0, 16, $t3                               ## L:542  |     10 | store(tmp3.xyzw, ptrDst, 0x10);
-  ldv $v01, 0, 0, $a1                                ## L:535  |     11 | vec16 tmp1 = load(ptrSrc, 0x00).xyzw;
-  ldv $v03, 0, 16, $a1                               ## L:537  |     12 | vec16 tmp3 = load(ptrSrc, 0x10).xyzw;
-  ldv $v02, 0, 8, $a1                                ## L:536  |     13 | vec16 tmp2 = load(ptrSrc, 0x08).xyzw;
-  ldv $v04, 0, 24, $a1                               ## L:538  |     14 | vec16 tmp4 = load(ptrSrc, 0x18).xyzw;
-  addiu $t3, $t3, 36                                 ## L:545  |     15 | ptrDst += 36;
-  ori $t1, $zero, %lo(CLIP_BUFFER_RESULT)            ## L:400  |     16 | u32 ptrBuff0 = CLIP_BUFFER_RESULT;
-  sdv $v03, 0, 16, $t3                               ## L:542  |     17 | store(tmp3.xyzw, ptrDst, 0x10);
-  sdv $v04, 0, 24, $t3                               ## L:543  |     18 | store(tmp4.xyzw, ptrDst, 0x18);
-  sdv $v02, 0, 8, $t3                                ## L:541  |     19 | store(tmp2.xyzw, ptrDst, 0x08);
-  sdv $v01, 0, 0, $t3                                ## L:540  |     20 | store(tmp1.xyzw, ptrDst, 0x00);
-  ldv $v04, 0, 24, $a2                               ## L:538  |     21 | vec16 tmp4 = load(ptrSrc, 0x18).xyzw;
-  ldv $v01, 0, 0, $a2                                ## L:535  |     22 | vec16 tmp1 = load(ptrSrc, 0x00).xyzw;
-  ori $t4, $zero, %lo(CLIPPING_PLANES)               ## L:411  |     23 | u32 planePtr = CLIPPING_PLANES;
-  addiu $t3, $t3, 36                                 ## L:545  |     24 | ptrDst += 36;
-  ldv $v03, 0, 16, $a2                               ## L:537  |     25 | vec16 tmp3 = load(ptrSrc, 0x10).xyzw;
-  sdv $v01, 0, 0, $t3                                ## L:540  |     26 | store(tmp1.xyzw, ptrDst, 0x00);
-  lbu $t6, 6($a0)                                    ## L:416  |     27 | u8 oldClip = load(ptrVertA, 0x06);
-  lsv $v01, 0, 6, $at                                ## L:421  |     28 | normScaleWInv.x = load(NORM_SCALE_W).w;
-  ldv $v02, 0, 8, $a2                                ## L:536  |     29 | vec16 tmp2 = load(ptrSrc, 0x08).xyzw;
-  addiu $t5, $zero, 1                                ## L:412  |     30 | s32 planeIdx = 1;
-  ori $at, $zero, 0xFFFF                             ## L:423  |     31 | normScaleWInv.w = 0xFFFF;
-  sdv $v04, 0, 24, $t3                               ## L:543  |     32 | store(tmp4.xyzw, ptrDst, 0x18);
-  vor $v01, $v00, $v01.e0                            ## L:422  |      ^ | normScaleWInv = normScaleWInv.x;
-  mtc2 $at, $v01.e3                                  ## L:423  |     33 | normScaleWInv.w = 0xFFFF;
-  mtc2 $at, $v01.e7                                  ## L:424  |     34 | normScaleWInv.W = 0xFFFF;
-  ori $at, $zero, %lo(CLIPPING_PLANES)               ## L:426  |     35 | vec16 guardBandScale = load(CLIPPING_PLANES).xy;
-  ori $t2, $zero, %lo(CLIP_BUFFER_TMP)               ## L:401  |     36 | u32 ptrBuff1 = CLIP_BUFFER_TMP;
-  sdv $v02, 0, 8, $t3                                ## L:541  |     37 | store(tmp2.xyzw, ptrDst, 0x08);
-  llv $v02, 0, 0, $at                                ## L:426  |     38 | vec16 guardBandScale = load(CLIPPING_PLANES).xy;
-  sb $t6, %lo(20 + RSPQ_SCRATCH_MEM)($zero)          ## L:417  |     39 | store(oldClip, RSPQ_SCRATCH_MEM, 20);
-  addiu $t0, $zero, 108                              ## L:396  |     40 | arraySize = 108;
-  sdv $v03, 0, 16, $t3                               ## L:542  |     41 | store(tmp3.xyzw, ptrDst, 0x10);
-  addiu $t3, $t3, 36                                 ## L:545  |     42 | ptrDst += 36;
-  vor $v02, $v00, $v02.e1                            ## L:427  |      ^ | guardBandScale = guardBandScale.y;
+  ## hot-path cycles: 229
+  ldv $v01, 0, 0, $a0                                ## L:575  |      ^ | vec16 tmp1 = load(ptrSrc, 0x00).xyzw;
+  ldv $v03, 0, 16, $a0                               ## L:577  |      2 | vec16 tmp3 = load(ptrSrc, 0x10).xyzw;
+  ldv $v04, 0, 24, $a0                               ## L:578  |      3 | vec16 tmp4 = load(ptrSrc, 0x18).xyzw;
+  ldv $v02, 0, 8, $a0                                ## L:576  |      4 | vec16 tmp2 = load(ptrSrc, 0x08).xyzw;
+  ori $t3, $zero, %lo(CLIP_BUFFER_TMP)               ## L:419  |      5 | u32 ptrWrite = CLIP_BUFFER_TMP;
+  ori $t1, $zero, %lo(CLIP_BUFFER_RESULT)            ## L:417  |      6 | u32 ptrBuff0 = CLIP_BUFFER_RESULT;
+  sdv $v04, 0, 24, $t3                               ## L:583  |      7 | store(tmp4.xyzw, ptrDst, 0x18);
+  sdv $v02, 0, 8, $t3                                ## L:581  |      8 | store(tmp2.xyzw, ptrDst, 0x08);
+  sdv $v01, 0, 0, $t3                                ## L:580  |      9 | store(tmp1.xyzw, ptrDst, 0x00);
+  ldv $v04, 0, 24, $a1                               ## L:578  |     10 | vec16 tmp4 = load(ptrSrc, 0x18).xyzw;
+  sdv $v03, 0, 16, $t3                               ## L:582  |     11 | store(tmp3.xyzw, ptrDst, 0x10);
+  ldv $v03, 0, 16, $a1                               ## L:577  |     12 | vec16 tmp3 = load(ptrSrc, 0x10).xyzw;
+  ldv $v01, 0, 0, $a1                                ## L:575  |     13 | vec16 tmp1 = load(ptrSrc, 0x00).xyzw;
+  ldv $v02, 0, 8, $a1                                ## L:576  |     14 | vec16 tmp2 = load(ptrSrc, 0x08).xyzw;
+  addiu $t3, $t3, 36                                 ## L:585  |     15 | ptrDst += 36;
+  ori $t2, $zero, %lo(CLIP_BUFFER_TMP)               ## L:418  |     16 | u32 ptrBuff1 = CLIP_BUFFER_TMP;
+  sdv $v03, 0, 16, $t3                               ## L:582  |     17 | store(tmp3.xyzw, ptrDst, 0x10);
+  sdv $v02, 0, 8, $t3                                ## L:581  |     18 | store(tmp2.xyzw, ptrDst, 0x08);
+  sdv $v04, 0, 24, $t3                               ## L:583  |     19 | store(tmp4.xyzw, ptrDst, 0x18);
+  sdv $v01, 0, 0, $t3                                ## L:580  |     20 | store(tmp1.xyzw, ptrDst, 0x00);
+  ldv $v02, 0, 8, $a2                                ## L:576  |     21 | vec16 tmp2 = load(ptrSrc, 0x08).xyzw;
+  ldv $v03, 0, 16, $a2                               ## L:577  |     22 | vec16 tmp3 = load(ptrSrc, 0x10).xyzw;
+  ldv $v01, 0, 0, $a2                                ## L:575  |     23 | vec16 tmp1 = load(ptrSrc, 0x00).xyzw;
+  ldv $v04, 0, 24, $a2                               ## L:578  |     24 | vec16 tmp4 = load(ptrSrc, 0x18).xyzw;
+  addiu $t3, $t3, 36                                 ## L:585  |     25 | ptrDst += 36;
+  addiu $t0, $zero, 108                              ## L:413  |     26 | arraySize = 108;
+  sdv $v02, 0, 8, $t3                                ## L:581  |     27 | store(tmp2.xyzw, ptrDst, 0x08);
+  sdv $v01, 0, 0, $t3                                ## L:580  |     28 | store(tmp1.xyzw, ptrDst, 0x00);
+  sdv $v03, 0, 16, $t3                               ## L:582  |     29 | store(tmp3.xyzw, ptrDst, 0x10);
+  sdv $v04, 0, 24, $t3                               ## L:583  |     30 | store(tmp4.xyzw, ptrDst, 0x18);
+  addiu $t3, $t3, 36                                 ## L:585  |     31 | ptrDst += 36;
+  POST_VTX_COPY:
+  lsv $v01, 2, 42, $t3                               ## L:438  |     32 | codes.y = load(ptrWrite, 42).x;
+  lsv $v01, 4, 78, $t3                               ## L:439  |     33 | codes.z = load(ptrWrite, 78).x;
+  lsv $v01, 0, 6, $t3                                ## L:437  |     34 | codes.x = load(ptrWrite, 6).x;
+  vxor $v02, $v01, $v30.e4                           ## L:440  |  ***38 | vec16 wBit = codes ^ 0b1000;
+  lbu $t6, 6($a0)                                    ## L:456  |      ^ | u8 oldClip = load(ptrVertA, 0x06);
+  sb $t6, %lo(20 + RSPQ_SCRATCH_MEM)($zero)          ## L:457  |   **41 | store(oldClip, RSPQ_SCRATCH_MEM, 20);
+  vand $v03, $v01, $v31.e5                           ## L:441  |      ^ | vec16 oldBit = codes & 0b100'0000'0000;
+  vand $v02, $v02, $v30.e4                           ## L:442  |     42 | wBit &= 0b1000;
+  ori $at, $zero, %lo(NORM_SCALE_W)                  ## L:461  |      ^ | normScaleWInv.x = load(NORM_SCALE_W).w;
+  ori $t4, $zero, %lo(CLIPPING_PLANES)               ## L:451  |   **45 | u32 planePtr = CLIPPING_PLANES;
+  vxor $v01, $v01, $v03.v                            ## L:443  |      ^ | codes ^= oldBit;
+  vmudn $v02, $v02, $v30.e0                          ## L:444  |     46 | wBit <<= 7;
+  addiu $t5, $zero, 1                                ## L:452  |      ^ | s32 planeIdx = 1;
+  vor $v01, $v01, $v02.v                             ## L:445  |  ***50 | codes |= wBit;
+  ssv $v01, 0, 6, $t3                                ## L:446  |  ***54 | store(codes.x, ptrWrite, 6);
+  ssv $v01, 4, 78, $t3                               ## L:448  |     55 | store(codes.z, ptrWrite, 78);
+  ssv $v01, 2, 42, $t3                               ## L:447  |     56 | store(codes.y, ptrWrite, 42);
+  lsv $v01, 0, 6, $at                                ## L:461  |     57 | normScaleWInv.x = load(NORM_SCALE_W).w;
+  vor $v01, $v00, $v01.e0                            ## L:462  |  ***61 | normScaleWInv = normScaleWInv.x;
+  ori $at, $zero, 0xFFFF                             ## L:463  |      ^ | normScaleWInv.w = 0xFFFF;
+  mtc2 $at, $v01.e3                                  ## L:463  |     62 | normScaleWInv.w = 0xFFFF;
+  ori $at, $zero, 0xFFFF                             ## L:464  |     63 | normScaleWInv.W = 0xFFFF;
+  mtc2 $at, $v01.e7                                  ## L:464  |    *65 | normScaleWInv.W = 0xFFFF;
+  ori $at, $zero, %lo(CLIPPING_PLANES)               ## L:466  |     66 | vec16 guardBandScale = load(CLIPPING_PLANES).xy;
+  llv $v02, 0, 0, $at                                ## L:466  |     67 | vec16 guardBandScale = load(CLIPPING_PLANES).xy;
+  vor $v02, $v00, $v02.e1                            ## L:467  |  ***71 | guardBandScale = guardBandScale.y;
   LABEL_clipTriangle_0001:
-  xor $t1, $t1, $t2                                  ## L:442  |     43 | swap(ptrBuff0, ptrBuff1);
-  xor $t2, $t1, $t2                                  ## L:442  |     44 | swap(ptrBuff0, ptrBuff1);
-  addiu $t6, $t3, 65500                              ## L:433  |     45 | u32 ptrLast = ptrWrite - 36;
-  ldv $v04, 0, 16, $t6                               ## L:436  |     46 | vec32 lastPosUV   = load(ptrLast, 0x10).xyzw;
-  xor $t1, $t1, $t2                                  ## L:442  |     47 | swap(ptrBuff0, ptrBuff1);
-  luv $v03, 0, 8, $t6                                ## L:435  |     48 | vec16 lastColor   = load_vec_u8(ptrLast, 0x08);
-  lbu $t7, 6($t6)                                    ## L:438  |     49 | u8 lastClipCode   = load(ptrLast, 0x06);
-  ldv $v05, 0, 24, $t6                               ## L:436  |     50 | vec32 lastPosUV   = load(ptrLast, 0x10).xyzw;
-  or $t3, $zero, $t2                                 ## L:444  |     51 | ptrWrite = ptrBuff1;
-  llv $v04, 8, 12, $t6                               ## L:437  |     52 | lastPosUV:sint.XY = load(ptrLast, 0x0C).xy;
-  addu $t8, $t1, $t0                                 ## L:446  |     53 | u32 ptrReadEnd = ptrBuff0 + arraySize;
-  or $t6, $zero, $t1                                 ## L:445  |     54 | u32 ptrRead = ptrBuff0;
+  addiu $t6, $t3, 65500                              ## L:473  |      ^ | u32 ptrLast = ptrWrite - 36;
+  ldv $v05, 0, 24, $t6                               ## L:476  |     72 | vec32 lastPosUV   = load(ptrLast, 0x10).xyzw;
+  xor $t1, $t1, $t2                                  ## L:482  |     73 | swap(ptrBuff0, ptrBuff1);
+  xor $t2, $t1, $t2                                  ## L:482  |     74 | swap(ptrBuff0, ptrBuff1);
+  xor $t1, $t1, $t2                                  ## L:482  |     75 | swap(ptrBuff0, ptrBuff1);
+  luv $v03, 0, 8, $t6                                ## L:475  |     76 | vec16 lastColor   = load_vec_u8(ptrLast, 0x08);
+  ldv $v04, 0, 16, $t6                               ## L:476  |     77 | vec32 lastPosUV   = load(ptrLast, 0x10).xyzw;
+  lbu $t7, 6($t6)                                    ## L:478  |     78 | u8 lastClipCode   = load(ptrLast, 0x06);
+  addu $t8, $t1, $t0                                 ## L:486  |     79 | u32 ptrReadEnd = ptrBuff0 + arraySize;
+  llv $v04, 8, 12, $t6                               ## L:477  |     80 | lastPosUV:sint.XY = load(ptrLast, 0x0C).xy;
+  or $t6, $zero, $t1                                 ## L:485  |     81 | u32 ptrRead = ptrBuff0;
+  or $t3, $zero, $t2                                 ## L:484  |     82 | ptrWrite = ptrBuff1;
   LABEL_clipTriangle_0003:
-  lbu $t9, 6($t6)                                    ## L:455  |     55 | u8 clipCode = load(ptrRead, 0x06);
-  luv $v08, 0, 8, $t6                                ## L:453  |     56 | vec16 currentColor   = load_vec_u8(ptrRead, 0x08);
-  ldv $v07, 0, 24, $t6                               ## L:451  |     57 | vec32 currentPosUV   = load(ptrRead, 0x10).xyzw;
-  nor $k1, $zero, $t9                                ## L:459  |     58 | u8 isInsideCurr = ~clipCode;
-  xor $k0, $t9, $t7                                  ## L:458  |     59 | u8 exclIntersect = clipCode ^ lastClipCode;
-  ldv $v06, 0, 16, $t6                               ## L:451  |     60 | vec32 currentPosUV   = load(ptrRead, 0x10).xyzw;
-  and $k0, $k0, $t5                                  ## L:460  |     61 | exclIntersect &= planeIdx;
-  and $k1, $k1, $t5                                  ## L:461  |     62 | isInsideCurr &= planeIdx;
-  beq $k0, $zero, LABEL_clipTriangle_0005            ## L:463  |     63 | if(exclIntersect)
-  llv $v06, 8, 12, $t6                               ## L:452  |    *65 | currentPosUV:sint.XY = load(ptrRead, 0x0C).xy;
-  lpv $v14, 0, 0, $t4                                ## L:313  |     66 | vec32 planeNorm:sint = load_vec_s8(planePtr);
-  and $t7, $t7, $t5                                  ## L:465  |     67 | lastClipCode &= planeIdx;
-  beq $t7, $zero, LABEL_clipTriangle_0006            ## L:318  |     68 | if(newClipCode)
-  nop                                                ## L:318  |    *70 | if(newClipCode)
-  ori $at, $zero, %lo(RSPQ_SCRATCH_MEM)              ## L:320  |     71 | planeNorm:sint.XYZW = planeNorm:sint.xyzw; ## Barrier: 0x1
-  vsubc $v10, $v05, $v07.v                           ## L:323  |      ^ | posUVDiff = posBase - pos;
-  sdv $v14, 0, 0, $at                                ## L:320  |     72 | planeNorm:sint.XYZW = planeNorm:sint.xyzw; ## Barrier: 0x1
-  vxor $v15, $v00, $v00.e0                           ## L:321  |      ^ | planeNorm:sfract = 0;
-  vsub $v09, $v04, $v06.v                            ## L:323  |     73 | posUVDiff = posBase - pos;
-  ldv $v14, 8, 0, $at                                ## L:320  |      ^ | planeNorm:sint.XYZW = planeNorm:sint.xyzw; ## Barrier: 0x1
-  sdv $v04, 0, 0, $at                                ## L:325  |     74 | vpos.XYZW = posBase.xyzw; ## Barrier: 0x1
-  vor $v12, $v00, $v07                               ## L:324  |      ^ | vpos = pos;
-  sdv $v05, 0, 8, $at                                ## L:325  |    *76 | vpos.XYZW = posBase.xyzw; ## Barrier: 0x1
-  vor $v11, $v00, $v06                               ## L:324  |      ^ | vpos = pos;
-  ldv $v11, 8, 0, $at                                ## L:325  |     77 | vpos.XYZW = posBase.xyzw; ## Barrier: 0x1
-  vmudl $v15, $v15, $v31.e7                          ## L:326  |      ^ | planeNorm >>= 8;
-  vmadm $v14, $v14, $v31.e7                          ## L:326  |     78 | planeNorm >>= 8;
-  ldv $v12, 8, 8, $at                                ## L:325  |      ^ | vpos.XYZW = posBase.xyzw; ## Barrier: 0x1
-  vmadn $v15, $v00, $v00                             ## L:326  |     79 | planeNorm >>= 8;
-  beq $zero, $zero, LABEL_clipTriangle_0007          ## L:328  |      ^ | colorDiff = colorBase - color;
-  vsubc $v13, $v03, $v08.v                           ## L:328  |    *81 | colorDiff = colorBase - color;
+  llv $v06, 8, 12, $t6                               ## L:492  |     83 | currentPosUV:sint.XY = load(ptrRead, 0x0C).xy;
+  lbu $t9, 6($t6)                                    ## L:495  |     84 | u8 clipCode = load(ptrRead, 0x06);
+  ldv $v06, 0, 16, $t6                               ## L:491  |     85 | vec32 currentPosUV   = load(ptrRead, 0x10).xyzw;
+  ldv $v07, 0, 24, $t6                               ## L:491  |     86 | vec32 currentPosUV   = load(ptrRead, 0x10).xyzw;
+  xor $k0, $t9, $t7                                  ## L:498  |     87 | u8 exclIntersect = clipCode ^ lastClipCode;
+  and $k0, $k0, $t5                                  ## L:500  |     88 | exclIntersect &= planeIdx;
+  nor $k1, $zero, $t9                                ## L:499  |     89 | u8 isInsideCurr = ~clipCode;
+  and $k1, $k1, $t5                                  ## L:501  |     90 | isInsideCurr &= planeIdx;
+  beq $k0, $zero, LABEL_clipTriangle_0005            ## L:503  |     91 | if(exclIntersect)
+  luv $v08, 0, 8, $t6                                ## L:493  |     92 | vec16 currentColor   = load_vec_u8(ptrRead, 0x08);
+  and $t7, $t7, $t5                                  ## L:505  |     93 | lastClipCode &= planeIdx;
+  lpv $v14, 0, 0, $t4                                ## L:329  |     94 | vec32 planeNorm:sint = load_vec_s8(planePtr);
+  beq $t7, $zero, LABEL_clipTriangle_0006            ## L:334  |     95 | if(newClipCode)
+  nop                                                ## L:334  |     96 | if(newClipCode)
+  ori $at, $zero, %lo(RSPQ_SCRATCH_MEM)              ## L:336  |     97 | planeNorm:sint.XYZW = planeNorm:sint.xyzw; ## Barrier: 0x1
+  vxor $v15, $v00, $v00.e0                           ## L:337  |      ^ | planeNorm:sfract = 0;
+  sdv $v14, 0, 0, $at                                ## L:336  |     98 | planeNorm:sint.XYZW = planeNorm:sint.xyzw; ## Barrier: 0x1
+  vor $v12, $v00, $v07                               ## L:340  |      ^ | vpos = pos;
+  vsubc $v10, $v05, $v07.v                           ## L:339  |     99 | posUVDiff = posBase - pos;
+  ldv $v14, 8, 0, $at                                ## L:336  |      ^ | planeNorm:sint.XYZW = planeNorm:sint.xyzw; ## Barrier: 0x1
+  vsub $v09, $v04, $v06.v                            ## L:339  |    100 | posUVDiff = posBase - pos;
+  sdv $v04, 0, 0, $at                                ## L:341  |      ^ | vpos.XYZW = posBase.xyzw; ## Barrier: 0x1
+  vor $v11, $v00, $v06                               ## L:340  |    101 | vpos = pos;
+  vmudl $v15, $v15, $v31.e7                          ## L:342  |    102 | planeNorm >>= 8;
+  sdv $v05, 0, 8, $at                                ## L:341  |      ^ | vpos.XYZW = posBase.xyzw; ## Barrier: 0x1
+  vmadm $v14, $v14, $v31.e7                          ## L:342  |    103 | planeNorm >>= 8;
+  ldv $v11, 8, 0, $at                                ## L:341  |      ^ | vpos.XYZW = posBase.xyzw; ## Barrier: 0x1
+  vmadn $v15, $v00, $v00                             ## L:342  |    104 | planeNorm >>= 8;
+  ldv $v12, 8, 8, $at                                ## L:341  |      ^ | vpos.XYZW = posBase.xyzw; ## Barrier: 0x1
+  beq $zero, $zero, LABEL_clipTriangle_0007          ## L:344  |    105 | colorDiff = colorBase - color;
+  vsubc $v13, $v03, $v08.v                           ## L:344  |   *107 | colorDiff = colorBase - color;
   LABEL_clipTriangle_0006:
-  ori $at, $zero, %lo(RSPQ_SCRATCH_MEM)              ## L:330  |     82 | planeNorm:sint.XYZW = planeNorm:sint.xyzw; ## Barrier: 0x1
-  vor $v11, $v00, $v04                               ## L:334  |      ^ | vpos = posBase;
-  sdv $v14, 0, 0, $at                                ## L:330  |     83 | planeNorm:sint.XYZW = planeNorm:sint.xyzw; ## Barrier: 0x1
-  vxor $v15, $v00, $v00.e0                           ## L:331  |      ^ | planeNorm:sfract = 0;
-  vor $v12, $v00, $v05                               ## L:334  |     84 | vpos = posBase;
-  ldv $v14, 8, 0, $at                                ## L:330  |      ^ | planeNorm:sint.XYZW = planeNorm:sint.xyzw; ## Barrier: 0x1
-  vsubc $v10, $v07, $v05.v                           ## L:333  |     85 | posUVDiff = pos - posBase;
-  sdv $v06, 0, 0, $at                                ## L:335  |      ^ | vpos.XYZW = pos.xyzw; ## Barrier: 0x1
-  vsub $v09, $v06, $v04.v                            ## L:333  |     86 | posUVDiff = pos - posBase;
-  vmudl $v15, $v15, $v31.e7                          ## L:336  |     87 | planeNorm >>= 8;
-  vmadm $v14, $v14, $v31.e7                          ## L:336  |     88 | planeNorm >>= 8;
-  vmadn $v15, $v00, $v00                             ## L:336  |     89 | planeNorm >>= 8;
-  sdv $v07, 0, 8, $at                                ## L:335  |      ^ | vpos.XYZW = pos.xyzw; ## Barrier: 0x1
-  vsubc $v13, $v08, $v03.v                           ## L:338  |     90 | colorDiff = color - colorBase;
-  ldv $v11, 8, 0, $at                                ## L:335  |      ^ | vpos.XYZW = pos.xyzw; ## Barrier: 0x1
-  ldv $v12, 8, 8, $at                                ## L:335  |   **93 | vpos.XYZW = pos.xyzw; ## Barrier: 0x1
+  ori $at, $zero, %lo(RSPQ_SCRATCH_MEM)              ## L:346  |      1 | planeNorm:sint.XYZW = planeNorm:sint.xyzw; ## Barrier: 0x1
+  vor $v11, $v00, $v04                               ## L:350  |      ^ | vpos = posBase;
+  sdv $v14, 0, 0, $at                                ## L:346  |      2 | planeNorm:sint.XYZW = planeNorm:sint.xyzw; ## Barrier: 0x1
+  vxor $v15, $v00, $v00.e0                           ## L:347  |      ^ | planeNorm:sfract = 0;
+  vsubc $v10, $v07, $v05.v                           ## L:349  |      3 | posUVDiff = pos - posBase;
+  ldv $v14, 8, 0, $at                                ## L:346  |      ^ | planeNorm:sint.XYZW = planeNorm:sint.xyzw; ## Barrier: 0x1
+  vor $v12, $v00, $v05                               ## L:350  |      4 | vpos = posBase;
+  sdv $v06, 0, 0, $at                                ## L:351  |      ^ | vpos.XYZW = pos.xyzw; ## Barrier: 0x1
+  vsub $v09, $v06, $v04.v                            ## L:349  |      5 | posUVDiff = pos - posBase;
+  vmudl $v15, $v15, $v31.e7                          ## L:352  |      6 | planeNorm >>= 8;
+  vmadm $v14, $v14, $v31.e7                          ## L:352  |      7 | planeNorm >>= 8;
+  sdv $v07, 0, 8, $at                                ## L:351  |      ^ | vpos.XYZW = pos.xyzw; ## Barrier: 0x1
+  vmadn $v15, $v00, $v00                             ## L:352  |      8 | planeNorm >>= 8;
+  ldv $v11, 8, 0, $at                                ## L:351  |      ^ | vpos.XYZW = pos.xyzw; ## Barrier: 0x1
+  vsubc $v13, $v08, $v03.v                           ## L:354  |      9 | colorDiff = color - colorBase;
+  ldv $v12, 8, 8, $at                                ## L:351  |      ^ | vpos.XYZW = pos.xyzw; ## Barrier: 0x1
   LABEL_clipTriangle_0007:
-  vmudl $v15, $v15, $v01.v                           ## L:341  |      ^ | planeNorm *= normScaleWInv:ufract;
-  vmadm $v14, $v14, $v01.v                           ## L:341  |     94 | planeNorm *= normScaleWInv:ufract;
-  vmadn $v15, $v00, $v00                             ## L:341  |     95 | planeNorm *= normScaleWInv:ufract;
-  vmudl $v29, $v12, $v15.v                           ## L:212  |  ***99 | res = a * b;
-  vmadm $v29, $v11, $v15.v                           ## L:212  |    100 | res = a * b;
-  vmadn $v17, $v12, $v14.v                           ## L:212  |    101 | res = a * b;
-  vmadh $v16, $v11, $v14.v                           ## L:212  |    102 | res = a * b;
-  vaddc $v17, $v17, $v17.q1                          ## L:213  |  **105 | res += res.yywwYYWW;
-  vadd $v16, $v16, $v16.q1                           ## L:213  |    106 | res += res.yywwYYWW;
-  vaddc $v17, $v17, $v17.h2                          ## L:214  |  **109 | res += res.zzzzZZZZ;
-  vadd $v16, $v16, $v16.h2                           ## L:214  |    110 | res += res.zzzzZZZZ;
-  vsubc $v19, $v17, $v17.e4                          ## L:344  |  **113 | vec32 fac = dot - dot.X;
-  vsub $v18, $v16, $v16.e4                           ## L:344  |    114 | vec32 fac = dot - dot.X;
-  vrcph $v18.e0, $v18.e0                             ## L:346  | ***118 | fac.x = invert_half(fac).x;
-  vrcpl $v19.e0, $v19.e0                             ## L:346  |    119 | fac.x = invert_half(fac).x;
-  vrcph $v18.e0, $v00.e0                             ## L:346  |    120 | fac.x = invert_half(fac).x;
-  vaddc $v19, $v19, $v19.v                           ## L:347  |  **123 | fac += fac;
-  vadd $v18, $v18, $v18.v                            ## L:347  |    124 | fac += fac;
-  vmudl $v29, $v19, $v17.e0                          ## L:348  |  **127 | fac *= dot.x;
-  vmadm $v29, $v18, $v17.e0                          ## L:348  |    128 | fac *= dot.x;
-  vmadn $v19, $v19, $v16.e0                          ## L:348  |    129 | fac *= dot.x;
-  vmadh $v18, $v18, $v16.e0                          ## L:348  |    130 | fac *= dot.x;
-  mfc2 $sp, $v18.e0                                  ## L:350  | ***134 | s16 facX = fac:sint.x;
-  beq $sp, $zero, LABEL_clipTriangle_0008            ## L:351  |  **137 | if(facX != 0) {
-  nop                                                ## L:351  |   *139 | if(facX != 0) {
-  vlt $v29, $v18, $v30.e7                            ## L:355  |    140 | fac:ufract = fac:sint < 1 ? fac:ufract : normScaleWInv:ufract.w;
-  vmrg $v19, $v19, $v01.e3                           ## L:355  |    141 | fac:ufract = fac:sint < 1 ? fac:ufract : normScaleWInv:ufract.w;
-  vge $v29, $v18, $v00.e0                            ## L:356  |    142 | fac:ufract = fac:sint >= 0 ? fac:ufract : VZERO;
-  vmrg $v19, $v19, $v00                              ## L:356  |  **145 | fac:ufract = fac:sint >= 0 ? fac:ufract : VZERO;
+  vmudl $v15, $v15, $v01.v                           ## L:357  | **************************************************************************************************108 | planeNorm *= normScaleWInv:ufract;
+  vmadm $v14, $v14, $v01.v                           ## L:357  |    109 | planeNorm *= normScaleWInv:ufract;
+  vmadn $v15, $v00, $v00                             ## L:357  |    110 | planeNorm *= normScaleWInv:ufract;
+  vmudl $v29, $v12, $v15.v                           ## L:225  | ***114 | res = a * b;
+  vmadm $v29, $v11, $v15.v                           ## L:225  |    115 | res = a * b;
+  vmadn $v17, $v12, $v14.v                           ## L:225  |    116 | res = a * b;
+  vmadh $v16, $v11, $v14.v                           ## L:225  |    117 | res = a * b;
+  vaddc $v17, $v17, $v17.q1                          ## L:226  |  **120 | res += res.yywwYYWW;
+  vadd $v16, $v16, $v16.q1                           ## L:226  |    121 | res += res.yywwYYWW;
+  vaddc $v17, $v17, $v17.h2                          ## L:227  |  **124 | res += res.zzzzZZZZ;
+  vadd $v16, $v16, $v16.h2                           ## L:227  |    125 | res += res.zzzzZZZZ;
+  vsubc $v19, $v17, $v17.e4                          ## L:360  |  **128 | vec32 fac = dot - dot.X;
+  vsub $v18, $v16, $v16.e4                           ## L:360  |    129 | vec32 fac = dot - dot.X;
+  vrcph $v18.e0, $v18.e0                             ## L:362  | ***133 | fac.x = invert_half(fac).x;
+  vrcpl $v19.e0, $v19.e0                             ## L:362  |    134 | fac.x = invert_half(fac).x;
+  vrcph $v18.e0, $v00.e0                             ## L:362  |    135 | fac.x = invert_half(fac).x;
+  vaddc $v19, $v19, $v19.v                           ## L:363  |  **138 | fac += fac;
+  vadd $v18, $v18, $v18.v                            ## L:363  |    139 | fac += fac;
+  vmudl $v29, $v19, $v17.e0                          ## L:364  |  **142 | fac *= dot.x;
+  vmadm $v29, $v18, $v17.e0                          ## L:364  |    143 | fac *= dot.x;
+  vmadn $v19, $v19, $v16.e0                          ## L:364  |    144 | fac *= dot.x;
+  vmadh $v18, $v18, $v16.e0                          ## L:364  |    145 | fac *= dot.x;
+  mfc2 $sp, $v18.e0                                  ## L:366  | ***149 | s16 facX = fac:sint.x;
+  beq $sp, $zero, LABEL_clipTriangle_0008            ## L:367  |  **152 | if(facX != 0) {
+  nop                                                ## L:367  |    153 | if(facX != 0) {
+  vlt $v29, $v18, $v30.e7                            ## L:371  |    154 | fac:ufract = fac:sint < 1 ? fac:ufract : normScaleWInv:ufract.w;
+  vmrg $v19, $v19, $v01.e3                           ## L:371  |    155 | fac:ufract = fac:sint < 1 ? fac:ufract : normScaleWInv:ufract.w;
+  vge $v29, $v18, $v00.e0                            ## L:372  |    156 | fac:ufract = fac:sint >= 0 ? fac:ufract : VZERO;
+  vmrg $v19, $v19, $v00                              ## L:372  |  **159 | fac:ufract = fac:sint >= 0 ? fac:ufract : VZERO;
   LABEL_clipTriangle_0008:
-  beq $t7, $zero, LABEL_clipTriangle_0009            ## L:361  |      ^ | if(newClipCode) {
-  vmudm $v13, $v13, $v19.e0                          ## L:359  | ****150 | colorDiff:sfract *= fac:sfract.x;
-  vmudl $v17, $v10, $v19.e0                          ## L:363  |    151 | dot = posUVDiff * fac:ufract.x;
-  vmadm $v16, $v09, $v19.e0                          ## L:363  |    152 | dot = posUVDiff * fac:ufract.x;
-  vmadn $v17, $v00, $v00                             ## L:363  |    153 | dot = posUVDiff * fac:ufract.x;
-  vmadn $v05, $v07, $v30.e7                          ## L:364  |    154 | resPosUV = pos +* 1;
-  vmadh $v04, $v06, $v30.e7                          ## L:364  |    155 | resPosUV = pos +* 1;
-  beq $zero, $zero, LABEL_clipTriangle_000A          ## L:365  |      ^ | resColor:uint = color + colorDiff;
-  vaddc $v03, $v08, $v13.v                           ## L:365  |   *157 | resColor:uint = color + colorDiff;
+  beq $t7, $zero, LABEL_clipTriangle_0009            ## L:377  |      ^ | if(newClipCode) {
+  vmudm $v13, $v13, $v19.e0                          ## L:375  | ***163 | colorDiff:sfract *= fac:sfract.x;
+  vmudl $v17, $v10, $v19.e0                          ## L:379  |    164 | dot = posUVDiff * fac:ufract.x;
+  vmadm $v16, $v09, $v19.e0                          ## L:379  |    165 | dot = posUVDiff * fac:ufract.x;
+  vmadn $v17, $v00, $v00                             ## L:379  |    166 | dot = posUVDiff * fac:ufract.x;
+  vmadn $v05, $v07, $v30.e7                          ## L:380  |    167 | resPosUV = pos +* 1;
+  vmadh $v04, $v06, $v30.e7                          ## L:380  |    168 | resPosUV = pos +* 1;
+  beq $zero, $zero, LABEL_clipTriangle_000A          ## L:381  |      ^ | resColor:uint = color + colorDiff;
+  vaddc $v03, $v08, $v13.v                           ## L:381  |   *170 | resColor:uint = color + colorDiff;
   LABEL_clipTriangle_0009:
-  vmudl $v17, $v10, $v19.e0                          ## L:367  |    158 | dot = posUVDiff * fac:ufract.x;
-  vmadm $v16, $v09, $v19.e0                          ## L:367  |    159 | dot = posUVDiff * fac:ufract.x;
-  vmadn $v17, $v00, $v00                             ## L:367  |    160 | dot = posUVDiff * fac:ufract.x;
-  vmadn $v05, $v05, $v30.e7                          ## L:368  |    161 | resPosUV = posBase +* 1;
-  vmadh $v04, $v04, $v30.e7                          ## L:368  |    162 | resPosUV = posBase +* 1;
-  vaddc $v03, $v03, $v13.v                           ## L:369  |    163 | resColor:uint = colorBase + colorDiff;
+  vmudl $v17, $v10, $v19.e0                          ## L:383  |      1 | dot = posUVDiff * fac:ufract.x;
+  vmadm $v16, $v09, $v19.e0                          ## L:383  |      2 | dot = posUVDiff * fac:ufract.x;
+  vmadn $v17, $v00, $v00                             ## L:383  |      3 | dot = posUVDiff * fac:ufract.x;
+  vmadn $v05, $v05, $v30.e7                          ## L:384  |      4 | resPosUV = posBase +* 1;
+  vmadh $v04, $v04, $v30.e7                          ## L:384  |      5 | resPosUV = posBase +* 1;
+  vaddc $v03, $v03, $v13.v                           ## L:385  |      6 | resColor:uint = colorBase + colorDiff;
   LABEL_clipTriangle_000A:
-  vmudl $v10, $v05, $v01.v                           ## L:373  |   *165 | vec32 clipBase = resPosUV * normScaleWInv:ufract;
-  vmadm $v09, $v04, $v01.v                           ## L:373  |    166 | vec32 clipBase = resPosUV * normScaleWInv:ufract;
-  vmadn $v10, $v00, $v00                             ## L:373  |    167 | vec32 clipBase = resPosUV * normScaleWInv:ufract;
-  sdv $v04, 0, 16, $t3                               ## L:563  |      ^ | store(lastPosUV.xyzw,    ptrWrite, 0x10);
-  vmudm $v12, $v02, $v05.h3                          ## L:374  |    168 | vec32 clipPlaneW = guardBandScale * resPosUV.wwwwWWWW;
-  vmadh $v11, $v02, $v04.h3                          ## L:374  |    169 | vec32 clipPlaneW = guardBandScale * resPosUV.wwwwWWWW;
-  vmadn $v12, $v00, $v00                             ## L:374  |    170 | vec32 clipPlaneW = guardBandScale * resPosUV.wwwwWWWW;
-  suv $v03, 0, 8, $t3                                ## L:559  |      ^ | @Barrier("uv") store_vec_u8(lastColor,  ptrWrite, 0x08); ## Barrier: 0x2
-  vch $v29, $v09, $v11.e3                            ## L:376  |  **173 | newClipCode = clip(clipBase, clipPlaneW.w);
-  vcl $v29, $v10, $v12.e3                            ## L:376  |    174 | newClipCode = clip(clipBase, clipPlaneW.w);
-  slv $v04, 8, 12, $t3                               ## L:560  |      ^ | @Barrier("uv") store(lastPosUV:sint.XY, ptrWrite, 0x0C); ## Barrier: 0x2
-  cfc2 $t7, $vcc                                     ## L:376  |    175 | newClipCode = clip(clipBase, clipPlaneW.w);
-  sdv $v05, 0, 24, $t3                               ## L:563  |    176 | store(lastPosUV.xyzw,    ptrWrite, 0x10);
-  andi $t7, $t7, 775                                 ## L:236  |   *178 | res = clipCode & 0b0000'0011'0000'0111;
-  srl $sp, $t7, 5                                    ## L:237  |    179 | u32 tmp = res >> 5;
-  or $t7, $t7, $sp                                   ## L:238  |    180 | res |= tmp;
-  sb $t7, 6($t3)                                     ## L:562  |    181 | store(lastClipCode:u8,   ptrWrite, 0x06);
-  addiu $t3, $t3, 36                                 ## L:564  |    182 | ptrWrite += 36;
+  sdv $v05, 0, 24, $t3                               ## L:603  | ********************************************************************************************************************************************************************171 | store(lastPosUV.xyzw,    ptrWrite, 0x10);
+  vmudl $v10, $v05, $v01.v                           ## L:389  |      ^ | vec32 clipBase = resPosUV * normScaleWInv:ufract;
+  vmadm $v09, $v04, $v01.v                           ## L:389  |    172 | vec32 clipBase = resPosUV * normScaleWInv:ufract;
+  vmadn $v10, $v00, $v00                             ## L:389  |    173 | vec32 clipBase = resPosUV * normScaleWInv:ufract;
+  vmudm $v12, $v02, $v05.h3                          ## L:390  |    174 | vec32 clipPlaneW = guardBandScale * resPosUV.wwwwWWWW;
+  suv $v03, 0, 8, $t3                                ## L:599  |      ^ | @Barrier("uv") store_vec_u8(lastColor,  ptrWrite, 0x08); ## Barrier: 0x2
+  vmadh $v11, $v02, $v04.h3                          ## L:390  |    175 | vec32 clipPlaneW = guardBandScale * resPosUV.wwwwWWWW;
+  vmadn $v12, $v00, $v00                             ## L:390  |    176 | vec32 clipPlaneW = guardBandScale * resPosUV.wwwwWWWW;
+  vmov $v09.e2, $v09.e3                              ## L:392  |    177 | clipBase.z = clipBase.w;
+  vmov $v10.e2, $v10.e3                              ## L:392  |    178 | clipBase.z = clipBase.w;
+  vch $v29, $v09, $v11.e3                            ## L:393  |  **181 | newClipCode = clip(clipBase, clipPlaneW.w);
+  slv $v04, 8, 12, $t3                               ## L:600  |      ^ | @Barrier("uv") store(lastPosUV:sint.XY, ptrWrite, 0x0C); ## Barrier: 0x2
+  sdv $v04, 0, 16, $t3                               ## L:603  |    182 | store(lastPosUV.xyzw,    ptrWrite, 0x10);
+  vcl $v29, $v10, $v12.e3                            ## L:393  |      ^ | newClipCode = clip(clipBase, clipPlaneW.w);
+  cfc2 $t7, $vcc                                     ## L:393  |    183 | newClipCode = clip(clipBase, clipPlaneW.w);
+  addiu $t3, $t3, 36                                 ## L:604  |    184 | ptrWrite += 36;
+  andi $t7, $t7, 775                                 ## L:250  |   *186 | res = clipCode & 0b0000'0011'0000'0111;
+  srl $sp, $t7, 5                                    ## L:251  |    187 | u32 tmp = res >> 5;
+  or $t7, $t7, $sp                                   ## L:252  |    188 | res |= tmp;
+  sb $t7, -30($t3)                                   ## L:602  |    189 | store(lastClipCode:u8,   ptrWrite, 0x06);
   LABEL_clipTriangle_0005:
-  vor $v03, $v00, $v08                               ## L:476  |      ^ | lastColor = currentColor;
-  vor $v05, $v00, $v07                               ## L:474  |    183 | lastPosUV = currentPosUV;
-  or $t7, $zero, $t9                                 ## L:475  |      ^ | lastClipCode = clipCode;
-  beq $k1, $zero, LABEL_clipTriangle_000B            ## L:478  |    184 | if(isInsideCurr) {
-  vor $v04, $v00, $v06                               ## L:474  |   *186 | lastPosUV = currentPosUV;
-  suv $v03, 0, 8, $t3                                ## L:559  |    187 | @Barrier("uv") store_vec_u8(lastColor,  ptrWrite, 0x08); ## Barrier: 0x2
-  sb $t7, 6($t3)                                     ## L:562  |    188 | store(lastClipCode:u8,   ptrWrite, 0x06);
-  sdv $v05, 0, 24, $t3                               ## L:563  |    189 | store(lastPosUV.xyzw,    ptrWrite, 0x10);
-  slv $v04, 8, 12, $t3                               ## L:560  |    190 | @Barrier("uv") store(lastPosUV:sint.XY, ptrWrite, 0x0C); ## Barrier: 0x2
-  sdv $v04, 0, 16, $t3                               ## L:563  |    191 | store(lastPosUV.xyzw,    ptrWrite, 0x10);
-  addiu $t3, $t3, 36                                 ## L:564  |    192 | ptrWrite += 36;
+  vor $v03, $v00, $v08                               ## L:516  |      ^ | lastColor = currentColor;
+  or $t7, $zero, $t9                                 ## L:515  |    190 | lastClipCode = clipCode;
+  vor $v04, $v00, $v06                               ## L:514  |      ^ | lastPosUV = currentPosUV;
+  beq $k1, $zero, LABEL_clipTriangle_000B            ## L:518  |    191 | if(isInsideCurr) {
+  vor $v05, $v00, $v07                               ## L:514  |    192 | lastPosUV = currentPosUV;
+  suv $v03, 0, 8, $t3                                ## L:599  |    193 | @Barrier("uv") store_vec_u8(lastColor,  ptrWrite, 0x08); ## Barrier: 0x2
+  slv $v04, 8, 12, $t3                               ## L:600  |    194 | @Barrier("uv") store(lastPosUV:sint.XY, ptrWrite, 0x0C); ## Barrier: 0x2
+  sdv $v04, 0, 16, $t3                               ## L:603  |    195 | store(lastPosUV.xyzw,    ptrWrite, 0x10);
+  sdv $v05, 0, 24, $t3                               ## L:603  |    196 | store(lastPosUV.xyzw,    ptrWrite, 0x10);
+  addiu $t3, $t3, 36                                 ## L:604  |    197 | ptrWrite += 36;
+  sb $t7, -30($t3)                                   ## L:602  |    198 | store(lastClipCode:u8,   ptrWrite, 0x06);
   LABEL_clipTriangle_000B:
-  addiu $t6, $t6, 36                                 ## L:482  |    193 | ptrRead += 36;
-  bne $t6, $t8, LABEL_clipTriangle_0003              ## L:482  |    194 | ptrRead += 36;
+  addiu $t6, $t6, 36                                 ## L:522  |    199 | ptrRead += 36;
+  bne $t6, $t8, LABEL_clipTriangle_0003              ## L:522  |    200 | ptrRead += 36;
+  nop                                                ## L:522  |    201 | ptrRead += 36;
   LABEL_clipTriangle_0004:
-  subu $t0, $t3, $t2                                 ## L:487  |    197 | arraySize = ptrWrite - ptrBuff1;
-  beq $t0, $zero, CLIP_RETURN                        ## L:489  |    198 | if(arraySize == 0)goto CLIP_RETURN;
-  sll $t5, $t5, 1                                    ## L:486  |   *200 | planeIdx <<= 1;
-  addiu $at, $zero, 32                               ## L:491  |    201 | planePtr += 0x04;
-  bne $t5, $at, LABEL_clipTriangle_0001              ## L:491  |    202 | planePtr += 0x04;
-  addiu $t4, $t4, 4                                  ## L:491  |   *204 | planePtr += 0x04;
+  subu $t0, $t3, $t2                                 ## L:527  |    202 | arraySize = ptrWrite - ptrBuff1;
+  beq $t0, $zero, CLIP_RETURN                        ## L:529  |    203 | if(arraySize == 0)goto CLIP_RETURN;
+  sll $t5, $t5, 1                                    ## L:526  |    204 | planeIdx <<= 1;
+  addiu $at, $zero, 32                               ## L:531  |    205 | planePtr += 0x04;
+  bne $t5, $at, LABEL_clipTriangle_0001              ## L:531  |    206 | planePtr += 0x04;
+  addiu $t4, $t4, 4                                  ## L:531  |    207 | planePtr += 0x04;
   CLIP_END:
-  ori $s6, $zero, %lo(CLIP_BUFFER_RESULT)            ## L:496  |    205 | u32<$s6> ptrVertIn = CLIP_BUFFER_RESULT;
-  addu $s5, $s6, $t0                                 ## L:497  |    206 | u32<$s5> ptrVertInEnd = ptrVertIn + arraySize;
-  bgezal $zero, triToScreenSpace                     ## L:502  |    207 | @Relative triToScreenSpace(ptrVertIn); ## Args: $s6
-  addiu $s5, $s5, 65464                              ## L:498  |   *209 | ptrVertInEnd -= 72;
-  bgezal $zero, triToScreenSpace                     ## L:504  |    210 | @Relative triToScreenSpace(ptrVertIn); ## Args: $s6
-  addiu $s6, $s6, 72                                 ## L:503  |   *212 | ptrVertIn += 72;
+  ori $s6, $zero, %lo(CLIP_BUFFER_RESULT)            ## L:536  |    208 | u32<$s6> ptrVertIn = CLIP_BUFFER_RESULT;
+  addu $s5, $s6, $t0                                 ## L:537  |    209 | u32<$s5> ptrVertInEnd = ptrVertIn + arraySize;
+  bgezal $zero, triToScreenSpace                     ## L:542  |    210 | @Relative triToScreenSpace(ptrVertIn); ## Args: $s6
+  addiu $s5, $s5, 65464                              ## L:538  |    211 | ptrVertInEnd -= 72;
+  bgezal $zero, triToScreenSpace                     ## L:544  |    212 | @Relative triToScreenSpace(ptrVertIn); ## Args: $s6
+  addiu $s6, $s6, 72                                 ## L:543  |    213 | ptrVertIn += 72;
   LABEL_clipTriangle_000D:
-  bgezal $zero, triToScreenSpace                     ## L:502  |    212 | @Relative triToScreenSpace(ptrVertIn); ## Args: $s6
-  addiu $s6, $s6, 72                                 ## L:501  |   *214 | ptrVertIn += 72;
-  or $a1, $zero, $s6                                 ## L:505  |    215 | ptrVertB = ptrVertIn;
-  ori $a0, $zero, %lo(CLIP_BUFFER_RESULT)            ## L:504  |    217 | ptrVertA = CLIP_BUFFER_RESULT;
-  jal RDPQ_Triangle_Send_Async                       ## L:510  |    218 | RDPQ_Triangle_Send_Async(ptrVertA, ptrVertB, ptrVertC, cullDest, faceCull); ## Args: $a0, $a1, $a2, $sp, $v0
-  addiu $a2, $s6, 36                                 ## L:506  |   *220 | ptrVertC = ptrVertIn + 36;
-  j RDPQ_Triangle_Send_End                           ## L:511  |    221 | RDPQ_Triangle_Send_End();
-  ori $ra, $zero, %lo(RDPQ_Triangle_Clip)
+  bgezal $zero, triToScreenSpace                     ## L:550  |    214 | @Relative triToScreenSpace(ptrVertIn); ## Args: $s6
+  addiu $s6, $s6, 72                                 ## L:549  |    215 | ptrVertIn += 72;
+  addiu $a2, $s6, 36                                 ## L:554  |    216 | ptrVertC = ptrVertIn + 36;
+  or $a1, $zero, $s6                                 ## L:553  |    217 | ptrVertB = ptrVertIn;
+  jal RDPQ_Triangle_Send_Async                       ## L:557  |    218 | RDPQ_Triangle_Send_Async(ptrVertA, ptrVertB, ptrVertC, faceCull); ## Args: $a0, $a1, $a2, $v0
+  ori $a0, $zero, %lo(CLIP_BUFFER_RESULT)            ## L:552  |    219 | ptrVertA = CLIP_BUFFER_RESULT;
+  jal RDPQ_Triangle_Send_End                         ## L:558  |    220 | RDPQ_Triangle_Send_End();
+  nop                                                ## L:558  |    221 | RDPQ_Triangle_Send_End();
   RDPQ_Triangle_Clip:
-  bne $s6, $s5, LABEL_clipTriangle_000D              ## L:519  |    224 | RDPQ_Triangle_Clip:
+  bne $s6, $s5, LABEL_clipTriangle_000D              ## L:559  |    222 | RDPQ_Triangle_Clip:
+  nop                                                ## L:559  |    223 | RDPQ_Triangle_Clip:
   CLIP_RETURN:
-  lhu $at, %lo(CLIP_RA + 0)                          ## L:280  |    227 | u16 tmp = load(CLIP_RA);
-  j $at                                              ## L:283  |  **230 | goto tmp;
-  lh $s4, %lo(RSPQ_SCRATCH_MEM + 18)                 ## L:282  |   *232 | s16<$s4> oldDMEM = load(RSPQ_SCRATCH_MEM, 18);
+  lhu $t6, %lo(CLIP_RA + 0)                          ## L:296  |    224 | u16 tmp = load(CLIP_RA);
+  j $t6                                              ## L:299  |  **227 | goto tmp;
+  lh $s4, %lo(RSPQ_SCRATCH_MEM + 18)                 ## L:298  |   *229 | s16<$s4> oldDMEM = load(RSPQ_SCRATCH_MEM, 18);
 triToScreenSpace:
-  ori $at, $zero, %lo(SCREEN_SCALE_OFFSET)           ## L:574  |      ^ | vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzw;
-  ldv $v01, 0, 0, $at                                ## L:574  |      2 | vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzw;
-  ldv $v07, 0, 16, $s6                               ## L:589  |      3 | vec32 posClip = load(ptr, 0x10).xyzw;
-  vmudl $v02, $v00, $v31.e7                          ## L:576  |      ^ | screenSize >>= 4;
-  ldv $v08, 0, 24, $s6                               ## L:589  |      4 | vec32 posClip = load(ptr, 0x10).xyzw;
-  lhu $t0, %lo(RSPQ_SCRATCH_MEM + 20)                ## L:582  |      5 | u16<$t0> oldClipFlag = load(RSPQ_SCRATCH_MEM, 20);
-  ldv $v04, 0, 8, $at                                ## L:586  |      6 | vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzw;
-  vmadm $v01, $v01, $v31.e7                          ## L:576  |      ^ | screenSize >>= 4;
-  vmadn $v02, $v00, $v00                             ## L:576  |      7 | screenSize >>= 4;
-  vrcph $v05.e3, $v07.e3                             ## L:590  |      8 | invW.w = invert_half(posClip).w;
-  vrcpl $v06.e3, $v08.e3                             ## L:590  |      9 | invW.w = invert_half(posClip).w;
-  vrcph $v05.e3, $v00.e3                             ## L:590  |     10 | invW.w = invert_half(posClip).w;
-  vxor $v03, $v00, $v30.e7                           ## L:578  |     11 | vec16 vecOne = 1;
-  vmudl $v29, $v08, $v06.e3                          ## L:593  |    *13 | posClip *= invW.w;
-  vmadm $v29, $v07, $v06.e3                          ## L:593  |     14 | posClip *= invW.w;
-  vmadn $v08, $v08, $v05.e3                          ## L:593  |     15 | posClip *= invW.w;
-  vmadh $v07, $v07, $v05.e3                          ## L:593  |     16 | posClip *= invW.w;
-  vmudl $v29, $v08, $v02.v                           ## L:594  |   **19 | posClip *= screenSize;
-  vmadm $v29, $v07, $v02.v                           ## L:594  |     20 | posClip *= screenSize;
-  andi $t0, $t0, 57344                               ## L:583  |      ^ | oldClipFlag = oldClipFlag & ((0b111'00000) << 8);
-  vmadn $v08, $v08, $v01.v                           ## L:594  |     21 | posClip *= screenSize;
-  ssv $v06, 6, 34, $s6                               ## L:591  |      ^ | store(invW.w, ptr, 0x20);
-  ori $t0, $t0, 255                                  ## L:584  |     22 | oldClipFlag |= 0xFF;
-  vmadh $v07, $v07, $v01.v                           ## L:594  |      ^ | posClip *= screenSize;
-  ssv $v05, 6, 32, $s6                               ## L:591  |     23 | store(invW.w, ptr, 0x20);
-  vmadh $v07, $v04, $v30.e7                          ## L:596  |      ^ | posClip:sint = screenOffset:sint +* 1;
-  sdv $v07, 0, 0, $s6                                ## L:598  |  ***27 | @Barrier("cc") store(posClip:sint.xyzw, ptr, 0x00); ## Barrier: 0x1
-  sh $t0, 6($s6)                                     ## L:599  |     28 | @Barrier("cc") store(oldClipFlag, ptr, 0x06); ## Barrier: 0x1
-  jr $ra                                             ## L:602  |     29 | }
-  addiu $s6, $s6, 65500                              ## L:601  |    *31 | ptr -= 36;
-T3DCmd_TriDraw_End:
+  ## hot-path cycles: 35
+  ori $at, $zero, %lo(SCREEN_SCALE_OFFSET)           ## L:614  |      ^ | vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzw;
+  ldv $v01, 0, 0, $at                                ## L:614  |      2 | vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzw;
+  ldv $v08, 0, 24, $s6                               ## L:629  |      3 | vec32 posClip = load(ptr, 0x10).xyzw;
+  ldv $v07, 0, 16, $s6                               ## L:629  |      4 | vec32 posClip = load(ptr, 0x10).xyzw;
+  vmudl $v02, $v00, $v31.e7                          ## L:616  |      ^ | screenSize >>= 8;
+  vmadm $v01, $v01, $v31.e7                          ## L:616  |     *6 | screenSize >>= 8;
+  ldv $v04, 0, 8, $at                                ## L:626  |      ^ | vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzw;
+  vmadn $v02, $v00, $v00                             ## L:616  |      7 | screenSize >>= 8;
+  vrcph $v05.e3, $v07.e3                             ## L:630  |      8 | invW.w = invert_half(posClip).w;
+  lhu $t0, %lo(RSPQ_SCRATCH_MEM + 20)                ## L:622  |      ^ | u16<$t0> oldClipFlag = load(RSPQ_SCRATCH_MEM, 20);
+  vrcpl $v06.e3, $v08.e3                             ## L:630  |      9 | invW.w = invert_half(posClip).w;
+  vxor $v03, $v00, $v30.e7                           ## L:618  |     10 | vec16 vecOne = 1;
+  vrcph $v05.e3, $v00.e3                             ## L:630  |     11 | invW.w = invert_half(posClip).w;
+  andi $t0, $t0, 57344                               ## L:623  |      ^ | oldClipFlag = oldClipFlag & ((0b111'00000) << 8);
+  vmudl $v29, $v08, $v06.e3                          ## L:633  |    *13 | posClip *= invW.w;
+  ssv $v06, 6, 34, $s6                               ## L:631  |      ^ | store(invW.w, ptr, 0x20);
+  ori $t0, $t0, 255                                  ## L:624  |     14 | oldClipFlag |= 0xFF;
+  vmadm $v29, $v07, $v06.e3                          ## L:633  |      ^ | posClip *= invW.w;
+  vmadn $v08, $v08, $v05.e3                          ## L:633  |     15 | posClip *= invW.w;
+  vmadh $v07, $v07, $v05.e3                          ## L:633  |     16 | posClip *= invW.w;
+  vmudl $v29, $v08, $v02.v                           ## L:634  |   **19 | posClip *= screenSize;
+  vmadm $v29, $v07, $v02.v                           ## L:634  |     20 | posClip *= screenSize;
+  vmadn $v08, $v08, $v01.v                           ## L:634  |     21 | posClip *= screenSize;
+  vmadh $v07, $v07, $v01.v                           ## L:634  |     22 | posClip *= screenSize;
+  ssv $v05, 6, 32, $s6                               ## L:631  |      ^ | store(invW.w, ptr, 0x20);
+  vmadh $v07, $v04, $v30.e7                          ## L:636  |     23 | posClip:sint = screenOffset:sint +* 1;
+  vge $v09, $v07, $v00.e0                            ## L:637  |  ***27 | vec16 zClamp = posClip:sint >= 0;
+  sdv $v07, 0, 0, $s6                                ## L:639  |      ^ | @Barrier("cc") store(posClip:sint.xyzw, ptr, 0x00); ## Barrier: 0x4
+  ssv $v09, 4, 4, $s6                                ## L:640  |  ***31 | @Barrier("cc") store(zClamp.z, ptr, 0x04); ## Barrier: 0x4
+  sh $t0, 6($s6)                                     ## L:641  |     32 | @Barrier("cc") store(oldClipFlag, ptr, 0x06); ## Barrier: 0x4
+  jr $ra                                             ## L:644  |     33 | }
+  addiu $s6, $s6, 65500                              ## L:643  |    *35 | ptr -= 36;
+
 OVERLAY_CODE_END:
 
 #define zero $0

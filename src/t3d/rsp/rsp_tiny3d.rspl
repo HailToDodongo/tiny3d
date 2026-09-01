@@ -136,9 +136,11 @@ state
   u32 TRI_COMMAND = {0}; // for RDPQ_Triangle
   s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
 
-  u16 FOG_STORE_OFFSET  = {TRI_SIZE_2}; // offset (relative to current vertex) where to store fog, set to 72 for no fog
   u8 FACE_CULLING = {0}; // 0=cull front, 1=cull back, 2=no-culling
+  // Note: accessed byte-wide (lbu/sb), must stay u8 (the shipped .S layout depends on it)
+  u8 FOG_STORE_OFFSET = {TRI_SIZE_2}; // offset (relative to current vertex) where to store fog, set to 72 for no fog
   u8 ACTIVE_LIGHT_SIZE = {0}; // light count * light size
+  u8 _UNUSED_ = {0};
 
   u16 VERTEX_FX_FUNC = {0}; // points top the current 'VertexFX_' function in IMEM
   u16 CLIP_CODE_SIZE = {0}; // size to copy
@@ -168,7 +170,7 @@ state
    * s16.16 | InvW      | 0x20
    * -------+-----------+-0x24---
    */
-  alignas(16)
+  alignas(8)
   u8 VERT_BUFFER[VERT_BUFFER_COUNT][TRI_SIZE];
 }
 
@@ -513,8 +515,10 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     // save fog here, to make this branch-less, fogStoreOffset contains the offset to save it to.
     // if enabled this points to alpha of VTX_ATTR_RGBA, otherwise to UVs which get overwritten later
     posClip:sint = screenOffset:sint +* 1;
+
     // No near plane: z/w < -1 gives negative Z, clamp it to Z >= 0
-    vec16<$v01> zClamp = posClip:sint >= 0;
+    // NOTE: this seems to be not needed, only in the cliping code
+    //vec16<$v01> zClamp = posClip:sint >= 0;
 
     VTEMP <<= 1;
     @Barrier("color-fog") store(VTEMP:sint.z, fogA);
@@ -524,8 +528,8 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
     @Barrier("pos-cc") store(posClip:sint.xyzw, ptrBuffA, VTX_ATTR_XY);
     @Barrier("pos-cc") store(posClip:sint.XYZW, ptrBuffB, VTX_ATTR_XY);
-    @Barrier("pos-cc") store(zClamp.z, ptrBuffA, VTX_ATTR_Z);
-    @Barrier("pos-cc") store(zClamp.Z, ptrBuffB, VTX_ATTR_Z);
+    //@Barrier("pos-cc") store(zClamp.z, ptrBuffA, VTX_ATTR_Z);
+    //@Barrier("pos-cc") store(zClamp.Z, ptrBuffB, VTX_ATTR_Z);
 
     // pack the first clip-code to get rid of one save + have more SUs
     @Barrier("pos-cc") store(clipCodeA:u8, ptrBuffA, VTX_ATTR_CLIPFLAGS);

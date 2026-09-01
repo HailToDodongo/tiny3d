@@ -95,6 +95,12 @@ int main()
 
     vertFxTime = fmaxf(vertFxTime - deltaTime, 0.0f);
 
+    if(btn.r) {
+      viewport.guardBandScale = 1;
+      camPos.v[1] -= 40;
+      camPos.v[2] -= 52;
+    }
+
     {
       float camSpeed = deltaTime * 0.001f;
       float camRotSpeed = deltaTime * 0.00001f;
