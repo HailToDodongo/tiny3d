@@ -321,9 +321,7 @@ macro emitClippedTri(u32 ptrWrite, u8 lastClipCode, vec32 lastPosUV, vec16 lastC
 function triToScreenSpace(u32<$s6> ptr)
 {
   // Note: these values need to be loaded each time, as RDPQ_Triangle wipes most regs
-  vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzw;
-  screenSize:sfract = 0;
-  screenSize >>= 8;
+  vec32 screenSize = load(SCREEN_SCALE).xyzw; // s16.16
 
   vec16 vecOne = 1;
 
@@ -333,7 +331,7 @@ function triToScreenSpace(u32<$s6> ptr)
   oldClipFlag = oldClipFlag & ((0b111'00000) << 8);
   oldClipFlag |= 0xFF;
 
-  vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzw;
+  vec16 screenOffset = load(SCREEN_OFFSET).xyzw;
 
   vec32 invW;
   vec32 posClip = load(ptr, VTX_ATTR_CLIPPOSi).xyzw;

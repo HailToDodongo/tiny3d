@@ -1,4 +1,5 @@
 const frames = 30;
+const arg = ares.args[0];
 
 ares.setRenderer("angrylion");
 
@@ -6,6 +7,13 @@ ares.loadRom("t3d_99_testscene.z64");
 ares.resume();
 
 ares.waitFrames(40);
+if(arg === "clip") {
+  const p1 = ares.controller(1);
+  p1.hold('R');
+  ares.waitFrames(1);
+  p1.release('R');
+}
+
 ares.waitRspCommand("Screen Size");
 ares.rspProfileStart();
 ares.waitRspCommand("Screen Size", frames);
@@ -71,19 +79,26 @@ console.log("=========================================");
 // og rdpq tri:
 //const lastPerf = {"tiny3d/Tri Strip":3608.464,"tiny3d/Vert Load":2445.296,"tiny3d/Tri Seq":979.744,"tiny3d/Tri Draw":47.024,"tiny3d/Matrix Stack":17.12,"tiny3d/Proj Set":0.816,"tiny3d/Set Word":0.56,"tiny3d/Light Set":0.4341333333333333,"tiny3d/Screen Size":0.336,"tiny3d/Fog State":0.32,"tiny3d/Draw Flags":0.24};
 // curr:
-const lastPerf = {"tiny3d/Tri Strip":3583.76,"tiny3d/Vert Load":2445.296,"tiny3d/Tri Seq":972.656,"tiny3d/Tri Draw":45.792,"tiny3d/Matrix Stack":17.12,"tiny3d/Proj Set":0.816,"tiny3d/Set Word":0.56,"tiny3d/Light Set":0.43306666666666666,"tiny3d/Screen Size":0.336,"tiny3d/Fog State":0.32,"tiny3d/Draw Flags":0.24};
+let lastPerf = {"tiny3d/Tri Strip":3583.76,"tiny3d/Vert Load":2445.296,"tiny3d/Tri Seq":972.656,"tiny3d/Tri Draw":45.792,"tiny3d/Matrix Stack":17.12,"tiny3d/Proj Set":0.816,"tiny3d/Set Word":0.56,"tiny3d/Light Set":0.43306666666666666,"tiny3d/Screen Size":0.336,"tiny3d/Fog State":0.32,"tiny3d/Draw Flags":0.24};
+if(arg === "clip") {
+  lastPerf = {"tiny3d/Vert Load":2445.296,"tiny3d/Tri Strip":2309.92,"tiny3d/Tri Seq":574.736,"tiny3d/Tri Draw":18.288,"tiny3d/Matrix Stack":17.12,"tiny3d/Proj Set":0.816,"tiny3d/Set Word":0.56,"tiny3d/Light Set":0.4341333333333333,"tiny3d/Screen Size":0.336,"tiny3d/Fog State":0.32,"tiny3d/Draw Flags":0.24};
+}
+
 
 // now compare and check if something got slower:
 let foundWorse = false;
 for (const [name, usPF] of Object.entries(perfMap)) {
   const last = lastPerf[name];
+  const absDiff = Math.abs(usPF - last);
+  if(absDiff < 0.0025) continue; // ignore small differences
+
   if (last === undefined) {
-    console.log("new: " + name + " " + usPF.toFixed(2) + " us/frame");
+    console.log("new: " + name + " " + usPF.toFixed(4) + " us/frame");
   } else if (usPF > last) {
-    console.log("slower: " + name + " " + usPF.toFixed(2) + " us/frame (was " + last.toFixed(2) + ")");
+    console.log("slower: " + name + " " + usPF.toFixed(4) + " us/frame (was " + last.toFixed(4) + ")");
     foundWorse = true;
   } else if (usPF < last) {
-    console.log("faster: " + name + " " + usPF.toFixed(2) + " us/frame (was " + last.toFixed(2) + ")");
+    console.log("faster: " + name + " " + usPF.toFixed(4) + " us/frame (was " + last.toFixed(4) + ")");
   }
 }
 

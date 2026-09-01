@@ -358,7 +358,7 @@ void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags)
 }
 
 void t3d_state_set_depth_offset(int16_t offset) {
-  t3d_dmem_set_u16((RSP_T3D_SCREEN_SCALE_OFFSET & 0xFFF) + 12, 0x3FFF + offset);
+  t3d_dmem_set_u16((RSP_T3D_SCREEN_OFFSET & 0xFFF) + 4, 0x3FFF + offset);
 }
 
 void t3d_state_set_alpha_to_tile(bool enable) {
@@ -596,12 +596,12 @@ void t3d_viewport_attach(T3DViewport *viewport) {
   uint16_t normWScale = (uint16_t)roundf(0xFFFF * currentViewport->_normScaleW);
   float normWScaleFloat = (float)normWScale * (1.0f / 0xFFFF);
 
-  float screenShiftFactor = 256.0f; // compensates the shift in the ucode
-  float screenFactorX = (float)viewport->size[0] * normWScaleFloat * 4.0f *  screenShiftFactor;
-  float screenFactorY = (float)viewport->size[1] * normWScaleFloat * 4.0f * -screenShiftFactor;
+  
+  float screenFactorX = (float)viewport->size[0] * normWScaleFloat *  4.0f;
+  float screenFactorY = (float)viewport->size[1] * normWScaleFloat * -4.0f;
 
-  int32_t screenScaleX = (int32_t)ceilf(screenFactorX);
-  int32_t screenScaleY = (int32_t)ceilf(screenFactorY);
+  int32_t screenScaleX = (int32_t)roundf(screenFactorX * 0x10000);
+  int32_t screenScaleY = (int32_t)roundf(screenFactorY * 0x10000);
 
   // Set screen size, internally the 3D-scene renders to the correct size, but at [0,0]
   // calc. both scale and offset to move/scale it into our scissor region
@@ -609,12 +609,13 @@ void t3d_viewport_attach(T3DViewport *viewport) {
   int32_t screenOffsetY = (int32_t)(viewport->offset[1]*2) + viewport->size[1];
 
   int32_t screenOffset = (screenOffsetX << 17) | (screenOffsetY << 1);
-  int32_t screenScale = (screenScaleX << 16) | ((uint16_t)(screenScaleY) & 0xFFFF);
+  int32_t screenScale = (screenScaleX & 0xFFFF0000) | (((uint32_t)screenScaleY >> 16) & 0xFFFF); // int parts
+  uint32_t screenScaleFrac = ((uint32_t)(screenScaleX & 0xFFFF) << 16) | (uint32_t)(screenScaleY & 0xFFFF);
 
-  uint32_t depthScale = (uint32_t)roundf(0xFFFF * normWScaleFloat * screenShiftFactor * 0.5f);
-  if(depthScale > 0x7FFF)depthScale = 0x7FFF;
+  // normWScaleFloat <= 1, so this always fits u15.16
+  uint32_t depthScaleFx = (uint32_t)roundf(0xFFFF * normWScaleFloat * 0.5f * 0x10000);
 
-  uint32_t depthAndWScale = (depthScale << 16) | normWScale;
+  uint32_t depthAndWScale = (depthScaleFx & 0xFFFF0000) | normWScale; // z int + w-normalize
 
   /*debugf("Screen: %04X %04X | Depth: %08X W-scale: %04X\n",
     (screenScaleX & 0xFFFF), (screenScaleY & 0xFFFF),
@@ -630,7 +631,8 @@ void t3d_viewport_attach(T3DViewport *viewport) {
   guardBandScale |= invScreenSize;
 
   rspq_write(T3D_RSP_ID, T3D_CMD_SCREEN_SIZE,
-    guardBandScale, screenOffset, screenScale, depthAndWScale
+    guardBandScale, screenOffset, screenScale, depthAndWScale,
+    screenScaleFrac, (depthScaleFx & 0xFFFF) << 16 // fraction words of the s16.16 scales
   );
 
   if(viewport->_matFP)

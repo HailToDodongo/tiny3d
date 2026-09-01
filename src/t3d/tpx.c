@@ -59,7 +59,7 @@ void tpx_state_from_t3d()
   uint16_t normWScale = (uint16_t)roundf(0xFFFF * vp->_normScaleW);
 
   uint32_t addrMatrix = (uint32_t)rsp_tiny3d.data + (RSP_T3D_MATRIX_PROJ & 0xFFFF);
-  uint32_t addrScreen = (uint32_t)rsp_tiny3d.data + (RSP_T3D_SCREEN_SCALE_OFFSET & 0xFFFF);
+  uint32_t addrScreen = (uint32_t)rsp_tiny3d.data + (RSP_T3D_SCREEN_SCALE & 0xFFFF);
   rspq_write(TPX_RSP_ID, TPX_CMD_SYNC_T3D,
     addrMatrix & 0x00FFFFFF,
     addrScreen & 0x00FFFFFF,

@@ -84,11 +84,6 @@ state
   // The third value is used as a limiter to prevent overflows.
   s16 FOG_SCALE_OFFSET[4] = {0, 0, 32767, 0};
 
-  vec16 SCREEN_SCALE_OFFSET = {
-    0, 0, 0,           0, // screen size scale (.xyzw)
-    0, 0, 0x3FFF, 0x00FF  // screen size offset (.XYZW), W is used for a fake clipping-code in 'triToScreenSpace'
-  };
-
   vec16 NORMAL_MASK_SHIFT = {
     // Mask to extract 5.6.5-bit values for normal vectors (.xyzw)
     0b11111'000000'00000,
@@ -107,6 +102,13 @@ state
      0, 0, 0,   1, // near plane is ignored and sits at w=0
      1, 0, 0,  -1,
      0, 1, 0,  -1
+  };
+
+  // s16.16 screen-size scale: int x,y,z,w | fract x,y,z,w.
+  alignas(8) s16 SCREEN_SCALE[8] = {0};
+
+  s16 SCREEN_OFFSET[4] = {
+    0, 0, 0x3FFF, 0x00FF  // screen size offset (.XYZW), W is used for a fake clipping-code in 'triToScreenSpace'
   };
 
   u16 RDPQ_TRI_BUFF_OFFSET = {0};
@@ -321,11 +323,9 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   guardBandScale.z = 0x4000; // forces Z clip flag to be zero (W is used instead)
   guardBandScale.Z = 0x4000;
 
-  vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
-  screenSize:sfract = 0;
-  screenSize >>= 8;
+  vec32 screenSize = load(SCREEN_SCALE).xyzwxyzw; // s16.16
 
-  vec16<$v12> screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
+  vec16<$v12> screenOffset = load(SCREEN_OFFSET).xyzwxyzw;
   vec16 fogScaleOffset = load(FOG_SCALE_OFFSET).xyzw;
   fogScaleOffset.Z = fogScaleOffset.z;
 
@@ -637,11 +637,17 @@ function loadCurrentMVPMat(vec32<$v27> mat0, vec32<$v25> mat1, vec32<$v23> mat2,
  * @param screenScale screen-size * 2
  * @param depthAndWScale fractional 16bit scales to normalize W and depth
  */
-command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 screenScaleXY, u32 depthAndWScale)
+command<1> T3DCmd_SetScreenSize(
+  s8 guardBandFactor, u32 screenOffsetXY, u32 screenScaleXY, u32 depthAndWScale,
+  u32<$t4> screenScaleXYFrac, u32<$t5> depthScaleFrac
+)
 {
-  store(depthAndWScale:u32, SCREEN_SCALE_OFFSET, 0x04); // (writes garbage into W, saves a shift)
-  store(screenScaleXY, SCREEN_SCALE_OFFSET, 0x00);
-  store(screenOffsetXY, SCREEN_SCALE_OFFSET, 0x08);
+  // scale is s16.16 (SCREEN_SCALE layout: int x,y,z,w | fract x,y,z,w)
+  store(depthAndWScale:u32, SCREEN_SCALE, 0x04); // z int scale (writes normW into the unused w lane)
+  store(screenScaleXY, SCREEN_SCALE, 0x00);      // x/y int scale
+  store(screenOffsetXY, SCREEN_OFFSET, 0x00);
+  store(screenScaleXYFrac, SCREEN_SCALE, 0x08);
+  store(depthScaleFrac, SCREEN_SCALE, 0x0C);     // (w-lane fraction is unused garbage)
 
   store(depthAndWScale:s16, NORM_SCALE_W, 6);
 
