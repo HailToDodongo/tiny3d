@@ -256,6 +256,9 @@ macro resolveSegmentAddr(u32 addrOut, u32 addrIn) {
   addrOut = addrIn + segment;
 }
 
+macro traceStart() { asm("andi $zero, $zero, 0"); }
+macro traceEnd() { asm("andi $zero, $zero, 1"); }
+
 #ifdef OVERLAY_CLIPPING
   #include "clipping.rspl"
 #else
@@ -397,6 +400,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       ptrBuffA += TRI_SIZE_2;
       ptrBuffB += TRI_SIZE_2;
       vertexFxFunc = load(VERTEX_FX_FUNC);
+      fogA = ptrBuffA + fogStoreOffset;
 
       // load & transform normals, this in not needed when no directional light is present
       // however, an if-statement + the lost ability for reordering is not worth it. (@TODO: do more tests)
@@ -416,7 +420,9 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
       if(ptrLight != ptrLightEnd)
       {
-        lightColor = load_vec_u8(ptrLight, -8); // light color, accumulates directional lights
+        // light color, accumulates directional lights
+        // by default white to get the unlit flag to work
+        lightColor = load_vec_u8(ptrLight, -8);
         
         loop
         {
@@ -444,10 +450,9 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       }
     }
 
-    vec32 clipPlaneW = posClip * guardBandScale.xxxxxxxx;
+    vec16 clipPlaneW = posClip * guardBandScale.xxxxxxxx;
 
     color = load_vec_u8(prt3d, 0x10);
-    fogA = ptrBuffA + fogStoreOffset;
 
     if(mvMatrixLoaded) {
       loadCurrentMVPMat(mat0, mat1, mat2, mat3);
@@ -457,7 +462,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     u32 clipCodeA, clipCodeB, rejCodesA, rejCodesB;
     {
       u32 rejCodes = clip(posClip, posClip.wwwwWWWW); // Clip-Code for rejection (no band-guard)
-      u32 clipCodes = clip(posClip, clipPlaneW.wwwwWWWW); // Clip code for clipping (incl. band-guard)
+      u32 clipCodes = clip(posClip:sint, clipPlaneW.wwwwWWWW); // Clip code for clipping (incl. band-guard)
 
       clipCodeB = clipCodes >> 4;
       clipCodeA = packClipCode(clipCodes);
