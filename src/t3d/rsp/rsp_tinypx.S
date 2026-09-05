@@ -137,30 +137,30 @@ OVERLAY_CODE_START:
 
 TPXCmd_SyncT3D:
   ## hot-path cycles: 25
-  ori $t0, $zero, 127                                ## L:818  |      ^ | dma_in_async(MATRIX_PROJ, rdramMatrix, 128);
+  or $s0, $zero, $a0                                 ## L:818  |      ^ | dma_in_async(MATRIX_PROJ, rdramMatrix, 128);
   ori $s4, $zero, %lo(MATRIX_PROJ)                   ## L:818  |      2 | dma_in_async(MATRIX_PROJ, rdramMatrix, 128);
-  or $t2, $zero, $zero                               ## L:818  |      3 | dma_in_async(MATRIX_PROJ, rdramMatrix, 128);
+  ori $t0, $zero, 127                                ## L:818  |      3 | dma_in_async(MATRIX_PROJ, rdramMatrix, 128);
   jal DMAExec                                        ## L:818  |      4 | dma_in_async(MATRIX_PROJ, rdramMatrix, 128); ## Args: $t0, $t1, $s0, $s4, $t2
-  or $s0, $zero, $a0                                 ## L:818  |      5 | dma_in_async(MATRIX_PROJ, rdramMatrix, 128);
+  or $t2, $zero, $zero                               ## L:818  |      5 | dma_in_async(MATRIX_PROJ, rdramMatrix, 128);
   addiu $a0, $a0, 128                                ## L:820  |      6 | rdramMatrix += 128;
-  ori $t0, $zero, 63                                 ## L:821  |      7 | dma_in_async(RDP_BUFF, rdramMatrix, 64);
-  ori $s4, $zero, %lo(RDP_BUFF)                      ## L:821  |      8 | dma_in_async(RDP_BUFF, rdramMatrix, 64);
-  or $s0, $zero, $a0                                 ## L:821  |      9 | dma_in_async(RDP_BUFF, rdramMatrix, 64);
+  or $t2, $zero, $zero                               ## L:821  |      7 | dma_in_async(RDP_BUFF, rdramMatrix, 64);
+  ori $t0, $zero, 63                                 ## L:821  |      8 | dma_in_async(RDP_BUFF, rdramMatrix, 64);
+  ori $s4, $zero, %lo(RDP_BUFF)                      ## L:821  |      9 | dma_in_async(RDP_BUFF, rdramMatrix, 64);
   jal DMAExec                                        ## L:821  |     10 | dma_in_async(RDP_BUFF, rdramMatrix, 64); ## Args: $t0, $t1, $s0, $s4, $t2
-  or $t2, $zero, $zero                               ## L:821  |     11 | dma_in_async(RDP_BUFF, rdramMatrix, 64);
+  or $s0, $zero, $a0                                 ## L:821  |     11 | dma_in_async(RDP_BUFF, rdramMatrix, 64);
   ori $t0, $zero, 63                                 ## L:823  |     12 | dma_out_async(RDP_BUFF, addrRDRAM, 64);
-  ori $s4, $zero, %lo(RDP_BUFF)                      ## L:823  |     13 | dma_out_async(RDP_BUFF, addrRDRAM, 64);
-  addiu $t2, $zero, -32768                           ## L:823  |     14 | dma_out_async(RDP_BUFF, addrRDRAM, 64);
+  addiu $t2, $zero, -32768                           ## L:823  |     13 | dma_out_async(RDP_BUFF, addrRDRAM, 64);
+  ori $s4, $zero, %lo(RDP_BUFF)                      ## L:823  |     14 | dma_out_async(RDP_BUFF, addrRDRAM, 64);
   jal DMAExec                                        ## L:823  |     15 | dma_out_async(RDP_BUFF, addrRDRAM, 64); ## Args: $t0, $t1, $s0, $s4, $t2
   lw $s0, %lo(MATRIX_STACK_PTR + 0)                  ## L:822  |     16 | u32<$s0> addrRDRAM = load(MATRIX_STACK_PTR);
-  sh $a2, %lo(6 + NORM_SCALE_W)($zero)               ## L:825  |     17 | store(wNorm, NORM_SCALE_W, 6);
-  or $s0, $zero, $a1                                 ## L:829  |     18 | dma_in(SCREEN_SCALE, rdramScreen, 24);
-  ori $s4, $zero, %lo(SCREEN_SCALE)                  ## L:829  |     19 | dma_in(SCREEN_SCALE, rdramScreen, 24);
-  addiu $t2, $zero, 12                               ## L:829  |     20 | dma_in(SCREEN_SCALE, rdramScreen, 24);
+  or $s0, $zero, $a1                                 ## L:829  |     17 | dma_in(SCREEN_SCALE, rdramScreen, 24);
+  addiu $t2, $zero, 12                               ## L:829  |     18 | dma_in(SCREEN_SCALE, rdramScreen, 24);
+  sh $a2, %lo(6 + NORM_SCALE_W)($zero)               ## L:825  |     19 | store(wNorm, NORM_SCALE_W, 6);
+  ori $s4, $zero, %lo(SCREEN_SCALE)                  ## L:829  |     20 | dma_in(SCREEN_SCALE, rdramScreen, 24);
   jal DMAExec                                        ## L:829  |     21 | dma_in(SCREEN_SCALE, rdramScreen, 24); ## Args: $t0, $t1, $s0, $s4, $t2
   ori $t0, $zero, 23                                 ## L:829  |     22 | dma_in(SCREEN_SCALE, rdramScreen, 24);
-  j RSPQ_Loop                                        ## L:830  |     23 | }
-  nop                                                ## L:830  |    *25 | }
+  j RSPQ_Loop                                        ## L:830  |     23 | 
+  nop                                                ## L:830  |    *25 | 
 TPXCmd_DrawColor:
   ## hot-path cycles: 186
   andi $t0, $a0, 65535                               ## L:835  |      ^ | u32<$t0> dmaSize = dataSize & 0xFFFF;

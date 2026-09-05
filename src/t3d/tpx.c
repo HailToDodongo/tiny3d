@@ -56,7 +56,7 @@ void tpx_state_from_t3d()
 {
   T3DViewport *vp = t3d_viewport_get();
   assertf(vp, "No Viewport attached");
-  uint16_t normWScale = (uint16_t)roundf(0xFFFF * vp->_normScaleW);
+  uint16_t normWScale = (uint16_t)roundf(0xFFFF * fminf(vp->_normScaleW, 1.0f));
 
   uint32_t addrMatrix = (uint32_t)rsp_tiny3d.data + (RSP_T3D_MATRIX_PROJ & 0xFFFF);
   uint32_t addrScreen = (uint32_t)rsp_tiny3d.data + (RSP_T3D_SCREEN_SCALE & 0xFFFF);

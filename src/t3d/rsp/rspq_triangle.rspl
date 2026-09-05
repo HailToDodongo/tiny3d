@@ -423,8 +423,8 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   vhml.x = negHX;
   undef negMY, negHX;
 
-  // Subtract INVW by 1. This workarounds an overflow when INVW is exactly 1.0.
-  vinvwF -= 1;
+  // (libdragon subtracts 1 here to handle minW*invW == 1.0 wrapping to 0; tiny3d's invW is the
+  //  NR-refined *half* reciprocal, the product is < 0.5 for all inputs, so no fix-up is needed)
 
   // Prepare the VCC for the select() later (to merge the tex coords into the attributes)
   set_vcc(0xCF);
@@ -439,9 +439,8 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   vattr2.W = load(vtx2, VTX_ATTR_Z).x;
   vattr3.W = load(vtx3, VTX_ATTR_Z).x;
 
-  // Divide vinvwF by 2. This is needed because it is going to be used
-  // in a vmulf which expects a 0.15 number.
-  vinvwF >>>= 1;
+  // (no >>1 for the vmulf either: the half-reciprocal product is already < 0x8000, i.e. a valid 0.15,
+  //  and keeping the bit gives the RDP W/tex coefficients one more bit of precision)
 
   //  vx12  =   X1   --    X2   --       -- --   -- --
   //  slope = HX/HY  --   MX/MY --     LX/LY --  -- --
