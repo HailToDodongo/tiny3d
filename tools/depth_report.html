@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Depth Bench Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  /* ---- tokens: light first, dark overrides (system + explicit toggle) ---- */
+  :root {
+    color-scheme: light;
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface-2: #ecebe5;
+    --ink: #1f2328;
+    --ink-2: #4b5259;
+    --ink-3: #8a9097;
+    --line: #d9d7cf;
+    --grid: #e6e4dc;
+    --grid-minor: #f0efe9;
+    --accent: #0f6f8c;
+    --accent-ink: #ffffff;
+    --good: #2f8f5b;
+    --bad: #c8453a;
+    --font: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+    --mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #15181c;
+      --surface: #1d2126;
+      --surface-2: #262b31;
+      --ink: #e8e9e6;
+      --ink-2: #b4b8bc;
+      --ink-3: #7d8388;
+      --line: #343a41;
+      --grid: #2a3036;
+      --grid-minor: #22272c;
+      --accent: #5cb9d6;
+      --accent-ink: #0f1a1f;
+      --good: #5fc48a;
+      --bad: #ef7a6e;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #15181c;
+    --surface: #1d2126;
+    --surface-2: #262b31;
+    --ink: #e8e9e6;
+    --ink-2: #b4b8bc;
+    --ink-3: #7d8388;
+    --line: #343a41;
+    --grid: #2a3036;
+    --grid-minor: #22272c;
+    --accent: #5cb9d6;
+    --accent-ink: #0f1a1f;
+    --good: #5fc48a;
+    --bad: #ef7a6e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.4; }
+  body { display: flex; flex-direction: column; overflow: hidden; }
+  body.over::after { content: "drop dump .json files"; position: fixed; inset: 0; display: grid; place-items: center; font-size: 24px; color: var(--accent); background: color-mix(in srgb, var(--bg) 85%, transparent); border: 3px dashed var(--accent); z-index: 9; pointer-events: none; }
+  /* ---- header: title, metric tabs, preset, runs, actions ---- */
+  header { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
+  header h1 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; }
+  .group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .group > .lab { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); margin-right: 2px; }
+  .tabs { display: flex; gap: 2px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+  .tab { font: inherit; font-size: 13px; border: 0; background: transparent; color: var(--ink-2); border-radius: 6px; padding: 4px 10px; cursor: pointer; white-space: nowrap; }
+  .tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); font-weight: 600; }
+  .chip { font: inherit; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); border-radius: 999px; padding: 2px 9px; font-size: 12.5px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .chip.run { background: var(--surface); color: var(--ink-3); }
+  .chip.run .sw { width: 10px; height: 10px; border-radius: 2px; opacity: .35; }
+  .chip.run[aria-pressed="true"] { color: var(--ink); border-color: var(--ink-3); background: var(--surface); }
+  .chip.run[aria-pressed="true"] .sw { opacity: 1; }
+  .spacer { flex: 1; }
+  button.small { font: inherit; font-size: 12.5px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+  button.small:focus-visible, .chip:focus-visible, .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #file { display: none; }
+  /* ---- views: exactly one visible, fills the rest of the page ---- */
+  main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 10px 14px 12px; }
+  .view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+  #empty[hidden] { display: none; }
+  .view[hidden] { display: none; }
+  .view h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .view h2 small { font-weight: 400; color: var(--ink-3); margin-left: 6px; font-size: 13px; }
+  .view p.desc { margin: 0; color: var(--ink-2); font-size: 12.5px; max-width: 120ch; }
+  .view details.about { font-size: 12.5px; color: var(--ink-2); }
+  .view details.about summary { cursor: pointer; color: var(--ink-3); list-style: none; display: inline-block; user-select: none; }
+  .view details.about summary::before { content: "▸ "; }
+  .view details.about[open] summary::before { content: "▾ "; }
+  .view details.about p.desc { margin-top: 4px; }
+  .controls { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: var(--ink-2); }
+  .controls label { display: flex; gap: 6px; align-items: center; }
+  .controls input[type=range] { width: 150px; }
+  .controls select { font: inherit; font-size: 12.5px; }
+  .chart-wrap { position: relative; flex: 1; min-height: 0; }
+  canvas.chart { width: 100%; height: 100%; display: block; }
+  .tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-size: 12px; font-family: var(--mono); box-shadow: 0 3px 12px rgba(0,0,0,.12); white-space: nowrap; z-index: 2; }
+  .tip .row { display: flex; gap: 8px; align-items: center; }
+  .tip .sw { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); }
+  .legend span { display: inline-flex; gap: 6px; align-items: center; }
+  .legend i { width: 14px; height: 3px; display: inline-block; border-radius: 2px; }
+  .scroll { overflow: auto; flex: 1; min-height: 0; }
+  .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; align-content: start; }
+  .panel h3 { margin: 0 0 6px; font-size: 13.5px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+  .panel h3 .sw { width: 10px; height: 10px; border-radius: 2px; }
+  .panel canvas { width: 100%; display: block; border-radius: 4px; background: var(--surface-2); }
+  .panel .sub { font-size: 12px; color: var(--ink-3); margin: 2px 0 6px; font-family: var(--mono); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--ink-2); font-weight: 600; position: sticky; top: 0; background: var(--bg); }
+  .empty { color: var(--ink-3); font-size: 13px; padding: 8px 0; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .scalebar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3); font-family: var(--mono); flex-wrap: wrap; }
+  .scalebar canvas { width: 140px; height: 10px; border-radius: 2px; }
+  @media (prefers-reduced-motion: no-preference) { .chip, button.small, .tab { transition: background .12s; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Depth Bench</h1>
+  <div class="tabs" role="tablist" id="tabs">
+    <button class="tab" role="tab" data-view="c-err">Stored Z</button>
+    <button class="tab" role="tab" data-view="c-res">Resolution</button>
+    <button class="tab" role="tab" data-view="c-stair">Staircase</button>
+    <button class="tab" role="tab" data-view="c-inv">Inversions</button>
+    <button class="tab" role="tab" data-view="c-amb">Ambiguity</button>
+    <button class="tab" role="tab" data-view="c-summary">Summary</button>
+  </div>
+  <div class="group" id="presets"><span class="lab">preset</span><span class="empty">none loaded</span></div>
+  <div class="group" id="runs"><span class="lab">runs</span><span class="empty">none loaded</span></div>
+  <span class="spacer"></span>
+  <div class="group">
+    <label class="small" style="display:contents"><input type="file" id="file" multiple accept=".json,application/json"><button class="small" id="load" title="or drop .json files anywhere on the page">Load dumps…</button></label>
+    <button class="small" id="theme" title="Toggle light/dark">Theme</button>
+    <button class="small" id="clear">Clear</button>
+  </div>
+</header>
+<main id="main">
+  <div id="empty" class="card" style="margin:auto;max-width:60ch;text-align:center;padding:28px">
+    <h2 style="margin:0 0 8px">No dumps loaded</h2>
+    <p class="desc" style="margin:0 0 12px">This page only draws data from bench dumps. Click <b>Load dumps…</b> (or drop the files anywhere on the page) and pick one or more <span class="mono">.json</span> files from <span class="mono">examples/98_depthtest/data/</span>. For a copy that has the data built in, run <span class="mono">examples/98_depthtest/report.sh</span> and open the generated <span class="mono">report.html</span>.</p>
+    <button class="small" id="load2">Load dumps…</button>
+  </div>
+  <section class="view" id="c-summary" hidden>
+    <h2>Summary</h2>
+    <p class="desc">Headline numbers per run. Bits = log2 of distinct stored codes over the sweep; p99 = 99th percentile of the relative vertex error |dw|/w against the fitted mapping Z = A + B/w.</p>
+    <div class="scroll"><table id="summary"></table></div>
+  </section>
+  <section class="view" id="c-err">
+    <h2>Stored Z vs distance <small>SWEEP, 2000 log-spaced steps, one flat quad each</small></h2>
+    <p class="desc">"w" throughout is the view-space depth of the test quad in world units (camera-space −z; for a perspective projection this equals clip-space W, which is how the ROM reports it). All runs render the very same depths, so runs can be compared sample by sample. <b>Difference to reference</b>: stored Z of each run minus the reference, either in integer Z units (code space: 1 unit = 1/32767 of the depth range, where the pipeline loses bits) or converted to a distance error, either in % of w or in plain world units (what a code is worth on screen: dw = dZ·w²/B, so one code is 0.003 units near the camera but ~300 units at the far plane of 10/12800), or in <b>z-buffer codes</b>: the Z difference divided by the format's resolution at that depth (8 Z units below Z = 16384, then 4, 2, 1, ½, ¼, ⅛ at the top), i.e. how many storable values the vertex is off by. The reference is another run, the exact analytic mapping Z = 32767·(z<sub>ndc</sub>+1)/2, that mapping through the RDP's z-buffer format (s15.16 → u15.3 → 11-bit-mantissa float, as angrylion does it; the hardware floor nobody can change), or additionally with the <b>W-norm</b> quantisation both ucodes share (w·2/(far+near) held in s15.16 before the reciprocal; the near-field curve with its sign flip at z<sub>clip</sub> = 0, w = 2fn/(f+n)). <b>Step to previous sample</b>: how much the stored Z moved between neighbouring sweep steps, i.e. the quantisation grain. <b>Fit residual</b>: distance from a global Z = A + B/w fit; use it only for the envelope. Dots mark inversions (stored Z decreases while w increases).</p>
+    <div class="controls">
+      <label>mode <select id="errMode"><option value="diff">difference to reference (Z units)</option><option value="diffPct">difference to reference (% of distance)</option><option value="diffW">difference to reference (world units)</option><option value="diffQ">difference to reference (z-buffer codes)</option><option value="step">step to previous sample (Z units)</option><option value="fitZ">fit residual (Z units)</option><option value="fitPct">fit residual (% of w)</option></select></label>
+      <label>reference <select id="errRef"></select></label>
+      <label>y-range <input type="range" id="errRange" min="0" max="100" value="60"> <span id="errRangeV" class="mono"></span></label>
+      <label><input type="checkbox" id="errAbs"> absolute (filled areas)</label>
+      <label>smooth <input type="range" id="errSmooth" min="1" max="64" value="1"> <span id="errSmoothV" class="mono"></span></label>
+    </div>
+    <div class="chart-wrap"><canvas class="chart" id="err"></canvas></div>
+    <div class="legend" id="leg-err"></div>
+  </section>
+  <section class="view" id="c-res" hidden>
+    <h2>Resolution vs distance <small>distinct stored codes per ½ octave of w</small></h2>
+    <p class="desc">How many different depth values the sweep produced inside each half-octave of distance. Dashed grey: sweep samples in the bin (the most that could be distinguished). Dotted grey: what the ideal mapping yields after the RDP's z-buffer format, i.e. the hardware ceiling nobody can change. The gap between a run and the dotted line is the loss inside the ucode.</p>
+    <div class="chart-wrap"><canvas class="chart" id="res"></canvas></div>
+    <div class="legend" id="leg-res"></div>
+  </section>
+  <section class="view" id="c-stair" hidden>
+    <h2>Stored Z staircase <small>raw stored depth, integer units (0..32767)</small></h2>
+    <p class="desc">Zoom into a window of the sweep to see the actual quantisation steps. Integer-only vertex Z produces flat plateaus; fractional Z produces finer steps. Non-monotonic segments are inversions. Dotted grey: the ideal mapping after the RDP z-buffer format (the hardware grid).</p>
+    <div class="controls">
+      <label>window start <input type="range" id="stStart" min="0" max="1000" value="900"></label>
+      <label>window width <input type="range" id="stWidth" min="5" max="1000" value="60"></label>
+      <span id="stInfo" class="mono"></span>
+    </div>
+    <div class="chart-wrap"><canvas class="chart" id="stair"></canvas></div>
+    <div class="legend" id="leg-stair"></div>
+  </section>
+  <section class="view" id="c-inv" hidden>
+    <h2>Inversions <small>how far beyond a surface can something still draw in front of it</small></h2>
+    <p class="desc">Stored Z must grow with distance. For every sweep sample at distance d this finds the farthest sample whose stored Z is <b>smaller</b> (inversion: that farther surface would be drawn in front) and the farthest one whose Z is <b>not larger</b> (tie: order between the two cannot be resolved, whoever draws last wins). The value plotted is how far beyond d that reaches, in world units (or % of d): "a surface up to this much farther away can still end up in front of one at d". Filled marks = inversions, hollow marks = ties; samples with nothing beyond them are not drawn. The sweep is sampled every 0.36 % of d, so extents below that are not resolvable and ties of one step are the normal quantisation plateau, not a defect. Counts and worst cases per run are in the legend.</p>
+    <div class="controls">
+      <label><input type="checkbox" id="invTies" checked> show ties</label>
+      <label><input type="checkbox" id="invPct"> % of distance instead of world units</label>
+      <label><input type="checkbox" id="invLog" checked> log y</label>
+    </div>
+    <div class="chart-wrap"><canvas class="chart" id="inv"></canvas></div>
+    <div class="legend" id="leg-inv"></div>
+  </section>
+  <section class="view" id="c-amb" hidden>
+    <h2>Ambiguity span <small>at this depth, how far back and forth is another surface not sorted correctly</small></h2>
+    <p class="desc">For a surface at distance d: <b>back</b> = how far towards the camera another surface can be while its stored Z is still not smaller (it would not win the depth test although it is nearer); <b>forward</b> = how far away another surface can be while its stored Z is still not larger (it could still be drawn in front). Their sum is the span of distances that alias with d, in world units or % of d: inside it, sorting is decided by draw order or is plain wrong. Thin lines are a running percentile over the window; faint dots are the raw per-sample values. Dotted grey: the span the z-buffer format alone imposes (one code at the ideal Z, converted to distance). The sweep is sampled every 0.36 % of d, so nothing below that is resolvable.</p>
+    <div class="controls">
+      <label>show <select id="ambMode"><option value="total">total span (back + forward)</option><option value="fwd">forward only</option><option value="back">back only</option></select></label>
+      <label><input type="checkbox" id="ambPct"> % of distance instead of world units</label>
+      <label>percentile <input type="range" id="ambQ" min="50" max="100" value="90"> <span id="ambQV" class="mono"></span></label>
+      <label>window <input type="range" id="ambWin" min="1" max="129" step="2" value="33"> <span id="ambWinV" class="mono"></span></label>
+      <label><input type="checkbox" id="ambDots" checked> raw dots</label>
+    </div>
+    <div class="chart-wrap"><canvas class="chart" id="amb"></canvas></div>
+    <div class="legend" id="leg-amb"></div>
+  </section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+  const W = 320, H = 240, TAN_HALF = Math.tan(30 * Math.PI / 180);
+  // colour wheel: runs get evenly spaced hues in load order (stable as long as the set of loaded runs doesn't change)
+  const runs = [];          // { id, dump, color, visible, decoded }
+  let preset = null;
+
+  // ---------- helpers ----------
+  const $ = (s) => document.querySelector(s);
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const fmtPct = (v, d = 3) => (v * 100).toFixed(d) + "%";
+  const fmt = (v, d = 2) => (typeof v === "number" && isFinite(v)) ? v.toFixed(d) : "–";
+  function b64ToU32(s) {
+    const bin = atob(s); const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Uint32Array(bytes.buffer, 0, bytes.length >> 2);
+  }
+  function decode(d) {
+    const out = {};
+    if (d.sweep) {
+      const s = d.sweep.samples.slice().sort((a, b) => a.w - b.w);
+      const { A, B } = d.sweep.fit;
+      out.samples = s.map((p, i) => ({
+        w: p.w, z: p.z, step: p.step,
+        rel: (p.z - (A + B / p.w)) * p.w / Math.abs(B),
+        dz: (p.z - (A + B / p.w)) / 8,
+        inv: i > 0 && s[i - 1].z > p.z,
+      }));
+    }
+    return out;
+  }
+  // ---- synthetic references: the analytic mapping, optionally pushed through the RDP z-buffer format ----
+  // Z in integer units (0..32767) for a vertex at distance w with the standard perspective mapping
+  const idealZ = (w, near, far) => { const zndc = ((far + near) * w - 2 * far * near) / ((far - near) * w); return (zndc + 1) * 0.5 * 32767; };
+  // angrylion: s15.16 -> s15.6 (trunc) -> u15.3 (trunc, cvg=8) -> 14-bit compress -> 18-bit decode (what ares.depthBuffer returns)
+  const Z_DEC = [[6, 0x00000], [5, 0x20000], [4, 0x30000], [3, 0x38000], [2, 0x3C000], [1, 0x3E000], [0, 0x3F000], [0, 0x3F800]];
+  function rdpRoundtrip(zUnits) {
+    const z16 = Math.floor(zUnits * 65536);            // s15.16 as delivered by the RSP
+    let sz = (z16 >> 10) & 0x3fffff;                   // s15.6
+    sz = sz >> 3;                                      // u15.3 (full coverage path)
+    sz = Math.max(0, Math.min(0x3FFFF, sz));
+    const key = (sz >> 11) & 0x7F; let m, e;
+    if (key <= 0x3F) { m = (sz >> 4) & 0x1FFC; e = 0; } else if (key <= 0x5F) { m = (sz >> 3) & 0x1FFC; e = 1; }
+    else if (key <= 0x6F) { m = (sz >> 2) & 0x1FFC; e = 2; } else if (key <= 0x77) { m = (sz >> 1) & 0x1FFC; e = 3; }
+    else if (key <= 0x7B) { m = sz & 0x1FFC; e = 4; } else if (key <= 0x7D) { m = (sz << 1) & 0x1FFC; e = 5; }
+    else if (key === 0x7E) { m = (sz << 2) & 0x1FFC; e = 6; } else { m = (sz << 2) & 0x1FFC; e = 7; }
+    return (((m >> 2) << Z_DEC[e][0]) + Z_DEC[e][1]) & 0x3ffff; // 18-bit decoded value, same units as the dumps
+  }
+  // ideal with the W-norm input quantisation both ucodes share: W-norm = w * 2/(far+near), held in s15.16,
+  // so 1/W-norm is slightly too large near the camera; the sign of the resulting Z error flips at z_clip = 0
+  const idealZWnorm = (w, near, far) => {
+    const norm = 2 / (far + near), zClip = ((far + near) * w - 2 * far * near) / (far - near);
+    const Wn = Math.floor(w * norm * 65536) / 65536;
+    return (zClip * norm / Wn + 1) * 0.5 * 32767;
+  };
+  // resolution of the z-buffer format at a given 18-bit value, in 18-bit units (8 = one Z unit)
+  const zQuantum18 = (z18) => { const key = (z18 >> 11) & 0x7F; return key <= 0x3F ? 64 : key <= 0x5F ? 32 : key <= 0x6F ? 16 : key <= 0x77 ? 8 : key <= 0x7B ? 4 : key <= 0x7D ? 2 : 1; };
+  const idealZ18 = (w, near, far, mode) => mode === "ideal-rdp" ? rdpRoundtrip(idealZ(w, near, far)) : mode === "ideal-wnorm" ? rdpRoundtrip(idealZWnorm(w, near, far)) : idealZ(w, near, far) * 8;
+
+  function hexToRgb(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+  function lighten(hex, amt) { // for dark surfaces
+    const [r, g, b] = hexToRgb(hex); const f = (c) => Math.round(c + (255 - c) * amt);
+    return `rgb(${f(r)},${f(g)},${f(b)})`;
+  }
+  const isDark = () => matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark";
+  const seriesColor = (run) => {
+    const n = Math.max(1, runs.length), h = Math.round((run.id / n) * 360);
+    return isDark() ? `hsl(${h} 80% 62%)` : `hsl(${h} 75% 42%)`;
+  };
+
+  // ---------- canvas scaffolding ----------
+  function setupCanvas(cv) {
+    const dpr = window.devicePixelRatio || 1;
+    const r = cv.getBoundingClientRect();
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+    const ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w: r.width, h: r.height };
+  }
+  function niceTicks(min, max, n = 6) {
+    const span = max - min; if (!(span > 0)) return [min];
+    const step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+    const cand = [1, 2, 2.5, 5, 10].map((m) => m * mag);
+    const step = cand.find((s) => span / s <= n) || cand[cand.length - 1];
+    const t = []; for (let v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step) t.push(+v.toFixed(10));
+    return t;
+  }
+  function logTicks(min, max) {
+    const t = []; const lo = Math.floor(Math.log10(min)), hi = Math.ceil(Math.log10(max));
+    for (let e = lo; e <= hi; e++) for (const m of [1, 2, 5]) { const v = m * Math.pow(10, e); if (v >= min && v <= max) t.push(v); }
+    return t;
+  }
+  function frame(ctx, w, h, m, xTicks, xFmt, yTicks, yFmt, xToPx, yToPx, xLabel, yLabel, yLog = false) {
+    ctx.clearRect(0, 0, w, h);
+    ctx.font = "12px " + css("--mono"); ctx.fillStyle = css("--ink-3"); ctx.lineWidth = 1;
+    // minor y grid: 3 lines between consecutive major ticks (and the same spacing one interval beyond each end)
+    if (yTicks.length >= 2) {
+      ctx.strokeStyle = css("--grid-minor"); ctx.beginPath();
+      const minors = [];
+      if (yLog) {
+        // log axis: 3 minor lines between consecutive major ticks, evenly spaced in log space
+        // (geometric interpolation), so the subdivision is regular on the page
+        const ext = [yTicks[0] * yTicks[0] / yTicks[1], ...yTicks, yTicks[yTicks.length - 1] * yTicks[yTicks.length - 1] / yTicks[yTicks.length - 2]];
+        for (let k = 0; k < ext.length - 1; k++) for (let i = 1; i < 4; i++) {
+          const v = ext[k] * Math.pow(ext[k + 1] / ext[k], i / 4);
+          const y = yToPx(v); if (!isFinite(y) || y < m.t || y > h - m.b) continue; ctx.moveTo(m.l, y); ctx.lineTo(w - m.r, y); minors.push([v, y]);
+        }
+      } else {
+        const ext = [yTicks[0] - (yTicks[1] - yTicks[0]), ...yTicks, yTicks[yTicks.length - 1] + (yTicks[yTicks.length - 1] - yTicks[yTicks.length - 2])];
+        for (let k = 0; k < ext.length - 1; k++) for (let i = 1; i < 4; i++) {
+          const v = ext[k] + (ext[k + 1] - ext[k]) * i / 4;
+          const y = yToPx(v); if (!isFinite(y) || y < m.t || y > h - m.b) continue; ctx.moveTo(m.l, y); ctx.lineTo(w - m.r, y); minors.push([v, y]);
+        }
+      }
+      ctx.stroke();
+      // minor labels in the same subdued colour, skipped when they would collide with a neighbour
+      ctx.fillStyle = css("--ink-3"); ctx.globalAlpha = 0.55; ctx.font = "10px " + css("--mono"); ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      const majorY = yTicks.map(yToPx); let lastY = -1e9;
+      const minorFmt = (v) => { const pctLike = String(yFmt(v)).endsWith("%"); const num = pctLike ? v * 100 : v; return Number(num.toPrecision(3)).toString() + (pctLike ? "%" : ""); };
+      for (const [v, y] of minors) { if (Math.abs(y - lastY) < 11 || majorY.some((my) => Math.abs(my - y) < 11)) continue; ctx.textAlign = "right"; ctx.fillText(minorFmt(v), m.l - 6, y); ctx.textAlign = "left"; ctx.fillText(minorFmt(v), w - m.r + 6, y); lastY = y; }
+      ctx.globalAlpha = 1;
+    }
+    ctx.strokeStyle = css("--grid");
+    for (const t of yTicks) { const y = yToPx(t); ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(w - m.r, y); ctx.stroke(); ctx.textBaseline = "middle"; ctx.textAlign = "right"; ctx.fillText(yFmt(t), m.l - 6, y); ctx.textAlign = "left"; ctx.fillText(yFmt(t), w - m.r + 6, y); }
+    for (const t of xTicks) { const x = xToPx(t); ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, h - m.b); ctx.stroke(); ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(xFmt(t), x, h - m.b + 6); }
+    ctx.strokeStyle = css("--line"); ctx.beginPath(); ctx.moveTo(m.l, m.t); ctx.lineTo(m.l, h - m.b); ctx.lineTo(w - m.r, h - m.b); ctx.lineTo(w - m.r, m.t); ctx.stroke();
+    ctx.fillStyle = css("--ink-2"); ctx.font = "12px " + css("--font");
+    ctx.textAlign = "right"; ctx.textBaseline = "bottom"; ctx.fillText(xLabel, w - m.r, h - 4);
+    ctx.save(); ctx.translate(12, m.t); ctx.rotate(-Math.PI / 2); ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText(yLabel, 0, 0); ctx.restore();
+  }
+  function tooltip(wrap) {
+    let el = wrap.querySelector(".tip");
+    if (!el) { el = document.createElement("div"); el.className = "tip"; el.hidden = true; wrap.appendChild(el); }
+    return el;
+  }
+  const hoverState = {};
+  function bindHover(cv, handler) {
+    const wrap = cv.parentElement, tip = tooltip(wrap);
+    cv.addEventListener("mousemove", (e) => {
+      const r = cv.getBoundingClientRect(); const x = e.clientX - r.left, y = e.clientY - r.top;
+      const html = handler(x, y);
+      if (!html) { tip.hidden = true; return; }
+      tip.innerHTML = html; tip.hidden = false;
+      const tw = tip.offsetWidth; tip.style.left = (x + 14 + tw > r.width ? x - tw - 10 : x + 14) + "px"; tip.style.top = Math.max(0, y - 10) + "px";
+    });
+    cv.addEventListener("mouseleave", () => { tip.hidden = true; });
+  }
+  function legend(el, list) {
+    el.innerHTML = list.map((r) => `<span><i style="background:${seriesColor(r)}"></i>${esc(r.dump.label)}</span>`).join("");
+  }
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // ---------- state / loading ----------
+  function addDump(d, name) {
+    if (!d || typeof d !== "object" || !("preset" in d)) throw new Error(name + ": not a depth dump");
+    const id = runs.length;
+    runs.push({ id, dump: d, visible: true, decoded: decode(d), file: name });
+    if (preset === null) preset = d.preset;
+  }
+  function loadFiles(files) {
+    const list = Array.from(files); let pending = list.length;
+    if (!pending) return;
+    for (const f of list) {
+      const rd = new FileReader();
+      rd.onload = () => { try { addDump(JSON.parse(rd.result), f.name); } catch (e) { alert(e.message); } if (--pending === 0) renderAll(); };
+      rd.readAsText(f);
+    }
+  }
+  const fileIn = $("#file");
+  fileIn.addEventListener("change", () => { loadFiles(fileIn.files); fileIn.value = ""; });
+  $("#load").addEventListener("click", () => fileIn.click());
+  $("#load2").addEventListener("click", () => fileIn.click());
+  let dragDepth = 0;
+  document.addEventListener("dragenter", (e) => { e.preventDefault(); if (dragDepth++ === 0) document.body.classList.add("over"); });
+  document.addEventListener("dragover", (e) => e.preventDefault());
+  document.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove("over"); } });
+  document.addEventListener("drop", (e) => { e.preventDefault(); dragDepth = 0; document.body.classList.remove("over"); loadFiles(e.dataTransfer.files); });
+  // explanations collapsed by default so the chart gets the height
+  document.querySelectorAll(".view p.desc").forEach((pd) => {
+    const det = document.createElement("details"); det.className = "about";
+    det.innerHTML = "<summary>about this view</summary>"; pd.replaceWith(det); det.appendChild(pd);
+    det.addEventListener("toggle", renderView);
+  });
+  // metric tabs
+  const VIEWS = ["c-err", "c-res", "c-stair", "c-inv", "c-amb", "c-summary"];
+  let view = "c-err";
+  try { const v = localStorage.getItem("dt-view"); if (VIEWS.includes(v)) view = v; } catch (e) {}
+  function setView(v) {
+    view = v; try { localStorage.setItem("dt-view", v); } catch (e) {}
+    const empty = runs.length === 0; $("#empty").hidden = !empty;
+    for (const id of VIEWS) $("#" + id).hidden = empty || id !== v;
+    $("#tabs").querySelectorAll(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.view === v)));
+    renderView();
+  }
+  $("#tabs").querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => setView(t.dataset.view)));
+  $("#clear").addEventListener("click", () => { runs.length = 0; preset = null; renderAll(); });
+  $("#theme").addEventListener("click", () => {
+    const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.dataset.theme = cur === "dark" ? "light" : "dark";
+    try { localStorage.setItem("dt-theme", document.documentElement.dataset.theme); } catch (e) {}
+    renderAll();
+  });
+  try { const t = localStorage.getItem("dt-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+
+  const active = () => runs.filter((r) => r.visible && r.dump.preset === preset);
+
+  // ---------- header: preset chips + run chips ----------
+  function renderHeader() {
+    const ps = [...new Set(runs.map((r) => r.dump.preset))].sort();
+    const pe = $("#presets");
+    pe.innerHTML = '<span class="lab">preset</span>' + (ps.length ? ps.map((p) => { const r = runs.find((x) => x.dump.preset === p); return `<button class="chip" data-p="${p}" aria-pressed="${p === preset}">near ${r.dump.near} / far ${r.dump.far}</button>`; }).join("") : '<span class="empty">none loaded</span>');
+    pe.querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => { preset = +b.dataset.p; renderAll(); }));
+    const re = $("#runs"), inPreset = runs.filter((r) => r.dump.preset === preset);
+    re.innerHTML = '<span class="lab">runs</span>' + (inPreset.length ? inPreset.map((r) => `<button class="chip run" data-id="${r.id}" aria-pressed="${r.visible}" title="${esc(r.file || r.dump.rom)}"><span class="sw" style="background:${seriesColor(r)}"></span>${esc(r.dump.label)}</button>`).join("") : '<span class="empty">none loaded</span>');
+    re.querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => { const r = runs[+b.dataset.id]; r.visible = !r.visible; renderAll(); }));
+  }
+
+  // ---------- summary table ----------
+  function renderSummary() {
+    const rs = active(), t = $("#summary");
+    if (!rs.length) { t.innerHTML = '<tr><td class="empty">Load dumps to see numbers.</td></tr>'; return; }
+    const head = ["run", "codes", "bits", "inversions", "max inv (Z)", "vtx err max (Z)", "vtx rms (Z)", "|dw|/w p99", "slope max", "slope rms", "coplanar max (Z)", "decal fail", "opaque fight"];
+    const rows = rs.map((r) => {
+      const s = r.dump.summary?.sweep || r.dump.sweep?.result || {}, p = r.dump.summary?.plane || r.dump.plane?.result || {};
+      return `<tr><td><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${seriesColor(r)};margin-right:6px"></span>${esc(r.dump.label)}</td>
+        <td>${s.distinct ?? "–"}</td><td>${fmt(s.bits)}</td><td>${s.inversions ?? "–"}</td><td>${fmt(s.maxInv, 1)}</td><td>${fmt(s.maxZ, 1)}</td><td>${fmt(s.rmsZ)}</td><td>${s.p99 != null ? fmtPct(s.p99, 4) : "–"}</td>
+        <td>${p.slopeMax != null ? fmtPct(p.slopeMax, 3) : "–"}</td><td>${p.slopeRms != null ? fmtPct(p.slopeRms, 3) : "–"}</td><td>${fmt(p.copMax, 0)}</td><td>${p.decalFail != null ? fmtPct(p.decalFail, 3) : "–"}</td><td>${p.fight != null ? fmtPct(p.fight, 2) : "–"}</td></tr>`;
+    });
+    t.innerHTML = "<tr>" + head.map((h) => `<th>${h}</th>`).join("") + "</tr>" + rows.join("");
+  }
+
+  // ---------- chart 1: stored Z vs distance (diff / step / fit residual) ----------
+  function fillRefSelect() {
+    // every run of the current preset can be the reference, hidden or not (a hidden reference just isn't plotted)
+    const sel = $("#errRef"), prev = sel.value, all = runs.filter((r) => r.dump.preset === preset && r.decoded.samples);
+    sel.innerHTML = `<option value="ideal-rdp">ideal + RDP z-buffer roundtrip</option><option value="ideal-wnorm">ideal + W-norm quantisation + RDP roundtrip</option><option value="ideal">ideal, exact (no framebuffer format)</option>` + all.map((r) => `<option value="${r.id}">${esc(r.dump.label)}${r.visible ? "" : " (hidden)"}</option>`).join("");
+    const valid = [...sel.options].some((o) => o.value === prev);
+    sel.value = valid ? prev : "ideal-rdp";
+    return sel.value;
+  }
+  function renderErr() {
+    const cv = $("#err"), rs = active().filter((r) => r.decoded.samples);
+    const { ctx, w, h } = setupCanvas(cv); legend($("#leg-err"), rs);
+    if (!rs.length) { $("#errRef").innerHTML = ""; ctx.fillStyle = css("--ink-3"); ctx.font = "14px " + css("--font"); ctx.fillText("no sweep data", 20, 30); return; }
+    const mode = $("#errMode").value, abs = $("#errAbs").checked;
+    const ref = fillRefSelect();
+    $("#errRef").parentElement.hidden = !(mode === "diff" || mode === "diffPct" || mode === "diffW" || mode === "diffQ");
+    // reference value per sample: a run (matched by sweep step) or the synthetic ideal at the sample's own w
+    const refRun = runs.find((r) => String(r.id) === ref);
+    const refByStep = new Map(); if (refRun) for (const p of refRun.decoded.samples) refByStep.set(p.step, p.z);
+    const refZ = (r, p) => refRun ? refByStep.get(p.step) : idealZ18(p.w, r.dump.near, r.dump.far, ref);
+    const series = rs.map((r) => {
+      const s = r.decoded.samples, out = [];
+      for (let i = 0; i < s.length; i++) {
+        const p = s[i]; let v;
+        if (mode === "diff" || mode === "diffPct" || mode === "diffW" || mode === "diffQ") {
+          const z0 = refZ(r, p); if (z0 === undefined) continue; v = (p.z - z0) / 8;
+          // world-space equivalent: dZ/dw = B/w^2 with B = 16383.5 * 2fn/(f-n) (Z units * w), so dw = dZ * w^2 / B
+          const B = 16383.5 * 2 * r.dump.far * r.dump.near / (r.dump.far - r.dump.near);
+          if (mode === "diffPct") v = v * p.w / B;
+          if (mode === "diffW") v = v * p.w * p.w / B;
+          // in z-buffer codes: divide by the format's resolution at the reference value
+          if (mode === "diffQ") v = (p.z - z0) / zQuantum18(Math.max(0, Math.min(0x3FFFF, Math.round(z0))));
+        }
+        else if (mode === "step") { if (i === 0) continue; v = (p.z - s[i - 1].z) / 8; }
+        else if (mode === "fitZ") v = p.dz;
+        else v = p.rel;
+        out.push({ w: p.w, v: abs ? Math.abs(v) : v, z: p.z, inv: p.inv });
+      }
+      return out;
+    });
+    const isPct = mode === "fitPct" || mode === "diffPct";
+    const m = { l: 64, r: 58, t: 12, b: 34 };
+    const wMin = Math.min(...rs.map((r) => r.decoded.samples[0].w)), wMax = Math.max(...rs.map((r) => r.decoded.samples.at(-1).w));
+    // y-range: the chosen percentile of |v| per run, then the max over runs, so adding a run that is
+    // identical to the reference (all zeros) or hiding one that isn't the largest does not rescale the chart
+    const q = 0.9 + ($("#errRange").value / 100) * 0.1; // 90%..100% percentile of |v|
+    let yMax = 0;
+    for (const pts of series) { if (!pts.length) continue; const a = pts.map((p) => Math.abs(p.v)).sort((x, y) => x - y); yMax = Math.max(yMax, a[Math.min(a.length - 1, Math.floor(q * (a.length - 1)))]); }
+    yMax *= 1.15;
+    if (!(yMax > 0)) yMax = isPct ? 1e-4 : 1;
+    const fy = (v) => isPct ? fmtPct(v, yMax < 0.001 ? 3 : yMax < 0.01 ? 2 : 1) : v.toFixed(yMax < 0.02 ? 4 : yMax < 2 ? 3 : yMax < 20 ? 1 : 0);
+    $("#errRangeV").textContent = "±" + fy(yMax) + (isPct ? "" : mode === "diffW" ? " units" : mode === "diffQ" ? " codes" : " Z");
+    const yMin = abs ? 0 : -yMax;
+    const xToPx = (v) => m.l + (Math.log(v) - Math.log(wMin)) / (Math.log(wMax) - Math.log(wMin)) * (w - m.l - m.r);
+    const yToPx = (v) => h - m.b - (v - yMin) / (yMax - yMin) * (h - m.t - m.b);
+    const yT = isPct ? niceTicks(yMin * 100, yMax * 100, 6).map((v) => v / 100) : niceTicks(yMin, yMax, 6);
+    const refName = refRun ? "" : ref === "ideal-rdp" ? ", ref = ideal through RDP format" : ref === "ideal-wnorm" ? ", ref = ideal + W-norm quantisation + RDP format" : ", ref = exact ideal";
+    const yLabel = { diff: (abs ? "|Z − Zref|" : "Z − Zref") + " (Z units)" + refName, diffPct: (abs ? "|Z − Zref|" : "Z − Zref") + " as depth error, % of depth" + refName, diffW: (abs ? "|Z − Zref|" : "Z − Zref") + " as depth error, world units" + refName, diffQ: (abs ? "|Z − Zref|" : "Z − Zref") + " in z-buffer codes at that depth" + refName, step: (abs ? "|ΔZ|" : "ΔZ") + " per sweep step (Z units)", fitZ: (abs ? "|Z − fit|" : "Z − fit") + " (Z units)", fitPct: abs ? "|dw|/w" : "(Z − fit)·w/B" }[mode];
+    frame(ctx, w, h, m, logTicks(wMin, wMax), (v) => String(v), yT, fy, xToPx, yToPx, "view depth (world units, log)", yLabel);
+    if (!abs) { ctx.strokeStyle = css("--ink-3"); ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(m.l, yToPx(0)); ctx.lineTo(w - m.r, yToPx(0)); ctx.stroke(); ctx.setLineDash([]); }
+    ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, w - m.l - m.r, h - m.t - m.b); ctx.clip();
+    const drawDots = (mode === "diff" || mode === "diffPct" || mode === "diffW" || mode === "diffQ" || mode === "step") && !abs;
+    const nVis = rs.filter((r) => series[rs.indexOf(r)].length).length;
+    const sm = +$("#errSmooth").value; $("#errSmoothV").textContent = sm > 1 ? sm + " samples" : "off"; $("#errSmooth").parentElement.hidden = !abs;
+    [...rs.keys()].reverse().forEach((k) => { const r = rs[k];
+      const col = seriesColor(r); let pts = series[k]; if (!pts.length) return;
+      ctx.strokeStyle = col; ctx.fillStyle = col;
+      if (abs) {
+        // absolute: filled area between 0 and |v| (optionally a running mean over `sm` samples),
+        // translucent so overlapping runs stay readable (alpha = 1 / active runs)
+        if (sm > 1) { const src = pts.map((p) => p.v); pts = pts.map((p, i) => { const a = Math.max(0, i - (sm >> 1)), b = Math.min(src.length, a + sm); let t = 0; for (let j = a; j < b; j++) t += src[j]; return { ...p, v: t / (b - a) }; }); }
+        const y0 = yToPx(0);
+        ctx.globalAlpha = 1 / Math.max(1, nVis); ctx.beginPath(); ctx.moveTo(xToPx(pts[0].w), y0);
+        for (const p of pts) ctx.lineTo(xToPx(p.w), yToPx(Math.min(yMax + 1, p.v)));
+        ctx.lineTo(xToPx(pts[pts.length - 1].w), y0); ctx.closePath(); ctx.fill();
+        ctx.globalAlpha = 0.9; ctx.lineWidth = 1; ctx.beginPath();
+        pts.forEach((p, i) => { const x = xToPx(p.w), y = yToPx(Math.min(yMax + 1, p.v)); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+        ctx.stroke(); ctx.globalAlpha = 1;
+      } else if (!drawDots) {
+        ctx.lineWidth = 1.5; ctx.globalAlpha = 0.9; ctx.beginPath();
+        pts.forEach((p, i) => { const x = xToPx(p.w), y = yToPx(Math.max(yMin - 1, Math.min(yMax + 1, p.v))); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+        ctx.stroke(); ctx.globalAlpha = 1;
+      } else {
+        ctx.globalAlpha = 0.8;
+        for (const p of pts) { if (Math.abs(p.v) > yMax) continue; ctx.beginPath(); ctx.arc(xToPx(p.w), yToPx(p.v), 2, 0, Math.PI * 2); ctx.fill(); }
+        ctx.globalAlpha = 1;
+      }
+      if (!abs) for (const p of pts) if (p.inv) { ctx.beginPath(); ctx.arc(xToPx(p.w), yToPx(Math.max(yMin, Math.min(yMax, p.v))), 3.2, 0, Math.PI * 2); ctx.fill(); }
+    });
+    ctx.restore();
+    bindHover(cv, (x) => {
+      if (x < m.l || x > w - m.r) return null;
+      const wv = Math.exp(Math.log(wMin) + (x - m.l) / (w - m.l - m.r) * (Math.log(wMax) - Math.log(wMin)));
+      let html = `<div class="row">w ≈ ${wv.toFixed(2)}</div>`;
+      rs.forEach((r, k) => {
+        const pts = series[k]; if (!pts.length) return; let lo = 0, hi = pts.length - 1; while (lo < hi) { const mid = (lo + hi) >> 1; if (pts[mid].w < wv) lo = mid + 1; else hi = mid; }
+        const p = pts[lo]; html += `<div class="row"><span class="sw" style="background:${seriesColor(r)}"></span>${esc(r.dump.label)}: ${isPct ? fmtPct(p.v, 4) : p.v.toFixed(3) + " Z"}  (stored ${(p.z / 8).toFixed(3)})${p.inv ? " ⚠inv" : ""}</div>`;
+      });
+      return html;
+    });
+  }
+
+  // ---------- chart 2: resolution per half octave ----------
+  function renderRes() {
+    const cv = $("#res"), rs = active().filter((r) => r.decoded.samples);
+    const { ctx, w, h } = setupCanvas(cv); legend($("#leg-res"), rs);
+    if (!rs.length) { ctx.fillStyle = css("--ink-3"); ctx.font = "14px " + css("--font"); ctx.fillText("no sweep data", 20, 30); return; }
+    const m = { l: 56, r: 58, t: 12, b: 34 };
+    const wMin = Math.min(...rs.map((r) => r.decoded.samples[0].w)), wMax = Math.max(...rs.map((r) => r.decoded.samples.at(-1).w));
+    const binW = 0.5; // octaves
+    const b0 = Math.floor(Math.log2(wMin) / binW), b1 = Math.ceil(Math.log2(wMax) / binW);
+    const bins = []; for (let b = b0; b < b1; b++) bins.push({ lo: Math.pow(2, b * binW), hi: Math.pow(2, (b + 1) * binW) });
+    const series = rs.map((r) => bins.map((bn) => { const set = new Set(); let n = 0; for (const s of r.decoded.samples) if (s.w >= bn.lo && s.w < bn.hi) { set.add(s.z); n++; } return { codes: set.size, n }; }));
+    const r0 = rs[0];
+    const ceiling = bins.map((bn) => { const set = new Set(); for (const s of r0.decoded.samples) if (s.w >= bn.lo && s.w < bn.hi) set.add(idealZ18(s.w, r0.dump.near, r0.dump.far, "ideal-rdp")); return set.size; });
+    const yMax = Math.max(1, ...series.flatMap((sr) => sr.map((v) => v.n))) * 1.1;
+    const xToPx = (v) => m.l + (Math.log(v) - Math.log(bins[0].lo)) / (Math.log(bins.at(-1).hi) - Math.log(bins[0].lo)) * (w - m.l - m.r);
+    const yToPx = (v) => h - m.b - v / yMax * (h - m.t - m.b);
+    frame(ctx, w, h, m, logTicks(bins[0].lo, bins.at(-1).hi), (v) => String(v), niceTicks(0, yMax, 5), (v) => String(v), xToPx, yToPx, "view depth (world units, log)", "distinct codes / ½ octave");
+    // reference: samples per bin
+    ctx.strokeStyle = css("--ink-3"); ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]); ctx.beginPath();
+    series[0].forEach((v, i) => { const x0 = xToPx(bins[i].lo), x1 = xToPx(bins[i].hi), y = yToPx(v.n); if (i === 0) ctx.moveTo(x0, y); ctx.lineTo(x0, y); ctx.lineTo(x1, y); });
+    ctx.stroke();
+    // hardware ceiling: ideal mapping through the RDP z-buffer format
+    ctx.strokeStyle = css("--ink-2"); ctx.lineWidth = 1.5; ctx.setLineDash([1.5, 3]); ctx.beginPath();
+    ceiling.forEach((c, i) => { const x0 = xToPx(bins[i].lo), x1 = xToPx(bins[i].hi), y = yToPx(c); if (i === 0) ctx.moveTo(x0, y); ctx.lineTo(x0, y); ctx.lineTo(x1, y); });
+    ctx.stroke(); ctx.setLineDash([]);
+    rs.forEach((r, k) => {
+      ctx.strokeStyle = seriesColor(r); ctx.lineWidth = 2; ctx.beginPath();
+      series[k].forEach((v, i) => { const x0 = xToPx(bins[i].lo), x1 = xToPx(bins[i].hi), y = yToPx(v.codes); if (i === 0) ctx.moveTo(x0, y); ctx.lineTo(x0, y); ctx.lineTo(x1, y); });
+      ctx.stroke();
+    });
+    bindHover(cv, (x) => {
+      if (x < m.l || x > w - m.r) return null;
+      const wv = Math.exp(Math.log(bins[0].lo) + (x - m.l) / (w - m.l - m.r) * (Math.log(bins.at(-1).hi) - Math.log(bins[0].lo)));
+      const i = bins.findIndex((b) => wv >= b.lo && wv < b.hi); if (i < 0) return null;
+      let html = `<div class="row">w ${bins[i].lo.toFixed(1)} … ${bins[i].hi.toFixed(1)} · ${series[0][i].n} samples · z-buffer format allows ${ceiling[i]}</div>`;
+      rs.forEach((r, k) => { html += `<div class="row"><span class="sw" style="background:${seriesColor(r)}"></span>${esc(r.dump.label)}: ${series[k][i].codes} codes</div>`; });
+      return html;
+    });
+  }
+
+  // ---------- chart 3: staircase ----------
+  function renderStair() {
+    const cv = $("#stair"), rs = active().filter((r) => r.decoded.samples);
+    const { ctx, w, h } = setupCanvas(cv); legend($("#leg-stair"), rs);
+    if (!rs.length) { ctx.fillStyle = css("--ink-3"); ctx.font = "14px " + css("--font"); ctx.fillText("no sweep data", 20, 30); return; }
+    const m = { l: 70, r: 58, t: 12, b: 34 };
+    const wMin = Math.min(...rs.map((r) => r.decoded.samples[0].w)), wMax = Math.max(...rs.map((r) => r.decoded.samples.at(-1).w));
+    const L0 = Math.log(wMin), L1 = Math.log(wMax);
+    const start = $("#stStart").value / 1000, width = $("#stWidth").value / 1000;
+    const a = L0 + start * (L1 - L0), b = Math.min(L1, a + width * (L1 - L0));
+    const lo = Math.exp(a), hi = Math.exp(b);
+    $("#stInfo").textContent = `w ${lo.toFixed(2)} … ${hi.toFixed(2)}`;
+    const pts = rs.map((r) => r.decoded.samples.filter((s) => s.w >= lo && s.w <= hi));
+    const zs = pts.flat().map((s) => s.z / 8);
+    if (!zs.length) return;
+    if (pts[0].length) for (const s of pts[0]) zs.push(idealZ18(s.w, rs[0].dump.near, rs[0].dump.far, "ideal-rdp") / 8);
+    const zMin = Math.min(...zs), zMax = Math.max(...zs), pad = Math.max(0.5, (zMax - zMin) * 0.08);
+    const xToPx = (v) => m.l + (Math.log(v) - a) / (b - a) * (w - m.l - m.r);
+    const yToPx = (v) => h - m.b - (v - (zMin - pad)) / ((zMax + pad) - (zMin - pad)) * (h - m.t - m.b);
+    frame(ctx, w, h, m, niceTicks(lo, hi, 6).filter((t) => t >= lo && t <= hi), (v) => (v >= 100 ? v.toFixed(0) : v.toFixed(2)), niceTicks(zMin - pad, zMax + pad, 6), (v) => v.toFixed(2), xToPx, yToPx, "view depth (world units)", "stored Z (int units)");
+    ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, w - m.l - m.r, h - m.t - m.b); ctx.clip();
+    { // ideal mapping through the RDP z-buffer format, as a reference staircase
+      const r0 = rs[0], p0 = pts[0];
+      if (p0.length) {
+        ctx.strokeStyle = css("--ink-2"); ctx.lineWidth = 1.5; ctx.setLineDash([1.5, 3]); ctx.beginPath();
+        p0.forEach((s, i) => { const zi = idealZ18(s.w, r0.dump.near, r0.dump.far, "ideal-rdp") / 8; const x = xToPx(s.w), y = yToPx(zi); if (i === 0) ctx.moveTo(x, y); else { ctx.lineTo(x, yToPx(idealZ18(p0[i - 1].w, r0.dump.near, r0.dump.far, "ideal-rdp") / 8)); ctx.lineTo(x, y); } });
+        ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+    rs.forEach((r, k) => {
+      const p = pts[k]; if (!p.length) return;
+      ctx.strokeStyle = seriesColor(r); ctx.lineWidth = 2; ctx.beginPath();
+      p.forEach((s, i) => { const x = xToPx(s.w), y = yToPx(s.z / 8); if (i === 0) ctx.moveTo(x, y); else { ctx.lineTo(x, yToPx(p[i - 1].z / 8)); ctx.lineTo(x, y); } });
+      ctx.stroke();
+      if (p.length < 400) { ctx.fillStyle = seriesColor(r); for (const s of p) { ctx.beginPath(); ctx.arc(xToPx(s.w), yToPx(s.z / 8), 2, 0, Math.PI * 2); ctx.fill(); } }
+    });
+    ctx.restore();
+    bindHover(cv, (x) => {
+      if (x < m.l || x > w - m.r) return null;
+      const wv = Math.exp(a + (x - m.l) / (w - m.l - m.r) * (b - a));
+      let html = `<div class="row">w ≈ ${wv.toFixed(3)}</div>`;
+      rs.forEach((r, k) => { const p = pts[k]; if (!p.length) return; let best = p[0]; for (const s of p) if (Math.abs(s.w - wv) < Math.abs(best.w - wv)) best = s; html += `<div class="row"><span class="sw" style="background:${seriesColor(r)}"></span>${esc(r.dump.label)}: Z ${(best.z / 8).toFixed(3)} (raw ${best.z})</div>`; });
+      html += `<div class="row">ideal+RDP: Z ${(idealZ18(wv, rs[0].dump.near, rs[0].dump.far, "ideal-rdp") / 8).toFixed(3)} · +W-norm ${(idealZ18(wv, rs[0].dump.near, rs[0].dump.far, "ideal-wnorm") / 8).toFixed(3)} · exact ${idealZ(wv, rs[0].dump.near, rs[0].dump.far).toFixed(3)}</div>`;
+      return html;
+    });
+  }
+
+  // ---------- inversions: extent beyond each sample of smaller / not-larger stored Z ----------
+  function renderInv() {
+    const cv = $("#inv"), rs = active().filter((r) => r.decoded.samples);
+    const { ctx, w, h } = setupCanvas(cv);
+    if (!rs.length) { $("#leg-inv").innerHTML = ""; ctx.fillStyle = css("--ink-3"); ctx.font = "14px " + css("--font"); ctx.fillText("no sweep data", 20, 30); return; }
+    const showTies = $("#invTies").checked, pct = $("#invPct").checked, logY = $("#invLog").checked;
+    const data = rs.map((r) => {
+      const sm = r.decoded.samples, inv = [], tie = []; let nInv = 0, nTie = 0, maxInv = 0, maxTie = 0;
+      for (let i = 0; i < sm.length - 1; i++) {
+        let jInv = -1, jTie = -1;
+        for (let j = sm.length - 1; j > i; j--) { if (sm[j].z < sm[i].z) { jInv = j; break; } }
+        for (let j = sm.length - 1; j > i; j--) { if (sm[j].z <= sm[i].z) { jTie = j; break; } }
+        if (jInv >= 0) { const e = sm[jInv].w - sm[i].w; inv.push({ w: sm[i].w, e, v: pct ? e / sm[i].w : e, zi: sm[i].z, wj: sm[jInv].w, zj: sm[jInv].z }); nInv++; maxInv = Math.max(maxInv, e); }
+        if (jTie >= 0) { const e = sm[jTie].w - sm[i].w; tie.push({ w: sm[i].w, e, v: pct ? e / sm[i].w : e, zi: sm[i].z, wj: sm[jTie].w, zj: sm[jTie].z }); nTie++; maxTie = Math.max(maxTie, e); }
+      }
+      return { r, inv, tie, nInv, nTie, maxInv, maxTie };
+    });
+    $("#leg-inv").innerHTML = data.map((d) => `<span><i style="background:${seriesColor(d.r)}"></i>${esc(d.r.dump.label)}: ${d.nInv} inverted samples, worst ${d.maxInv.toFixed(1)} units · ${d.nTie} with ties, worst ${d.maxTie.toFixed(1)} units</span>`).join("");
+    const m = { l: 74, r: 58, t: 14, b: 34 };
+    const wMin = Math.min(...rs.map((r) => r.decoded.samples[0].w)), wMax = Math.max(...rs.map((r) => r.decoded.samples.at(-1).w));
+    const all = data.flatMap((d) => d.inv.map((p) => p.v).concat(showTies ? d.tie.map((p) => p.v) : []));
+    if (!all.length) { ctx.fillStyle = css("--ink-3"); ctx.font = "14px " + css("--font"); ctx.fillText("no inversions in the visible runs", 20, 30); return; }
+    let yMax = Math.max(...all) * 1.15, yMin = logY ? Math.min(...all.filter((v) => v > 0)) / 1.5 : 0;
+    if (!(yMax > 0)) yMax = 1;
+    const xToPx = (v) => m.l + (Math.log(v) - Math.log(wMin)) / (Math.log(wMax) - Math.log(wMin)) * (w - m.l - m.r);
+    const yToPx = (v) => logY ? h - m.b - (Math.log(Math.max(v, yMin)) - Math.log(yMin)) / (Math.log(yMax) - Math.log(yMin)) * (h - m.t - m.b) : h - m.b - v / yMax * (h - m.t - m.b);
+    const yT = logY ? logTicks(yMin, yMax) : niceTicks(0, yMax, 6);
+    const fy = (v) => pct ? fmtPct(v, v < 0.001 ? 3 : v < 0.01 ? 2 : 1) : (v >= 100 ? v.toFixed(0) : v >= 1 ? v.toFixed(1) : v.toFixed(3));
+    frame(ctx, w, h, m, logTicks(wMin, wMax), (v) => String(v), yT, fy, xToPx, yToPx, "view depth (world units, log)", pct ? "reach beyond the surface, % of its depth" : "reach beyond the surface, world units", logY);
+    // sampling step reference
+    { const step = rs[0].decoded.samples[1].w / rs[0].decoded.samples[0].w - 1; ctx.strokeStyle = css("--ink-3"); ctx.lineWidth = 1; ctx.setLineDash([8, 3, 2, 3]); ctx.beginPath();
+      for (let x = wMin, first = true; x <= wMax; x *= 1.05, first = false) { const v = pct ? step : step * x; const y = yToPx(Math.min(yMax, Math.max(yMin || 0, v))); if (first) ctx.moveTo(xToPx(x), y); else ctx.lineTo(xToPx(x), y); }
+      ctx.stroke(); ctx.setLineDash([]); }
+    const pts = [];
+    [...data.keys()].reverse().forEach((k) => { const d = data[k], col = seriesColor(d.r);
+      if (showTies) { ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.7; for (const p of d.tie) { const x = xToPx(p.w), y = yToPx(p.v); ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.stroke(); pts.push({ x, y, p, d, kind: "tie" }); } ctx.globalAlpha = 1; }
+      ctx.fillStyle = col; for (const p of d.inv) { const x = xToPx(p.w), y = yToPx(p.v); ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2); ctx.fill(); pts.push({ x, y, p, d, kind: "inversion" }); }
+    });
+    bindHover(cv, (x, y) => {
+      let best = null, bd = 10 * 10; for (const q of pts) { const d2 = (q.x - x) ** 2 + (q.y - y) ** 2; if (d2 < bd) { bd = d2; best = q; } }
+      if (!best) return null; const p = best.p;
+      return `<div class="row"><span class="sw" style="background:${seriesColor(best.d.r)}"></span>${esc(best.d.r.dump.label)} · ${best.kind}</div><div class="row">surface at w = ${p.w.toFixed(2)} (Z ${(p.zi / 8).toFixed(3)}) vs farthest at w = ${p.wj.toFixed(2)} (Z ${(p.zj / 8).toFixed(3)})</div><div class="row">reach ${p.e.toFixed(3)} units = ${fmtPct(p.e / p.w, 3)} of w</div>`;
+    });
+  }
+
+  // ---------- ambiguity span: back + forward reach of not-resolvable neighbours ----------
+  function renderAmb() {
+    const cv = $("#amb"), rs = active().filter((r) => r.decoded.samples);
+    const { ctx, w, h } = setupCanvas(cv); legend($("#leg-amb"), rs);
+    if (!rs.length) { ctx.fillStyle = css("--ink-3"); ctx.font = "14px " + css("--font"); ctx.fillText("no sweep data", 20, 30); return; }
+    const mode = $("#ambMode").value, pct = $("#ambPct").checked, q = +$("#ambQ").value / 100, win = +$("#ambWin").value, dots = $("#ambDots").checked;
+    $("#ambQV").textContent = Math.round(q * 100) + "th"; $("#ambWinV").textContent = win + " samples";
+    const data = rs.map((r) => {
+      const sm = r.decoded.samples, raw = [];
+      for (let i = 0; i < sm.length; i++) {
+        let jf = i, jb = i;
+        for (let j = sm.length - 1; j > i; j--) if (sm[j].z <= sm[i].z) { jf = j; break; }   // farthest forward with Z not larger
+        for (let j = 0; j < i; j++) if (sm[j].z >= sm[i].z) { jb = j; break; }               // farthest back with Z not smaller
+        const fwd = sm[jf].w - sm[i].w, back = sm[i].w - sm[jb].w;
+        const e = mode === "fwd" ? fwd : mode === "back" ? back : fwd + back;
+        raw.push({ w: sm[i].w, e, v: pct ? e / sm[i].w : e, fwd, back });
+      }
+      const half = win >> 1, sm2 = [];
+      for (let i = 0; i < raw.length; i++) { const a = Math.max(0, i - half), b = Math.min(raw.length, i + half + 1); const vv = raw.slice(a, b).map((p) => p.v).sort((x, y) => x - y); sm2.push({ w: raw[i].w, v: vv[Math.min(vv.length - 1, Math.floor(q * (vv.length - 1)))] }); }
+      return { r, raw, sm: sm2 };
+    });
+    const m = { l: 74, r: 58, t: 14, b: 34 };
+    const wMin = Math.min(...rs.map((r) => r.decoded.samples[0].w)), wMax = Math.max(...rs.map((r) => r.decoded.samples.at(-1).w));
+    const vals = data.flatMap((d) => d.sm.map((p) => p.v)).filter((v) => v > 0);
+    const yMax = Math.max(...vals, 1e-9) * 1.5, yMin = Math.min(...vals) / 1.5;
+    const xToPx = (v) => m.l + (Math.log(v) - Math.log(wMin)) / (Math.log(wMax) - Math.log(wMin)) * (w - m.l - m.r);
+    const yToPx = (v) => h - m.b - (Math.log(Math.max(v, yMin)) - Math.log(yMin)) / (Math.log(yMax) - Math.log(yMin)) * (h - m.t - m.b);
+    const fy = (v) => pct ? fmtPct(v, v < 0.001 ? 3 : v < 0.01 ? 2 : 1) : (v >= 100 ? v.toFixed(0) : v >= 1 ? v.toFixed(1) : v.toFixed(3));
+    frame(ctx, w, h, m, logTicks(wMin, wMax), (v) => String(v), logTicks(yMin, yMax), fy, xToPx, yToPx, "view depth (world units, log)", (mode === "total" ? "ambiguous span" : mode === "fwd" ? "forward reach" : "backward reach") + (pct ? ", % of depth (log)" : ", world units (log)"), true);
+    // format floor: one z-buffer code at the ideal Z -> distance span q * w^2 / B (total: the whole code, i.e. same for total/fwd/back up to a factor)
+    { const r0 = rs[0], n = r0.dump.near, f = r0.dump.far, B = 16383.5 * 2 * f * n / (f - n);
+      ctx.strokeStyle = css("--ink-2"); ctx.lineWidth = 1.5; ctx.setLineDash([1.5, 3]); ctx.beginPath();
+      for (let d = wMin, first = true; d <= wMax; d *= 1.05, first = false) { const qz = zQuantum18(rdpRoundtrip(idealZ(d, n, f))) / 8; const span = qz * d * d / B; const v = pct ? span / d : span; const y = yToPx(Math.max(yMin, Math.min(yMax, v))); if (first) ctx.moveTo(xToPx(d), y); else ctx.lineTo(xToPx(d), y); }
+      ctx.stroke(); ctx.setLineDash([]); }
+    ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, w - m.l - m.r, h - m.t - m.b); ctx.clip();
+    [...data.keys()].reverse().forEach((k) => { const d = data[k], col = seriesColor(d.r);
+      if (dots) { ctx.fillStyle = col; ctx.globalAlpha = 0.25; for (const p of d.raw) if (p.v > 0) { ctx.beginPath(); ctx.arc(xToPx(p.w), yToPx(p.v), 1.6, 0, Math.PI * 2); ctx.fill(); } ctx.globalAlpha = 1; }
+      ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); let first = true;
+      for (const p of d.sm) { if (!(p.v > 0)) { first = true; continue; } const x = xToPx(p.w), y = yToPx(p.v); if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y); }
+      ctx.stroke();
+    });
+    ctx.restore();
+    bindHover(cv, (x) => {
+      if (x < m.l || x > w - m.r) return null;
+      const wv = Math.exp(Math.log(wMin) + (x - m.l) / (w - m.l - m.r) * (Math.log(wMax) - Math.log(wMin)));
+      let html = `<div class="row">w ≈ ${wv.toFixed(2)}</div>`;
+      for (const d of data) { let bi = 0; for (let i = 0; i < d.raw.length; i++) if (Math.abs(Math.log(d.raw[i].w / wv)) < Math.abs(Math.log(d.raw[bi].w / wv))) bi = i; const p = d.raw[bi], sp = d.sm[bi];
+        html += `<div class="row"><span class="sw" style="background:${seriesColor(d.r)}"></span>${esc(d.r.dump.label)}: back ${p.back.toFixed(2)} + forward ${p.fwd.toFixed(2)} = ${(p.back + p.fwd).toFixed(2)} units (${fmtPct((p.back + p.fwd) / p.w, 2)}) · ${Math.round(q * 100)}th pct ${pct ? fmtPct(sp.v, 2) : sp.v.toFixed(2)}</div>`; }
+      return html;
+    });
+  }
+
+  // ---------- render: header + the one visible view ----------
+  let raf = null;
+  const RENDER = { "c-summary": renderSummary, "c-err": renderErr, "c-res": renderRes, "c-stair": renderStair, "c-inv": renderInv, "c-amb": renderAmb };
+  function renderView() {
+    if (raf) cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => { raf = null; RENDER[view](); });
+  }
+  function renderAll() { renderHeader(); setView(view); }
+  ["errRange", "errAbs", "errMode", "errRef", "errSmooth"].forEach((id) => $("#" + id).addEventListener("input", renderErr));
+  $("#errMode").addEventListener("change", renderErr); $("#errRef").addEventListener("change", renderErr);
+  ["stStart", "stWidth"].forEach((id) => $("#" + id).addEventListener("input", renderStair));
+  ["ambMode", "ambPct", "ambQ", "ambWin", "ambDots"].forEach((id) => { $("#" + id).addEventListener("input", renderAmb); $("#" + id).addEventListener("change", renderAmb); });
+  ["invTies", "invPct", "invLog"].forEach((id) => $("#" + id).addEventListener("input", renderInv));
+  window.addEventListener("resize", renderView);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+
+  // embedded data (published copy): window.DT_EMBEDDED = [dump, ...]
+  if (Array.isArray(window.DT_EMBEDDED)) { for (const d of window.DT_EMBEDDED) { try { addDump(d, d.file || d.rom); } catch (e) { console.error(e); } } }
+  renderHeader(); setView(view);
+})();
+</script>
+</body>
+</html>

@@ -87,6 +87,8 @@ if(arg === "clip") {
 
 // now compare and check if something got slower:
 let foundWorse = false;
+let strBetter = "";
+let strWorse = "";
 for (const [name, usPF] of Object.entries(perfMap)) {
   const last = lastPerf[name];
   const absDiff = Math.abs(usPF - last);
@@ -95,11 +97,15 @@ for (const [name, usPF] of Object.entries(perfMap)) {
   if (last === undefined) {
     console.log("new: " + name + " " + usPF.toFixed(4) + " us/frame");
   } else if (usPF > last) {
-    console.log("slower: " + name + " " + usPF.toFixed(4) + " us/frame (was " + last.toFixed(4) + ")");
+    strWorse += name + " " + usPF.toFixed(4) + " us/frame (was " + last.toFixed(4) + ")\n";
     foundWorse = true;
   } else if (usPF < last) {
-    console.log("faster: " + name + " " + usPF.toFixed(4) + " us/frame (was " + last.toFixed(4) + ")");
+    strBetter += name + " " + usPF.toFixed(4) + " us/frame (was " + last.toFixed(4) + ")\n";
   }
 }
 
 if(!foundWorse)console.log("Performance OK");
+
+console.log("=========================================");
+if(strBetter) console.log("Better:\n" + strBetter);
+if(strWorse) console.log("Worse:\n" + strWorse);

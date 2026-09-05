@@ -203,7 +203,7 @@ int main()
     t3d_screen_clear_color(RGBA32(0, 0, 0, 0xFF));
     t3d_screen_clear_depth();
 
-    t3d_fog_set_range(17.0f, 100.0f);
+    t3d_fog_set_range(22.0f, 200.0f);
     t3d_fog_set_enabled(true);
 
     t3d_light_set_ambient(colorAmbient); // one global ambient light, always active
