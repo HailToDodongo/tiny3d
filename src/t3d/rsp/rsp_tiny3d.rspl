@@ -133,7 +133,7 @@ state
   u32 SEGMENT_TABLE[8] = {0};
 
   // Lighting
-  u32 COLOR_AMBIENT[2] = {0xFFFFFFFF, 0xFFFFFFFF};   // RGBA8 (duplicated) | <unused> (saved IMEM)
+  u32 COLOR_AMBIENT[2] = {0xFFFFFFFF, 0xFFFFFFFF};   // RGBA8 (duplicated)
   alignas(4) u8 LIGHT_DIR_COLOR[LIGHT_SIZE][LIGHT_COUNT]; // RGBA8 (duplicated) | Direction packed as s8 (duplicated)
 
   // with profiling enabled, check assembly
@@ -360,13 +360,22 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
   u16 vertexFxFunc;
 
+  u8 isUnlit = load(TRI_COMMAND);
+  u32 ptrAmbient = COLOR_AMBIENT;
   {
-    u8 isUnlit = load(TRI_COMMAND);
-    if(isUnlit)ptrLightEnd = LIGHT_DIR_COLOR;
+    VTEMP = VZERO - 1;
+    store(VTEMP.xyzw, ptr3dEnd, 0);
   }
 
+  if(isUnlit) {
+    ptrLightEnd = LIGHT_DIR_COLOR;
+    ptrAmbient = ptr3dEnd;
+  }
+  
+  undef isUnlit;
   undef dmaAddrRDRAM;
   undef addressInOut;
+
   u8<$s0> baseTileMask = load(CLIP_CODE_ORG_ADDR);
   u8<$a2> baseTile;
 
@@ -375,6 +384,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
   // de-phased part of the loop to avoid stalls, this is also done at the end
   vec16<$v08> pos = load(prt3d, 0x00);
+
   vec16<$v07> norm = normMask & pos.wwwwWWWW;
   norm *= normShift;
 
@@ -389,7 +399,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
     // loads 1.0 to force full light by default (aka unlit)
     // later the ambient light is loaded over this in case lighting is enabled
-    vec16 lightColor = guardBandScale.W;
+    vec16 lightColor;
 
     // Load the alpha value from the first vertex, which *may* contain the base-tile...
     baseTile = load(prt3d, 0x13);
@@ -418,12 +428,12 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       u8 isPointLight = load(ptrLight, 15); // W=0 for directional, W=scale for point lights
       s32<$t7> lightSize;
 
+      // light color, accumulates directional lights
+      // by default white to get the unlit flag to work
+      lightColor = load_vec_u8(ptrAmbient, 0);
+
       if(ptrLight != ptrLightEnd)
       {
-        // light color, accumulates directional lights
-        // by default white to get the unlit flag to work
-        lightColor = load_vec_u8(ptrLight, -8);
-        
         loop
         {
           vec16<$v01> lightDirScale = norm:sfract * lightDirVec:sfract;

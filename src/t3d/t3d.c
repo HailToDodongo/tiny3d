@@ -183,7 +183,13 @@ void t3d_vert_load(const T3DVertPacked *vertices, uint32_t offset, uint32_t coun
 
   // calculate where to start the DMA, this may overlap the buffer of transformed vertices
   // we have to place it so that racing the input data is possible
-  uint32_t tmpBufferEnd = (RSP_T3D_BSS_CLIP_BUFFER_RESULT & 0xFFFF) + 6*16;
+  constexpr uint32_t tmpBufferEnd = (
+    ((RSP_T3D_BSS_TEMP_STATE_MEM_END & 0xFFFF) & ~0xF) // align to 16 bytes
+    - 32 // leave space for temp data usage
+  );
+
+  static_assert((RSP_T3D_STATE_MEM_END & 0xFFFF) <= tmpBufferEnd, "Vertex buffer overlaps temporary buffer!");
+
   uint16_t offsetDest = tmpBufferEnd - inputSize;
   offsetDest = (offsetDest & ~0xF); // make sure it's aligned to 16 bytes, must be aligned backwards
 
