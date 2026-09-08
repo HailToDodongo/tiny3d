@@ -28,6 +28,9 @@ static_assert(RSP_T3D_CODE_RSPQCmd_RdpAppendBuffer < RSP_T3D_CODE_CLIPPING_CODE_
 static_assert(RSP_T3D_CODE_CLIPPING_CODE_TARGET % 8 == 0, "Clipping code must be aligned to 8 bytes!");
 static_assert(RSP_T3D_CODE_CLIPPING_CODE_TARGET == RSP_T3D_CODE_CLIP_clipTriangle, "Clipping code and target must have the same address");
 
+static_assert((RSP_T3D_BSS_CLIP_BUFFER_TMP ^ RSP_T3D_BSS_CLIP_BUFFER_RESULT) == 0x100, "Clip buffers must differ only in bit 8 (CLIP_BUFFER_XOR)");
+static_assert(RSP_T3D_BSS_CLIP_BUFFER_TMP + 2 * 176 <= RSP_T3D_BSS_CLIP_BUFFER_RESULT + 7 * 36 - 4 * 36, "Second RDP slot must not reach a 4-vertex clip polygon");
+
 // @TODO: this could be handled to allow either alignment, but it is simpler to force this for now
 
 // the cull-flip patches sit inside the triangle code, which must never be swapped out by the clipping overlay

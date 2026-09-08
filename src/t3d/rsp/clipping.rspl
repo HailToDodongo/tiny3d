@@ -1,23 +1,22 @@
-// force specific order, 'clipTriangle' must be first
-function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, u32<$a2> ptrVertC);
-function triToScreenSpace(u32<$s6> ptr);
+// CLIP_BUFFER_TMP and CLIP_BUFFER_RESULT differ only in this bit (checked by a static_assert in t3d.c)
+#define CLIP_BUFFER_XOR 0x100
+#define CLIP_BUFFER_SIZE 252 // 7 * TRI_SIZE
+// polygons up to this size (4 vertices) lie above the second RDP command slot (static_assert in t3d.c)
+#define CLIP_FAN_ASYNC_MAX_SIZE 145
 
-macro returnBack() {
-  u16 tmp = load(CLIP_RA);
-  // restore old DMEM address for indices, this is expected to persist for tri-strips
-  s16<$s4> oldDMEM = load(RSPQ_SCRATCH_MEM, 18);
-  goto tmp;
-}
+// force specific order, 'clipTriangle' must be first
+function clipTriangle(u32<$t0> arraySize, u32<$a0> ptrVertA, u32<$a1> ptrVertB, u32<$a2> ptrVertC, u32<$t4> clipMask);
 
 /**
  * Calculates the intersection point against a clipping plane.
  * ---- Output ----
  * @param resPosUV    new point / UV (in .xyzw / .XY)
  * @param resColor    new color (in .xyzw)
- * @param newClipCode new clip-code for the interpolated-point
+ * @param newClipCode new clip-code for the interpolated-point (only if 'remainingPlanes' != 0)
  *
  * ---- Input ----
- * @param planePtr  DMEM address for the plane normals
+ * @param planeNorm       current plane normal, already shifted & scaled (in .xyzw and .XYZW)
+ * @param remainingPlanes planes still to be processed after this one, if zero no clip-code is computed
  *
  * @param posBase   base point inside the frustum
  * @param colorBase base color inside the frustum
@@ -26,7 +25,7 @@ macro returnBack() {
  */
 macro intersection(
   vec32 resPosUV, vec16 resColor, u32 newClipCode,
-  u32 planePtr,
+  vec32 planeNorm, u32 remainingPlanes,
   vec32 posBase, vec16 colorBase,
   vec32 pos, vec16 color
 ) {
@@ -35,36 +34,21 @@ macro intersection(
     vec32 vpos;
     vec16 colorDiff;
 
-    // load and transform current clipping plane
-    vec32 planeNorm:sint = load_vec_s8(planePtr);
-
     // contains last clip-code for current plane
     // when set, switch points for interpolation to have consistent results
     // if not done, it will result in tiny sub-pixel gaps between edges
     if(newClipCode)
     {
-      planeNorm:sint.XYZW = planeNorm:sint.xyzw;
-      planeNorm:sfract = 0;
-
       posUVDiff = posBase - pos;
       vpos = pos;
       vpos.XYZW = posBase.xyzw;
-      planeNorm >>= 8;
-
       colorDiff = colorBase - color;
     } else {
-      planeNorm:sint.XYZW = planeNorm:sint.xyzw;
-      planeNorm:sfract = 0;
-
       posUVDiff = pos - posBase;
       vpos = posBase;
       vpos.XYZW = pos.xyzw;
-      planeNorm >>= 8;
-
       colorDiff = color - colorBase;
     }
-
-    planeNorm *= normScaleWInv:ufract;
 
     vec32 dot = dotXYZW(vpos, planeNorm);
     vec32 fac = dot - dot.X;
@@ -96,12 +80,16 @@ macro intersection(
     }
   }
 
-  vec32 clipBase = resPosUV * normScaleWInv:ufract;
-  vec32 clipPlaneW = guardBandScale * resPosUV.wwwwWWWW;
+  // the clip-code is only consumed by later planes, skip it on the last one
+  if(remainingPlanes)
+  {
+    vec32 clipBase = resPosUV * normScaleWInv:ufract;
+    vec32 clipPlaneW = guardBandScale * resPosUV.wwwwWWWW;
 
-  clipBase.z = clipBase.w;
-  newClipCode = clip(clipBase, clipPlaneW.w);
-  newClipCode = packClipCode(newClipCode);
+    clipBase.z = clipBase.w;
+    newClipCode = clip(clipBase, clipPlaneW.w);
+    newClipCode = packClipCode(newClipCode);
+  }
 }
 
 /**
@@ -113,49 +101,38 @@ macro intersection(
  * @param ptrVertA vertex 0 of the tri. to be clipped
  * @param ptrVertB vertex 1
  * @param ptrVertC vertex 2
+ * @param clipMask OR of the 3 clip-codes (bits 8-12), as computed by the triangle code
  */
 @Align(8)
-function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, u16<$a2> ptrVertC)
+function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, u16<$a2> ptrVertC, u32<$t4> clipMask)
 {
   u8<$v0> faceCull; // stays across triangles, no need to load here
   // u8<$sp> _unused;
 
   arraySize = TRI_SIZE_3; // 3-verts by default
 
-  // The loop streams vertices in and out at the same time.
-  // To avoid corruption, alternate between two buffers.
-  u32 ptrBuff0 = CLIP_BUFFER_RESULT;
-  u32 ptrBuff1 = CLIP_BUFFER_TMP;
-  u32 ptrWrite = CLIP_BUFFER_TMP;
+  // Planes to process: bit 0/1 = -x/-y, bit 3/4 = +x/+y, as flagged by the vertex loop.
+  // Bit 2 (camera plane, w < 0) is never set: the four side planes meet at w = 0 and remove
+  // every point behind the camera on their own, the third plane is always skipped.
+  // Planes no vertex crosses are skipped, the polygon would pass through unchanged.
+  clipMask >>= 8;
+
+  // The buffers are filled from their END downwards, so we can double buffer RDP commands with <= 4 vertices.
+
+  u32 parity = 0x96696996; // mask of odd-even flags
+  parity >>= clipMask;
+  parity &= 1;
+  parity <<= 8;
+  u32 ptrBuff1 = CLIP_BUFFER_RESULT;
+  ptrBuff1 += CLIP_BUFFER_SIZE; // end of the buffer
+  ptrBuff1 -= parity; // odd: start in CLIP_BUFFER_TMP, even: in CLIP_BUFFER_RESULT
+  u32 ptrWrite = ptrBuff1;
 
   // copy original verts into the first buffer (@TODO: avoid this somehow?)
   {
     copyClippingVertex(ptrWrite, ptrVertA);
     copyClippingVertex(ptrWrite, ptrVertB);
     copyClippingVertex(ptrWrite, ptrVertC);
-  }
-
-  // @TODO: get rid of this ideally (blocked by DMEM size for triangles / per-vertex tile feature)
-  POST_VTX_COPY:
-  {
-    // No near plane: the vertex loop leaves clip-code bit 2 empty, set it to 'w < 0'
-    vec16 codes;
-    
-    #define MASK_W 0b1000
-    #define MASK_Z 0b100'0000'0000
-
-    codes.x = load(ptrWrite, 6).x;  // vert 0 (TRI_SIZE*n + VTX_ATTR_CLIPFLAGS)
-    codes.y = load(ptrWrite, 42).x; // vert 1
-    codes.z = load(ptrWrite, 78).x; // vert 2
-    vec16 wBit = codes ^ MASK_W;
-    vec16 oldBit = codes & MASK_Z;
-    wBit &= MASK_W;
-    codes ^= oldBit;
-    wBit <<= 7;
-    codes |= wBit;
-    store(codes.x, ptrWrite, 6);
-    store(codes.y, ptrWrite, 42);
-    store(codes.z, ptrWrite, 78);
   }
 
   u32 planePtr = CLIPPING_PLANES;
@@ -176,112 +153,192 @@ function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, 
   vec16 guardBandScale = load(CLIPPING_PLANES).xy;
   guardBandScale = guardBandScale.y;
 
+  vec16 uvFractMask = VZERO - 1;
+  uvFractMask.XYZW = VZERO.xyzw;
+
   // check 5 planes, we shift instead of incr. for direct clip-code checks
   // the z-far plane is ignored
   loop
   {
-    u32 ptrLast = ptrWrite - TRI_SIZE;
-
-    vec16 lastColor   = load_vec_u8(ptrLast, VTX_ATTR_RGBA);
-    vec32 lastPosUV   = load(ptrLast, VTX_ATTR_CLIPPOSi).xyzw;
-    lastPosUV:sint.XY = load(ptrLast, VTX_ATTR_ST).xy;
-    u8 lastClipCode   = load(ptrLast, VTX_ATTR_CLIPFLAGS);
-
-    undef ptrLast;
-
-    swap(ptrBuff0, ptrBuff1);
-
-    ptrWrite = ptrBuff1;
-    u32 ptrRead = ptrBuff0;
-    u32 ptrReadEnd = ptrBuff0 + arraySize;
-
-    // check all clipped points so far
-    loop
+    u32 planeActive = clipMask & planeIdx;
+    if(planeActive)
     {
-      vec32 currentPosUV   = load(ptrRead, VTX_ATTR_CLIPPOSi).xyzw;
-      currentPosUV:sint.XY = load(ptrRead, VTX_ATTR_ST).xy;
-      vec16 currentColor   = load_vec_u8(ptrRead, VTX_ATTR_RGBA);
+      clipMask ^= planeIdx; // planes remaining after this one
 
-      u8 clipCode = load(ptrRead, VTX_ATTR_CLIPFLAGS);
+      // load and transform current clipping plane (once per plane)
+      vec32 planeNorm:sint = load_vec_s8(planePtr);
+      planeNorm:sint.XYZW = planeNorm:sint.xyzw;
+      planeNorm:sfract = 0;
+      planeNorm >>= 8;
+      planeNorm *= normScaleWInv:ufract;
 
-      // check if the current and last point are contained in the clip-plane
-      u8 exclIntersect = clipCode ^ lastClipCode;
-      u8 isInsideCurr = ~clipCode;
-      exclIntersect &= planeIdx;
-      isInsideCurr &= planeIdx;
+      u32 ptrLast = ptrWrite; // last emitted vertex (lowest address)
 
-      if(exclIntersect)
+      vec16 lastColor   = load_vec_u8(ptrLast, VTX_ATTR_RGBA);
+      vec32 lastPosUV   = load(ptrLast, VTX_ATTR_CLIPPOSi).xyzw;
+      lastPosUV:sint.XY = load(ptrLast, VTX_ATTR_ST).xy;
+      lastPosUV:sfract &= uvFractMask; // the UV fraction lanes are never loaded, clear them for a deterministic lerp
+      u8 lastClipCode   = load(ptrLast, VTX_ATTR_CLIPFLAGS);
+
+      undef ptrLast;
+
+      ptrBuff1 ^= CLIP_BUFFER_XOR; // ping-pong between the two buffers
+
+      ptrWrite = ptrBuff1;
+      u32 ptrRead = ptrBuff1 ^ CLIP_BUFFER_XOR;
+      u32 ptrReadEnd = ptrRead - arraySize;
+
+      // check all clipped points so far
+      loop
       {
-        lastClipCode &= planeIdx;
-        intersection(
-          lastPosUV, lastColor, lastClipCode, // output
-          planePtr,
-          lastPosUV, lastColor, currentPosUV, currentColor);
+        ptrRead -= TRI_SIZE;
+        vec32 currentPosUV   = load(ptrRead, VTX_ATTR_CLIPPOSi).xyzw;
+        currentPosUV:sint.XY = load(ptrRead, VTX_ATTR_ST).xy;
+        currentPosUV:sfract &= uvFractMask;
+        vec16 currentColor   = load_vec_u8(ptrRead, VTX_ATTR_RGBA);
 
-        emitClippedTri(ptrWrite, lastClipCode, lastPosUV, lastColor);
-      }
+        u8 clipCode = load(ptrRead, VTX_ATTR_CLIPFLAGS);
 
-      lastPosUV = currentPosUV;
-      lastClipCode = clipCode;
-      lastColor = currentColor;
+        // check if the current and last point are contained in the clip-plane
+        u8 exclIntersect = clipCode ^ lastClipCode;
+        u8 isInsideCurr = ~clipCode;
+        exclIntersect &= planeIdx;
+        isInsideCurr &= planeIdx;
 
-      if(isInsideCurr) {
-        emitClippedTri(ptrWrite, lastClipCode, lastPosUV, lastColor);
-      }
+        if(exclIntersect)
+        {
+          lastClipCode &= planeIdx;
+          intersection(
+            lastPosUV, lastColor, lastClipCode, // output
+            planeNorm, clipMask,
+            lastPosUV, lastColor, currentPosUV, currentColor);
 
-      ptrRead += TRI_SIZE;
+          emitClippedTri(ptrWrite, lastClipCode, lastPosUV, lastColor);
+        }
 
-    } while(ptrRead != ptrReadEnd)
+        lastPosUV = currentPosUV;
+        lastClipCode = clipCode;
+        lastColor = currentColor;
+
+        if(isInsideCurr) {
+          emitClippedTri(ptrWrite, lastClipCode, lastPosUV, lastColor);
+        }
+
+      } while(ptrRead != ptrReadEnd)
+
+      arraySize = ptrBuff1 - ptrWrite;
+      if(arraySize == 0)goto CLIP_RETURN;
+    }
 
     planeIdx <<= 1;
-    arraySize = ptrWrite - ptrBuff1;
-
-    if(arraySize == 0)goto CLIP_RETURN;
-
     planePtr += 0x04;
   } while(planeIdx != 0b100'000)
 
   CLIP_END:
 
-  u32<$s6> ptrVertIn = CLIP_BUFFER_RESULT;
-  u32<$s5> ptrVertInEnd = ptrVertIn + arraySize;
-  ptrVertInEnd -= TRI_SIZE_2;
+  // Convert the whole polygon back into screen-space, two vertices at a time (lanes xyzw / XYZW).
+  // Same math as T3DCmd_VertLoad
+  {
+    u32 ptrConvA = ptrWrite; // lowest vertex of the final polygon
 
-  // convert the base-vertex and the one from the first iteration
-  // for each triangle-fan part we then only need to convert one new vert
-  @Relative triToScreenSpace(ptrVertIn);
-  ptrVertIn += TRI_SIZE_2;
-  @Relative triToScreenSpace(ptrVertIn);
+    loop
+    {
+      u16 oldClipFlag = load(RSPQ_SCRATCH_MEM, 20);
+      u32 ptrConvB = ptrConvA + TRI_SIZE;
+      if(ptrConvB == ptrBuff1) {
+        ptrConvB = ptrConvA; // odd vertex count: convert the last vertex twice (writes the same values)
+      }
 
-  // draw clipped triangles as a triangle-fan
+      vec32 screenSize = load(SCREEN_SCALE).xyzwxyzw; // s16.16
+      vec16 screenOffset = load(SCREEN_OFFSET).xyzwxyzw;
+      vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
+
+      // write dummy clip-codes to avoid re-clipping
+      // we must set the 5 LSBs (clip codes), but preserve the 3 MSBs (tile index)
+      // the reject code (0xFF = never rejected) sits in the second byte
+      oldClipFlag = oldClipFlag & ((0b111'00000) << 8);
+      oldClipFlag |= 0xFF;
+
+      vec32 posClip = load(ptrConvA, VTX_ATTR_CLIPPOSi).xyzw;
+      posClip.XYZW = load(ptrConvB, VTX_ATTR_CLIPPOSi).xyzw;
+
+      vec32 invWRaw;
+      invWRaw.w = invert_half(posClip).w;
+      invWRaw.W = invert_half(posClip).W;
+
+      // one round of NR
+      vec32 invW;
+      invW:sfract = posClip * invWRaw.wwwwWWWW; // still x0.5 due to invert
+      vec16 nrD = normScaleW:ufract - invW:ufract.wwwwWWWW; // d = 1 - t, as 0xFFFF - t
+      invW = invWRaw + invWRaw;      // 2*y0 (lanes w/W)
+      invW *= nrD:ufract.xxxxXXXX;   // -> 0.5/w
+      undef nrD;
+
+      store(invW.w, ptrConvA, VTX_ATTR_INVWi);
+      store(invW.W, ptrConvB, VTX_ATTR_INVWi);
+
+      // perspective division
+      invW = posClip * invW.wwwwWWWW;
+      posClip = invW * screenSize;
+      posClip:sint = screenOffset:sint +* 1;
+      undef invW;
+
+      vec16 zClamp = posClip:sint >= 0; // no near plane: clamp Z >= 0 (see T3DCmd_VertLoad)
+
+      store(posClip:sint.xy, ptrConvA, VTX_ATTR_XY);
+      store(zClamp.z, ptrConvA, VTX_ATTR_Z);
+      store(oldClipFlag, ptrConvA, VTX_ATTR_CLIPFLAGS);
+
+      store(posClip:sint.XY, ptrConvB, VTX_ATTR_XY);
+      store(zClamp.Z, ptrConvB, VTX_ATTR_Z);
+      store(oldClipFlag, ptrConvB, VTX_ATTR_CLIPFLAGS);
+
+      ptrConvA += TRI_SIZE_2;
+    } while(ptrConvA < ptrBuff1)
+  }
+
+  // draw clipped triangles as a triangle-fan around vertex 0 (the highest slot).
+  // With at most 4 vertices the polygon is above the second RDP command slot, so we can double-bufffer still
+  u32<$s4> ptrVert0 = ptrBuff1 - TRI_SIZE;
+  u32<$s6> ptrVertIn = ptrVert0;
+  u32<$s5> ptrVertInEnd = ptrWrite + TRI_SIZE; // second to last vertex
+  s32<$s0> fanWait = arraySize - CLIP_FAN_ASYNC_MAX_SIZE; // negative: at most 4 vertices
+
   loop
   {
-    ptrVertIn += TRI_SIZE_2;
-    @Relative triToScreenSpace(ptrVertIn); // Note: this moves 'ptrVertIn' back by TRI_SIZE
+    ptrVertIn -= TRI_SIZE;
 
-    ptrVertA = CLIP_BUFFER_RESULT;
+    ptrVertA = ptrVert0;
     ptrVertB = ptrVertIn;
-    ptrVertC = ptrVertIn + TRI_SIZE;
+    ptrVertC = ptrVertIn - TRI_SIZE;
 
     #ifdef DRAW_TRIS
       RDPQ_Triangle_Send_Async(ptrVertA, ptrVertB, ptrVertC, faceCull);
-      RDPQ_Triangle_Send_End();
+      if(fanWait >= 0) {
+        RDPQ_Triangle_Send_End();
+      }
       RDPQ_Triangle_Clip:
     #endif
 
   } while(ptrVertIn != ptrVertInEnd)
 
+  undef ptrVert0; // $s4 is reused for the restored DMEM address
   CLIP_RETURN:
-  returnBack();
+  
+  u16 tmp = load(CLIP_RA);
+  // restore old DMEM address for indices, this is expected to persist for tri-strips
+  s16<$s4> oldDMEM = load(RSPQ_SCRATCH_MEM, 18);
+  goto tmp;
 }
 
 /**
- * Copies a vertex, only includes data relevant for clipping.
+ * Copies a vertex, only includes data relevant for clipping (buffer filled downwards).
  * @param ptrDst DMEM address to copy to
  * @param ptrSrc DMEM address to copy from
  */
 macro copyClippingVertex(u32 ptrDst, u32 ptrSrc)
 {
+  ptrDst -= TRI_SIZE;
   vec16 tmp1 = load(ptrSrc, 0x00).xyzw;
   vec16 tmp2 = load(ptrSrc, 0x08).xyzw;
   vec16 tmp3 = load(ptrSrc, 0x10).xyzw;
@@ -291,13 +348,11 @@ macro copyClippingVertex(u32 ptrDst, u32 ptrSrc)
   store(tmp2.xyzw, ptrDst, 0x08);
   store(tmp3.xyzw, ptrDst, 0x10);
   store(tmp4.xyzw, ptrDst, 0x18);
-
-  ptrDst += TRI_SIZE;
 }
 
 /**
  * Emits a clipped triangle into the current clipping-buffer.
- * Note: this advances the buffer-pointer by TRI_SIZE.
+ * Note: buffers are filled downwards, this moves the pointer back by TRI_SIZE first.
  *
  * @param ptrWrite destination buffer
  * @param lastClipCode CC to save
@@ -306,49 +361,12 @@ macro copyClippingVertex(u32 ptrDst, u32 ptrSrc)
  */
 macro emitClippedTri(u32 ptrWrite, u8 lastClipCode, vec32 lastPosUV, vec16 lastColor)
 {
+  ptrWrite -= TRI_SIZE;
   @Barrier("uv") store_vec_u8(lastColor,  ptrWrite, VTX_ATTR_RGBA);
   @Barrier("uv") store(lastPosUV:sint.XY, ptrWrite, VTX_ATTR_ST);
 
   store(lastClipCode:u8,   ptrWrite, VTX_ATTR_CLIPFLAGS);
   store(lastPosUV.xyzw,    ptrWrite, VTX_ATTR_CLIPPOSi);
-  ptrWrite += TRI_SIZE;
-}
-
-/**
- * Converts a triangle generated from clipping back into screen-space.
- * @param ptr vertex to be converted
- */
-function triToScreenSpace(u32<$s6> ptr)
-{
-  // Note: these values need to be loaded each time, as RDPQ_Triangle wipes most regs
-  vec32 screenSize = load(SCREEN_SCALE).xyzw; // s16.16
-
-  vec16 vecOne = 1;
-
-  // write dummy clip-codes to avoid re-clipping
-  // we must set the 5 LSBs (clip codes), but preserve the 3 MSBs (tile index)
-  u16<$t0> oldClipFlag = load(RSPQ_SCRATCH_MEM, 20);
-  oldClipFlag = oldClipFlag & ((0b111'00000) << 8);
-  oldClipFlag |= 0xFF;
-
-  vec16 screenOffset = load(SCREEN_OFFSET).xyzw;
-
-  vec32 invW;
-  vec32 posClip = load(ptr, VTX_ATTR_CLIPPOSi).xyzw;
-  invW.w = invert_half(posClip).w;
-  store(invW.w, ptr, VTX_ATTR_INVWi);
-
-  posClip *= invW.w;
-  posClip *= screenSize;
-
-  posClip:sint = screenOffset:sint +* 1;
-  vec16 zClamp = posClip:sint >= 0; // no near plane: clamp Z >= 0 (see T3DCmd_VertLoad)
-
-  @Barrier("cc") store(posClip:sint.xyzw, ptr, VTX_ATTR_XY);
-  @Barrier("cc") store(zClamp.z, ptr, VTX_ATTR_Z);
-  @Barrier("cc") store(oldClipFlag, ptr, VTX_ATTR_CLIPFLAGS);
-
-  ptr -= TRI_SIZE;
 }
 
 // insert dummy commands to make the data section match
