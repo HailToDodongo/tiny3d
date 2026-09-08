@@ -94,13 +94,15 @@ for (const [name, usPF] of Object.entries(perfMap)) {
   const absDiff = Math.abs(usPF - last);
   if(absDiff < 0.0025) continue; // ignore small differences
 
+  const perc = ((usPF / last - 1) * 100).toFixed(1);
+
   if (last === undefined) {
     console.log("new: " + name + " " + usPF.toFixed(4) + " us/frame");
   } else if (usPF > last) {
-    strWorse += name + " " + usPF.toFixed(4) + " us/frame (was " + last.toFixed(4) + ")\n";
+    strWorse += name + " " + usPF.toFixed(4) + " us/frame (was " + last.toFixed(4) + " +" + perc + "%)\n";
     foundWorse = true;
   } else if (usPF < last) {
-    strBetter += name + " " + usPF.toFixed(4) + " us/frame (was " + last.toFixed(4) + ")\n";
+    strBetter += name + " " + usPF.toFixed(4) + " us/frame (was " + last.toFixed(4) + " -" + Math.abs(perc) + "%)\n";
   }
 }
 

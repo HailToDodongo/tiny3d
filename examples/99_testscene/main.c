@@ -31,14 +31,9 @@ int main()
   //rdpq_debug_start();
   //rdpq_debug_log(true);
 
-  bool testClip = false;
-
   joypad_init();
   t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
-  if(testClip) {
-    viewport.guardBandScale = 1;
-  }
 
   t3d_debug_print_init();
   sprite_t *spriteLogo = sprite_load("rom:/logo.ia8.sprite");
@@ -49,8 +44,7 @@ int main()
   // Now allocate a fixed-point matrix, this is what t3d uses internally.
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
 
-  fm_vec3_t camPos = {{2.9232f, 67.6248f, 61.1093f}};
-  if(testClip)camPos = (fm_vec3_t){{2.9232f, 37.6248f, 31.1093f}};
+  fm_vec3_t camPos = {{2.9232f, 67.6248f, 61.1093f}};  
   fm_vec3_t camTarget = {{0,0,0}};
   fm_vec3_t camDir = {{0,0,1}};
 
