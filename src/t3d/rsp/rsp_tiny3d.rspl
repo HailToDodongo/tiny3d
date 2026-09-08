@@ -460,7 +460,8 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       }
     }
 
-    vec16 clipPlaneW = posClip * guardBandScale.xxxxxxxx;
+    // @TODO: technically a 16bit check *should* work, but causes issue at guard-band=1
+    vec32 clipPlaneW = posClip * guardBandScale.xxxxxxxx;
 
     color = load_vec_u8(prt3d, 0x10);
 
@@ -472,7 +473,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     u32 clipCodeA, clipCodeB, rejCodesA, rejCodesB;
     {
       u32 rejCodes = clip(posClip, posClip.wwwwWWWW); // Clip-Code for rejection (no band-guard)
-      u32 clipCodes = clip(posClip:sint, clipPlaneW.wwwwWWWW); // Clip code for clipping (incl. band-guard)
+      u32 clipCodes = clip(posClip, clipPlaneW.wwwwWWWW); // Clip code for clipping (incl. band-guard)
 
       clipCodeB = clipCodes >> 4;
       clipCodeA = packClipCode(clipCodes);
