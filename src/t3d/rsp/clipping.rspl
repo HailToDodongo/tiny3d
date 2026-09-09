@@ -83,11 +83,11 @@ macro intersection(
   // the clip-code is only consumed by later planes, skip it on the last one
   if(remainingPlanes)
   {
+    // x/y are pre-divided by the guard-band factor (see T3DCmd_VertLoad), so W is the bound
     vec32 clipBase = resPosUV * normScaleWInv:ufract;
-    vec32 clipPlaneW = guardBandScale * resPosUV.wwwwWWWW;
 
     clipBase.z = clipBase.w;
-    newClipCode = clip(clipBase, clipPlaneW.w);
+    newClipCode = clip(clipBase, resPosUV.w);
     newClipCode = packClipCode(newClipCode);
   }
 }
@@ -149,9 +149,6 @@ function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, 
   normScaleWInv = normScaleWInv.x;
   normScaleWInv.w = 0xFFFF;
   normScaleWInv.W = 0xFFFF;
-
-  vec16 guardBandScale = load(CLIPPING_PLANES).xy;
-  guardBandScale = guardBandScale.y;
 
   // UVs are lerped as biased u16 values (ST ^ 0x8000) in the FRACTION lanes X/Y with the int lanes zero.
   // With the s16 texcoords in the int lanes the 32-bit subtract saturates once two vertices are more
@@ -279,7 +276,7 @@ function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, 
       invW:sfract = posClip * invWRaw.wwwwWWWW; // still x0.5 due to invert
       vec16 nrD = normScaleW:ufract - invW:ufract.wwwwWWWW; // d = 1 - t, as 0xFFFF - t
       invW = invWRaw + invWRaw;      // 2*y0 (lanes w/W)
-      invW *= nrD:ufract.xxxxXXXX;   // -> 0.5/w
+      invW *= nrD:ufract.zzzzZZZZ;   // -> 0.5/w (lane z = 0xFFFF, x/y hold 1/guard-band)
       undef nrD;
 
       store(invW.w, ptrConvA, VTX_ATTR_INVWi);

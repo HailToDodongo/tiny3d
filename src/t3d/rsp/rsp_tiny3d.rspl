@@ -467,16 +467,15 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       }
     }
 
-    // @TODO: technically a 16bit check *should* work, but causes issue at guard-band=1
-    vec32 clipPlaneW = orgPosClip * guardBandScale.xxxxxxxx;
-    
     color = load_vec_u8(prt3d, 0x10);
   
     // calc. clipping codes (rejection & clip-prevention)
     u32 clipCodeA, clipCodeB, rejCodesA, rejCodesB;
     {
+      // posClip has x/y already divided by the guard-band factor 
+      // (NORM_SCALE_W lanes x/y, compensated by SCREEN_SCALE)
       u32 rejCodes = clip(orgPosClip, orgPosClip.wwwwWWWW); // Clip-Code for rejection (no band-guard)
-      u32 clipCodes = clip(orgPosClip, clipPlaneW.wwwwWWWW); // Clip code for clipping (incl. band-guard)
+      u32 clipCodes = clip(posClip, orgPosClip.wwwwWWWW); // Clip code for clipping (incl. band-guard)
 
       clipCodeB = clipCodes >> 4;
       clipCodeA = packClipCode(clipCodes);
@@ -489,7 +488,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       rejCodesA = packRejectCode(rejCodes);
       rejCodesB = packRejectCode(rejCodesB);
     }
-    undef clipPlaneW;
 
     vec32<alias(normShift), alias(pos)> invWRaw; // only needs lanes w/W
 
@@ -510,15 +508,15 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     vec32 invW;
     invW:sfract = posClip * invWRaw.wwwwWWWW; // still x0.5 due to invert
 
-    // d = 1 - t, computed as 0xFFFF - t (normScaleW lanes x,y,z = 0xFFFF)
+    // d = 1 - t, computed as 0xFFFF - t (normScaleW lane z = 0xFFFF, x/y hold 1/guard-band)
     // also avoids the later W=1 special case in the triangle code
     vec16 nrD = normScaleW:ufract - invW:ufract.wwwwWWWW;
     invW = invWRaw + invWRaw;      // 2*y0 (lanes w/W)
-    invW *= nrD:ufract.xxxxXXXX;   // -> 0.5/w
+    invW *= nrD:ufract.zzzzZZZZ;   // -> 0.5/w
     undef nrD;
 
-    @Barrier("invW_A", before) store(invW.w, ptrBuffA, VTX_ATTR_INVWi);
-    @Barrier("invW_B", before) store(invW.W, ptrBuffB, VTX_ATTR_INVWi);
+    store(invW.w, ptrBuffA, VTX_ATTR_INVWi);
+    store(invW.W, ptrBuffB, VTX_ATTR_INVWi);
 
     // perspective division
     invW = posClip * invW.wwwwWWWW;
@@ -555,7 +553,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     store(posClip:sint.XY, ptrBuffB, VTX_ATTR_XY);
     store(posClip:sint.Z, ptrBuffB, VTX_ATTR_Z);
 
-    // pack the first clip-code to get rid of one save + have more SUs
     store(clipCodeA:u8, ptrBuffA, VTX_ATTR_CLIPFLAGS);
     store(rejCodesA:u8, ptrBuffA, VTX_ATTR_REJFLAGS);
 
@@ -682,15 +679,7 @@ command<1> T3DCmd_SetScreenSize(
   u16 uvgenScaleFactor = guardBandFactor >> 8;
   store(uvgenScaleFactor, SCREEN_UVGEN_SCALE);
 
-  // guard-band multiplier (W value of the clipping plane, integer)
-  guardBandFactor &= 0xF;
-  s8 guardBandFactorNeg = ZERO - guardBandFactor;
 
-  store(guardBandFactor,    CLIPPING_PLANES, 3); // +X Plane
-  store(guardBandFactor,    CLIPPING_PLANES, 7); // +Y Plane
-  //store(guardBandFactor,    CLIPPING_PLANES, 11); // +Z Plane
-  store(guardBandFactorNeg, CLIPPING_PLANES, 15); // -X Plane
-  store(guardBandFactorNeg, CLIPPING_PLANES, 19); // -Y Plane
 }
 
 /**

@@ -58,6 +58,11 @@ void tpx_state_from_t3d()
   assertf(vp, "No Viewport attached");
   uint16_t normWScale = (uint16_t)roundf(0xFFFF * fminf(vp->_normScaleW, 1.0f));
 
+  int32_t guardBand = vp->guardBandScale & 0xF;
+  if(guardBand < 1)guardBand = 1;
+  uint16_t invGuard = (guardBand == 1) ? 0xFFFF : (uint16_t)(0x10000 / guardBand);
+  tpx_dmem_set_u32(RSP_TPX_NORM_SCALE_W, ((uint32_t)invGuard << 16) | invGuard);
+
   uint32_t addrMatrix = (uint32_t)rsp_tiny3d.data + (RSP_T3D_MATRIX_PROJ & 0xFFFF);
   uint32_t addrScreen = (uint32_t)rsp_tiny3d.data + (RSP_T3D_SCREEN_SCALE & 0xFFFF);
   rspq_write(TPX_RSP_ID, TPX_CMD_SYNC_T3D,

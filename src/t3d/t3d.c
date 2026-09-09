@@ -608,10 +608,21 @@ void t3d_viewport_attach(T3DViewport *viewport) {
   float normWScaleFloat = (float)normWScale * (1.0f / 0xFFFF);
 
   
+  // clip-space x/y are divided by the guard-band factor in the ucode (NORM_SCALE_W lanes x/y)
+  // so the clip-code test can use W as its bound, undo it here.
+  int32_t guardBand = viewport->guardBandScale & 0xF;
+  if(guardBand < 1)guardBand = 1;
+  // the screen scale absorbs the factor and its integer part must stay in s16
+  int32_t guardMax = 32767 / (4 * (viewport->size[0] > viewport->size[1] ? viewport->size[0] : viewport->size[1]));
+  if(guardBand > guardMax)guardBand = guardMax < 1 ? 1 : guardMax;
+  uint16_t invGuard = (guardBand == 1) ? 0xFFFF : (uint16_t)(0x10000 / guardBand);
+  t3d_dmem_set_u32((RSP_T3D_NORM_SCALE_W & 0xFFF), ((uint32_t)invGuard << 16) | invGuard);
+
   // halved (2 instead of 4): the ucode's NR-refined 1/W is the full reciprocal,
   // twice the raw vrcp half-reciprocal
-  float screenFactorX = (float)viewport->size[0] * normWScaleFloat *  4.0f;
-  float screenFactorY = (float)viewport->size[1] * normWScaleFloat * -4.0f;
+  float guardF = (float)guardBand;
+  float screenFactorX = (float)viewport->size[0] * normWScaleFloat *  4.0f * guardF;
+  float screenFactorY = (float)viewport->size[1] * normWScaleFloat * -4.0f * guardF;
 
   int32_t screenScaleX = (int32_t)roundf(screenFactorX * 0x10000);
   int32_t screenScaleY = (int32_t)roundf(screenFactorY * 0x10000);
@@ -637,7 +648,7 @@ void t3d_viewport_attach(T3DViewport *viewport) {
     depthScale, normWScale
   );*/
 
-  int32_t guardBandScale = viewport->guardBandScale & 0xF;
+  int32_t guardBandScale = guardBand;
 
   // uv-gen offset, used to skew normals based on distance to the screen center.
   // This can fake uvgen shifting based on the viewing angle.
