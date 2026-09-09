@@ -434,8 +434,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
       posClip = orgPosClip * normScaleW:ufract;
 
-      u16 ptrScreenScale = SCREEN_SCALE;
-
       if(ptrLight != ptrLightEnd)
       {
         loop

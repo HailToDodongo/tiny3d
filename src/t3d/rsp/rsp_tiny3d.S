@@ -213,56 +213,56 @@ CLIPPING_CODE_TARGET:
   addiu $t0, $t0, -1
 T3DCmd_VertLoad:
   ## hot-path cycles: 139
-  or $t2, $zero, $zero                               ## L:354  |      ^ | dma_in_async(prt3d, dmaAddrRDRAM, copySize);
-  srl $s4, $a2, 16                                   ## L:347  |      2 | u32<$s4> prt3d = addressInOut >> 16;
-  andi $t0, $a0, 65535                               ## L:349  |      3 | u32<$t0> copySize = bufferSize & 0xFFFF;
-  srl $s6, $a1, 24                                   ## L:291  |      4 | u32 segment = addrIn >> 24;
-  addu $s7, $s4, $t0                                 ## L:350  |      5 | u32 ptr3dEnd = prt3d + copySize;
+  andi $t0, $a0, 65535                               ## L:349  |      ^ | u32<$t0> copySize = bufferSize & 0xFFFF;
+  srl $s6, $a1, 24                                   ## L:291  |      2 | u32 segment = addrIn >> 24;
+  srl $s4, $a2, 16                                   ## L:347  |      3 | u32<$s4> prt3d = addressInOut >> 16;
+  addu $s7, $s4, $t0                                 ## L:350  |      4 | u32 ptr3dEnd = prt3d + copySize;
+  addiu $t0, $t0, -1                                 ## L:354  |      5 | dma_in_async(prt3d, dmaAddrRDRAM, copySize);
   lw $s6, %lo(SEGMENT_TABLE)($s6)                    ## L:292  |      6 | segment = load(segment, SEGMENT_TABLE);
-  addiu $t0, $t0, -1                                 ## L:354  |      7 | dma_in_async(prt3d, dmaAddrRDRAM, copySize);
+  or $t2, $zero, $zero                               ## L:354  |      7 | dma_in_async(prt3d, dmaAddrRDRAM, copySize);
   jal DMAExec                                        ## L:354  |      8 | dma_in_async(prt3d, dmaAddrRDRAM, copySize); ## Args: $t0, $t1, $s0, $s4, $t2
   addu $s0, $a1, $s6                                 ## L:293  |      9 | addrOut = addrIn + segment;
   ori $s6, $zero, %lo(MATRIX_NORMAL)                 ## L:283  |     10 | u16 address = MATRIX_NORMAL;
-  ldv $v19, 0, 8, $s6                                ## L:285  |     11 | mat1 = load(address, 0x08).xyzwxyzw;
-  ldv $v19, 8, 8, $s6                                ## L:285  |     12 | mat1 = load(address, 0x08).xyzwxyzw;
-  ldv $v18, 8, 16, $s6                               ## L:286  |     13 | mat2 = load(address, 0x10).xyzwxyzw;
-  ldv $v18, 0, 16, $s6                               ## L:286  |     14 | mat2 = load(address, 0x10).xyzwxyzw;
-  ldv $v20, 8, 0, $s6                                ## L:284  |     15 | mat0 = load(address, 0x00).xyzwxyzw;
+  ldv $v20, 8, 0, $s6                                ## L:284  |     11 | mat0 = load(address, 0x00).xyzwxyzw;
+  ldv $v19, 0, 8, $s6                                ## L:285  |     12 | mat1 = load(address, 0x08).xyzwxyzw;
+  ldv $v18, 0, 16, $s6                               ## L:286  |     13 | mat2 = load(address, 0x10).xyzwxyzw;
+  ldv $v20, 0, 0, $s6                                ## L:284  |     14 | mat0 = load(address, 0x00).xyzwxyzw;
+  ldv $v18, 8, 16, $s6                               ## L:286  |     15 | mat2 = load(address, 0x10).xyzwxyzw;
   jal loadCurrentMVPMat                              ## L:361  |     16 | loadCurrentMVPMat(mat0, mat1, mat2, mat3); ## Args: $v27, $v25, $v23, $v21
-  ldv $v20, 0, 0, $s6                                ## L:284  |     17 | mat0 = load(address, 0x00).xyzwxyzw;
-  lbu $s1, %lo(FOG_STORE_OFFSET + 0)                 ## L:393  |     18 | u8 fogStoreOffset = load(FOG_STORE_OFFSET);
-  vsubc $v29, $v00, $v30.e7                          ## L:403  |      ^ | VTEMP = VZERO - 1;
-  andi $s6, $a2, 65535                               ## L:378  |     19 | u32 ptrBuffA = addressInOut & 0xFFFF;
+  ldv $v19, 8, 8, $s6                                ## L:285  |     17 | mat1 = load(address, 0x08).xyzwxyzw;
+  vsubc $v29, $v00, $v30.e7                          ## L:403  |     18 | VTEMP = VZERO - 1;
+  andi $s6, $a2, 65535                               ## L:378  |      ^ | u32 ptrBuffA = addressInOut & 0xFFFF;
+  ori $k0, $zero, %lo(COLOR_AMBIENT)                 ## L:401  |     19 | u32 ptrAmbient = COLOR_AMBIENT;
   ori $at, $zero, %lo(NORMAL_MASK_SHIFT)             ## L:363  |     20 | vec16 normMask = load(NORMAL_MASK_SHIFT, 0x00).xyzwxyzw;
-  ldv $v17, 0, 0, $at                                ## L:363  |     21 | vec16 normMask = load(NORMAL_MASK_SHIFT, 0x00).xyzwxyzw;
-  ldv $v16, 0, 8, $at                                ## L:364  |     22 | vec16 normShift = load(NORMAL_MASK_SHIFT, 0x08).xyzwxyzw;
+  ldv $v16, 0, 8, $at                                ## L:364  |     21 | vec16 normShift = load(NORMAL_MASK_SHIFT, 0x08).xyzwxyzw;
+  ldv $v17, 0, 0, $at                                ## L:363  |     22 | vec16 normMask = load(NORMAL_MASK_SHIFT, 0x00).xyzwxyzw;
   ldv $v17, 8, 0, $at                                ## L:363  |     23 | vec16 normMask = load(NORMAL_MASK_SHIFT, 0x00).xyzwxyzw;
   ldv $v16, 8, 8, $at                                ## L:364  |     24 | vec16 normShift = load(NORMAL_MASK_SHIFT, 0x08).xyzwxyzw;
   ori $at, $zero, %lo(CLIPPING_PLANES)               ## L:366  |     25 | vec16 guardBandScale = load(CLIPPING_PLANES).xy;
-  llv $v15, 0, 0, $at                                ## L:366  |     26 | vec16 guardBandScale = load(CLIPPING_PLANES).xy;
-  ori $k0, $zero, %lo(COLOR_AMBIENT)                 ## L:401  |     27 | u32 ptrAmbient = COLOR_AMBIENT;
-  ori $at, $zero, %lo(VERT_CONSTS)                   ## L:370  |     28 | guardBandScale.w = load(VERT_CONSTS, 0x08).x;
+  lbu $k1, %lo(TRI_COMMAND + 0)                      ## L:400  |     26 | u8 isUnlit = load(TRI_COMMAND);
+  sdv $v29, 0, 0, $s7                                ## L:404  |     27 | store(VTEMP.xyzw, ptr3dEnd, 0);
+  llv $v15, 0, 0, $at                                ## L:366  |     28 | vec16 guardBandScale = load(CLIPPING_PLANES).xy;
   addiu $s5, $s6, 65500                              ## L:379  |     29 | u32 ptrBuffB = ptrBuffA - 36;
-  addiu $s6, $s6, 65464                              ## L:394  |     30 | ptrBuffA -= 72;
+  lbu $s2, %lo(ACTIVE_LIGHT_SIZE + 0)                ## L:383  |     30 | u8 ptrLightEnd = load(ACTIVE_LIGHT_SIZE);
+  ori $at, $zero, %lo(VERT_CONSTS)                   ## L:370  |     31 | guardBandScale.w = load(VERT_CONSTS, 0x08).x;
+  lbu $s1, %lo(FOG_STORE_OFFSET + 0)                 ## L:393  |     32 | u8 fogStoreOffset = load(FOG_STORE_OFFSET);
   vor $v15, $v00, $v15.e1                            ## L:367  |      ^ | guardBandScale = guardBandScale.y;
-  lsv $v15, 14, 10, $at                              ## L:371  |     31 | guardBandScale.W = load(VERT_CONSTS, 0x0A).x;
-  lsv $v15, 6, 8, $at                                ## L:370  |     32 | guardBandScale.w = load(VERT_CONSTS, 0x08).x;
-  lbu $k1, %lo(TRI_COMMAND + 0)                      ## L:400  |     33 | u8 isUnlit = load(TRI_COMMAND);
-  ori $at, $zero, %lo(SCREEN_OFFSET)                 ## L:375  |     34 | vec16<$v12> screenOffset = load(SCREEN_OFFSET).xyzwxyzw;
-  lbu $s2, %lo(ACTIVE_LIGHT_SIZE + 0)                ## L:383  |     35 | u8 ptrLightEnd = load(ACTIVE_LIGHT_SIZE);
-  ldv $v12, 8, 0, $at                                ## L:375  |     36 | vec16<$v12> screenOffset = load(SCREEN_OFFSET).xyzwxyzw;
+  lsv $v15, 14, 10, $at                              ## L:371  |     33 | guardBandScale.W = load(VERT_CONSTS, 0x0A).x;
+  addiu $s6, $s6, 65464                              ## L:394  |     34 | ptrBuffA -= 72;
+  lsv $v15, 6, 8, $at                                ## L:370  |     35 | guardBandScale.w = load(VERT_CONSTS, 0x08).x;
+  ori $at, $zero, %lo(SCREEN_OFFSET)                 ## L:375  |     36 | vec16<$v12> screenOffset = load(SCREEN_OFFSET).xyzwxyzw;
   ldv $v12, 0, 0, $at                                ## L:375  |     37 | vec16<$v12> screenOffset = load(SCREEN_OFFSET).xyzwxyzw;
-  ori $at, $zero, %lo(NORM_SCALE_W)                  ## L:376  |     38 | vec16<$v10> normScaleW = load(NORM_SCALE_W).xyzwxyzw;
-  ldv $v10, 8, 0, $at                                ## L:376  |     39 | vec16<$v10> normScaleW = load(NORM_SCALE_W).xyzwxyzw;
-  ldv $v10, 0, 0, $at                                ## L:376  |     40 | vec16<$v10> normScaleW = load(NORM_SCALE_W).xyzwxyzw;
-  ori $at, $zero, %lo(UV_GEN_PARAMS)                 ## L:388  |     41 | uvGenArgs.XYZW = load(UV_GEN_PARAMS).xyzw;
-  ldv $v09, 8, 0, $at                                ## L:388  |     42 | uvGenArgs.XYZW = load(UV_GEN_PARAMS).xyzw;
-  sdv $v29, 0, 0, $s7                                ## L:404  |     43 | store(VTEMP.xyzw, ptr3dEnd, 0);
-  ori $at, $zero, %lo(SCREEN_UVGEN_SCALE)            ## L:389  |     44 | uvGenArgs.W = load(SCREEN_UVGEN_SCALE).x;
-  lsv $v09, 14, 0, $at                               ## L:389  |     45 | uvGenArgs.W = load(SCREEN_UVGEN_SCALE).x;
-  ori $at, $zero, %lo(UV_GEN_PARAMS)                 ## L:390  |     46 | uvGenArgs.xy = load(UV_GEN_PARAMS).xy;
-  llv $v09, 4, 0, $at                                ## L:391  |     47 | uvGenArgs.zw = load(UV_GEN_PARAMS).xy;
-  addiu $s2, $s2, %lo(LIGHT_DIR_COLOR)               ## L:384  |     48 | ptrLightEnd += LIGHT_DIR_COLOR;
+  ldv $v12, 8, 0, $at                                ## L:375  |     38 | vec16<$v12> screenOffset = load(SCREEN_OFFSET).xyzwxyzw;
+  ori $at, $zero, %lo(NORM_SCALE_W)                  ## L:376  |     39 | vec16<$v10> normScaleW = load(NORM_SCALE_W).xyzwxyzw;
+  addiu $s2, $s2, %lo(LIGHT_DIR_COLOR)               ## L:384  |     40 | ptrLightEnd += LIGHT_DIR_COLOR;
+  ldv $v10, 8, 0, $at                                ## L:376  |     41 | vec16<$v10> normScaleW = load(NORM_SCALE_W).xyzwxyzw;
+  ldv $v10, 0, 0, $at                                ## L:376  |     42 | vec16<$v10> normScaleW = load(NORM_SCALE_W).xyzwxyzw;
+  ori $at, $zero, %lo(UV_GEN_PARAMS)                 ## L:388  |     43 | uvGenArgs.XYZW = load(UV_GEN_PARAMS).xyzw;
+  ldv $v09, 8, 0, $at                                ## L:388  |     44 | uvGenArgs.XYZW = load(UV_GEN_PARAMS).xyzw;
+  ori $at, $zero, %lo(SCREEN_UVGEN_SCALE)            ## L:389  |     45 | uvGenArgs.W = load(SCREEN_UVGEN_SCALE).x;
+  lsv $v09, 14, 0, $at                               ## L:389  |     46 | uvGenArgs.W = load(SCREEN_UVGEN_SCALE).x;
+  ori $at, $zero, %lo(UV_GEN_PARAMS)                 ## L:390  |     47 | uvGenArgs.xy = load(UV_GEN_PARAMS).xy;
+  llv $v09, 4, 0, $at                                ## L:391  |     48 | uvGenArgs.zw = load(UV_GEN_PARAMS).xy;
   beq $k1, $zero, LABEL_T3DCmd_VertLoad_0001         ## L:407  |     49 | if(isUnlit) {
   llv $v09, 0, 0, $at                                ## L:390  |     50 | uvGenArgs.xy = load(UV_GEN_PARAMS).xy;
   ori $s2, $zero, %lo(LIGHT_DIR_COLOR)               ## L:408  |     51 | ptrLightEnd = LIGHT_DIR_COLOR;
@@ -276,139 +276,137 @@ T3DCmd_VertLoad:
   LOOP_START:
   vmudn $v14, $v28, $v08.h0                          ## L:222  |     64 | out = mat0  * vec.xxxxXXXX;
   ori $s3, $zero, %lo(LIGHT_DIR_COLOR)               ## L:461  |      ^ | ptrLight = LIGHT_DIR_COLOR;
-  luv $v11, 0, 0, $k0                                ## L:470  |     65 | lightColor = load_vec_u8(ptrAmbient, 0);
-  vmadh $v13, $v27, $v08.h0                          ## L:222  |      ^ | out = mat0  * vec.xxxxXXXX;
-  lbu $k1, 15($s3)                                   ## L:465  |     66 | u8 isPointLight = load(ptrLight, 15);
+  vmadh $v13, $v27, $v08.h0                          ## L:222  |     65 | out = mat0  * vec.xxxxXXXX;
+  addiu $s6, $s6, 72                                 ## L:447  |      ^ | ptrBuffA += 72;
+  lbu $a2, 19($s4)                                   ## L:442  |     66 | baseTile = load(prt3d, 0x13);
   vmadn $v14, $v26, $v08.h1                          ## L:223  |      ^ | out = mat1 +* vec.yyyyYYYY;
-  lpv $v02, 0, 8, $s3                                ## L:464  |     67 | vec16<$v02> lightDirVec  = load_vec_s8(ptrLight, 8);
+  luv $v11, 0, 0, $k0                                ## L:470  |     67 | lightColor = load_vec_u8(ptrAmbient, 0);
   vmadh $v13, $v25, $v08.h1                          ## L:223  |      ^ | out = mat1 +* vec.yyyyYYYY;
-  ori $t8, $zero, %lo(SCREEN_SCALE)                  ## L:474  |     68 | u16 ptrScreenScale = SCREEN_SCALE;
-  vmadn $v14, $v24, $v08.h2                          ## L:224  |      ^ | out = mat2 +* vec.zzzzZZZZ;
-  addiu $s5, $s5, 72                                 ## L:448  |     69 | ptrBuffB += 72;
+  vmadn $v14, $v24, $v08.h2                          ## L:224  |     68 | out = mat2 +* vec.zzzzZZZZ;
+  addiu $s5, $s5, 72                                 ## L:448  |      ^ | ptrBuffB += 72;
+  lhu $sp, %lo(VERTEX_FX_FUNC + 0)                   ## L:449  |     69 | vertexFxFunc = load(VERTEX_FX_FUNC);
   vmadh $v13, $v23, $v08.h2                          ## L:224  |      ^ | out = mat2 +* vec.zzzzZZZZ;
-  lhu $sp, %lo(VERTEX_FX_FUNC + 0)                   ## L:449  |     70 | vertexFxFunc = load(VERTEX_FX_FUNC);
-  vmadn $v14, $v22, $v30.e7                          ## L:225  |      ^ | out = mat3 +* 1;
-  vmadh $v13, $v21, $v30.e7                          ## L:225  |     71 | out = mat3 +* 1;
-  lbu $a2, 19($s4)                                   ## L:442  |      ^ | baseTile = load(prt3d, 0x13);
-  addiu $s6, $s6, 72                                 ## L:447  |     72 | ptrBuffA += 72;
-  vmulf $v29, $v20, $v07.h0                          ## L:454  |      ^ | VTEMP:sfract = matN0:sfract  * norm.xxxxXXXX;
-  addu $fp, $s6, $s1                                 ## L:450  |     73 | fogA = ptrBuffA + fogStoreOffset;
-  vmacf $v29, $v19, $v07.h1                          ## L:455  |      ^ | VTEMP:sfract = matN1:sfract +* norm.yyyyYYYY;
-  vmacf $v07, $v18, $v07.h2                          ## L:456  |     74 | norm         = matN2:sfract +* norm.zzzzZZZZ;
+  vmadn $v14, $v22, $v30.e7                          ## L:225  |     70 | out = mat3 +* 1;
   and $a2, $a2, $s0                                  ## L:443  |      ^ | baseTile &= baseTileMask;
-  or $t9, $zero, $zero                               ## L:445  |     75 | u8<$t9> mvMatrixLoaded = 0;
+  vmadh $v13, $v21, $v30.e7                          ## L:225  |     71 | out = mat3 +* 1;
+  lpv $v02, 0, 8, $s3                                ## L:464  |      ^ | vec16<$v02> lightDirVec  = load_vec_s8(ptrLight, 8);
+  vmulf $v29, $v20, $v07.h0                          ## L:454  |     72 | VTEMP:sfract = matN0:sfract  * norm.xxxxXXXX;
+  or $t9, $zero, $zero                               ## L:445  |      ^ | u8<$t9> mvMatrixLoaded = 0;
+  vmacf $v29, $v19, $v07.h1                          ## L:455  |     73 | VTEMP:sfract = matN1:sfract +* norm.yyyyYYYY;
+  vmacf $v07, $v18, $v07.h2                          ## L:456  |     74 | norm         = matN2:sfract +* norm.zzzzZZZZ;
+  lbu $k1, 15($s3)                                   ## L:465  |      ^ | u8 isPointLight = load(ptrLight, 15);
+  addu $fp, $s6, $s1                                 ## L:450  |     75 | fogA = ptrBuffA + fogStoreOffset;
   vmudl $v06, $v14, $v10.v                           ## L:472  |      ^ | posClip = orgPosClip * normScaleW:ufract;
   vmadm $v05, $v13, $v10.v                           ## L:472  |     76 | posClip = orgPosClip * normScaleW:ufract;
-  beq $s3, $s2, LABEL_T3DCmd_VertLoad_0002           ## L:476  |      ^ | if(ptrLight != ptrLightEnd)
+  beq $s3, $s2, LABEL_T3DCmd_VertLoad_0002           ## L:474  |      ^ | if(ptrLight != ptrLightEnd)
   vmadn $v06, $v00, $v00                             ## L:472  |     77 | posClip = orgPosClip * normScaleW:ufract;
   LABEL_T3DCmd_VertLoad_0003:
-  luv $v04, 0, 0, $s3                                ## L:481  |     78 | color = load_vec_u8(ptrLight);
-  vmulf $v01, $v07, $v02.v                           ## L:480  |      ^ | vec16<$v01> lightDirScale = norm:sfract * lightDirVec:sfract;
-  bne $k1, $zero, pointLight                         ## L:483  |     79 | if(isPointLight) {
-  ori $ra, $zero, LABEL_T3DCmd_VertLoad_0005         ## L:972  |     80 | if(stackAdvance < 0)addressMat = stackPtr;
+  luv $v04, 0, 0, $s3                                ## L:479  |     78 | color = load_vec_u8(ptrLight);
+  vmulf $v01, $v07, $v02.v                           ## L:478  |      ^ | vec16<$v01> lightDirScale = norm:sfract * lightDirVec:sfract;
+  bne $k1, $zero, pointLight                         ## L:481  |     79 | if(isPointLight) {
+  ori $ra, $zero, LABEL_T3DCmd_VertLoad_0005         ## L:971  |     80 | u32<$s0> addrRDRAM = addressMat & 0xFFFFFF;
   LABEL_T3DCmd_VertLoad_0005:
-  ori $ra, $zero, LABEL_T3DCmd_VertLoad_0006         ## L:972  |     81 | if(stackAdvance < 0)addressMat = stackPtr;
-  lpv $v02, 0, 24, $s3                               ## L:496  |     82 | lightDirVec = load_vec_s8(ptrLight, 8);
-  vmulu $v29, $v04, $v01.h0                          ## L:491  |      ^ | VTEMP = color:ufract  * lightDirScale:ufract.xxxxXXXX;
-  vmacu $v29, $v04, $v01.h1                          ## L:492  |     83 | VTEMP = color:ufract +* lightDirScale:ufract.yyyyYYYY;
-  addiu $s3, $s3, 16                                 ## L:495  |      ^ | ptrLight += 16;
-  vmacu $v29, $v04, $v01.h2                          ## L:493  |     84 | VTEMP = color:ufract +* lightDirScale:ufract.zzzzZZZZ;
-  beq $t9, $s3, loadCurrentMVPMat                    ## L:499  |      ^ | if(mvMatrixLoaded == ptrLight) {
-  lbu $k1, 15($s3)                                   ## L:497  |     85 | isPointLight =  load(ptrLight, 15);
+  addiu $s3, $s3, 16                                 ## L:493  |     81 | ptrLight += 16;
+  lbu $k1, 15($s3)                                   ## L:495  |     82 | isPointLight =  load(ptrLight, 15);
+  vmulu $v29, $v04, $v01.h0                          ## L:489  |      ^ | VTEMP = color:ufract  * lightDirScale:ufract.xxxxXXXX;
+  vmacu $v29, $v04, $v01.h1                          ## L:490  |     83 | VTEMP = color:ufract +* lightDirScale:ufract.yyyyYYYY;
+  ori $ra, $zero, LABEL_T3DCmd_VertLoad_0006         ## L:971  |      ^ | u32<$s0> addrRDRAM = addressMat & 0xFFFFFF;
+  vmacu $v29, $v04, $v01.h2                          ## L:491  |     84 | VTEMP = color:ufract +* lightDirScale:ufract.zzzzZZZZ;
+  beq $t9, $s3, loadCurrentMVPMat                    ## L:497  |      ^ | if(mvMatrixLoaded == ptrLight) {
+  lpv $v02, 0, 8, $s3                                ## L:494  |     85 | lightDirVec = load_vec_s8(ptrLight, 8);
   LABEL_T3DCmd_VertLoad_0006:
-  bne $s3, $s2, LABEL_T3DCmd_VertLoad_0003           ## L:503  |     86 | lightColor:sint += VTEMP;
-  vadd $v11, $v11, $v29.v                            ## L:503  |    *88 | lightColor:sint += VTEMP;
+  bne $s3, $s2, LABEL_T3DCmd_VertLoad_0003           ## L:501  |     86 | lightColor:sint += VTEMP;
+  vadd $v11, $v11, $v29.v                            ## L:501  |    *88 | lightColor:sint += VTEMP;
   LABEL_T3DCmd_VertLoad_0002:
-  addiu $s4, $s4, 32                                 ## L:611  |     89 | prt3d += 0x20;
-  vch $v29, $v13, $v13.h3                            ## L:517  |      ^ | u32 rejCodes = clip(orgPosClip, orgPosClip.wwwwWWWW);
-  sdv $v05, 8, 16, $s5                               ## L:541  |     90 | store(posClip.XYZW, ptrBuffB, 0x10);
-  vmudn $v03, $v14, $v15.e0                          ## L:510  |      ^ | vec32 clipPlaneW = orgPosClip * guardBandScale.xxxxxxxx;
-  vmadh $v02, $v13, $v15.e0                          ## L:510  |     91 | vec32 clipPlaneW = orgPosClip * guardBandScale.xxxxxxxx;
-  sdv $v05, 0, 16, $s6                               ## L:540  |      ^ | store(posClip.xyzw, ptrBuffA, 0x10);
-  sdv $v06, 8, 24, $s5                               ## L:541  |     92 | store(posClip.XYZW, ptrBuffB, 0x10);
-  vcl $v29, $v14, $v14.h3                            ## L:517  |      ^ | u32 rejCodes = clip(orgPosClip, orgPosClip.wwwwWWWW);
-  vrcph $v16.e3, $v05.e3                             ## L:545  |     93 | invWRaw.w = invert_half(posClip).w;
-  cfc2 $t5, $vcc                                     ## L:517  |      ^ | u32 rejCodes = clip(orgPosClip, orgPosClip.wwwwWWWW);
-  sdv $v06, 0, 24, $s6                               ## L:540  |     94 | store(posClip.xyzw, ptrBuffA, 0x10);
-  vrcpl $v08.e3, $v06.e3                             ## L:545  |      ^ | invWRaw.w = invert_half(posClip).w;
-  vrcph $v16.e3, $v05.e7                             ## L:546  |     95 | invWRaw.W = invert_half(posClip).W;
-  luv $v04, 0, -16, $s4                              ## L:512  |      ^ | color = load_vec_u8(prt3d, 0x10);
-  vrcpl $v08.e7, $v06.e7                             ## L:546  |     96 | invWRaw.W = invert_half(posClip).W;
-  srl $t6, $t5, 4                                    ## L:527  |      ^ | rejCodesB = rejCodes >> 4;
-  andi $t6, $t6, 1803                                ## L:266  |     97 | res = clipCode & 0b0000'0111'0000'1011;
-  vch $v29, $v13, $v02.h3                            ## L:518  |      ^ | u32 clipCodes = clip(orgPosClip, clipPlaneW.wwwwWWWW);
-  andi $t7, $t5, 1803                                ## L:266  |     98 | res = clipCode & 0b0000'0111'0000'1011;
-  vrcph $v16.e7, $v00.e7                             ## L:546  |      ^ | invWRaw.W = invert_half(posClip).W;
-  ori $at, $zero, %lo(SCREEN_SCALE)                  ## L:569  |     99 | orgPosClip = load(SCREEN_SCALE).xyzwxyzw;
-  vcl $v29, $v14, $v03.h3                            ## L:518  |      ^ | u32 clipCodes = clip(orgPosClip, clipPlaneW.wwwwWWWW);
-  cfc2 $t4, $vcc                                     ## L:518  |    100 | u32 clipCodes = clip(orgPosClip, clipPlaneW.wwwwWWWW);
-  vmudl $v03, $v06, $v08.h3                          ## L:550  |      ^ | invW:sfract = posClip * invWRaw.wwwwWWWW;
-  ldv $v13, 0, 0, $at                                ## L:569  |    101 | orgPosClip = load(SCREEN_SCALE).xyzwxyzw;
-  vmadm $v03, $v05, $v08.h3                          ## L:550  |      ^ | invW:sfract = posClip * invWRaw.wwwwWWWW;
-  vmadn $v03, $v06, $v16.h3                          ## L:550  |    102 | invW:sfract = posClip * invWRaw.wwwwWWWW;
-  ldv $v14, 8, 8, $at                                ## L:569  |      ^ | orgPosClip = load(SCREEN_SCALE).xyzwxyzw;
+  sdv $v05, 8, 16, $s5                               ## L:539  |     89 | store(posClip.XYZW, ptrBuffB, 0x10);
+  vmudn $v03, $v14, $v15.e0                          ## L:508  |      ^ | vec32 clipPlaneW = orgPosClip * guardBandScale.xxxxxxxx;
+  luv $v04, 0, 16, $s4                               ## L:510  |     90 | color = load_vec_u8(prt3d, 0x10);
+  vmadh $v02, $v13, $v15.e0                          ## L:508  |      ^ | vec32 clipPlaneW = orgPosClip * guardBandScale.xxxxxxxx;
+  vrcph $v16.e3, $v05.e3                             ## L:543  |     91 | invWRaw.w = invert_half(posClip).w;
+  sdv $v06, 0, 24, $s6                               ## L:538  |      ^ | store(posClip.xyzw, ptrBuffA, 0x10);
+  vch $v29, $v13, $v13.h3                            ## L:515  |     92 | u32 rejCodes = clip(orgPosClip, orgPosClip.wwwwWWWW);
+  vcl $v29, $v14, $v14.h3                            ## L:515  |     93 | u32 rejCodes = clip(orgPosClip, orgPosClip.wwwwWWWW);
+  vrcpl $v08.e3, $v06.e3                             ## L:543  |     94 | invWRaw.w = invert_half(posClip).w;
+  cfc2 $t5, $vcc                                     ## L:515  |      ^ | u32 rejCodes = clip(orgPosClip, orgPosClip.wwwwWWWW);
+  sdv $v05, 0, 16, $s6                               ## L:538  |     95 | store(posClip.xyzw, ptrBuffA, 0x10);
+  vrcph $v16.e3, $v05.e7                             ## L:544  |      ^ | invWRaw.W = invert_half(posClip).W;
+  vrcpl $v08.e7, $v06.e7                             ## L:544  |     96 | invWRaw.W = invert_half(posClip).W;
+  ori $at, $zero, %lo(SCREEN_SCALE)                  ## L:567  |      ^ | orgPosClip = load(SCREEN_SCALE).xyzwxyzw;
+  sdv $v06, 8, 24, $s5                               ## L:539  |     97 | store(posClip.XYZW, ptrBuffB, 0x10);
+  vrcph $v16.e7, $v00.e7                             ## L:544  |      ^ | invWRaw.W = invert_half(posClip).W;
+  vch $v29, $v13, $v02.h3                            ## L:516  |     98 | u32 clipCodes = clip(orgPosClip, clipPlaneW.wwwwWWWW);
+  srl $t6, $t5, 4                                    ## L:525  |      ^ | rejCodesB = rejCodes >> 4;
+  ldv $v13, 8, 0, $at                                ## L:567  |     99 | orgPosClip = load(SCREEN_SCALE).xyzwxyzw;
+  vcl $v29, $v14, $v03.h3                            ## L:516  |      ^ | u32 clipCodes = clip(orgPosClip, clipPlaneW.wwwwWWWW);
+  cfc2 $t4, $vcc                                     ## L:516  |    100 | u32 clipCodes = clip(orgPosClip, clipPlaneW.wwwwWWWW);
+  vmudl $v03, $v06, $v08.h3                          ## L:548  |      ^ | invW:sfract = posClip * invWRaw.wwwwWWWW;
+  ldv $v14, 0, 8, $at                                ## L:567  |    101 | orgPosClip = load(SCREEN_SCALE).xyzwxyzw;
+  vmadm $v03, $v05, $v08.h3                          ## L:548  |      ^ | invW:sfract = posClip * invWRaw.wwwwWWWW;
+  vmadn $v03, $v06, $v16.h3                          ## L:548  |    102 | invW:sfract = posClip * invWRaw.wwwwWWWW;
+  andi $t7, $t5, 1803                                ## L:266  |      ^ | res = clipCode & 0b0000'0111'0000'1011;
   andi $k1, $t4, 771                                 ## L:256  |    103 | res = clipCode & 0b0000'0011'0000'0011;
-  srl $t3, $k1, 5                                    ## L:257  |    104 | u32 tmp = res >> 5;
-  TAG_LightMul: vmulf $v04, $v04, $v11.v                           ## L:536  |      ^ | color:sfract *= lightColor:ufract;
-  srl $t8, $t4, 4                                    ## L:520  |    105 | clipCodeB = clipCodes >> 4;
-  ldv $v14, 0, 8, $at                                ## L:569  |    106 | orgPosClip = load(SCREEN_SCALE).xyzwxyzw;
-  vsubc $v11, $v10, $v03.h3                          ## L:554  |      ^ | vec16 nrD = normScaleW:ufract - invW:ufract.wwwwWWWW;
-  andi $t8, $t8, 771                                 ## L:256  |    107 | res = clipCode & 0b0000'0011'0000'0011;
-  vaddc $v03, $v08, $v08.v                           ## L:555  |      ^ | invW = invWRaw + invWRaw;
+  srl $t8, $t4, 4                                    ## L:518  |    104 | clipCodeB = clipCodes >> 4;
+  ldv $v14, 8, 8, $at                                ## L:567  |    105 | orgPosClip = load(SCREEN_SCALE).xyzwxyzw;
+  TAG_LightMul: vmulf $v04, $v04, $v11.v                           ## L:534  |      ^ | color:sfract *= lightColor:ufract;
+  andi $t8, $t8, 771                                 ## L:256  |    106 | res = clipCode & 0b0000'0011'0000'0011;
+  vsubc $v11, $v10, $v03.h3                          ## L:552  |      ^ | vec16 nrD = normScaleW:ufract - invW:ufract.wwwwWWWW;
+  srl $t3, $k1, 5                                    ## L:257  |    107 | u32 tmp = res >> 5;
+  vaddc $v03, $v08, $v08.v                           ## L:553  |      ^ | invW = invWRaw + invWRaw;
   or $k1, $k1, $t3                                   ## L:258  |    108 | res |= tmp;
-  vadd $v02, $v16, $v16.v                            ## L:555  |      ^ | invW = invWRaw + invWRaw;
-  vmudm $v04, $v04, $v31.e6                          ## L:537  |    109 | color >>= 7;
-  lqv $v08, 0, 0, $s4                                ## L:606  |      ^ | pos = load(prt3d, 0x20);
-  ldv $v13, 8, 0, $at                                ## L:569  |    110 | orgPosClip = load(SCREEN_SCALE).xyzwxyzw;
-  srl $t3, $t8, 5                                    ## L:257  |    111 | u32 tmp = res >> 5;
-  vmudl $v03, $v03, $v11.h0                          ## L:556  |      ^ | invW *= nrD:ufract.xxxxXXXX;
-  or $t8, $t8, $t3                                   ## L:258  |    112 | res |= tmp;
-  vmadm $v02, $v02, $v11.h0                          ## L:556  |      ^ | invW *= nrD:ufract.xxxxXXXX;
-  vmadn $v03, $v00, $v00                             ## L:556  |    113 | invW *= nrD:ufract.xxxxXXXX;
-  or $t8, $t8, $a2                                   ## L:525  |      ^ | clipCodeB |= baseTile;
-  srl $t3, $t7, 4                                    ## L:267  |    114 | u32 tmp = res >> 4;
-  vmudh $v04, $v04, $v09.e6                          ## L:538  |      ^ | color:sint *= uvGenArgs:sint.Z;
-  vor $v11, $v00, $v07                               ## L:607  |   *116 | vec16<$v11> oldNorm = norm;
-  ssv $v02, 14, 32, $s5                              ## L:560  |      ^ | @Barrier("invW_B", before) store(invW.W, ptrBuffB, 0x20);
-  nor $t7, $t7, $t3                                  ## L:268  |    117 | res = res ~| tmp;
-  vmudl $v29, $v06, $v03.h3                          ## L:563  |      ^ | invW = posClip * invW.wwwwWWWW;
-  ssv $v03, 14, 34, $s5                              ## L:560  |    118 | @Barrier("invW_B", before) store(invW.W, ptrBuffB, 0x20);
-  vmadm $v29, $v05, $v03.h3                          ## L:563  |      ^ | invW = posClip * invW.wwwwWWWW;
-  ssv $v03, 6, 34, $s6                               ## L:559  |    119 | @Barrier("invW_A", before) store(invW.w, ptrBuffA, 0x20);
-  vmadn $v03, $v06, $v02.h3                          ## L:563  |      ^ | invW = posClip * invW.wwwwWWWW;
-  ssv $v02, 6, 32, $s6                               ## L:559  |    120 | @Barrier("invW_A", before) store(invW.w, ptrBuffA, 0x20);
-  vmadh $v02, $v05, $v02.h3                          ## L:563  |      ^ | invW = posClip * invW.wwwwWWWW;
-  or $k1, $k1, $a2                                   ## L:524  |    121 | clipCodeA |= baseTile;
-  vmov $v02.e7, $v05.e6                              ## L:567  |      ^ | invW:sint.W = posClip:sint.Z;
-  vmov $v02.e3, $v05.e2                              ## L:566  |    122 | invW:sint.w = posClip:sint.z;
+  vadd $v02, $v16, $v16.v                            ## L:553  |      ^ | invW = invWRaw + invWRaw;
+  srl $t3, $t8, 5                                    ## L:257  |    109 | u32 tmp = res >> 5;
+  or $t8, $t8, $t3                                   ## L:258  |    110 | res |= tmp;
+  vmudm $v04, $v04, $v31.e6                          ## L:535  |      ^ | color >>= 7;
+  vmudl $v03, $v03, $v11.h0                          ## L:554  |    111 | invW *= nrD:ufract.xxxxXXXX;
+  lqv $v08, 0, 32, $s4                               ## L:604  |      ^ | pos = load(prt3d, 0x20);
+  vmadm $v02, $v02, $v11.h0                          ## L:554  |    112 | invW *= nrD:ufract.xxxxXXXX;
+  srl $t3, $t7, 4                                    ## L:267  |      ^ | u32 tmp = res >> 4;
+  vmadn $v03, $v00, $v00                             ## L:554  |    113 | invW *= nrD:ufract.xxxxXXXX;
+  ldv $v13, 0, 0, $at                                ## L:567  |      ^ | orgPosClip = load(SCREEN_SCALE).xyzwxyzw;
+  vor $v11, $v00, $v07                               ## L:605  |    114 | vec16<$v11> oldNorm = norm;
+  nor $t7, $t7, $t3                                  ## L:268  |      ^ | res = res ~| tmp;
+  or $k1, $k1, $a2                                   ## L:522  |    115 | clipCodeA |= baseTile;
+  vand $v07, $v17, $v08.h3                           ## L:606  |      ^ | norm = normMask & pos.wwwwWWWW;
+  vmudh $v04, $v04, $v09.e6                          ## L:536  |    116 | color:sint *= uvGenArgs:sint.Z;
+  andi $t6, $t6, 1803                                ## L:266  |      ^ | res = clipCode & 0b0000'0111'0000'1011;
+  ssv $v03, 14, 34, $s5                              ## L:558  |    117 | @Barrier("invW_B", before) store(invW.W, ptrBuffB, 0x20);
+  vmudl $v29, $v06, $v03.h3                          ## L:561  |      ^ | invW = posClip * invW.wwwwWWWW;
+  vmadm $v29, $v05, $v03.h3                          ## L:561  |    118 | invW = posClip * invW.wwwwWWWW;
+  ssv $v02, 14, 32, $s5                              ## L:558  |      ^ | @Barrier("invW_B", before) store(invW.W, ptrBuffB, 0x20);
+  ssv $v03, 6, 34, $s6                               ## L:557  |    119 | @Barrier("invW_A", before) store(invW.w, ptrBuffA, 0x20);
+  vmadn $v03, $v06, $v02.h3                          ## L:561  |      ^ | invW = posClip * invW.wwwwWWWW;
+  ssv $v02, 6, 32, $s6                               ## L:557  |    120 | @Barrier("invW_A", before) store(invW.w, ptrBuffA, 0x20);
+  vmadh $v02, $v05, $v02.h3                          ## L:561  |      ^ | invW = posClip * invW.wwwwWWWW;
+  vmov $v02.e3, $v05.e2                              ## L:564  |    121 | invW:sint.w = posClip:sint.z;
   srl $t3, $t6, 4                                    ## L:267  |      ^ | u32 tmp = res >> 4;
-  nor $t6, $t6, $t3                                  ## L:268  |    123 | res = res ~| tmp;
-  sb $t6, 7($s5)                                     ## L:602  |    124 | store(rejCodesB:u8, ptrBuffB, 0x07);
-  suv $v04, 4, 8, $s5                                ## L:581  |    125 | @Barrier("color-fog-b") store_vec_u8(color.X, ptrBuffB, 0x08); ## Barrier: 0x2
-  vmudl $v05, $v03, $v14.v                           ## L:570  |      ^ | posClip = invW * orgPosClip;
-  sb $t8, 6($s5)                                     ## L:601  |    126 | store(clipCodeB:u8, ptrBuffB, 0x06);
-  vmadm $v05, $v02, $v14.v                           ## L:570  |      ^ | posClip = invW * orgPosClip;
-  suv $v04, 0, 8, $s6                                ## L:580  |    127 | @Barrier("color-fog-a") store_vec_u8(color.x, ptrBuffA, 0x08); ## Barrier: 0x1
-  vmadn $v06, $v03, $v13.v                           ## L:570  |      ^ | posClip = invW * orgPosClip;
-  vmadh $v05, $v02, $v13.v                           ## L:570  |    128 | posClip = invW * orgPosClip;
-  sb $k1, 6($s6)                                     ## L:598  |      ^ | store(clipCodeA:u8, ptrBuffA, 0x06);
-  vmadh $v05, $v12, $v30.e7                          ## L:571  |    129 | posClip:sint = screenOffset:sint +* 1;
-  sb $t7, 7($s6)                                     ## L:599  |      ^ | store(rejCodesA:u8, ptrBuffA, 0x07);
-  ldv $v03, 0, -8, $s4                               ## L:587  |    130 | vec16<$v03> uv = load(prt3d, 0x18).xyzw;
-  vand $v07, $v17, $v08.h3                           ## L:608  |      ^ | norm = normMask & pos.wwwwWWWW;
-  vlt $v01, $v05, $v15.e3                            ## L:578  |  **133 | vec16<$v01> fogV = min(posClip:sint, guardBandScale.wwwwwwww);
-  ssv $v05, 4, 4, $s6                                ## L:592  |      ^ | store(posClip:sint.z, ptrBuffA, 0x04);
-  vaddc $v03, $v03, $v09.v                           ## L:604  |    134 | uv += uvGenArgs;
-  ssv $v05, 12, 4, $s5                               ## L:595  |      ^ | store(posClip:sint.Z, ptrBuffB, 0x04);
-  slv $v05, 0, 0, $s6                                ## L:591  |    135 | store(posClip:sint.xy, ptrBuffA, 0x00);
-  slv $v05, 8, 0, $s5                                ## L:594  |    136 | store(posClip:sint.XY, ptrBuffB, 0x00);
-  sbv $v01, 7, 0, $fp                                ## L:583  |    137 | @Barrier("color-fog-a") store_byte_lo(fogV.w, fogA); ## Barrier: 0x1
-  vmudn $v07, $v07, $v16.v                           ## L:609  |      ^ | norm *= normShift;
-  jal $sp                                            ## L:613  |    138 | vertexFxFunc();
-  sbv $v01, 15, 36, $fp                              ## L:584  |    139 | @Barrier("color-fog-b") store_byte_lo(fogV.W, fogA, 36); ## Barrier: 0x2
+  suv $v04, 4, 8, $s5                                ## L:579  |    122 | @Barrier("color-fog-b") store_vec_u8(color.X, ptrBuffB, 0x08); ## Barrier: 0x2
+  vmov $v02.e7, $v05.e6                              ## L:565  |      ^ | invW:sint.W = posClip:sint.Z;
+  or $t8, $t8, $a2                                   ## L:523  |    123 | clipCodeB |= baseTile;
+  suv $v04, 0, 8, $s6                                ## L:578  |    124 | @Barrier("color-fog-a") store_vec_u8(color.x, ptrBuffA, 0x08); ## Barrier: 0x1
+  vmudl $v05, $v03, $v14.v                           ## L:568  |      ^ | posClip = invW * orgPosClip;
+  nor $t6, $t6, $t3                                  ## L:268  |    125 | res = res ~| tmp;
+  sb $t6, 7($s5)                                     ## L:600  |    126 | store(rejCodesB:u8, ptrBuffB, 0x07);
+  vmadm $v05, $v02, $v14.v                           ## L:568  |      ^ | posClip = invW * orgPosClip;
+  sb $t8, 6($s5)                                     ## L:599  |    127 | store(clipCodeB:u8, ptrBuffB, 0x06);
+  vmadn $v06, $v03, $v13.v                           ## L:568  |      ^ | posClip = invW * orgPosClip;
+  vmadh $v05, $v02, $v13.v                           ## L:568  |    128 | posClip = invW * orgPosClip;
+  sb $t7, 7($s6)                                     ## L:597  |      ^ | store(rejCodesA:u8, ptrBuffA, 0x07);
+  vmadh $v05, $v12, $v30.e7                          ## L:569  |    129 | posClip:sint = screenOffset:sint +* 1;
+  addiu $s4, $s4, 32                                 ## L:609  |      ^ | prt3d += 0x20;
+  ldv $v03, 0, -8, $s4                               ## L:585  |    130 | vec16<$v03> uv = load(prt3d, 0x18).xyzw;
+  sb $k1, 6($s6)                                     ## L:596  |    131 | store(clipCodeA:u8, ptrBuffA, 0x06);
+  ssv $v05, 4, 4, $s6                                ## L:590  |   *133 | store(posClip:sint.z, ptrBuffA, 0x04);
+  vlt $v01, $v05, $v15.e3                            ## L:576  |      ^ | vec16<$v01> fogV = min(posClip:sint, guardBandScale.wwwwwwww);
+  vaddc $v03, $v03, $v09.v                           ## L:602  |    134 | uv += uvGenArgs;
+  ssv $v05, 12, 4, $s5                               ## L:593  |      ^ | store(posClip:sint.Z, ptrBuffB, 0x04);
+  slv $v05, 8, 0, $s5                                ## L:592  |    135 | store(posClip:sint.XY, ptrBuffB, 0x00);
+  slv $v05, 0, 0, $s6                                ## L:589  |    136 | store(posClip:sint.xy, ptrBuffA, 0x00);
+  vmudn $v07, $v07, $v16.v                           ## L:607  |      ^ | norm *= normShift;
+  sbv $v01, 7, 0, $fp                                ## L:581  |    137 | @Barrier("color-fog-a") store_byte_lo(fogV.w, fogA); ## Barrier: 0x1
+  jal $sp                                            ## L:611  |    138 | vertexFxFunc();
+  sbv $v01, 15, 36, $fp                              ## L:582  |    139 | @Barrier("color-fog-b") store_byte_lo(fogV.W, fogA, 36); ## Barrier: 0x2
 VertexFX_None:
   slv $v03, 0, 12, $s6
-  # emux_trace_stop
   bne $s4, $s7, LOOP_START
   slv $v03, 4, 12, $s5
   j RSPQ_Loop
@@ -531,7 +529,6 @@ pointLight:
   vmov $v01.e1, $v00.e0                              ## L:769  |      5 | lightRes.y = 0; lightRes.z = 0;
   LABEL_pointLight_000C:
   jr $ra                                             ## L:771  | *********************************************************************************87 | }
-  nop                                                ## L:771  |    *89 | }
 loadCurrentMVPMat:
   ori $at, $zero, %lo(MATRIX_MVP)
   ldv $v28, 8, 8, $at
