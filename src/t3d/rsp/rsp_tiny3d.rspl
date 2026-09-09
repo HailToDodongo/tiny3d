@@ -357,6 +357,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   ptrBuffA -= TRI_SIZE_2; // move one back since it increments at the start of the loop
 
   s16 fogA;
+  u16 ptrScreenScale = SCREEN_SCALE;
 
   u16 vertexFxFunc;
 
@@ -525,7 +526,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     invW:sint.w = posClip:sint.z;
     invW:sint.W = posClip:sint.Z;
 
-    orgPosClip = load(SCREEN_SCALE).xyzwxyzw;
+    orgPosClip = load(ptrScreenScale).xyzwxyzw;
     posClip = invW * orgPosClip;
     posClip:sint = screenOffset:sint +* 1;
 
