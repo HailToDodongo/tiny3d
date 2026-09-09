@@ -153,8 +153,14 @@ function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, 
   vec16 guardBandScale = load(CLIPPING_PLANES).xy;
   guardBandScale = guardBandScale.y;
 
-  vec16 uvFractMask = VZERO - 1;
-  uvFractMask.XYZW = VZERO.xyzw;
+  // UVs are lerped as biased u16 values (ST ^ 0x8000) in the FRACTION lanes X/Y with the int lanes zero.
+  // With the s16 texcoords in the int lanes the 32-bit subtract saturates once two vertices are more
+  // than 1024 texels apart (vsub clamps the int half), which sheared textures on clipped triangles.
+  vec16 uvIntMask = VZERO - 1;
+  uvIntMask.XYZW = VZERO.xyzw;
+  vec16 uvBias = VZERO;
+  uvBias.X = 0x8000;
+  uvBias.Y = 0x8000;
 
   // check 5 planes, we shift instead of incr. for direct clip-code checks
   // the z-far plane is ignored
@@ -176,8 +182,9 @@ function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, 
 
       vec16 lastColor   = load_vec_u8(ptrLast, VTX_ATTR_RGBA);
       vec32 lastPosUV   = load(ptrLast, VTX_ATTR_CLIPPOSi).xyzw;
-      lastPosUV:sint.XY = load(ptrLast, VTX_ATTR_ST).xy;
-      lastPosUV:sfract &= uvFractMask; // the UV fraction lanes are never loaded, clear them for a deterministic lerp
+      lastPosUV:sfract.XY = load(ptrLast, VTX_ATTR_ST).xy;
+      lastPosUV:sint &= uvIntMask; // UV int lanes must be zero (biased u16 lerp, see above)
+      lastPosUV:sfract ^= uvBias;
       u8 lastClipCode   = load(ptrLast, VTX_ATTR_CLIPFLAGS);
 
       undef ptrLast;
@@ -193,8 +200,9 @@ function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, 
       {
         ptrRead -= TRI_SIZE;
         vec32 currentPosUV   = load(ptrRead, VTX_ATTR_CLIPPOSi).xyzw;
-        currentPosUV:sint.XY = load(ptrRead, VTX_ATTR_ST).xy;
-        currentPosUV:sfract &= uvFractMask;
+        currentPosUV:sfract.XY = load(ptrRead, VTX_ATTR_ST).xy;
+        currentPosUV:sint &= uvIntMask;
+        currentPosUV:sfract ^= uvBias;
         vec16 currentColor   = load_vec_u8(ptrRead, VTX_ATTR_RGBA);
 
         u8 clipCode = load(ptrRead, VTX_ATTR_CLIPFLAGS);
@@ -363,7 +371,8 @@ macro emitClippedTri(u32 ptrWrite, u8 lastClipCode, vec32 lastPosUV, vec16 lastC
 {
   ptrWrite -= TRI_SIZE;
   @Barrier("uv") store_vec_u8(lastColor,  ptrWrite, VTX_ATTR_RGBA);
-  @Barrier("uv") store(lastPosUV:sint.XY, ptrWrite, VTX_ATTR_ST);
+  vec16 stOut = lastPosUV:sfract ^ uvBias; // back to s16
+  @Barrier("uv") store(stOut.XY, ptrWrite, VTX_ATTR_ST);
 
   store(lastClipCode:u8,   ptrWrite, VTX_ATTR_CLIPFLAGS);
   store(lastPosUV.xyzw,    ptrWrite, VTX_ATTR_CLIPPOSi);

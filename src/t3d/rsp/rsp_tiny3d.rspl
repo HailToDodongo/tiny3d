@@ -333,7 +333,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   guardBandScale.w = load(VERT_CONSTS, 0x08).x;
   guardBandScale.W = load(VERT_CONSTS, 0x0A).x;
 
-  vec32 screenSize = load(SCREEN_SCALE).xyzwxyzw; // s16.16
+  vec32 orgPosClip;
 
   vec16<$v12> screenOffset = load(SCREEN_OFFSET).xyzwxyzw;
   vec16<$v10> normScaleW = load(NORM_SCALE_W).xyzwxyzw;
@@ -356,7 +356,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   u8 fogStoreOffset = load(FOG_STORE_OFFSET);
   ptrBuffA -= TRI_SIZE_2; // move one back since it increments at the start of the loop
 
-  s16 fogA, fogB;
+  s16 fogA;
 
   u16 vertexFxFunc;
 
@@ -419,7 +419,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       norm         = matN2:sfract +* norm.zzzzZZZZ;
 
       // object-space to clip-space
-      mulMat4Vec3(mat0, mat1, mat2, mat3, pos, posClip);
+      mulMat4Vec3(mat0, mat1, mat2, mat3, pos, orgPosClip);
 
       ptrLight = LIGHT_DIR_COLOR;
 
@@ -432,6 +432,10 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       // by default white to get the unlit flag to work
       lightColor = load_vec_u8(ptrAmbient, 0);
 
+      posClip = orgPosClip * normScaleW:ufract;
+
+      u16 ptrScreenScale = SCREEN_SCALE;
+
       if(ptrLight != ptrLightEnd)
       {
         loop
@@ -440,7 +444,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
           color = load_vec_u8(ptrLight);
 
           if(isPointLight) {
-            pointLight(ptrLight, mat0, mat1, mat2, mat3, pos, norm,
+            pointLight(ptrLight, ptrLightEnd, mat0, mat1, mat2, mat3, pos, norm,
               lightDirScale, color, mvMatrixLoaded, lightSize);
           }
 
@@ -451,29 +455,30 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
           VTEMP = color:ufract +* lightDirScale:ufract.yyyyYYYY;
           VTEMP = color:ufract +* lightDirScale:ufract.zzzzZZZZ;
 
-          lightColor:sint += VTEMP; // @TODO: pre-fill ACC with lightColor (didn't work as it got *0.99 each iter.)
-
           ptrLight += LIGHT_SIZE;
           lightDirVec = load_vec_s8(ptrLight, 8);
           isPointLight =  load(ptrLight, 15);
+
+          if(mvMatrixLoaded == ptrLight) {
+            loadCurrentMVPMat(mat0, mat1, mat2, mat3);
+          }
+
+          lightColor:sint += VTEMP; // @TODO: pre-fill ACC with lightColor (didn't work as it got *0.99 each iter.)
+
         } while(ptrLight != ptrLightEnd)
       }
     }
 
     // @TODO: technically a 16bit check *should* work, but causes issue at guard-band=1
-    vec32 clipPlaneW = posClip * guardBandScale.xxxxxxxx;
-
+    vec32 clipPlaneW = orgPosClip * guardBandScale.xxxxxxxx;
+    
     color = load_vec_u8(prt3d, 0x10);
-
-    if(mvMatrixLoaded) {
-      loadCurrentMVPMat(mat0, mat1, mat2, mat3);
-    }
   
     // calc. clipping codes (rejection & clip-prevention)
     u32 clipCodeA, clipCodeB, rejCodesA, rejCodesB;
     {
-      u32 rejCodes = clip(posClip, posClip.wwwwWWWW); // Clip-Code for rejection (no band-guard)
-      u32 clipCodes = clip(posClip, clipPlaneW.wwwwWWWW); // Clip code for clipping (incl. band-guard)
+      u32 rejCodes = clip(orgPosClip, orgPosClip.wwwwWWWW); // Clip-Code for rejection (no band-guard)
+      u32 clipCodes = clip(orgPosClip, clipPlaneW.wwwwWWWW); // Clip code for clipping (incl. band-guard)
 
       clipCodeB = clipCodes >> 4;
       clipCodeA = packClipCode(clipCodes);
@@ -491,10 +496,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     vec32<alias(normShift), alias(pos)> invWRaw; // only needs lanes w/W
 
     @Tag("LightMul")
-    color:sfract *= lightColor:ufract;
-
-    posClip *= normScaleW:ufract;
-
+    color:sfract *= lightColor:ufract; 
     color >>= 7;
     color:sint *= uvGenArgs:sint.Z;
 
@@ -502,8 +504,6 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     store(posClip.XYZW, ptrBuffB, VTX_ATTR_CLIPPOSi);
 
     undef lightColor;
-
-    fogB = ptrBuffB + fogStoreOffset;
 
     invWRaw.w = invert_half(posClip).w;
     invWRaw.W = invert_half(posClip).W;
@@ -529,23 +529,22 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     invW:sint.w = posClip:sint.z;
     invW:sint.W = posClip:sint.Z;
 
-    posClip = invW * screenSize;
+    orgPosClip = load(SCREEN_SCALE).xyzwxyzw;
+    posClip = invW * orgPosClip;
     posClip:sint = screenOffset:sint +* 1;
 
     undef invW;
 
-    // No near plane: z/w < -1 gives negative Z, clamp it to Z >= 0 
-    // other lanes are clamped to -32768 (no-op)
-    vec16<$v01> fogV = min(posClip:sint, guardBandScale.wwwwwwww); // (w is untouched by the max)
+    // Fog: lane w holds the fog value biased into 0x8000..0x80FF, the low byte is the alpha (0xFF = no fog).
+    // Beyond the far distance it saturates to 0x8000 on its own, nearer than the near distance it must be
+    // clamped to 0x80FF (VERT_CONSTS, kept in guardBandScale.w). Only lane w/W is used from the result.
+    vec16<$v01> fogV = min(posClip:sint, guardBandScale.wwwwwwww);
     
-    // clamp Z position. @TODO: is this needed? technically it should overflow depth with large near-plane tris
-    // posClip:sint = max(posClip:sint, screenClamp);
+    @Barrier("color-fog-a") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
+    @Barrier("color-fog-b") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
 
-    @Barrier("color-fog") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
-    @Barrier("color-fog") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
-
-    @Barrier("color-fog") store_byte_lo(fogV.w, fogA);
-    @Barrier("color-fog") store_byte_lo(fogV.W, fogB);
+    @Barrier("color-fog-a") store_byte_lo(fogV.w, fogA);
+    @Barrier("color-fog-b") store_byte_lo(fogV.W, fogA, TRI_SIZE);
     undef fogV;
 
     vec16<$v03> uv = load(prt3d, 0x18).xyzw;
@@ -585,7 +584,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
 @NoRegAlloc
 function pointLight(
-  u16<$s3> ptrLight,
+  u16<$s3> ptrLight, u8<$s2> ptrLightEnd,
   vec32<$v27> vertPos, vec32<$v25> mat1, vec32<$v23> ptPos, vec32<$v21> lightVertDot,
   vec16<$v08> pos, vec16<$v07> norm,
   vec16<$v01> lightRes, vec16<$v04> color,
@@ -600,7 +599,7 @@ function pointLight(
 
     mulMat4Vec3(vertPos, mat1, ptPos, lightVertDot, pos, vertPos);
     vertPos >>= 4;
-    mvMatrixLoaded = 1;
+    mvMatrixLoaded = ptrLightEnd;
   }
 
   lightSize &= 0x7FFF; // MSB is "use-normal" flag
