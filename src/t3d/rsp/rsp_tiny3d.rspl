@@ -544,15 +544,18 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     @Barrier("color-fog-b") store_byte_lo(fogV.W, fogA, TRI_SIZE);
     undef fogV;
 
+    // depth can be negative, the tri code can't handle it (@TODO: fix)
+    //vec16<$v01> zClamp = posClip:sint >= 0;
+
     vec16<$v03> uv = load(prt3d, 0x18).xyzw;
 
     //@Barrier("pos-cc") store(posClip:sint.xyzw, ptrBuffA, VTX_ATTR_XY);
     //@Barrier("pos-cc") store(posClip:sint.XYZW, ptrBuffB, VTX_ATTR_XY);
     store(posClip:sint.xy, ptrBuffA, VTX_ATTR_XY);
-    store(posClip:sint.z, ptrBuffA, VTX_ATTR_Z);
+    //store(zClamp.z, ptrBuffA, VTX_ATTR_Z);
 
     store(posClip:sint.XY, ptrBuffB, VTX_ATTR_XY);
-    store(posClip:sint.Z, ptrBuffB, VTX_ATTR_Z);
+    //store(zClamp.Z, ptrBuffB, VTX_ATTR_Z);
 
     store(clipCodeA:u8, ptrBuffA, VTX_ATTR_CLIPFLAGS);
     store(rejCodesA:u8, ptrBuffA, VTX_ATTR_REJFLAGS);

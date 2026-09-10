@@ -441,6 +441,9 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   vattr2.W = load(vtx2, VTX_ATTR_Z).x;
   vattr3.W = load(vtx3, VTX_ATTR_Z).x;
 
+  //vattr1 = vattr1 >= 0;
+  //vattr2 = vattr2 >= 0;
+  //vattr3 = vattr3 >= 0;
 
   //  vx12  =   X1   --    X2   --       -- --   -- --
   //  slope = HX/HY  --   MX/MY --     LX/LY --  -- --
