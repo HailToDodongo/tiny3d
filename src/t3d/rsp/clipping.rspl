@@ -288,14 +288,12 @@ function clipTriangle(u32<$t0> arraySize, u16<$a0> ptrVertA, u16<$a1> ptrVertB, 
       posClip:sint = screenOffset:sint +* 1;
       undef invW;
 
-      vec16 zClamp = posClip:sint >= 0; // no near plane: clamp Z >= 0 (see T3DCmd_VertLoad)
-
       store(posClip:sint.xy, ptrConvA, VTX_ATTR_XY);
-      store(zClamp.z, ptrConvA, VTX_ATTR_Z);
+      store(posClip:sint.z, ptrConvA, VTX_ATTR_Z);
       store(oldClipFlag, ptrConvA, VTX_ATTR_CLIPFLAGS);
 
       store(posClip:sint.XY, ptrConvB, VTX_ATTR_XY);
-      store(zClamp.Z, ptrConvB, VTX_ATTR_Z);
+      store(posClip:sint.Z, ptrConvB, VTX_ATTR_Z);
       store(oldClipFlag, ptrConvB, VTX_ATTR_CLIPFLAGS);
 
       ptrConvA += TRI_SIZE_2;

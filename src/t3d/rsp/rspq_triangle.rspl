@@ -97,45 +97,38 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   vall3.w = vtx3;
   vall3.xy = load(vtx3, VTX_ATTR_XY).xy;
 
-  // Create a vector for negative pow2 constants
-  vec16<$v27> vmconst = VZERO - VSHIFT;
-
   u16<$t3> clip1 = load(vtx1, VTX_ATTR_CLIPFLAGS);
   u16<$t4> clip2 = load(vtx2, VTX_ATTR_CLIPFLAGS);
   u16<$t5> clip3 = load(vtx3, VTX_ATTR_CLIPFLAGS);
 
+  // only the first key needs to be a full broadcast, the others are read via
+  // element-select on the compare's second operand
   vec16<$v06> vy1 = vall1.y;
-  vec16<$v07> vy2 = vall2.y;
-  vec16<$v08> vy3 = vall3.y;
-
-  // Create a vector of ones.
-  // Do it with an addition (vaddc) so that we also clear
-  // VCO to make sure the first max()/vge does
-  // the right thing if vy1==vy2
-  vec16<$v12> vk1 = VZERO + 1;
+  vec16<$v07> vy2;
 
   clip1 |= clip2;
   clip1 |= clip3;
   undef clip2, clip3;
 
-  // Do a sort-of-three (min, mid, max), using vyN as key of the sort,
-  // and vallN as values to sort. We compare the keys with min/max,
-  // and then use select (vmrg) to apply the swap.
+  // Do a sort-of-three (min, mid, max), using the Y values as key of the sort,
+  // and vallN as values to sort. One compare (vlt, VCC = a < b) per round is enough:
+  // select(a, b) picks the min, select(b, a) with the same VCC picks the max.
+  // On equal keys VCC is 0, so min = b and max = a (same as the vge/vlt pair before).
   u32<$t0> did_swap_0;
   u32<$t1> did_swap_1;
   vec16<$v09> vytmp1;
-  vec16<$v10> vytmp2;
   vec16<$v04> valltmp1;
   vec16<$v05> valltmp2;
 
-  vytmp1 = max(vy1, vy2);
-  valltmp1 = select(vall1, vall2);
-  vy1 = min(vy1, vy2);
+  vytmp1 = max(vy1, vall2.y); // broadcast max key, needed as first operand in round 3
+  vy1 = min(vy1, vall2.y);
+  valltmp1 = select(vall2, vall1);
   vall1 = select(vall1, vall2);
   did_swap_0 = get_vcc();
 
-  vec16<$v28> vhmlupp;
-  vhmlupp ^= vhmlupp;
+  // Zeroed with an addition (vaddc) so that VCO is cleared as well, which the
+  // first sort compare (vlt) relies on when vy1==vy2
+  vec16<$v28> vhmlupp = VZERO + VZERO;
 
   u16<$s7> buffOffset = load(RDPQ_TRI_BUFF_OFFSET);
 
@@ -145,9 +138,8 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   if(rejCodes != 0xFF)goto JrRa;
   undef rejCodes;
 
-  vytmp2 = max(vy1, vy3);
-  valltmp2 = select(vall1, vall3);
-  vy1 = min(vy1, vy3);
+  vy1 = min(vy1, vall3.y);
+  valltmp2 = select(vall3, vall1);
   vall1 = select(vall1, vall3);
   did_swap_1 = get_vcc();
 
@@ -159,13 +151,12 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   // instead so the two lifetimes cannot collide.
   u32<$t2> tileIdx = clip1 >> 13;
 
-  vy3 = max(vytmp1, vytmp2);
-  vall3 = select(valltmp1, valltmp2);
-  vy2 = min(vytmp1, vytmp2);
+  vy2 = min(vytmp1, valltmp2.y);
+  vall3 = select(valltmp2, valltmp1);
   vall2 = select(valltmp1, valltmp2);
   u32<$t5> did_swap_2 = get_vcc();
 
-  undef vytmp1, vytmp2;
+  undef vytmp1;
 
   u32<$t4> clipCodes = clip1 & 0x1F00;
   u16<$s3> outPtr = buffOffset + CLIP_BUFFER_TMP;
@@ -197,6 +188,9 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   vx12F.x = vall1.x;
   vx12F.z = vall2.x;
 
+  // YL (max Y) is stored straight from the sorted vertex, there is no separate key for it
+  @Barrier("tri-out") store(vall3.y, outPtr, 2);
+
   did_swap_0 &= 1;
   u32<$t1> cullFlip = cull ^ did_swap_0;
   undef did_swap_0;
@@ -205,14 +199,13 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   // Prepare -MY for the crossprod
   VTEMP = VZERO - vm.y;
 
-  // FY.e4 = Y1 (s15.16)
+  // FY.e4 = Y1 (s15.16), only the fraction is needed (see below)
   vec16<$v26> vfyF = vy1 << 14;
-  vec16<$v25> vfyI = vy1 >> 2;
+  vec16<$v25> vfyI;
   buffOffset ^= RDP_CMD_MAX_SIZE;
 
   @Barrier("tri-out") store(vy2.x, outPtr, 4);
-  @Barrier("tri-out") store(vy3.x, outPtr, 2);
-  undef vy1, vy2, vy3;
+  undef vy1, vy2;
 
   // Cross product for the winding order (and 1/NZ later):
   // NZ = MX*HY - MY*HX
@@ -238,9 +231,11 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   u32<$t4> color_dmem = outPtr + 0x20;
 
   // FY.e0 = floorf(y1) - y1
-  // this is always a negative fraction, so fy_i is always 0xFFFF (or fy_i=fy_f=0)
+  // this is always a negative fraction, so fy_i is always 0xFFFF (or fy_i=fy_f=0):
+  // the vsubc sets VCO when the fraction is non-zero, and 'x - x - VCO' yields exactly
+  // that -1/0 for any x, so no integer part has to be computed (was 'vy1 >> 2' before)
   vfyF = VZERO - vfyF;
-  vfyI:sint = vfyI - vfyI;
+  vfyI:sint = vfyF - vfyF;
 
   vec16<$v08> vwF;
   vec16<$v07> vwI;
@@ -307,10 +302,6 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   vec16<$v21> vslopeF;
   vec16<$v20> vslopeI;
 
-  // vslopem2  = X/2 * (-4) = -2*X
-  vec16<$v01> vslopem2F = vslopeF:ufract * vmconst:sint.Y;
-  vec16<$v02> vslopem2I = vslopeI:sint +* vmconst:sint.Y;
-
   // Calculate the minimum W (between e0 and e2)
   VTEMP = vwF - vwF.z;
   vwI = min(vwI, vwI.z);
@@ -322,10 +313,13 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   vec16<$v14> vinvwI;
   vinvwF.Z = load(vtx3, VTX_ATTR_INVWf).x;
 
-  // NR: R*(X/2)
+  // NR step: t = n * y0 with y0 the vrcp half-reciprocal, so t ~ 0.5.
+  // Only the fraction of t is needed: d = 1 - t is then (0x10000 - tF) as a 0.16
+  // fraction, and the refined value is y1 = 4*y0 * d  (= 2 * (2*y0) * (1 - t)).
+  // Same result as the former (-2*X) * (R*X/2 - 1) form with fewer ops and no
+  // -1/-4 constants (vk1/vmconst).
   undef vm, vl;
   vec16<$v03> vtmpF;
-  vec16<$v04> vtmpI;
   asm_op("vmudl", vtmpF, vslopeF, vhml.yywwYYWW);
   asm_op("vmadm", vtmpF, vslopeI, vhml.yywwYYWW);
   vinvwF.X = load(vtx1, VTX_ATTR_INVWf).x;
@@ -335,16 +329,18 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   u32<$t5> tex_dmem = triCmd & 0x400;
   tex_dmem >>= 4;
 
-  vtmpF = vslopeF:ufract +* vhmlupp:sint;
-  vtmpI = vslopeI:sint +* vhmlupp:sint;
+  vtmpF = vslopeF:ufract +* vhmlupp:sint;   // tF (fraction of t)
   undef vhmlupp;
 
-  // NR: R*X/2 - 1
   u32<$t0> negMY = vhml.w;
   u32<$t1> negHX = vhml.x;
-  vtmpF = vk1:ufract +* vmconst:sint.W;
-  vtmpI = vk1:sint +* vmconst:sint.W;
-  undef vk1;
+
+  // d = 1 - t  (0x10000 - tF, t is never 0 here)
+  vtmpF = VZERO - vtmpF;
+
+  // 4*y0 (the vrcp result is the half reciprocal)
+  vslopeF = vslopeF:ufract * VSHIFT:sint.Y;
+  vslopeI = vslopeI:sint +* VSHIFT:sint.Y;
 
   // Calculate the minimum W (between e0 and e4)
   // Now vwI/vwF.e0 contains the minimum W
@@ -356,16 +352,13 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   vinvwI.Z = load(vtx3, VTX_ATTR_INVWi).x;
   vinvwI.X = load(vtx1, VTX_ATTR_INVWi).x;
 
-  // NR: -2*X * (R*X/2 - 1)
-  //   =  2*X * (1 - R*X/2)
-  //   =    X * (2 - R*X)
+  // y1 = 4*y0 * d
   vec16<$v19> vnzF;
   vec16<$v18> vnzI;
-  asm_op("vmudl", VTEMP, vtmpF, vslopem2F);
-  asm_op("vmadm", VTEMP, vtmpI, vslopem2F);
-  vnzF = vtmpF:ufract +* vslopem2I:sint;
-  vnzI = vtmpI:sint +* vslopem2I:sint;
-  undef vtmpF, vtmpI, vslopem2F, vslopem2I;
+  asm_op("vmudl", VTEMP, vslopeF, vtmpF);
+  vnzI = vslopeI:sint +* vtmpF:ufract;
+  vnzF = get_acc_low();
+  undef vtmpF;
 
   u32<$t6> z_dmem = triCmd & 0x200;
   z_dmem >>= 3;
@@ -427,10 +420,6 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   vhml.x = negHX;
   undef negMY, negHX;
 
-
-  // Prepare the VCC for the select() later (to merge the tex coords into the attributes)
-  set_vcc(0xCF);
-
   // vattr now contains only RGBA, loaded via luv. Shift them back to raw bytes.
   vattr1 >>>= 7;
   vattr2 >>>= 7;
@@ -441,9 +430,13 @@ function RDPQ_Triangle_Send_Async(u32<$a0> vtx1, u32<$a1> vtx2, u32<$a2> vtx3, u
   vattr2.W = load(vtx2, VTX_ATTR_Z).x;
   vattr3.W = load(vtx3, VTX_ATTR_Z).x;
 
-  //vattr1 = vattr1 >= 0;
-  //vattr2 = vattr2 >= 0;
-  //vattr3 = vattr3 >= 0;
+  // clamp negative depth (no near plane), other lanes are unaffected
+  vattr1 = vattr1 >= 0;
+  vattr2 = vattr2 >= 0;
+  vattr3 = vattr3 >= 0;
+
+  // Prepare the VCC for the select() later (to merge the tex coords into the attributes)
+  set_vcc(0xCF);
 
   //  vx12  =   X1   --    X2   --       -- --   -- --
   //  slope = HX/HY  --   MX/MY --     LX/LY --  -- --
