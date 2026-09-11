@@ -1,0 +1,5 @@
+{
+  "framesWarmup": 2,
+  "framesProfile": 20,
+  "data": {"tiny3d/Vert Load":15025.30,"tiny3d/Tri Strip":2868.34,"tiny3d/Tri Seq":84.38,"tiny3d/Matrix Stack":57.78,"tiny3d/Tri Draw":35.68,"tiny3d/Set Word":3.98,"tiny3d/Draw Flags":1.66,"tiny3d/Light Set":1.14,"tiny3d/Fog State":0.90,"tiny3d/Proj Set":0.78,"tiny3d/Screen Size":0.30}
+}
