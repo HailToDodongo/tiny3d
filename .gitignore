@@ -12,3 +12,4 @@ website/html
 *.exe
 *.pak
 docs/_*
+node_modules/
