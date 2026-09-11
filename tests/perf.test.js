@@ -110,6 +110,6 @@ if (strBetter) console.log("Better:\n" + strBetter);
 if (strWorse) console.log("Worse:\n" + strWorse);
 if (!foundWorse) console.log("Performance OK");
 console.log("=========================================");
-console.log("perfMap: " + JSON.stringify(perfMap)); // paste into tests/perf/<name>.json to update
+//console.log("perfMap: " + JSON.stringify(perfMap)); // paste into tests/perf/<name>.json to update
 
 if (foundWorse) ares.exit(1);
