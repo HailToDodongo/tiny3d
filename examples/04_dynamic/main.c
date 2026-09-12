@@ -184,7 +184,7 @@ int main()
     }
 
     // Draw room:
-    t3d_fog_set_range(0.4f, 80.0f);
+    t3d_fog_set_range(0.8f, 160.0f);
     t3d_fog_set_enabled(true);
 
     t3d_light_set_ambient(colorAmbient);

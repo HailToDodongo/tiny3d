@@ -127,7 +127,7 @@ int main()
     rdpq_set_fog_color(fogColor);
     rdpq_set_prim_color((color_t){warnBlend, warnBlend, warnBlend, 255});
 
-    t3d_fog_set_range(-20.0f, 50.0f);
+    t3d_fog_set_range(-20.0f, 120.0f);
     t3d_fog_set_enabled(true);
 
     t3d_light_set_ambient(colorAmbient);

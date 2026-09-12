@@ -17,6 +17,9 @@ Please re-adjust to the true value you need, otherwise geometry will clip too ea
 This resulted in its near/far to refer to around double the amount.
 Please re-adjust to the true value you need, otherwise fog will be too strong now.
 
+`t3d_fog_set_range` now also requires a viewport to be attached.
+Please do so before a call, and re-set fog for every viewport (e.g. in split-screens).
+
 ### Near-Clipping
 
 Before, geometry was clipped against the near-plane,

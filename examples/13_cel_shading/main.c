@@ -231,6 +231,7 @@ int main()
     // ======== Draw ======== //
     rdpq_attach(display_get(), display_get_zbuf());
     t3d_frame_start();
+    rdpq_mode_dithering(DITHER_NONE_NONE);
     t3d_viewport_attach(&viewport);
 
     t3d_screen_clear_color(RGBA32(217, 174, 147, 0xFF));

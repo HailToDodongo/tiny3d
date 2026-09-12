@@ -132,8 +132,6 @@ int main()
     t3d_screen_clear_color(RGBA32(160, 110, 200, 0xFF));
     t3d_screen_clear_depth();
 
-    t3d_fog_set_range(120.0f, 850.0f);
-
     for(int v=0; v<PLAYER_COUNT; ++v)
     {
       T3DViewport *vp = &viewports[v];
@@ -155,6 +153,8 @@ int main()
       t3d_viewport_set_projection(vp, fov, 20.0f, 2000.0f);
       t3d_viewport_look_at(vp, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
       t3d_viewport_attach(vp);
+
+      t3d_fog_set_range(140.0f, 1500.0f);
 
       // if you need directional light, re-apply it here after a new viewport has been attached
       //t3d_light_set_directional(0, colorDir, &lightDirVec);
