@@ -579,8 +579,9 @@ void t3d_fog_set_range(float near, float far) {
   }
 
   float slope = -255.0f / diff;                                    // per clip-z unit
-  // -0.5*slope: the ucode leaves ~0.5 in the fraction of the z lane, cancel it here
-  float offset = -32513.0f + zNear * 255.0f / diff - 0.5f * slope;
+  // the ucode multiplies the integer part of the clip-space Z by the slope directly
+  // (SCREEN_SCALE + 6/14), so there is no half-unit fraction left to compensate for
+  float offset = -32513.0f + zNear * 255.0f / diff;
   offset = CLAMP(offset, -32768.0f, 32767.0f);
 
   int32_t slopeFx = (int32_t)roundf(slope * 0x10000);

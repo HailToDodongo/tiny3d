@@ -325,13 +325,15 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
   vec16 normMask = load(NORMAL_MASK_SHIFT, 0x00).xyzwxyzw;
   vec16 normShift = load(NORMAL_MASK_SHIFT, 0x08).xyzwxyzw;
+  // lane w/W of the normal mask are zero and the matching normShift lanes are zero too,
+  // so the transformed normal ignores them: free to hold the fog slope's integer half
+  normMask.w = load(SCREEN_SCALE, 6).x;
+  normMask.W = load(SCREEN_SCALE, 6).x;
 
-  vec16 guardBandScale = load(CLIPPING_PLANES).xy;
-  guardBandScale = guardBandScale.y;
-  // the clip-flags of lanes w/W are masked out, so they are free to hold constants:
-  // fog upper clamp (0x80FF) and the default light color (0x7FFF)
-  guardBandScale.w = load(VERT_CONSTS, 0x08).x;
-  guardBandScale.W = load(VERT_CONSTS, 0x0A).x;
+  vec16 fogClampSlope;
+  fogClampSlope.x = load(VERT_CONSTS, 0x08).x; // fog upper clamp (0x80FF)
+  fogClampSlope.w = load(SCREEN_SCALE, 14).x; // fog slope, fractional
+  fogClampSlope.W = load(SCREEN_SCALE, 14).x;
 
   vec32 orgPosClip;
 
@@ -490,6 +492,13 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       rejCodesB = packRejectCode(rejCodesB);
     }
 
+    // Fog (lanes w/W): clipZ * slope + offset, taken from the clip-space Z as soon as it exists 
+    // (could be done with the screen-space multiply in W, but it's faster here)
+    VTEMP:sint = screenOffset:sint * 1;                              // acc = offset << 16
+    VTEMP:sint = fogClampSlope:ufract +* posClip:sint.zzzzZZZZ;     // slopeFrac
+    vec16<$v01> fogV = normMask:sint +* posClip:sint.zzzzZZZZ;       // slopeInt
+    fogV = min(fogV, fogClampSlope.xxxxxxxx);
+
     vec32<alias(normShift), alias(pos)> invWRaw; // only needs lanes w/W
 
     @Tag("LightMul")
@@ -522,21 +531,12 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     // perspective division
     invW = posClip * invW.wwwwWWWW;
     
-    // now load Z into the unused W, to process fog scaling/offset for free alongside
-    invW:sint.w = posClip:sint.z;
-    invW:sint.W = posClip:sint.Z;
-
     orgPosClip = load(ptrScreenScale).xyzwxyzw;
     posClip = invW * orgPosClip;
     posClip:sint = screenOffset:sint +* 1;
 
     undef invW;
 
-    // Fog: lane w holds the fog value biased into 0x8000..0x80FF, the low byte is the alpha (0xFF = no fog).
-    // Beyond the far distance it saturates to 0x8000 on its own, nearer than the near distance it must be
-    // clamped to 0x80FF (VERT_CONSTS, kept in guardBandScale.w). Only lane w/W is used from the result.
-    vec16<$v01> fogV = min(posClip:sint, guardBandScale.wwwwwwww);
-    
     @Barrier("color-fog-a") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
     @Barrier("color-fog-b") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
 
