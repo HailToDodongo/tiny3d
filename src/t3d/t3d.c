@@ -565,8 +565,9 @@ void t3d_fog_set_range(float near, float far) {
   }
 
   // @TODO: refactor in the ucode (right now it's offset and then scale)
-  float scale = 16384.0f / diff;
-  float offset = -near * 2.0f;
+  // offset cancels near, scale spans the full s16 over the range
+  float scale = 32768.0f / diff;
+  float offset = -near;
 
   scale = fm_floorf(scale);
   scale = CLAMP(scale,  -32768.0f, 32767.0f);
