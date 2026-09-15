@@ -11,3 +11,5 @@ gltf_to_t3d
 website/html
 *.exe
 *.pak
+docs/_*
+node_modules/

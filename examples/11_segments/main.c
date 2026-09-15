@@ -79,7 +79,7 @@ int main()
     // the skeleton update also stays the same, internally it will handle the switch between buffers
     t3d_skeleton_update(&skel);
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(80.0f), 5.0f, 180.0f);
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(80.0f), 10.0f, 200.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // for our model matrix, determine an index based on the frame...

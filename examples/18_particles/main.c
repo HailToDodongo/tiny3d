@@ -228,7 +228,7 @@ int main()
 
     t3d_mat4fp_from_srt_euler(&matPartFP[frameIdx], particleMatScale.v, particleRot.v, particlePos.v);
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(80.0f), 5.0f, 250.0f);
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(80.0f), 7.0f, 420.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // ======== Draw (3D) ======== //
@@ -275,6 +275,8 @@ int main()
     // so any push/pop here will not affect t3d and vice versa.
     // Also make sure that the first stack operation you do after 'tpx_state_from_t3d' is a push and not a set.
     tpx_matrix_push(&matPartFP[frameIdx]);
+    tpx_state_set_base_size(72);
+
     // While each particle has its own size, there is a global scaling factor that can be set.
     // This can only scale particles down, so the range is 0.0 - 1.0.
     tpx_state_set_scale(partSizeX, partSizeY);

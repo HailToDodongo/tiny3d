@@ -28,8 +28,10 @@ static_assert(RSP_T3D_CODE_RSPQCmd_RdpAppendBuffer < RSP_T3D_CODE_CLIPPING_CODE_
 static_assert(RSP_T3D_CODE_CLIPPING_CODE_TARGET % 8 == 0, "Clipping code must be aligned to 8 bytes!");
 static_assert(RSP_T3D_CODE_CLIPPING_CODE_TARGET == RSP_T3D_CODE_CLIP_clipTriangle, "Clipping code and target must have the same address");
 
+static_assert((RSP_T3D_BSS_CLIP_BUFFER_TMP ^ RSP_T3D_BSS_CLIP_BUFFER_RESULT) == 0x100, "Clip buffers must differ only in bit 8 (CLIP_BUFFER_XOR)");
+static_assert(RSP_T3D_BSS_CLIP_BUFFER_TMP + 2 * 176 <= RSP_T3D_BSS_CLIP_BUFFER_RESULT + 7 * 36 - 4 * 36, "Second RDP slot must not reach a 4-vertex clip polygon");
+
 // @TODO: this could be handled to allow either alignment, but it is simpler to force this for now
-static_assert((RSP_T3D_CODE_TAG_LightMul & 0x0FFF) % 8 == 0, "Light-Mul must be aligned to 8 bytes!");
 
 // the cull-flip patches sit inside the triangle code, which must never be swapped out by the clipping overlay
 static_assert(RSP_T3D_CODE_TAG_CullFlipA < RSP_T3D_CODE_CLIPPING_CODE_TARGET, "Cull-Flip-A must come before the clipping code!");
@@ -50,7 +52,7 @@ static T3DViewport *currentViewport = NULL;
 static T3DMat4FP *matrixStack = NULL;
 static uint32_t clipCodeAddrOrg = 0; // 'CLIP_CODE_ORG_ADDR' in ucode
 
-static uint64_t orgInstrLightMul = 0; // backup of the lighting mul. instruction + the one after
+static uint64_t orgInstrLightMul = 0; // backup of the 8-byte pair containing the lighting mul. instruction
 static uint64_t orgInstrCullFlipA = 0; // backup
 static uint64_t orgInstrCullFlipB = 0; // backup
 
@@ -80,8 +82,7 @@ void t3d_init(T3DInitParams params)
   clipAddrPtr[1] = clipCodeAddrOrg;
   *clipSizePtr = RSP_T3D_CODE_CLIP_OVERLAY_CODE_END - RSP_T3D_CODE_CLIP_clipTriangle + 7;
 
-  uint32_t imemAddrMul = (RSP_T3D_CODE_TAG_LightMul & 0x0FFF);
-  orgInstrLightMul = *(uint64_t*)(rsp_tiny3d.code + imemAddrMul);
+  orgInstrLightMul = *(uint64_t*)(rsp_tiny3d.code + (RSP_T3D_CODE_TAG_LightMul & 0x0FF8));
 
   orgInstrCullFlipA = *(uint64_t*)(rsp_tiny3d.code + (RSP_T3D_CODE_TAG_CullFlipA & 0x0FF8));
   orgInstrCullFlipB = *(uint64_t*)(rsp_tiny3d.code + (RSP_T3D_CODE_TAG_CullFlipB & 0x0FF8));
@@ -185,7 +186,13 @@ void t3d_vert_load(const T3DVertPacked *vertices, uint32_t offset, uint32_t coun
 
   // calculate where to start the DMA, this may overlap the buffer of transformed vertices
   // we have to place it so that racing the input data is possible
-  uint32_t tmpBufferEnd = (RSP_T3D_BSS_CLIP_BUFFER_RESULT & 0xFFFF) + 6*16;
+  constexpr uint32_t tmpBufferEnd = (
+    ((RSP_T3D_BSS_TEMP_STATE_MEM_END & 0xFFFF) & ~0xF) // align to 16 bytes
+    - 32 // leave space for temp data usage
+  );
+
+  static_assert((RSP_T3D_STATE_MEM_END & 0xFFFF) <= tmpBufferEnd, "Vertex buffer overlaps temporary buffer!");
+
   uint16_t offsetDest = tmpBufferEnd - inputSize;
   offsetDest = (offsetDest & ~0xF); // make sure it's aligned to 16 bytes, must be aligned backwards
 
@@ -358,7 +365,7 @@ void t3d_state_set_drawflags(enum T3DDrawFlags drawFlags)
 }
 
 void t3d_state_set_depth_offset(int16_t offset) {
-  t3d_dmem_set_u16((RSP_T3D_SCREEN_SCALE_OFFSET & 0xFFF) + 12, 0x3FFF + offset);
+  t3d_dmem_set_u16((RSP_T3D_SCREEN_OFFSET & 0xFFF) + 4, 0x3FFF + offset);
 }
 
 void t3d_state_set_alpha_to_tile(bool enable) {
@@ -420,7 +427,7 @@ void t3d_state_set_lighting_mode(enum T3DLightingMode mode)
   const uint32_t OPCODE_VMULF = 0b000'000;
   const uint32_t OPCODE_VADD  = 0b010'000;
   const uint32_t OPCODE_VOR   = 0b101'010;
-  uint32_t instruction = (uint32_t)(orgInstrLightMul >> 32);
+  uint32_t instruction = t3d_imem_org_instr(RSP_T3D_CODE_TAG_LightMul, orgInstrLightMul);
   instruction &= ~0x3F;
   switch(mode) {
     case T3D_LIGHTING_MODE_MUL:
@@ -435,18 +442,10 @@ void t3d_state_set_lighting_mode(enum T3DLightingMode mode)
       break;
   }
 
-  uint64_t newOpcodes = ((uint64_t)instruction << 32) |
-                        (uint32_t)orgInstrLightMul;
-  uint32_t imemAddrMul = (RSP_T3D_CODE_TAG_LightMul & 0x0FFF);
-
   // Now enqueue a DMA back to RDRAM to patch the ucode, one the next ucode switch this would be used.
   // Note that we can't patch it CPU side, as the RSP runs in parallel and we would patch too early.
   // This also handles the case where this is embedded in a block or queue.
-  t3d_imem_patch(
-    rsp_tiny3d.code + imemAddrMul,
-    (uint32_t)(newOpcodes >> 32),
-    (uint32_t)(newOpcodes & 0xFFFF'FFFF)
-  );
+  t3d_imem_patch_instr(RSP_T3D_CODE_TAG_LightMul, orgInstrLightMul, instruction);
 }
 
 void t3d_state_set_cull_invert(bool invert)
@@ -551,31 +550,44 @@ void t3d_tri_draw_strip_and_sync(int16_t* indexBuff, int count)
 }
 
 void t3d_fog_set_range(float near, float far) {
-  uint32_t dmemAddr = RSP_T3D_FOG_SCALE_OFFSET & 0xFFF;
+  uint32_t addrScale  = RSP_T3D_SCREEN_SCALE & 0xFFF;
+  uint32_t addrOffset = RSP_T3D_SCREEN_OFFSET & 0xFFF;
   if(near == 0.0f && far == 0.0f) {
-    t3d_dmem_set_u32(dmemAddr + 0, 0); // offset
-    t3d_dmem_set_u16(dmemAddr + 6, 0); // scale
+    t3d_dmem_set_u16(addrScale + 6, 0);       // slope int
+    t3d_dmem_set_u16(addrScale + 14, 0);      // slope fract
+    t3d_dmem_set_u16(addrOffset + 6, 0x80FF); // offset: alpha 255 everywhere
     return;
   }
+  assertf(currentViewport, "t3d_fog_set_range needs a viewport to be attached!");
 
-  // prevent diff by zero and weird values
-  float diff = far - near;
+  const T3DMat4 *proj = &currentViewport->matProj;
+  float a = -proj->m[2][2];
+  float b =  proj->m[3][2];
+  float zNear = a * near + b;
+  float zFar  = a * far  + b;
+
+  // prevent div by zero and weird values
+  float diff = zFar - zNear;
   if(fabsf(diff) < 1.5f) {
-    diff = 1.5f;
+    diff = diff < 0 ? -1.5f : 1.5f;
+  }
+  // the offset must fit s16: it grows with zNear/(zFar-zNear), so bands that start far away
+  // and are very thin get widened to the smallest representable width (keeps 'near' in place)
+  float minDiff = (255.0f * fabsf(zNear) + 127.5f) / 65280.0f;
+  if(fabsf(diff) < minDiff) {
+    diff = diff < 0 ? -minDiff : minDiff;
   }
 
-  // @TODO: refactor in the ucode (right now it's offset and then scale)
-  float scale = 16384.0f / diff;
-  float offset = -near * 2.0f;
+  float slope = -255.0f / diff;                                    // per clip-z unit
+  // the ucode multiplies the integer part of the clip-space Z by the slope directly
+  // (SCREEN_SCALE + 6/14), so there is no half-unit fraction left to compensate for
+  float offset = -32513.0f + zNear * 255.0f / diff;
+  offset = CLAMP(offset, -32768.0f, 32767.0f);
 
-  scale = fm_floorf(scale);
-  scale = CLAMP(scale,  -32768.0f, 32767.0f);
-
-  uint16_t fogMul16   = (int16_t)scale & 0xFFFF;
-  int32_t fogOffset32 = T3D_F32_TO_FIXED(offset);
-
-  t3d_dmem_set_u32(dmemAddr + 0, fogOffset32); // offset
-  t3d_dmem_set_u16(dmemAddr + 6, fogMul16); // scale
+  int32_t slopeFx = (int32_t)roundf(slope * 0x10000);
+  t3d_dmem_set_u16(addrScale + 6,  ((uint32_t)slopeFx >> 16) & 0xFFFF); // slope int
+  t3d_dmem_set_u16(addrScale + 14, (uint32_t)slopeFx & 0xFFFF);         // slope fract
+  t3d_dmem_set_u16(addrOffset + 6, (uint32_t)(int16_t)roundf(offset) & 0xFFFF);
 }
 
 void t3d_viewport_attach(T3DViewport *viewport) {
@@ -593,15 +605,28 @@ void t3d_viewport_attach(T3DViewport *viewport) {
     viewport->offset[1] + viewport->size[1]
   );
 
-  uint16_t normWScale = (uint16_t)roundf(0xFFFF * currentViewport->_normScaleW);
+  uint16_t normWScale = (uint16_t)roundf(0xFFFF * fminf(currentViewport->_normScaleW, 1.0f));
   float normWScaleFloat = (float)normWScale * (1.0f / 0xFFFF);
 
-  float screenShiftFactor = 256.0f; // compensates the shift in the ucode
-  float screenFactorX = (float)viewport->size[0] * normWScaleFloat * 4.0f *  screenShiftFactor;
-  float screenFactorY = (float)viewport->size[1] * normWScaleFloat * 4.0f * -screenShiftFactor;
+  
+  // clip-space x/y are divided by the guard-band factor in the ucode (NORM_SCALE_W lanes x/y)
+  // so the clip-code test can use W as its bound, undo it here.
+  int32_t guardBand = viewport->guardBandScale & 0xF;
+  if(guardBand < 1)guardBand = 1;
+  // the screen scale absorbs the factor and its integer part must stay in s16
+  int32_t guardMax = 32767 / (4 * (viewport->size[0] > viewport->size[1] ? viewport->size[0] : viewport->size[1]));
+  if(guardBand > guardMax)guardBand = guardMax < 1 ? 1 : guardMax;
+  uint16_t invGuard = (guardBand == 1) ? 0xFFFF : (uint16_t)(0x10000 / guardBand);
+  t3d_dmem_set_u32((RSP_T3D_NORM_SCALE_W & 0xFFF), ((uint32_t)invGuard << 16) | invGuard);
 
-  int32_t screenScaleX = (int32_t)ceilf(screenFactorX);
-  int32_t screenScaleY = (int32_t)ceilf(screenFactorY);
+  // halved (2 instead of 4): the ucode's NR-refined 1/W is the full reciprocal,
+  // twice the raw vrcp half-reciprocal
+  float guardF = (float)guardBand;
+  float screenFactorX = (float)viewport->size[0] * normWScaleFloat *  4.0f * guardF;
+  float screenFactorY = (float)viewport->size[1] * normWScaleFloat * -4.0f * guardF;
+
+  int32_t screenScaleX = (int32_t)roundf(screenFactorX * 0x10000);
+  int32_t screenScaleY = (int32_t)roundf(screenFactorY * 0x10000);
 
   // Set screen size, internally the 3D-scene renders to the correct size, but at [0,0]
   // calc. both scale and offset to move/scale it into our scissor region
@@ -609,19 +634,22 @@ void t3d_viewport_attach(T3DViewport *viewport) {
   int32_t screenOffsetY = (int32_t)(viewport->offset[1]*2) + viewport->size[1];
 
   int32_t screenOffset = (screenOffsetX << 17) | (screenOffsetY << 1);
-  int32_t screenScale = (screenScaleX << 16) | ((uint16_t)(screenScaleY) & 0xFFFF);
+  int32_t screenScale = (screenScaleX & 0xFFFF0000) | (((uint32_t)screenScaleY >> 16) & 0xFFFF); // int parts
+  uint32_t screenScaleFrac = ((uint32_t)(screenScaleX & 0xFFFF) << 16) | (uint32_t)(screenScaleY & 0xFFFF);
 
-  uint32_t depthScale = (uint32_t)roundf(0xFFFF * normWScaleFloat * screenShiftFactor * 0.5f);
-  if(depthScale > 0x7FFF)depthScale = 0x7FFF;
+  // normWScaleFloat <= 1, so this always fits u15.16
+  // normWScaleFloat <= 1, so this always fits u15.16
+  // (0.25: halved like the x/y scales for the NR full reciprocal)
+  uint32_t depthScaleFx = (uint32_t)roundf(0xFFFF * normWScaleFloat * 0.5f * 0x10000);
 
-  uint32_t depthAndWScale = (depthScale << 16) | normWScale;
+  uint32_t depthAndWScale = (depthScaleFx & 0xFFFF0000) | normWScale; // z int + w-normalize
 
   /*debugf("Screen: %04X %04X | Depth: %08X W-scale: %04X\n",
     (screenScaleX & 0xFFFF), (screenScaleY & 0xFFFF),
     depthScale, normWScale
   );*/
 
-  int32_t guardBandScale = viewport->guardBandScale & 0xF;
+  int32_t guardBandScale = guardBand;
 
   // uv-gen offset, used to skew normals based on distance to the screen center.
   // This can fake uvgen shifting based on the viewing angle.
@@ -630,7 +658,8 @@ void t3d_viewport_attach(T3DViewport *viewport) {
   guardBandScale |= invScreenSize;
 
   rspq_write(T3D_RSP_ID, T3D_CMD_SCREEN_SIZE,
-    guardBandScale, screenOffset, screenScale, depthAndWScale
+    guardBandScale, screenOffset, screenScale, depthAndWScale,
+    screenScaleFrac, (depthScaleFx & 0xFFFF) << 16 // fraction words of the s16.16 scales
   );
 
   if(viewport->_matFP)

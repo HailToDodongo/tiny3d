@@ -18,7 +18,7 @@ function VertexFX_None(
 function VertexFX_Spherical(
   u32<$s4> prt3d, u32<$s7> ptr3dEnd,
   vec16<$v04> uvOffsetFactor, vec16<$v05> posClipInt, vec16<$v12> screenOffset,
-  vec16<$v09> uvGenArgs, vec16<$v02> normal, vec16<$v03> uv,
+  vec16<$v09> uvGenArgs, vec16<$v11> normal, vec16<$v03> uv,
   u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
 ) {
 
@@ -50,11 +50,7 @@ function VertexFX_CelShadeColor(
   color = max(color, color.zzzzZZZZ);
   uv.x = color.x;
   uv.z = color.X;
-
-  store(uv.xy, ptrBuffA, VTX_ATTR_ST);
-  store(uv.zw, ptrBuffB, VTX_ATTR_ST);
-
-  VertexFX_End();
+  goto VertexFX_None;
 }
 
 function VertexFX_CelShadeAlpha(
@@ -65,17 +61,14 @@ function VertexFX_CelShadeAlpha(
 {
   uv.x = color.w;
   uv.z = color.W;
-
-  store(uv.xy, ptrBuffA, VTX_ATTR_ST);
-  store(uv.zw, ptrBuffB, VTX_ATTR_ST);
-
-  VertexFX_End();
+  
+  goto VertexFX_None;
 }
 
 function VertexFX_Outline(
   u32<$s4> prt3d, u32<$s7> ptr3dEnd,
   vec16<$v04> uvOffsetFactor, vec16<$v05> posClipInt, vec16<$v12> screenOffset,
-  vec16<$v09> uvGenArgs, vec16<$v02> normal, vec16<$v03> uv,
+  vec16<$v09> uvGenArgs, vec16<$v11> normal, vec16<$v03> uv,
   u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
 )
 {

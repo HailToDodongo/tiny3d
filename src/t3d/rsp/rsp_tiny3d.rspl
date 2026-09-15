@@ -80,13 +80,12 @@ state
   alignas(8) vec16 MATRIX_MV[4];
   alignas(8) u16 MATRIX_NORMAL[3][4]; // fractional normal matrix
 
-  // Fog settings: index 0/1 is the scale as a s16.16, index 3 the scale as a s16 int.
-  // The third value is used as a limiter to prevent overflows.
-  s16 FOG_SCALE_OFFSET[4] = {0, 0, 32767, 0};
-
-  vec16 SCREEN_SCALE_OFFSET = {
-    0, 0, 0,           0, // screen size scale (.xyzw)
-    0, 0, 0x3FFF, 0x00FF  // screen size offset (.XYZW), W is used for a fake clipping-code in 'triToScreenSpace'
+  // constants for T3DCmd_VertLoad
+  s16 VERT_CONSTS[8] = {
+    0x8000, 0x8000, 0, 0x8000,  // per-lane lower clamp of the screen-space vector (only relevant for Z)
+    0x80FF, // upper clamp of fog value
+    0x7FFF, // default light color when unlit
+    0, 0 // (unused)
   };
 
   vec16 NORMAL_MASK_SHIFT = {
@@ -104,9 +103,17 @@ state
   // X  Y  Z | guard
      1, 0, 0,   1,
      0, 1, 0,   1,
-     0, 0, 1,   1,
+     0, 0, 0,   1, // near plane is ignored and sits at w=0
      1, 0, 0,  -1,
      0, 1, 0,  -1
+  };
+
+  // s16.16 screen-size scale: int x,y,z,w | fract x,y,z,w. 
+  // The w/W is the fog slope
+  alignas(8) s16 SCREEN_SCALE[8] = {0};
+
+  s16 SCREEN_OFFSET[4] = {
+    0, 0, 0x3FFF, 0x80FF  // screen size offset (.XYZ), W is the fog offset
   };
 
   u16 RDPQ_TRI_BUFF_OFFSET = {0};
@@ -126,7 +133,7 @@ state
   u32 SEGMENT_TABLE[8] = {0};
 
   // Lighting
-  u32 COLOR_AMBIENT[2] = {0xFFFFFFFF, 0xFFFFFFFF};   // RGBA8 (duplicated) | <unused> (saved IMEM)
+  u32 COLOR_AMBIENT[2] = {0xFFFFFFFF, 0xFFFFFFFF};   // RGBA8 (duplicated)
   alignas(4) u8 LIGHT_DIR_COLOR[LIGHT_SIZE][LIGHT_COUNT]; // RGBA8 (duplicated) | Direction packed as s8 (duplicated)
 
   // with profiling enabled, check assembly
@@ -136,9 +143,11 @@ state
   u32 TRI_COMMAND = {0}; // for RDPQ_Triangle
   s32 MATRIX_STACK_PTR = {0}; // current matrix stack pointer in RDRAM, set once during init
 
-  u16 FOG_STORE_OFFSET  = {TRI_SIZE_2}; // offset (relative to current vertex) where to store fog, set to 72 for no fog
   u8 FACE_CULLING = {0}; // 0=cull front, 1=cull back, 2=no-culling
+  // Note: accessed byte-wide (lbu/sb), must stay u8 (the shipped .S layout depends on it)
+  u8 FOG_STORE_OFFSET = {TRI_SIZE_2}; // offset (relative to current vertex) where to store fog, set to 72 for no fog
   u8 ACTIVE_LIGHT_SIZE = {0}; // light count * light size
+  u8 _UNUSED_ = {0};
 
   u16 VERTEX_FX_FUNC = {0}; // points top the current 'VertexFX_' function in IMEM
   u16 CLIP_CODE_SIZE = {0}; // size to copy
@@ -168,7 +177,7 @@ state
    * s16.16 | InvW      | 0x20
    * -------+-----------+-0x24---
    */
-  alignas(16)
+  alignas(8)
   u8 VERT_BUFFER[VERT_BUFFER_COUNT][TRI_SIZE];
 }
 
@@ -181,8 +190,9 @@ temp_state {
 
   // Last buffer where final clipping triangles are stored.
   // During clipping, vertices alternate between CLIP_BUFFER_TMP & B.
+  // For clipping: 7 is the maximum, 3 + one per plane. near-plane sits at w=0 and avoids an extra clip
   alignas(16)
-  u8 CLIP_BUFFER_RESULT[8][TRI_SIZE];
+  u8 CLIP_BUFFER_RESULT[7][TRI_SIZE];
 }
 
 #include "inc/math.rspl"
@@ -201,21 +211,23 @@ macro dmaInAsync(u32 addrRDRAM, u32 addrDMEM, u32 size)
   @Barrier("DMA") set_dma_read(size);
 }
 
-// Packs +xyz & -xyz into a single byte
+// Packs the clipping code into a single byte: bit 0/1 = -x/-y, bit 3/4 = +x/+y (guard-band).
+// Bit 2 (camera plane, w < 0) is left empty, clipping fills it in from the reject code.
+// Current tile is stored in the 3 MSBs.
 macro packClipCode(u32 res, u32 clipCode)
 {
-  // Note: z-far is not clipped, only rejected
-  // instead the current tile is stored in the 3 MSB
-  res = clipCode & 0b0000'0011'0000'0111;
+  res = clipCode & 0b0000'0011'0000'0011; // +x,+y,-x,-y (the z lane is not a clipping plane)
   u32 tmp = res >> 5; //  -zyx      +xyx
   res |= tmp;
 }
 
-// Same as packClipCode, inverts the clipcode to only use one operation later on
+// Same for rejection, inverted (NOR) so the triangle code can AND the three bytes.
+// Layout: bit 0/1 = -x/-y, bit 3 = w < 0 (camera plane, no near plane),
+// bit 4/5 = +x/+y, bit 6 = far, bits 2/7 are always 1.
 macro packRejectCode(u32 res, u32 clipCode)
 {
-  res = clipCode & 0b0000'0111'0000'0111;
-  u32 tmp = res >> 5; //  -zyx      +xyx
+  res = clipCode & 0b0000'0111'0000'1011;
+  u32 tmp = res >> 4; // far,+y,+x   w,-y,-x
   res = res ~| tmp;
 }
 
@@ -243,6 +255,9 @@ macro resolveSegmentAddr(u32 addrOut, u32 addrIn) {
   segment = load(segment, SEGMENT_TABLE);
   addrOut = addrIn + segment;
 }
+
+macro traceStart() { asm("andi $zero, $zero, 0"); }
+macro traceEnd() { asm("andi $zero, $zero, 1"); }
 
 #ifdef OVERLAY_CLIPPING
   #include "clipping.rspl"
@@ -310,19 +325,20 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
   vec16 normMask = load(NORMAL_MASK_SHIFT, 0x00).xyzwxyzw;
   vec16 normShift = load(NORMAL_MASK_SHIFT, 0x08).xyzwxyzw;
+  // lane w/W of the normal mask are zero and the matching normShift lanes are zero too,
+  // so the transformed normal ignores them: free to hold the fog slope's integer half
+  normMask.w = load(SCREEN_SCALE, 6).x;
+  normMask.W = load(SCREEN_SCALE, 6).x;
 
-  vec16 guardBandScale = load(CLIPPING_PLANES).xy;
-  guardBandScale = guardBandScale.y;
+  vec16 fogClampSlope;
+  fogClampSlope.x = load(VERT_CONSTS, 0x08).x; // fog upper clamp (0x80FF)
+  fogClampSlope.w = load(SCREEN_SCALE, 14).x; // fog slope, fractional
+  fogClampSlope.W = load(SCREEN_SCALE, 14).x;
 
-  vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
-  screenSize:sfract = 0;
-  screenSize >>= 8;
+  vec32 orgPosClip;
 
-  vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
-  vec16 fogScaleOffset = load(FOG_SCALE_OFFSET).xyzw;
-  fogScaleOffset.Z = fogScaleOffset.z;
-
-  vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
+  vec16<$v12> screenOffset = load(SCREEN_OFFSET).xyzwxyzw;
+  vec16<$v10> normScaleW = load(NORM_SCALE_W).xyzwxyzw;
 
   u32 ptrBuffA = addressInOut & 0xFFFF; // ptr to first output vertex
   u32 ptrBuffB = ptrBuffA - TRI_SIZE; // ptr to second output vertex
@@ -333,7 +349,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   ptrLightEnd += LIGHT_DIR_COLOR;
 
   // Note: also loads COLOR_EXPOSURE into .z, and 0 into .w
-  vec16 uvGenArgs;
+  vec16<$v09> uvGenArgs;
   uvGenArgs.XYZW = load(UV_GEN_PARAMS).xyzw;
   uvGenArgs.W = load(SCREEN_UVGEN_SCALE).x;
   uvGenArgs.xy = load(UV_GEN_PARAMS).xy;
@@ -342,13 +358,27 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   u8 fogStoreOffset = load(FOG_STORE_OFFSET);
   ptrBuffA -= TRI_SIZE_2; // move one back since it increments at the start of the loop
 
-  s16 fogA, fogB;
+  s16 fogA;
+  u16 ptrScreenScale = SCREEN_SCALE;
 
   u16 vertexFxFunc;
-  u8 isUnlit = load(TRI_COMMAND);
 
+  u8 isUnlit = load(TRI_COMMAND);
+  u32 ptrAmbient = COLOR_AMBIENT;
+  {
+    VTEMP = VZERO - 1;
+    store(VTEMP.xyzw, ptr3dEnd, 0);
+  }
+
+  if(isUnlit) {
+    ptrLightEnd = LIGHT_DIR_COLOR;
+    ptrAmbient = ptr3dEnd;
+  }
+  
+  undef isUnlit;
   undef dmaAddrRDRAM;
   undef addressInOut;
+
   u8<$s0> baseTileMask = load(CLIP_CODE_ORG_ADDR);
   u8<$a2> baseTile;
 
@@ -356,32 +386,34 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
   dma_await();
 
   // de-phased part of the loop to avoid stalls, this is also done at the end
-  vec16 pos = load(prt3d, 0x00);
-  vec16 norm = normMask & pos.wwwwWWWW;
+  vec16<$v08> pos = load(prt3d, 0x00);
+
+  vec16<$v07> norm = normMask & pos.wwwwWWWW;
   norm *= normShift;
+
+  vec32<$v05> posClip;
+  vec16<$v04> color;
 
   // Process all vertices and apply transformation & lighting.
   // This always handles 2 vertices at once, most sitting in one register.
   {
     LOOP_START:
     // asm("emux_trace_start");
-    // Position & Normals
-    vec32 posClip;
-    vec16 color;
 
     // loads 1.0 to force full light by default (aka unlit)
     // later the ambient light is loaded over this in case lighting is enabled
-    vec16 lightColor = fogScaleOffset.z;
+    vec16 lightColor;
 
     // Load the alpha value from the first vertex, which *may* contain the base-tile...
     baseTile = load(prt3d, 0x13);
     baseTile &= baseTileMask; //...now mask it away it that feature isn't enabled
 
-    u8 mvMatrixLoaded = 0;
+    u8<$t9> mvMatrixLoaded = 0;
     {
       ptrBuffA += TRI_SIZE_2;
       ptrBuffB += TRI_SIZE_2;
       vertexFxFunc = load(VERTEX_FX_FUNC);
+      fogA = ptrBuffA + fogStoreOffset;
 
       // load & transform normals, this in not needed when no directional light is present
       // however, an if-statement + the lost ability for reordering is not worth it. (@TODO: do more tests)
@@ -390,27 +422,30 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       norm         = matN2:sfract +* norm.zzzzZZZZ;
 
       // object-space to clip-space
-      mulMat4Vec3(mat0, mat1, mat2, mat3, pos, posClip);
+      mulMat4Vec3(mat0, mat1, mat2, mat3, pos, orgPosClip);
 
       ptrLight = LIGHT_DIR_COLOR;
 
       // directional
-      vec16 lightDirVec  = load_vec_s8(ptrLight, 8);
+      vec16<$v02> lightDirVec  = load_vec_s8(ptrLight, 8);
       u8 isPointLight = load(ptrLight, 15); // W=0 for directional, W=scale for point lights
-      s32 lightSize;
+      s32<$t7> lightSize;
 
-      if(isUnlit)goto LIGHT_LOOP_END;
-      lightColor = load_vec_u8(ptrLight, -8); // light color, accumulates directional lights
+      // light color, accumulates directional lights
+      // by default white to get the unlit flag to work
+      lightColor = load_vec_u8(ptrAmbient, 0);
+
+      posClip = orgPosClip * normScaleW:ufract;
 
       if(ptrLight != ptrLightEnd)
       {
         loop
         {
-          vec16 lightDirScale = norm:sfract * lightDirVec:sfract;
+          vec16<$v01> lightDirScale = norm:sfract * lightDirVec:sfract;
           color = load_vec_u8(ptrLight);
 
           if(isPointLight) {
-            pointLight(ptrLight, mat0, mat1, mat2, mat3, pos, norm,
+            pointLight(ptrLight, ptrLightEnd, mat0, mat1, mat2, mat3, pos, norm,
               lightDirScale, color, mvMatrixLoaded, lightSize);
           }
 
@@ -421,31 +456,29 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
           VTEMP = color:ufract +* lightDirScale:ufract.yyyyYYYY;
           VTEMP = color:ufract +* lightDirScale:ufract.zzzzZZZZ;
 
-          lightColor:sint += VTEMP; // @TODO: pre-fill ACC with lightColor (didn't work as it got *0.99 each iter.)
-
           ptrLight += LIGHT_SIZE;
           lightDirVec = load_vec_s8(ptrLight, 8);
           isPointLight =  load(ptrLight, 15);
+
+          if(mvMatrixLoaded == ptrLight) {
+            loadCurrentMVPMat(mat0, mat1, mat2, mat3);
+          }
+
+          lightColor:sint += VTEMP; // @TODO: pre-fill ACC with lightColor (didn't work as it got *0.99 each iter.)
+
         } while(ptrLight != ptrLightEnd)
       }
-      LIGHT_LOOP_END:
     }
-
-    vec32 clipPlaneW = guardBandScale * posClip.wwwwWWWW;
 
     color = load_vec_u8(prt3d, 0x10);
-    fogA = ptrBuffA + fogStoreOffset;
-
-    if(mvMatrixLoaded) {
-      loadCurrentMVPMat(mat0, mat1, mat2, mat3);
-    }
-
-
+  
     // calc. clipping codes (rejection & clip-prevention)
     u32 clipCodeA, clipCodeB, rejCodesA, rejCodesB;
     {
-      u32 rejCodes = clip(posClip, posClip.wwwwWWWW); // Clip-Code for rejection (no band-guard)
-      u32 clipCodes = clip(posClip, clipPlaneW); // Clip code for clipping (incl. band-guard)
+      // posClip has x/y already divided by the guard-band factor 
+      // (NORM_SCALE_W lanes x/y, compensated by SCREEN_SCALE)
+      u32 rejCodes = clip(orgPosClip, orgPosClip.wwwwWWWW); // Clip-Code for rejection (no band-guard)
+      u32 clipCodes = clip(posClip, orgPosClip.wwwwWWWW); // Clip code for clipping (incl. band-guard)
 
       clipCodeB = clipCodes >> 4;
       clipCodeA = packClipCode(clipCodes);
@@ -458,77 +491,79 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
       rejCodesA = packRejectCode(rejCodes);
       rejCodesB = packRejectCode(rejCodesB);
     }
-    undef clipPlaneW;
+
+    // Fog (lanes w/W): clipZ * slope + offset, taken from the clip-space Z as soon as it exists 
+    // (could be done with the screen-space multiply in W, but it's faster here)
+    VTEMP:sint = screenOffset:sint * 1;                              // acc = offset << 16
+    VTEMP:sint = fogClampSlope:ufract +* posClip:sint.zzzzZZZZ;     // slopeFrac
+    vec16<$v01> fogV = normMask:sint +* posClip:sint.zzzzZZZZ;       // slopeInt
+    fogV = min(fogV, fogClampSlope.xxxxxxxx);
+
+    vec32<alias(normShift), alias(pos)> invWRaw; // only needs lanes w/W
 
     @Tag("LightMul")
-    color:sfract *= lightColor:ufract;
-
-    posClip *= normScaleW:ufract;
-
+    color:sfract *= lightColor:ufract; 
     color >>= 7;
     color:sint *= uvGenArgs:sint.Z;
-
-    @Barrier("color-fog") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
-    @Barrier("color-fog") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
-
-    //undef lightColor;
 
     store(posClip.xyzw, ptrBuffA, VTX_ATTR_CLIPPOSi);
     store(posClip.XYZW, ptrBuffB, VTX_ATTR_CLIPPOSi);
 
     undef lightColor;
 
-    // calc. inverse W, this is stored in an unused slot in screenSize to avoid stalls
-    screenSize.w = invert_half(posClip).w;
-    screenSize.W = invert_half(posClip).W;
+    invWRaw.w = invert_half(posClip).w;
+    invWRaw.W = invert_half(posClip).W;
 
-    // backup clip-pos in case that clipping is required
-    // also store inv-W here (in place of W)
-    store(screenSize.w, ptrBuffA, VTX_ATTR_INVWi);
-    store(screenSize.W, ptrBuffB, VTX_ATTR_INVWi);
+    // do one round of NR
+    vec32 invW;
+    invW:sfract = posClip * invWRaw.wwwwWWWW; // still x0.5 due to invert
 
-    // Fog
-    {
-      vec32 fog;
-      // add offset, to avoid loads, int/fract are stored in the same vector
-      fog:ufract = posClip + fogScaleOffset:ufract.y;
-      fog:sint   = posClip + fogScaleOffset.x;
+    // d = 1 - t, computed as 0xFFFF - t (normScaleW lane z = 0xFFFF, x/y hold 1/guard-band)
+    // also avoids the later W=1 special case in the triangle code
+    vec16 nrD = normScaleW:ufract - invW:ufract.wwwwWWWW;
+    invW = invWRaw + invWRaw;      // 2*y0 (lanes w/W)
+    invW *= nrD:ufract.zzzzZZZZ;   // -> 0.5/w
+    undef nrD;
 
-      posClip *= screenSize.wwwwWWWW; // (contains inverse W)
+    store(invW.w, ptrBuffA, VTX_ATTR_INVWi);
+    store(invW.W, ptrBuffB, VTX_ATTR_INVWi);
 
-      fog:sint *= fogScaleOffset:sint.w;
-
-      posClip *= screenSize;
-
-      VTEMP:sint = fogScaleOffset - fog:sint.zzzzZZZZ;
-  }
-
-    fogB = ptrBuffB + fogStoreOffset;
-
-    // save fog here, to make this branch-less, fogStoreOffset contains the offset to save it to.
-    // if enabled this points to alpha of VTX_ATTR_RGBA, otherwise to UVs which get overwritten later
+    // perspective division
+    invW = posClip * invW.wwwwWWWW;
+    
+    orgPosClip = load(ptrScreenScale).xyzwxyzw;
+    posClip = invW * orgPosClip;
     posClip:sint = screenOffset:sint +* 1;
 
-    VTEMP <<= 1;
-    @Barrier("color-fog") store(VTEMP:sint.z, fogA);
-    @Barrier("color-fog") store(VTEMP:sint.Z, fogB);
+    undef invW;
 
-    vec16 uv = load(prt3d, 0x18).xyzw;
+    @Barrier("color-fog-a") store_vec_u8(color.x, ptrBuffA, VTX_ATTR_RGBA);
+    @Barrier("color-fog-b") store_vec_u8(color.X, ptrBuffB, VTX_ATTR_RGBA);
 
-    @Barrier("pos-cc") store(posClip:sint.xyzw, ptrBuffA, VTX_ATTR_XY);
-    @Barrier("pos-cc") store(posClip:sint.XYZW, ptrBuffB, VTX_ATTR_XY);
+    @Barrier("color-fog-a") store_byte_lo(fogV.w, fogA);
+    @Barrier("color-fog-b") store_byte_lo(fogV.W, fogA, TRI_SIZE);
+    undef fogV;
 
-    // pack the first clip-code to get rid of one save + have more SUs
-    @Barrier("pos-cc") store(clipCodeA:u8, ptrBuffA, VTX_ATTR_CLIPFLAGS);
-    @Barrier("pos-cc") store(rejCodesA:u8, ptrBuffA, VTX_ATTR_REJFLAGS);
+    vec16<$v03> uv = load(prt3d, 0x18).xyzw;
 
-    @Barrier("pos-cc") store(clipCodeB:u8, ptrBuffB, VTX_ATTR_CLIPFLAGS);
-    @Barrier("pos-cc") store(rejCodesB:u8, ptrBuffB, VTX_ATTR_REJFLAGS);
+    //@Barrier("pos-cc") store(posClip:sint.xyzw, ptrBuffA, VTX_ATTR_XY);
+    //@Barrier("pos-cc") store(posClip:sint.XYZW, ptrBuffB, VTX_ATTR_XY);
+    store(posClip:sint.xy, ptrBuffA, VTX_ATTR_XY);
+    store(posClip:sint.z, ptrBuffA, VTX_ATTR_Z);
+
+    store(posClip:sint.XY, ptrBuffB, VTX_ATTR_XY);
+    store(posClip:sint.Z, ptrBuffB, VTX_ATTR_Z);
+
+    store(clipCodeA:u8, ptrBuffA, VTX_ATTR_CLIPFLAGS);
+    store(rejCodesA:u8, ptrBuffA, VTX_ATTR_REJFLAGS);
+
+    store(clipCodeB:u8, ptrBuffB, VTX_ATTR_CLIPFLAGS);
+    store(rejCodesB:u8, ptrBuffB, VTX_ATTR_REJFLAGS);
 
     uv += uvGenArgs;
 
     pos = load(prt3d, 0x20); // load next pos
-    vec16 oldNorm = norm;
+    vec16<$v11> oldNorm = norm;
     norm = normMask & pos.wwwwWWWW;
     norm *= normShift;
 
@@ -545,7 +580,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
 @NoRegAlloc
 function pointLight(
-  u16<$s3> ptrLight,
+  u16<$s3> ptrLight, u8<$s2> ptrLightEnd,
   vec32<$v27> vertPos, vec32<$v25> mat1, vec32<$v23> ptPos, vec32<$v21> lightVertDot,
   vec16<$v08> pos, vec16<$v07> norm,
   vec16<$v01> lightRes, vec16<$v04> color,
@@ -560,7 +595,7 @@ function pointLight(
 
     mulMat4Vec3(vertPos, mat1, ptPos, lightVertDot, pos, vertPos);
     vertPos >>= 4;
-    mvMatrixLoaded = 1;
+    mvMatrixLoaded = ptrLightEnd;
   }
 
   lightSize &= 0x7FFF; // MSB is "use-normal" flag
@@ -624,26 +659,28 @@ function loadCurrentMVPMat(vec32<$v27> mat0, vec32<$v25> mat1, vec32<$v23> mat2,
  * @param screenScale screen-size * 2
  * @param depthAndWScale fractional 16bit scales to normalize W and depth
  */
-command<1> T3DCmd_SetScreenSize(s8 guardBandFactor, u32 screenOffsetXY, u32 screenScaleXY, u32 depthAndWScale)
+command<1> T3DCmd_SetScreenSize(
+  s8 guardBandFactor, u32 screenOffsetXY, u32 screenScaleXY, u32 depthAndWScale,
+  u32<$t4> screenScaleXYFrac, u32<$t5> depthScaleFrac
+)
 {
-  store(depthAndWScale:u32, SCREEN_SCALE_OFFSET, 0x04); // (writes garbage into W, saves a shift)
-  store(screenScaleXY, SCREEN_SCALE_OFFSET, 0x00);
-  store(screenOffsetXY, SCREEN_SCALE_OFFSET, 0x08);
+  // scale is s16.16 (SCREEN_SCALE layout: int x,y,z,w | fract x,y,z,w)
+  // Only the z lane is written here: the w lanes of SCREEN_SCALE / SCREEN_OFFSET hold the fog
+  // slope/offset (t3d_fog_set_range) and must survive viewport changes.
+  u32 zScaleInt = depthAndWScale >> 16;
+  store(zScaleInt:u16, SCREEN_SCALE, 0x04);      // z int scale
+  store(screenScaleXY, SCREEN_SCALE, 0x00);      // x/y int scale
+  store(screenOffsetXY, SCREEN_OFFSET, 0x00);
+  store(screenScaleXYFrac, SCREEN_SCALE, 0x08);
+  u32 zScaleFrac = depthScaleFrac >> 16;
+  store(zScaleFrac:u16, SCREEN_SCALE, 0x0C);     // z fract scale
 
   store(depthAndWScale:s16, NORM_SCALE_W, 6);
 
   u16 uvgenScaleFactor = guardBandFactor >> 8;
   store(uvgenScaleFactor, SCREEN_UVGEN_SCALE);
 
-  // guard-band multiplier (W value of the clipping plane, integer)
-  guardBandFactor &= 0xF;
-  s8 guardBandFactorNeg = ZERO - guardBandFactor;
 
-  store(guardBandFactor,    CLIPPING_PLANES, 3); // +X Plane
-  store(guardBandFactor,    CLIPPING_PLANES, 7); // +Y Plane
-  //store(guardBandFactor,    CLIPPING_PLANES, 11); // +Z Plane
-  store(guardBandFactorNeg, CLIPPING_PLANES, 15); // -X Plane
-  store(guardBandFactorNeg, CLIPPING_PLANES, 19); // -Y Plane
 }
 
 /**

@@ -29,7 +29,7 @@ SceneMain::SceneMain()
 
   camera.fov = T3D_DEG_TO_RAD(80.0f);
   camera.near = 5.0f;
-  camera.far = 295.0f;
+  camera.far = 600.0f;
 
   //camera.pos = {0.0, -40.0, -400.0};
   camera.pos = {0, 0, 10};

@@ -532,11 +532,12 @@ void t3d_light_set_exposure(float exposure);
 
 /**
  * Sets the range of the fog.
+ * Linear ramp from near to far in world-space.
  * To disable fog, use 't3d_fog_disable' or set 'near' and 'far' to 0.
  * Note: in order for fog itself to work, make sure to setup the needed RSPQ commands.
  *
- * @param near start of the fog effect
- * @param far end of the fog effect
+ * @param near distance where the fog starts
+ * @param far distance where the fog reaches the fog color
  */
 void t3d_fog_set_range(float near, float far);
 
