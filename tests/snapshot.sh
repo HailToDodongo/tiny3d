@@ -41,7 +41,7 @@ declare -A TESTS=(
   [13_cel_shading]="t3d_13_cel_shading.z64 10"
   [14_outline]="t3d_14_outline.z64 10"
   [15_pointlight]="t3d_15_pointlight.z64 10 win=2"
-  [16_light_clip]="t3d_16_light_clip.z64 10"
+  [16_light_clip]="t3d_16_light_clip.z64 12"
   [17_culling]="t3d_17_culling.z64 10 crop=0,24,640,176"
   [18_particles]="t3d_18_particles.z64 10"
   [19_particles_tex]="t3d_19_particles_tex.z64 10"
