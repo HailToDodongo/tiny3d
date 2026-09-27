@@ -70,7 +70,7 @@ void t3d_init(T3DInitParams params)
   *stackPtr = (uint32_t)UncachedAddr(matrixStack);
 
   uint16_t *uvGenFunc = (uint16_t*)((char*)state + ((RSP_T3D_VERTEX_FX_FUNC - RSP_T3D_STATE_MEM_START) & 0xFFFF));
-  *uvGenFunc = RSP_T3D_CODE_VertexFX_None & 0xFFF;
+  *uvGenFunc = RSP_T3D_CODE_LOOP_TRAIL & 0xFFF;
 
   clipCodeAddrOrg = (uint32_t)PhysicalAddr(rsp_tiny3d.code + (RSP_T3D_CODE_CLIPPING_CODE_TARGET & 0xFFF));
 
@@ -377,7 +377,7 @@ void t3d_state_set_alpha_to_tile(bool enable) {
 
 void t3d_state_set_vertex_fx(enum T3DVertexFX func, int16_t arg0, int16_t arg1)
 {
-  uint16_t rspFunc = RSP_T3D_CODE_VertexFX_None & 0xFFF;
+  uint16_t rspFunc = RSP_T3D_CODE_LOOP_TRAIL & 0xFFF;
   switch (func) {
     case T3D_VERTEX_FX_NONE:
       arg0 = 0;

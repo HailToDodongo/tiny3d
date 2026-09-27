@@ -393,11 +393,18 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
   vec32<$v05> posClip;
   vec16<$v04> color;
+  vec16<$v03> uv;
 
-  // Process all vertices and apply transformation & lighting.
-  // This always handles 2 vertices at once, most sitting in one register.
+  goto LOOP_START;
+
+  // end of loop, pulled up here to save a cycle with vertex-effects
+  LOOP_TRAIL:
+    store(uv.xy, ptrBuffA, VTX_ATTR_ST);
+    store(uv.zw, ptrBuffB, VTX_ATTR_ST);
+    if(prt3d == ptr3dEnd)goto RSPQ_Loop;
+
+  LOOP_START:
   {
-    LOOP_START:
     // asm("emux_trace_start");
 
     // loads 1.0 to force full light by default (aka unlit)
@@ -520,10 +527,9 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
 
     // d = 1 - t, computed as 0xFFFF - t (normScaleW lane z = 0xFFFF, x/y hold 1/guard-band)
     // also avoids the later W=1 special case in the triangle code
-    vec16 nrD = normScaleW:ufract - invW:ufract.wwwwWWWW;
+    VTEMP = normScaleW:ufract - invW:ufract.wwwwWWWW;
     invW = invWRaw + invWRaw;      // 2*y0 (lanes w/W)
-    invW *= nrD:ufract.zzzzZZZZ;   // -> 0.5/w
-    undef nrD;
+    invW *= VTEMP:ufract.zzzzZZZZ;   // -> 0.5/w
 
     store(invW.w, ptrBuffA, VTX_ATTR_INVWi);
     store(invW.W, ptrBuffB, VTX_ATTR_INVWi);
@@ -544,7 +550,7 @@ command<4> T3DCmd_VertLoad(u32 bufferSize, u32 rdramVerts, u32 addressInOut)
     @Barrier("color-fog-b") store_byte_lo(fogV.W, fogA, TRI_SIZE);
     undef fogV;
 
-    vec16<$v03> uv = load(prt3d, 0x18).xyzw;
+    uv = load(prt3d, 0x18).xyzw;
 
     //@Barrier("pos-cc") store(posClip:sint.xyzw, ptrBuffA, VTX_ATTR_XY);
     //@Barrier("pos-cc") store(posClip:sint.XYZW, ptrBuffB, VTX_ATTR_XY);

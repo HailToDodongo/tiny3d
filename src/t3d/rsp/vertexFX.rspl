@@ -4,17 +4,6 @@ macro VertexFX_End() {
   goto LOOP_START;
 }
 
-function VertexFX_None(
-  u32<$s4> prt3d, u32<$s7> ptr3dEnd, vec16<$v03> uv,
-  u32<$s6> ptrBuffA, u32<$s5> ptrBuffB
-) {
-  store(uv.xy, ptrBuffA, VTX_ATTR_ST);
-  store(uv.zw, ptrBuffB, VTX_ATTR_ST);
-
-  // to avoid a double-jump, check the loop-end here directly
-  VertexFX_End();
-}
-
 function VertexFX_Spherical(
   u32<$s4> prt3d, u32<$s7> ptr3dEnd,
   vec16<$v04> uvOffsetFactor, vec16<$v05> posClipInt, vec16<$v12> screenOffset,
