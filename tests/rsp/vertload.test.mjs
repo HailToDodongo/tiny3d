@@ -1,7 +1,7 @@
 // Unit tests for T3DCmd_VertLoad (vertex transform loop in rsp_tiny3d.rspl)
 import {test, before, beforeEach} from 'node:test';
 import assert from 'node:assert/strict';
-import {Ucode, TRI_SIZE, writePackedVertexPair, writeMatrixFP, setViewport, readScreenVertex} from './harness.mjs';
+import {Ucode, TRI_SIZE, writePackedVertexPair, writeMatrixFP, setViewport, readScreenVertex, vertLoadInputDest} from './harness.mjs';
 
 const RDRAM_VERTS = 0x00100000;
 const W = 320, H = 240;
@@ -17,8 +17,7 @@ beforeEach(() => { u.reset(); });
 function vertLoad(pairs) {
   const inputSize = pairs.length * 32;
   pairs.forEach((p, i) => writePackedVertexPair(u, RDRAM_VERTS + i * 32, p[0], p[1]));
-  const tmpBufferEnd = (u.sym.TEMP_STATE_MEM_END & ~0xF) - 32;
-  const offsetDest = (tmpBufferEnd - inputSize) & ~0xF;
+  const offsetDest = vertLoadInputDest(u, inputSize);
   const offsetInput = u.sym.VERT_BUFFER;
   const res = u.command('T3DCmd_VertLoad', [inputSize, RDRAM_VERTS, (offsetDest << 16) | offsetInput]);
   assert.equal(res.pc, u.sym.RSPQ_Loop, 'command did not return to the rspq loop');

@@ -57,8 +57,8 @@ export class Ucode {
     rsp.setVPR('$v30', [128, 64, 32, 16, 8, 4, 2, 1]);
     rsp.setVPR('$v31', [0x8000, 0x4000, 0x2000, 0x1000, 0x800, 0x400, 0x200, 0x100]);
     // CPU-side init (t3d_init): vertex FX function
-    if (this.sym.VERTEX_FX_FUNC !== undefined && this.sym.VertexFX_None !== undefined) {
-      this.w16(this.sym.VERTEX_FX_FUNC, this.sym.VertexFX_None & 0xFFF);
+    if (this.sym.VERTEX_FX_FUNC !== undefined && this.sym.LOOP_TRAIL !== undefined) {
+      this.w16(this.sym.VERTEX_FX_FUNC, this.sym.LOOP_TRAIL & 0xFFF);
     }
   }
 
@@ -324,4 +324,14 @@ export function checkGolden(name, actual) {
   for (let i = 0; i < expected.length; i++) {
     assert.deepEqual(actual[i], expected[i], `golden '${name}' case '${expected[i].name}' differs`);
   }
+}
+
+/**
+ * DMEM address the vertex input is DMA'd to, same math as t3d_vert_load():
+ * end of the temp state, 16-byte aligned, minus the temp data the ucode keeps after the input.
+ */
+export const VERT_LOAD_TEMP_PADDING = 48;
+export function vertLoadInputDest(u, inputSize) {
+  const tmpBufferEnd = (u.sym.TEMP_STATE_MEM_END & ~0xF) - VERT_LOAD_TEMP_PADDING;
+  return (tmpBufferEnd - inputSize) & ~0xF;
 }

@@ -3,7 +3,7 @@
 // (or consciously re-record with UPDATE_GOLDEN=1 and explain the diff in the commit).
 import {test, before} from 'node:test';
 import assert from 'node:assert/strict';
-import {Ucode, TRI_SIZE, writeScreenVertex, writePackedVertexPair, writeMatrixFP, setViewport, checkGolden, hex} from './harness.mjs';
+import {Ucode, TRI_SIZE, writeScreenVertex, writePackedVertexPair, writeMatrixFP, setViewport, checkGolden, hex, vertLoadInputDest} from './harness.mjs';
 
 let u;
 before(async () => { u = await Ucode.load(); });
@@ -104,7 +104,7 @@ test('vertex loop golden bytes', () => {
     const RD = 0x00100000, VB = u.sym.VERT_BUFFER;
     c.pairs.forEach((pr, i) => writePackedVertexPair(u, RD + i * 32, pr[0], pr[1]));
     const inputSize = c.pairs.length * 32;
-    const dest = (((u.sym.TEMP_STATE_MEM_END & ~0xF) - 32) - inputSize) & ~0xF;
+    const dest = vertLoadInputDest(u, inputSize);
     for (let i = 0; i < c.pairs.length * 2 * TRI_SIZE; i++) u.w8(VB + i, 0xEE);
     const res = u.command('T3DCmd_VertLoad', [inputSize, RD, (dest << 16) | VB]);
     results.push({
