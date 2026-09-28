@@ -1,6 +1,6 @@
 # Breaking changes
 
-## Precision fix (2026-09-28)
+## Precision fix (2026-09-28, [e14ff480e6ab15b723373754d1edd95af22cc9f5](https://github.com/HailToDodongo/tiny3d/commit/e14ff480e6ab15b723373754d1edd95af22cc9f5))
 
 This change increased depth precision, and by extension UV and position too by a bit.
 However some existing bugs had to be fixed that caused a mismatch of units:
