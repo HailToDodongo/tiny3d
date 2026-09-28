@@ -1,6 +1,6 @@
 # Breaking changes
 
-## Precision fix (@TODO add date / commit)
+## Precision fix (2026-09-28)
 
 This change increased depth precision, and by extension UV and position too by a bit.
 However some existing bugs had to be fixed that caused a mismatch of units:
