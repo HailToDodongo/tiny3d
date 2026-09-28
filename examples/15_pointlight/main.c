@@ -196,7 +196,7 @@ int main()
         3.0f, 250.0f
       );
     } else {
-      t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(65.0f), 3.0f, 220.0f);
+      t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(65.0f), 10.0f, 400.0f);
     }
 
     t3d_viewport_look_at(&viewport, &camPos, &camTargetCurr, &(fm_vec3_t){{0,1,0}});

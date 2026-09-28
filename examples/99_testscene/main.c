@@ -31,14 +31,9 @@ int main()
   //rdpq_debug_start();
   //rdpq_debug_log(true);
 
-  bool testClip = false;
-
   joypad_init();
   t3d_init((T3DInitParams){});
   T3DViewport viewport = t3d_viewport_create_buffered(FB_COUNT);
-  if(testClip) {
-    viewport.guardBandScale = 1;
-  }
 
   t3d_debug_print_init();
   sprite_t *spriteLogo = sprite_load("rom:/logo.ia8.sprite");
@@ -49,8 +44,7 @@ int main()
   // Now allocate a fixed-point matrix, this is what t3d uses internally.
   T3DMat4FP* modelMatFP = malloc_uncached(sizeof(T3DMat4FP));
 
-  fm_vec3_t camPos = {{2.9232f, 67.6248f, 61.1093f}};
-  if(testClip)camPos = (fm_vec3_t){{2.9232f, 37.6248f, 31.1093f}};
+  fm_vec3_t camPos = {{2.9232f, 67.6248f, 61.1093f}};  
   fm_vec3_t camTarget = {{0,0,0}};
   fm_vec3_t camDir = {{0,0,1}};
 
@@ -94,6 +88,12 @@ int main()
     time += deltaTime;
 
     vertFxTime = fmaxf(vertFxTime - deltaTime, 0.0f);
+
+    if(btn.r) {
+      viewport.guardBandScale = 1;
+      camPos.v[1] -= 40;
+      camPos.v[2] -= 52;
+    }
 
     {
       float camSpeed = deltaTime * 0.001f;
@@ -181,7 +181,7 @@ int main()
     fm_mat4_scale(&modelMat, &(fm_vec3_t){{modelScale, modelScale, modelScale}});
     t3d_mat4_to_fixed(modelMatFP, &modelMat);
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 2.0f, 150.0f);
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 2.0f, 300.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // ----------- DRAW ------------ //
@@ -197,7 +197,7 @@ int main()
     t3d_screen_clear_color(RGBA32(0, 0, 0, 0xFF));
     t3d_screen_clear_depth();
 
-    t3d_fog_set_range(17.0f, 100.0f);
+    t3d_fog_set_range(22.0f, 200.0f);
     t3d_fog_set_enabled(true);
 
     t3d_light_set_ambient(colorAmbient); // one global ambient light, always active

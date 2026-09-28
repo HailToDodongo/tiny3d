@@ -160,7 +160,7 @@ int main()
     camPos.v[1] = camTarget.v[1] + 45;
     camPos.v[2] = camTarget.v[2] + 65;
 
-    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 150.0f);
+    t3d_viewport_set_projection(&viewport, T3D_DEG_TO_RAD(85.0f), 10.0f, 300.0f);
     t3d_viewport_look_at(&viewport, &camPos, &camTarget, &(fm_vec3_t){{0,1,0}});
 
     // Update the animation and modify the skeleton, this will however NOT recalculate the matrices

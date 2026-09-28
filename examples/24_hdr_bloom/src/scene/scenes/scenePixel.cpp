@@ -28,7 +28,7 @@ ScenePixel::ScenePixel()
 {
   camera.fov = T3D_DEG_TO_RAD(70.0f);
   camera.near = 1.0f;
-  camera.far = 100.0f;
+  camera.far = 200.0f;
   camera.pos = {-50.0, 50.0, 50.0};
   camera.target = {0,0,0};
 

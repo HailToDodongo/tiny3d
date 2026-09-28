@@ -44,9 +44,11 @@ state
   alignas(8) vec16 MATRIX_PROJ[4];   // projection matrix
   alignas(8) vec16 MATRIX_MVP[4];    // view * model * projection
 
-  vec16 SCREEN_SCALE_OFFSET = {
-    0, 0, 0,           0, // screen size scale (.xyzw)
-    0, 0, 0x3FFF, 0x00FF  // screen size offset (.XYZW), W is used for a fake clipping-code in 'triToScreenSpace'
+  // s16.16 screen-size scale + offset, DMA'd as one 24-byte block from the t3d state
+  // (must stay adjacent and 8-aligned, layout mirrors rsp_tiny3d.rspl)
+  alignas(8) s16 SCREEN_SCALE[8] = {0};
+  s16 SCREEN_OFFSET[4] = {
+    0, 0, 0x3FFF, 0x00FF
   };
 
   alignas(8) s16 NORM_SCALE_W[4] = {
@@ -91,7 +93,7 @@ command<0> TPXCmd_SyncT3D(u32 rdramMatrix, u32 rdramScreen, u16 wNorm)
 
   // get screen-size, this must happen after the matrix load
   // since the MV matrix will spill into the screen-size offset
-  dma_in(SCREEN_SCALE_OFFSET, rdramScreen);
+  dma_in(SCREEN_SCALE, rdramScreen, 24); // SCREEN_SCALE + SCREEN_OFFSET
 }
 
 command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
@@ -126,11 +128,9 @@ command<1> TPXCmd_DrawColor(s16 dataSize, s32 rdramAddr)
   vec32 mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
   vec32 mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
 
-  vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
-  screenSize:sfract = 0;
-  screenSize >>= 8;
+  vec32 screenSize = load(SCREEN_SCALE).xyzwxyzw; // s16.16
 
-  vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
+  vec16 screenOffset = load(SCREEN_OFFSET).xyzwxyzw;
   vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
 
   vec16 screenMin, screenMax;
@@ -223,11 +223,9 @@ command<4> TPXCmd_DrawTextured(s16 dataSize, s32 rdramAddr)
   vec32 mat2 = load(MATRIX_MVP, 0x20).xyzwxyzw;
   vec32 mat3 = load(MATRIX_MVP, 0x30).xyzwxyzw;
 
-  vec32 screenSize:sint = load(SCREEN_SCALE_OFFSET).xyzwxyzw;
-  screenSize:sfract = 0;
-  screenSize >>= 8;
+  vec32 screenSize = load(SCREEN_SCALE).xyzwxyzw; // s16.16
 
-  vec16 screenOffset = load(SCREEN_SCALE_OFFSET, 0x08).xyzwxyzw;
+  vec16 screenOffset = load(SCREEN_OFFSET).xyzwxyzw;
   vec16 normScaleW = load(NORM_SCALE_W).xyzwxyzw;
 
   vec16 screenMin, screenMax;

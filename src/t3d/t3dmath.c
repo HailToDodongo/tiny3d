@@ -150,7 +150,7 @@ void t3d_mat4_perspective(T3DMat4 *mat, float fov, float aspect, float near, flo
   *mat = (T3DMat4){0};
   mat->m[0][0] = 1.0f / (aspect * tanHalfFov);
   mat->m[1][1] = 1.0f / tanHalfFov;
-  mat->m[2][2] = far / (near - far);
+  mat->m[2][2] = (far + near) / (near - far);
   mat->m[2][3] = -1.0f;
   mat->m[3][2] = -2.0f * (far * near) / (far - near);
 }

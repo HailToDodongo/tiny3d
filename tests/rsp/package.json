@@ -1,0 +1,11 @@
+{
+  "name": "tiny3d-rsp-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "rsp-wasm": "^1.1.0"
+  }
+}
