@@ -16,6 +16,10 @@ extern "C"
 
 #define T3D_VERTEX_CACHE_SIZE 70
 
+#define T3D_LIB_VER_MAJOR 1
+#define T3D_LIB_VER_MINOR 0
+#define T3D_LIB_VER_PATCH 0
+
 extern uint32_t T3D_RSP_ID;
 
 // RSP commands, must match with the commands defined in `rsp/rsp_tiny3d.rspl`
