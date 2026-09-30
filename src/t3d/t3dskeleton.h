@@ -19,7 +19,7 @@ extern "C"
  * if 'hasChanged' is set to true.
  */
 typedef struct {
-  T3DMat4 matrix;
+  T3DMat4x3 matrix;
   T3DVec3 scale;
   T3DQuat rotation;
   T3DVec3 position;

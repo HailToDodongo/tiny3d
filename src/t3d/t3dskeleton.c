@@ -4,6 +4,78 @@
 */
 #include "t3dskeleton.h"
 
+// Same as 't3d_mat4_from_srt', but for a 4x3 matrix
+static void mat4x3_from_srt(T3DMat4x3 *mat, const float scale[3], const float quat[4], const float translate[3])
+{
+  // read all inputs first, since 'mat' could alias them
+  float scaleX = scale[0];
+  float scaleY = scale[1];
+  float scaleZ = scale[2];
+  float posX = translate[0];
+  float posY = translate[1];
+  float posZ = translate[2];
+
+  float qxx = quat[0] * quat[0];
+  float qyy = quat[1] * quat[1];
+  float qzz = quat[2] * quat[2];
+  float qxz = quat[0] * quat[2];
+  float qxy = quat[0] * quat[1];
+  float qyz = quat[1] * quat[2];
+  float qwx = quat[3] * quat[0];
+  float qwy = quat[3] * quat[1];
+  float qwz = quat[3] * quat[2];
+
+  *mat = (T3DMat4x3){{
+    {(1.0f - 2.0f * (qyy + qzz)) * scaleX, (2.0f * (qxy + qwz)) * scaleX,        (2.0f * (qxz - qwy)) * scaleX},
+    {(2.0f * (qxy - qwz)) * scaleY,        (1.0f - 2.0f * (qxx + qzz)) * scaleY, (2.0f * (qyz + qwx)) * scaleY},
+    {(2.0f * (qxz + qwy)) * scaleZ,        (2.0f * (qyz - qwx)) * scaleZ,        (1.0f - 2.0f * (qxx + qyy)) * scaleZ},
+    {posX,                                 posY,                                 posZ}
+  }};
+}
+
+// Same as 't3d_mat4_mul', but for affine 4x3 matrices (the implicit {0,0,0,1} terms are skipped)
+static void mat4x3_mul(T3DMat4x3 *matRes, const T3DMat4x3 *matA, const T3DMat4x3 *matB)
+{
+  for(uint32_t i=0; i<3; i++) {
+    for(uint32_t j=0; j<3; j++) {
+      matRes->m[j][i] = matA->m[0][i] * matB->m[j][0] +
+                        matA->m[1][i] * matB->m[j][1] +
+                        matA->m[2][i] * matB->m[j][2];
+    }
+    matRes->m[3][i] = matA->m[0][i] * matB->m[3][0] +
+                      matA->m[1][i] * matB->m[3][1] +
+                      matA->m[2][i] * matB->m[3][2] +
+                      matA->m[3][i];
+  }
+}
+
+// Same as 't3d_mat4_to_fixed_3x4', but from a 4x3 matrix
+static void mat4x3_to_fixed(T3DMat4FP *matOut, const T3DMat4x3 *matIn) {
+  for(uint32_t y=0; y<4; ++y) {
+    uint32_t fixed0 = T3D_F32_TO_FIXED(matIn->m[y][0]);
+    uint32_t fixed1 = T3D_F32_TO_FIXED(matIn->m[y][1]);
+    uint32_t fixed2 = T3D_F32_TO_FIXED(matIn->m[y][2]);
+
+    // prepare 64bit values, this creates less writes to memory later
+    uint64_t I = (fixed0 & 0xFFFF0000) | (fixed1 >> 16);
+    I <<= 32; // needs to be separate, otherwise -Os generates wrong code
+    I |= (fixed2 & 0xFFFF0000);
+
+    // puts a '1' into the last value of the matrix
+    I |= (y+1) >> 2;
+
+    uint64_t F = (fixed0 << 16) | (fixed1 & 0xFFFF);
+    F <<= 32; // needs to be separate, otherwise -Os generates wrong code
+    F |= (fixed2 << 16);
+
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wstrict-aliasing"
+      *(uint64_t*)matOut->m[y].i = I; // guaranteed to be 64-bit aligned
+      *(uint64_t*)matOut->m[y].f = F;
+    #pragma GCC diagnostic pop
+  }
+}
+
 T3DSkeleton t3d_skeleton_create_buffered(const T3DModel *model, int bufferCount) {
   const T3DChunkSkeleton *skelRef = t3d_model_get_skeleton(model);
   assert(skelRef != NULL);
@@ -65,7 +137,7 @@ void t3d_skeleton_update(T3DSkeleton *skeleton)
   uint32_t forceUpdate = 0;
 
   T3DMat4FP* matStackFP = nullptr;
-  T3DMat4 tmp __attribute__((uninitialized));
+  T3DMat4x3 tmp __attribute__((uninitialized));
 
   for(int i = 0; i < skeleton->skeletonRef->boneCount; i++)
   {
@@ -94,13 +166,13 @@ void t3d_skeleton_update(T3DSkeleton *skeleton)
       }
 
       if(boneDef->parentIdx != 0xFFFF) {
-        t3d_mat4_from_srt(&tmp, bone->scale.v, bone->rotation.v, bone->position.v);
-        t3d_mat4_mul(&bone->matrix, &skeleton->bones[boneDef->parentIdx].matrix, &tmp);
+        mat4x3_from_srt(&tmp, bone->scale.v, bone->rotation.v, bone->position.v);
+        mat4x3_mul(&bone->matrix, &skeleton->bones[boneDef->parentIdx].matrix, &tmp);
       } else {
-        t3d_mat4_from_srt(&bone->matrix, bone->scale.v, bone->rotation.v, bone->position.v);
+        mat4x3_from_srt(&bone->matrix, bone->scale.v, bone->rotation.v, bone->position.v);
       }
 
-      t3d_mat4_to_fixed_3x4(&matStackFP[i], &bone->matrix);
+      mat4x3_to_fixed(&matStackFP[i], &bone->matrix);
 
       // if a bone has changed, we need to force updating it until it reached all buffers.
       // otherwise once the updating stops, and we cycle through buffers still, it would flicker.

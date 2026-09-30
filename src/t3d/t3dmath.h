@@ -23,6 +23,12 @@ typedef fm_vec4_t T3DVec4;
 typedef fm_quat_t T3DQuat;
 typedef fm_mat4_t T3DMat4;
 
+// Affine 4x3 float matrix (same layout as T3DMat4, without the last value of each 'm[i]').
+// The missing values are implicitly {0,0,0,1}.
+typedef struct {
+  float m[4][3];
+} T3DMat4x3;
+
 // 3D s16.16 fixed-point vector, used as-is by the RSP.
 typedef struct {
   int16_t i[4];
