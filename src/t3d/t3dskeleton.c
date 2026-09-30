@@ -3,6 +3,9 @@
 * @license MIT
 */
 #include "t3dskeleton.h"
+#include <malloc.h>
+
+static_assert(sizeof(T3DBone) == 96, "T3DBone should be exactly 6 cache-lines");
 
 // Same as 't3d_mat4_from_srt', but for a 4x3 matrix
 static void mat4x3_from_srt(T3DMat4x3 *mat, const float scale[3], const float quat[4], const float translate[3])
@@ -81,7 +84,7 @@ T3DSkeleton t3d_skeleton_create_buffered(const T3DModel *model, int bufferCount)
   assert(skelRef != NULL);
 
   T3DSkeleton skel = (T3DSkeleton){
-    .bones = malloc(sizeof(T3DBone) * skelRef->boneCount),
+    .bones = memalign(16, sizeof(T3DBone) * skelRef->boneCount),
     .boneMatricesFP = malloc_uncached(sizeof(T3DMat4FP) * skelRef->boneCount * bufferCount),
     .skeletonRef = skelRef,
     .bufferCount = bufferCount,
@@ -94,7 +97,7 @@ T3DSkeleton t3d_skeleton_create_buffered(const T3DModel *model, int bufferCount)
 
 T3DSkeleton t3d_skeleton_clone(const T3DSkeleton *skel, bool useMatrices) {
   T3DSkeleton result = {
-    .bones = malloc(sizeof(T3DBone) * skel->skeletonRef->boneCount),
+    .bones = memalign(16, sizeof(T3DBone) * skel->skeletonRef->boneCount),
     .boneMatricesFP = NULL,
     .skeletonRef = skel->skeletonRef,
   };
@@ -115,6 +118,8 @@ void t3d_skeleton_reset(T3DSkeleton *skeleton) {
       sizeof(T3DVec3) + sizeof(T3DQuat) + sizeof(T3DVec3) // copy all 3 vectors (SRT) at once
     );
     skeleton->bones[i].hasChanged = true;
+    skeleton->bones[i].parentIdx = boneDef->parentIdx;
+    skeleton->bones[i].depth = boneDef->depth;
   }
 }
 
@@ -142,9 +147,8 @@ void t3d_skeleton_update(T3DSkeleton *skeleton)
   for(int i = 0; i < skeleton->skeletonRef->boneCount; i++)
   {
     T3DBone *bone = &skeleton->bones[i];
-    const T3DChunkBone *boneDef = &skeleton->skeletonRef->bones[i];
 
-    if(forceUpdate && boneDef->depth <= updateLevel) {
+    if(forceUpdate && bone->depth <= updateLevel) {
       forceUpdate = false;
       updateLevel = -1;
     }
@@ -154,7 +158,7 @@ void t3d_skeleton_update(T3DSkeleton *skeleton)
     {
       // if a bone changed we need to also update any children.
       // To do so, update all following bones until we hit one that has the same depth as the changed bone.
-      if(!forceUpdate)updateLevel = boneDef->depth;
+      if(!forceUpdate)updateLevel = bone->depth;
       forceUpdate = 1;
       
       // only cycle through matrices if at least one bone changes.
@@ -165,9 +169,9 @@ void t3d_skeleton_update(T3DSkeleton *skeleton)
         matStackFP = &skeleton->boneMatricesFP[skeleton->skeletonRef->boneCount * skeleton->currentBufferIdx];
       }
 
-      if(boneDef->parentIdx != 0xFFFF) {
+      if(bone->parentIdx != 0xFFFF) {
         mat4x3_from_srt(&tmp, bone->scale.v, bone->rotation.v, bone->position.v);
-        mat4x3_mul(&bone->matrix, &skeleton->bones[boneDef->parentIdx].matrix, &tmp);
+        mat4x3_mul(&bone->matrix, &skeleton->bones[bone->parentIdx].matrix, &tmp);
       } else {
         mat4x3_from_srt(&bone->matrix, bone->scale.v, bone->rotation.v, bone->position.v);
       }
