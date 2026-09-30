@@ -20,7 +20,7 @@
 
 typedef struct {
   T3DSkeleton skel;
-  T3DAnim *anim;
+  T3DAnim anim;
   float posX;
 } Instance;
 
@@ -76,7 +76,7 @@ int main()
   for(int i=0; i<INST_COUNT; ++i) {
     inst[i].skel = t3d_skeleton_create_buffered(model, FB_COUNT);
     inst[i].anim = t3d_anim_create(model, animNames[i]);
-    t3d_anim_attach(inst[i].anim, &inst[i].skel);
+    t3d_anim_attach(&inst[i].anim, &inst[i].skel);
     inst[i].posX = (i - (INST_COUNT-1) * 0.5f) * 30.0f;
   }
 
@@ -97,7 +97,7 @@ int main()
 
     uint32_t ticks = get_ticks();
     for(int i=0; i<INST_COUNT; ++i) {
-      t3d_anim_update(inst[i].anim, DELTA_TIME);
+      t3d_anim_update(&inst[i].anim, DELTA_TIME);
     }
     uint32_t ticksAnim = get_ticks() - ticks;
 

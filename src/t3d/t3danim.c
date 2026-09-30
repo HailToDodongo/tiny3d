@@ -9,10 +9,7 @@
 
 #define SQRT_2_INV 0.70710678118f
 #define KF_TIME_TICK (1.0f / 60.0f)
-#define BUFF_HALF_SIZE (T3D_ANIM_BUFFER_SIZE / 2)
 
-_Static_assert(T3D_ANIM_BUFFER_SIZE % 32 == 0 && T3D_ANIM_BUFFER_SIZE <= 0x8000, "invalid T3D_ANIM_BUFFER_SIZE");
-_Static_assert(offsetof(T3DAnim, buffer) == 0 && _Alignof(T3DAnim) >= 16, "T3DAnim buffer must be first and 16-byte aligned");
 _Static_assert(_Alignof(T3DAnimTargetQuat) >= 8, "T3DAnimTargetQuat must be 8-byte aligned");
 _Static_assert(offsetof(T3DAnimTargetQuat, kfCurr) % 8 == 0, "kfCurr must be 8-byte aligned");
 _Static_assert(offsetof(T3DAnimTargetQuat, kfNext) % 8 == 0, "kfNext must be 8-byte aligned");
@@ -31,10 +28,10 @@ typedef struct {
 static void stream_load(T3DAnim *anim, uint32_t half) {
   if(anim->loadOffset >= anim->streamSize)anim->loadOffset = 0; // prefetch the start again for looping
   uint32_t size = anim->streamSize - anim->loadOffset;
-  if(size > BUFF_HALF_SIZE)size = BUFF_HALF_SIZE;
+  if(size > anim->bufferHalfSize)size = anim->bufferHalfSize;
 
-  uint8_t *dst = anim->buffer + half * BUFF_HALF_SIZE;
-  data_cache_hit_invalidate(dst, BUFF_HALF_SIZE);
+  uint8_t *dst = anim->buffer + half * anim->bufferHalfSize;
+  data_cache_hit_invalidate(dst, anim->bufferHalfSize);
   anim->dmaTicket = dma_read_raw_async(dst, anim->romAddr + anim->loadOffset, size);
   anim->loadOffset += size;
 }
@@ -59,7 +56,7 @@ static void stream_reset(T3DAnim *anim) {
 }
 
 static void stream_rewind(T3DAnim *anim) {
-  const uint32_t halfSize = BUFF_HALF_SIZE;
+  const uint32_t halfSize = anim->bufferHalfSize;
   uint32_t halfStart = anim->readPos >= halfSize ? halfSize : 0;
   uint32_t halfOffset = anim->streamPos - (anim->readPos - halfStart); // file offset of the current half
   anim->streamPos = 0;
@@ -84,7 +81,7 @@ static inline bool stream_read_kf(T3DAnim *anim, T3DAnimKF *kf) {
   uint32_t size = anim->nextKfSize;
   if(anim->streamPos + size > anim->streamSize)return false;
 
-  const uint32_t halfSize = BUFF_HALF_SIZE;
+  const uint32_t halfSize = anim->bufferHalfSize;
   uint32_t pos = anim->readPos;
   uint32_t halfEnd = pos >= halfSize ? (halfSize * 2) : halfSize;
   const uint16_t *src = (const uint16_t*)(anim->buffer + pos);
@@ -111,9 +108,10 @@ static inline bool stream_read_kf(T3DAnim *anim, T3DAnimKF *kf) {
   return true;
 }
 
-T3DAnim* t3d_anim_create(const T3DModel *model, const char *name) {
+T3DAnim t3d_anim_create_buffered(const T3DModel *model, const char *name, uint32_t bufferSize) {
   T3DChunkAnim* animDef = t3d_model_get_animation(model, name);
   assertf(animDef, "Animation '%s' not found in model", name);
+  assertf(bufferSize >= 32 && (bufferSize % 32) == 0 && bufferSize <= 0x8000, "Invalid animation buffer size: %lu", bufferSize);
 
   const char *path = animDef->filePath;
   path += 5;
@@ -122,22 +120,23 @@ T3DAnim* t3d_anim_create(const T3DModel *model, const char *name) {
   assertf(romAddr != 0 && streamSize >= 0, "Animation data not found: %s", animDef->filePath);
   assertf((romAddr & 1) == 0 && (streamSize & 1) == 0, "Animation data not 2-byte aligned: %s", animDef->filePath);
 
-  // own allocation, so the buffer (first member) is cache-line aligned and never moves while DMAs are pending
-  T3DAnim *anim = memalign(16, sizeof(T3DAnim));
-
-  // no struct-literal here, that would also clear and copy the buffer
-  anim->animRef = animDef;
-  anim->targetsQuat = NULL;
-  anim->targetsScalar = NULL;
-  anim->speed = 1.0f;
-  anim->time = 0.0f;
-  anim->dmaTicket = 0;
-  anim->romAddr = romAddr;
-  anim->streamSize = streamSize;
-  anim->nextKfSize = sizeof(T3DAnimKF);
-  anim->isPlaying = 1;
-  anim->isLooping = 1;
-  stream_reset(anim);
+  T3DAnim anim = {
+    .animRef = animDef,
+    .targetsQuat = NULL,
+    .targetsScalar = NULL,
+    .speed = 1.0f,
+    .time = 0.0f,
+    .buffer = memalign(16, bufferSize), // own cache-lines, needed for the invalidate before each DMA
+    .dmaTicket = 0,
+    .romAddr = romAddr,
+    .streamSize = streamSize,
+    .bufferHalfSize = bufferSize / 2,
+    .nextKfSize = sizeof(T3DAnimKF),
+    .isPlaying = 1,
+    .isLooping = 1
+  };
+  // DMAs target the heap buffer, so returning the struct by value is fine
+  stream_reset(&anim);
   return anim;
 }
 
@@ -339,8 +338,13 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
 
 void t3d_anim_destroy(T3DAnim *anim) {
   if(anim->targetsQuat)free(anim->targetsQuat); // 'targetsScalar' is part of this memory-block
-  stream_wait(anim); // DMAs could still be writing into the buffer
-  free(anim);
+  if(anim->buffer) {
+    stream_wait(anim); // DMAs could still be writing into the buffer
+    free(anim->buffer);
+  }
+  anim->targetsQuat = NULL;
+  anim->targetsScalar = NULL;
+  anim->buffer = NULL;
 }
 
 void t3d_anim_set_time(T3DAnim *anim, float time) {

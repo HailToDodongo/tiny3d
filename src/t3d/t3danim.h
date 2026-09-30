@@ -39,12 +39,9 @@ typedef struct {
   float kfNext;
 } T3DAnimTargetScalar;
 
-#define T3D_ANIM_BUFFER_SIZE 512 // keyframe stream buffer, split into two halves
+#define T3D_ANIM_DEFAULT_BUFFER_SIZE 512 // default keyframe stream buffer size, split into two halves
 
 typedef struct {
-  // keyframe stream, DMA'd from ROM into two halves ([A|B]), kept first for alignment
-  uint8_t buffer[T3D_ANIM_BUFFER_SIZE] __attribute__((aligned(16)));
-
   T3DChunkAnim *animRef;
   T3DAnimTargetQuat *targetsQuat;
   T3DAnimTargetScalar *targetsScalar;
@@ -52,12 +49,15 @@ typedef struct {
   float speed;
   float time;
 
+  // keyframe stream, DMA'd from ROM into two halves ('buffer' = [A|B])
+  uint8_t *buffer;
   uint64_t dmaTicket; // last queued DMA, always targets the half not being read, 0 if none
   pi_addr_t romAddr;
   uint32_t streamSize;
   uint32_t loadOffset; // file offset of the next DMA
   uint32_t streamPos; // bytes read since the last rewind
   uint16_t readPos; // read position in 'buffer' (both halves)
+  uint16_t bufferHalfSize;
 
   uint8_t nextKfSize;
   uint8_t isPlaying;
@@ -66,13 +66,29 @@ typedef struct {
 
 /**
  * Creates an animation instance from a model's animation definition.
+ * Keyframes are streamed from ROM via DMA into a buffer of the given size.
+ * The buffer is split in two halves, while one is read the other one gets loaded in the background.
  * Free it with 't3d_anim_destroy'.
  *
  * @param model The model to create the animation from
  * @param name The name of the animation to create
- * @return The created animation, free with t3d_anim_destroy
+ * @param bufferSize size of the stream buffer in bytes, must be a multiple of 32
+ * @return The created animation
  */
-T3DAnim* t3d_anim_create(const T3DModel *model, const char* name);
+T3DAnim t3d_anim_create_buffered(const T3DModel *model, const char* name, uint32_t bufferSize);
+
+/**
+ * Creates an animation instance from a model's animation definition,
+ * using the default stream buffer size ('T3D_ANIM_DEFAULT_BUFFER_SIZE').
+ * Free it with 't3d_anim_destroy'.
+ *
+ * @param model The model to create the animation from
+ * @param name The name of the animation to create
+ * @return The created animation
+ */
+static inline T3DAnim t3d_anim_create(const T3DModel *model, const char* name) {
+  return t3d_anim_create_buffered(model, name, T3D_ANIM_DEFAULT_BUFFER_SIZE);
+}
 
 /**
  * Attaches an animation to a skeleton.
@@ -192,7 +208,7 @@ inline static void t3d_anim_set_looping(T3DAnim* anim, bool loop) {
 }
 
 /**
- * Frees the animation, including the instance itself.
+ * Frees data allocated in the animation struct.
  * @param anim
  */
 void t3d_anim_destroy(T3DAnim *anim);
