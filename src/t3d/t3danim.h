@@ -28,8 +28,8 @@ typedef struct {
 typedef struct {
   T3DAnimTargetBase base;
   T3DQuat* targetQuat; // target to modify
-  T3DQuat kfCurr; // current keyframe value
-  T3DQuat kfNext; // next keyframe value
+  T3DQuat kfCurr __attribute__((aligned(8))); // current keyframe value (aligned for 64-bit copies)
+  T3DQuat kfNext __attribute__((aligned(8))); // next keyframe value
 } T3DAnimTargetQuat;
 
 typedef struct {
@@ -39,7 +39,12 @@ typedef struct {
   float kfNext;
 } T3DAnimTargetScalar;
 
+#define T3D_ANIM_BUFFER_SIZE 512 // keyframe stream buffer, split into two halves
+
 typedef struct {
+  // keyframe stream, DMA'd from ROM into two halves ([A|B]), kept first for alignment
+  uint8_t buffer[T3D_ANIM_BUFFER_SIZE] __attribute__((aligned(16)));
+
   T3DChunkAnim *animRef;
   T3DAnimTargetQuat *targetsQuat;
   T3DAnimTargetScalar *targetsScalar;
@@ -47,19 +52,27 @@ typedef struct {
   float speed;
   float time;
 
-  FILE *file;
-  int nextKfSize;
+  uint64_t dmaTicket; // last queued DMA, always targets the half not being read, 0 if none
+  pi_addr_t romAddr;
+  uint32_t streamSize;
+  uint32_t loadOffset; // file offset of the next DMA
+  uint32_t streamPos; // bytes read since the last rewind
+  uint16_t readPos; // read position in 'buffer' (both halves)
+
+  uint8_t nextKfSize;
   uint8_t isPlaying;
   uint8_t isLooping;
 } T3DAnim;
 
 /**
- * Creates an animation instance from a model's animation definition
+ * Creates an animation instance from a model's animation definition.
+ * Free it with 't3d_anim_destroy'.
+ *
  * @param model The model to create the animation from
  * @param name The name of the animation to create
- * @return The created animation
+ * @return The created animation, free with t3d_anim_destroy
  */
-T3DAnim t3d_anim_create(const T3DModel *model, const char* name);
+T3DAnim* t3d_anim_create(const T3DModel *model, const char* name);
 
 /**
  * Attaches an animation to a skeleton.
@@ -110,7 +123,7 @@ void t3d_anim_update(T3DAnim* anim, float deltaTime);
 
 /**
  * Sets the animation to a specific time.
- * Note: this may cause some work internally due to potential DMAs.
+ * Note: going back in time needs a rewind, which may cause a blocking DMA.
  * @param anim animation to set time for
  * @param time time in seconds
  */
@@ -179,7 +192,7 @@ inline static void t3d_anim_set_looping(T3DAnim* anim, bool loop) {
 }
 
 /**
- * Frees data allocated in the animation struct.
+ * Frees the animation, including the instance itself.
  * @param anim
  */
 void t3d_anim_destroy(T3DAnim *anim);

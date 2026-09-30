@@ -62,9 +62,10 @@ void t3d_skeleton_blend(const T3DSkeleton *skelRes, const T3DSkeleton *skelA, co
 void t3d_skeleton_update(T3DSkeleton *skeleton)
 {
   int updateLevel = -1;
-  bool forceUpdate = false;
+  uint32_t forceUpdate = 0;
 
   T3DMat4FP* matStackFP = nullptr;
+  T3DMat4 tmp __attribute__((uninitialized));
 
   for(int i = 0; i < skeleton->skeletonRef->boneCount; i++)
   {
@@ -76,8 +77,14 @@ void t3d_skeleton_update(T3DSkeleton *skeleton)
       updateLevel = -1;
     }
 
-    if(bone->hasChanged || forceUpdate)
+    const bool hasChanged = bone->hasChanged | forceUpdate;
+    if(hasChanged)
     {
+      // if a bone changed we need to also update any children.
+      // To do so, update all following bones until we hit one that has the same depth as the changed bone.
+      if(!forceUpdate)updateLevel = boneDef->depth;
+      forceUpdate = 1;
+      
       // only cycle through matrices if at least one bone changes.
       // this avoids flickering at the end of an animation, since it would cycle through the last X frames otherwise.
       if(matStackFP == nullptr)
@@ -86,20 +93,14 @@ void t3d_skeleton_update(T3DSkeleton *skeleton)
         matStackFP = &skeleton->boneMatricesFP[skeleton->skeletonRef->boneCount * skeleton->currentBufferIdx];
       }
 
-      // if a bone changed we need to also update any children.
-      // To do so, update all following bones until we hit one that has the same depth as the changed bone.
-      if(!forceUpdate)updateLevel = boneDef->depth;
-      forceUpdate = true;
-
       if(boneDef->parentIdx != 0xFFFF) {
-        T3DMat4 tmp;
         t3d_mat4_from_srt(&tmp, bone->scale.v, bone->rotation.v, bone->position.v);
         t3d_mat4_mul(&bone->matrix, &skeleton->bones[boneDef->parentIdx].matrix, &tmp);
       } else {
         t3d_mat4_from_srt(&bone->matrix, bone->scale.v, bone->rotation.v, bone->position.v);
       }
 
-      t3d_mat4_to_fixed(&matStackFP[i], &bone->matrix);
+      t3d_mat4_to_fixed_3x4(&matStackFP[i], &bone->matrix);
 
       // if a bone has changed, we need to force updating it until it reached all buffers.
       // otherwise once the updating stops, and we cycle through buffers still, it would flicker.
