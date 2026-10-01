@@ -4,7 +4,8 @@
 <img src="logo.png" width="530">
 </p>
 
-3D ucode & library for the N64 using [libdragon](https://github.com/DragonMinded/libdragon/tree/preview).<br>
+
+3D ucode & library for the N64 using [libdragon](https://github.com/n64brew/libdragon/tree/preview).<br>
 The goal of this project is to provide a fast 3D API, offering both low-level access and easy to use high-level functions.<br>
 
 ![](docs/img/clip00.gif) ![](docs/img/clip03.gif) ![](docs/img/clip02.gif) ![](docs/img/clip01.gif)
@@ -80,7 +81,7 @@ This can be set during export:
 For a full list of supported settings, see [docs/fast64Settings.md](docs/fast64Settings.md).<br>
 
 ## Build
-Tiny3D requires [libdragon](https://github.com/DragonMinded/libdragon/tree/preview), specifically the `preview` branch.<br>
+Tiny3D requires [libdragon](https://github.com/n64brew/libdragon/tree/preview), specifically the `preview` branch.<br>
 Make sure you have that project setup first.
 
 To build Tiny3D, simply run the `build.sh` script in the root directory of the project.
