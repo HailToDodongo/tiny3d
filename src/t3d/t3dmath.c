@@ -219,6 +219,15 @@ void t3d_mat4_ortho(T3DMat4 *mat, float left, float right, float bottom, float t
 
 void t3d_mat4_from_srt(T3DMat4 *mat, const float scale[3], const  float quat[4], const  float translate[3])
 {
+  // read all inputs first, since 'mat' could alias them the compiler would otherwise
+  // write the matrix unscaled first and then again after loading the scale
+  float scaleX = scale[0];
+  float scaleY = scale[1];
+  float scaleZ = scale[2];
+  float posX = translate[0];
+  float posY = translate[1];
+  float posZ = translate[2];
+
   float qxx = quat[0] * quat[0];
   float qyy = quat[1] * quat[1];
   float qzz = quat[2] * quat[2];
@@ -230,12 +239,11 @@ void t3d_mat4_from_srt(T3DMat4 *mat, const float scale[3], const  float quat[4],
   float qwz = quat[3] * quat[2];
 
   *mat = (T3DMat4){{
-    {1.0f - 2.0f * (qyy + qzz),        2.0f * (qxy + qwz),        2.0f * (qxz - qwy), 0.0f},
-    {       2.0f * (qxy - qwz), 1.0f - 2.0f * (qxx + qzz),        2.0f * (qyz + qwx), 0.0f},
-    {       2.0f * (qxz + qwy),        2.0f * (qyz - qwx), 1.0f - 2.0f * (qxx + qyy), 0.0f},
-    {             translate[0],              translate[1],              translate[2], 1.0f}
+    {(1.0f - 2.0f * (qyy + qzz)) * scaleX, (2.0f * (qxy + qwz)) * scaleX,        (2.0f * (qxz - qwy)) * scaleX,        0.0f},
+    {(2.0f * (qxy - qwz)) * scaleY,        (1.0f - 2.0f * (qxx + qzz)) * scaleY, (2.0f * (qyz + qwx)) * scaleY,        0.0f},
+    {(2.0f * (qxz + qwy)) * scaleZ,        (2.0f * (qyz - qwx)) * scaleZ,        (1.0f - 2.0f * (qxx + qyy)) * scaleZ, 0.0f},
+    {posX,                                 posY,                                 posZ,                                 1.0f}
   }};
-  t3d_mat4_scale(mat, scale[0], scale[1], scale[2]);
 }
 
 void t3d_mat4_from_srt_euler(T3DMat4 *mat, const float scale[3], const float rot[3], const float translate[3])

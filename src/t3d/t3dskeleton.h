@@ -19,12 +19,14 @@ extern "C"
  * if 'hasChanged' is set to true.
  */
 typedef struct {
-  T3DMat4 matrix;
+  T3DMat4x3 matrix;
   T3DVec3 scale;
   T3DQuat rotation;
   T3DVec3 position;
   int32_t hasChanged;
-} T3DBone;
+  uint16_t parentIdx; // copy of the model's bone definition, avoids touching it in 't3d_skeleton_update'
+  uint16_t depth;
+} __attribute__((aligned(16))) T3DBone;
 
 /**
  * Skeleton instance, can be constructed from a model's skeleton definition.

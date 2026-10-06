@@ -6,8 +6,16 @@
 #include "t3d/t3danim.h"
 #include <malloc.h>
 
+
 #define SQRT_2_INV 0.70710678118f
 #define KF_TIME_TICK (1.0f / 60.0f)
+
+_Static_assert(_Alignof(T3DAnimTargetQuat) >= 8, "T3DAnimTargetQuat must be 8-byte aligned");
+_Static_assert(offsetof(T3DAnimTargetQuat, kfCurr) % 8 == 0, "kfCurr must be 8-byte aligned");
+_Static_assert(offsetof(T3DAnimTargetQuat, kfNext) % 8 == 0, "kfNext must be 8-byte aligned");
+
+typedef uint64_t __attribute__((may_alias)) u64_alias_t;
+typedef uint64_t __attribute__((aligned(2), may_alias)) u64_unaligned_t;
 
 // Maps the input data streamed from the animation data file
 typedef struct {
@@ -16,21 +24,119 @@ typedef struct {
   uint16_t data[2]; // can be either 1 or 2 16-bit values (scalar / quat)
 } T3DAnimKF;
 
-T3DAnim t3d_anim_create(const T3DModel *model, const char *name) {
+// Starts loading the next part of the file into the given half (async)
+static void stream_load(T3DAnim *anim, uint32_t half) {
+  if(anim->loadOffset >= anim->streamSize)anim->loadOffset = 0; // prefetch the start again for looping
+  uint32_t size = anim->streamSize - anim->loadOffset;
+  if(size > anim->bufferHalfSize)size = anim->bufferHalfSize;
+
+  uint8_t *dst = anim->buffer + half * anim->bufferHalfSize;
+  data_cache_hit_invalidate(dst, anim->bufferHalfSize);
+  anim->dmaTicket = dma_read_raw_async(dst, anim->romAddr + anim->loadOffset, size);
+  anim->loadOffset += size;
+}
+
+static inline void stream_wait(T3DAnim *anim) {
+  if(anim->dmaTicket) {
+    dma_wait_finished(anim->dmaTicket);
+    anim->dmaTicket = 0;
+  }
+}
+
+// (Re-)loads the stream from the start, blocks until the first half is loaded
+static void stream_reset(T3DAnim *anim) {
+  stream_wait(anim);
+  anim->loadOffset = 0;
+  stream_load(anim, 0);
+  stream_wait(anim);
+  stream_load(anim, 1);
+  anim->readPos = 0;
+  anim->streamPos = 0;
+}
+
+static void stream_rewind(T3DAnim *anim) {
+  const uint32_t halfSize = anim->bufferHalfSize;
+  uint32_t halfStart = anim->readPos >= halfSize ? halfSize : 0;
+  uint32_t halfOffset = anim->streamPos - (anim->readPos - halfStart); // file offset of the current half
+  anim->streamPos = 0;
+
+  // start of the file is in the current half (file smaller than a half, or it was just switched to)
+  if(halfOffset == 0 || halfOffset >= anim->streamSize) {
+    anim->readPos = halfStart;
+    return;
+  }
+  // current half contains the end of the file, so the other one was loaded from the start (looping)
+  if(halfOffset + halfSize >= anim->streamSize) {
+    stream_wait(anim);
+    anim->readPos = halfSize - halfStart;
+    stream_load(anim, halfStart ? 1 : 0);
+    return;
+  }
+  stream_reset(anim);
+}
+
+// Copies the next keyframe out of the stream, returns false at the end of the stream
+static inline bool stream_read_kf(T3DAnim *anim, T3DAnimKF *kf) {
+  uint32_t size = anim->nextKfSize;
+  if(anim->streamPos + size > anim->streamSize)return false;
+
+  const uint32_t halfSize = anim->bufferHalfSize;
+  uint32_t pos = anim->readPos;
+  uint32_t halfEnd = pos >= halfSize ? (halfSize * 2) : halfSize;
+  const uint16_t *src = (const uint16_t*)(anim->buffer + pos);
+  uint16_t *dst = (uint16_t*)kf;
+
+  if(pos + 8 <= halfEnd) { // always copy 8 bytes, the check makes sure it never touches the other half
+    *(u64_alias_t*)kf = *(const u64_unaligned_t*)src;
+  } else { // crosses into the other half, which may wrap around to the start of the buffer
+    uint32_t sizeA = (halfEnd - pos) / 2;
+    for(uint32_t i=0; i<sizeA; ++i)dst[i] = src[i];
+    stream_wait(anim);
+    src = (const uint16_t*)(anim->buffer + (halfEnd == halfSize ? halfSize : 0));
+    for(uint32_t i=sizeA; i<size/2; ++i)dst[i] = src[i - sizeA];
+  }
+
+  pos += size;
+  anim->streamPos += size;
+  if(pos >= halfEnd) { // current half fully read, switch and refill it
+    stream_wait(anim);
+    if(pos >= halfSize * 2)pos -= halfSize * 2;
+    stream_load(anim, halfEnd == halfSize ? 0 : 1);
+  }
+  anim->readPos = pos;
+  return true;
+}
+
+T3DAnim t3d_anim_create_buffered(const T3DModel *model, const char *name, uint32_t bufferSize) {
   T3DChunkAnim* animDef = t3d_model_get_animation(model, name);
   assertf(animDef, "Animation '%s' not found in model", name);
+  assertf(bufferSize >= 32 && (bufferSize % 32) == 0 && bufferSize <= 0x8000, "Invalid animation buffer size: %lu", bufferSize);
 
-  return (T3DAnim){
+  const char *path = animDef->filePath;
+  path += 5;
+  pi_addr_t romAddr = dfs_rom_addr(path);
+  int streamSize = dfs_rom_size(path);
+  assertf(romAddr != 0 && streamSize >= 0, "Animation data not found: %s", animDef->filePath);
+  assertf((romAddr & 1) == 0 && (streamSize & 1) == 0, "Animation data not 2-byte aligned: %s", animDef->filePath);
+
+  T3DAnim anim = {
     .animRef = animDef,
-    .targetsScalar = NULL,
     .targetsQuat = NULL,
-    .time = 0.0f,
+    .targetsScalar = NULL,
     .speed = 1.0f,
+    .time = 0.0f,
+    .buffer = memalign(16, bufferSize), // own cache-lines, needed for the invalidate before each DMA
+    .dmaTicket = 0,
+    .romAddr = romAddr,
+    .streamSize = streamSize,
+    .bufferHalfSize = bufferSize / 2,
     .nextKfSize = sizeof(T3DAnimKF),
-    .file = asset_fopen(animDef->filePath, NULL),
     .isPlaying = 1,
     .isLooping = 1
   };
+  // DMAs target the heap buffer, so returning the struct by value is fine
+  stream_reset(&anim);
+  return anim;
 }
 
 static void rewind_anim(T3DAnim *anim)
@@ -42,7 +148,7 @@ static void rewind_anim(T3DAnim *anim)
     anim->targetsQuat[c].base.timeEnd = 0;
   }
   anim->nextKfSize = sizeof(T3DAnimKF);
-  rewind(anim->file);
+  stream_rewind(anim);
 }
 
 void t3d_anim_attach(T3DAnim *anim, const T3DSkeleton *skeleton) {
@@ -137,9 +243,8 @@ static inline T3DAnimTargetBase* get_base_target(T3DAnim *anim, uint64_t channel
 }
 
 static inline bool load_keyframe(T3DAnim *anim) {
-  T3DAnimKF kf;
-  size_t readBytes = fread(&kf, anim->nextKfSize, 1, anim->file);
-  if(readBytes == 0)return false;
+  T3DAnimKF kf __attribute__((aligned(8), uninitialized)); // 8-byte aligned for the 64-bit copy
+  if(!stream_read_kf(anim, &kf))return false;
 
   bool isLarge = kf.nextTime & 0x8000;
   anim->nextKfSize = isLarge ? sizeof(T3DAnimKF) : (sizeof(T3DAnimKF)-2);
@@ -156,7 +261,9 @@ static inline bool load_keyframe(T3DAnim *anim) {
 
   if(channelMap->targetType == T3D_ANIM_TARGET_ROTATION) {
     T3DAnimTargetQuat *target = (T3DAnimTargetQuat*)targetBase;
-    target->kfCurr = target->kfNext;
+    // 64-bit copy, otherwise we get a memcpy
+    ((u64_alias_t*)&target->kfCurr)[0] = ((u64_alias_t*)&target->kfNext)[0];
+    ((u64_alias_t*)&target->kfCurr)[1] = ((u64_alias_t*)&target->kfNext)[1];
     unpack_quat(kf.data[0], kf.data[1], &target->kfNext);
   } else {
     T3DAnimTargetScalar *target = (T3DAnimTargetScalar*)targetBase;
@@ -165,6 +272,19 @@ static inline bool load_keyframe(T3DAnim *anim) {
   }
 
   return true;
+}
+
+// Local copy for better cache usage
+static inline void local_quat_nlerp(T3DQuat *res, const T3DQuat *a, const T3DQuat *b, float t) {
+  float blend = 1.0f - t;
+  if(t3d_quat_dot(a, b) < 0.0f) {
+    blend = -blend;
+  }
+  res->v[0] = blend * a->v[0] + t * b->v[0];
+  res->v[1] = blend * a->v[1] + t * b->v[1];
+  res->v[2] = blend * a->v[2] + t * b->v[2];
+  res->v[3] = blend * a->v[3] + t * b->v[3];
+  t3d_quat_normalize(res);
 }
 
 void t3d_anim_update(T3DAnim *anim, float deltaTime) {
@@ -183,24 +303,31 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
     }
   }
 
-  uint32_t channelCount = anim->animRef->channelsScalar + anim->animRef->channelsQuat;
+  // local copies, stores through the target pointers below could alias 'anim' and force reloads otherwise
+  const float time = anim->time;
+  const uint32_t channelsQuat = anim->animRef->channelsQuat;
+  const uint32_t channelCount = anim->animRef->channelsScalar + channelsQuat;
+  T3DAnimTargetQuat *targetsQuat = anim->targetsQuat;
+  T3DAnimTargetScalar *targetsScalar = anim->targetsScalar;
+
   for(uint32_t c=0; c<channelCount; c++)
   {
-    bool isRot = c < anim->animRef->channelsQuat;
-    T3DAnimTargetBase *target = get_base_target(anim, c, isRot);
+    bool isRot = c < channelsQuat;
+    T3DAnimTargetBase *target = isRot ?
+      (T3DAnimTargetBase*)&targetsQuat[c] :
+      (T3DAnimTargetBase*)&targetsScalar[c - channelsQuat];
 
-    while(anim->time >= target->timeEnd) {
+    while(time >= target->timeEnd) {
       if(!load_keyframe(anim))break;
     }
 
     float timeDiff = target->timeEnd - target->timeStart;
-    float interp = (anim->time - target->timeStart) / timeDiff;
+    float interp = (time - target->timeStart) / timeDiff;
     *target->changedFlag = updateFlag;
 
     if(isRot) {
       T3DAnimTargetQuat *t = (T3DAnimTargetQuat*)target;
-      t3d_quat_nlerp(t->targetQuat, &t->kfCurr, &t->kfNext, interp);
-      //t3d_quat_slerp(t->targetQuat, &t->kfCurr, &t->kfNext, interp);
+      local_quat_nlerp(t->targetQuat, &t->kfCurr, &t->kfNext, interp);
     } else {
       T3DAnimTargetScalar *t = (T3DAnimTargetScalar*)target;
       *t->targetScalar = t3d_lerp(t->kfCurr, t->kfNext, interp);
@@ -210,10 +337,13 @@ void t3d_anim_update(T3DAnim *anim, float deltaTime) {
 
 void t3d_anim_destroy(T3DAnim *anim) {
   if(anim->targetsQuat)free(anim->targetsQuat); // 'targetsScalar' is part of this memory-block
-  if(anim->file)fclose(anim->file);
+  if(anim->buffer) {
+    stream_wait(anim); // DMAs could still be writing into the buffer
+    free(anim->buffer);
+  }
   anim->targetsQuat = NULL;
   anim->targetsScalar = NULL;
-  anim->file = NULL;
+  anim->buffer = NULL;
 }
 
 void t3d_anim_set_time(T3DAnim *anim, float time) {
