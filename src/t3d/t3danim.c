@@ -36,7 +36,6 @@ static void stream_load(T3DAnim *anim, uint32_t half) {
   anim->loadOffset += size;
 }
 
-// Waits for the pending DMA, since the PI queue is ordered this also covers any earlier one
 static inline void stream_wait(T3DAnim *anim) {
   if(anim->dmaTicket) {
     dma_wait_finished(anim->dmaTicket);

@@ -49,7 +49,7 @@ typedef struct {
   float speed;
   float time;
 
-  // keyframe stream, DMA'd from ROM into two halves ('buffer' = [A|B])
+  // keyframe stream, DMA'd from ROM
   uint8_t *buffer;
   uint64_t dmaTicket; // last queued DMA, always targets the half not being read, 0 if none
   pi_addr_t romAddr;
