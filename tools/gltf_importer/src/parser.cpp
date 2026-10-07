@@ -166,16 +166,6 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
 
     // printf(" - Mesh %d: %s\n", i, mesh->name);
 
-    bool hasMat = false;
-    for(int j = 0; j < mesh->primitives_count; j++) {
-      if(mesh->primitives[j].material) {
-        hasMat = true;
-        break;
-      }
-    }
-
-    if(!hasMat)continue;
-
     for(int j = 0; j < mesh->primitives_count; j++)
     {
       t3dm.models.push_back({});
@@ -191,13 +181,6 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
           t3dm.materials[matName] = parseMaterial(config, gltfBasePath, prim);
         }
         model.materialName = matName ? matName : "";
-      }
-
-      if(model.materialName.empty())
-      {
-        printf("Skipping model '%s', no material assigned!\n", model.name.c_str());
-        t3dm.models.pop_back();
-        continue;
       }
 
       // find vertex count
@@ -338,12 +321,15 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
       verticesT3D.resize(vertices.size());
 
       Config::MatInfo matInfo{};
-      if(!config.getMaterialInfo || !config.getMaterialInfo(prim->material->name, matInfo))
+      if(prim->material) 
       {
-        auto &material = t3dm.materials[model.materialName];
-        matInfo.texSizeX = material.texA.texWidth;
-        matInfo.texSizeY = material.texA.texHeight;
-        matInfo.pointFilter = material.uvFilterAdjust;
+        if(!config.getMaterialInfo || !config.getMaterialInfo(prim->material->name, matInfo))
+        {
+          auto &material = t3dm.materials[model.materialName];
+          matInfo.texSizeX = material.texA.texWidth;
+          matInfo.texSizeY = material.texA.texHeight;
+          matInfo.pointFilter = material.uvFilterAdjust;
+        }
       }
 
       if(matInfo.texSizeX == 0)matInfo.texSizeX = 32;
@@ -371,6 +357,11 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
           verticesT3D[indices[k + 1]],
           verticesT3D[indices[k + 2]],
         });
+      }
+
+      t3dm.modelsNoMat.push_back(t3dm.models.back());
+      if(!prim->material) {
+        t3dm.models.pop_back();
       }
 
       if(config.verbose) {

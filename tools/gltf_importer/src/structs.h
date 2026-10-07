@@ -255,6 +255,7 @@ namespace T3DM
 
   struct T3DMData {
     std::vector<Model> models{};
+    std::vector<Model> modelsNoMat{};
     std::vector<Bone> skeletons{};
     std::vector<Anim> animations{};
     std::unordered_map<std::string, Material> materials{};
