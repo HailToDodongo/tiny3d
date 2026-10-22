@@ -405,47 +405,50 @@ void t3d_model_draw_material(T3DMaterial *mat, T3DModelState *state)
       rdpq_tex_multi_end();
     }
 
-    rdpq_mode_begin();
+    if(setCC || setBlendMode || setPrimColor || setBlendColor || setEnvColor || setOtherMode) 
+    {
+      rdpq_mode_begin();
 
-    if(setCC) {
-      state->lastCC = mat->colorCombiner;
-      rdpq_mode_combiner(mat->colorCombiner);
-    }
-
-    if(setBlendMode) {
-      rdpq_mode_blender(mat->blendMode);
-      state->lastBlendMode = mat->blendMode;
-    }
-
-    if(setPrimColor) {
-      state->lastPrimColor = mat->primColor;
-      rdpq_set_prim_color(mat->primColor);
-    }
-
-    if(setBlendColor) {
-      state->lastBlendColor = mat->blendColor;
-      rdpq_set_blend_color(mat->blendColor);
-    }
-
-    if(setEnvColor) {
-      state->lastEnvColor = mat->envColor;
-      rdpq_set_env_color(mat->envColor);
-    }
-
-    if(setOtherMode) {
-      __rdpq_mode_change_som(mat->otherModeMask, mat->otherModeValue);
-      state->lastOtherMode = mat->otherModeValue;
-
-      // workaround for some libdragon changes that handles AA vs. no AA (maps to CVG * alpha)
-      // since we use the raw othermodes here it causes issues in not updating properly
-      if(mat->otherModeValue & SOM_ALPHACOMPARE_THRESHOLD) {
-        rdpq_mode_alphacompare(mat->blendColor.a);
-      } else {
-        rdpq_mode_alphacompare(0);
+      if(setCC) {
+        state->lastCC = mat->colorCombiner;
+        rdpq_mode_combiner(mat->colorCombiner);
       }
-    }
 
-    rdpq_mode_end();
+      if(setBlendMode) {
+        rdpq_mode_blender(mat->blendMode);
+        state->lastBlendMode = mat->blendMode;
+      }
+
+      if(setPrimColor) {
+        state->lastPrimColor = mat->primColor;
+        rdpq_set_prim_color(mat->primColor);
+      }
+
+      if(setBlendColor) {
+        state->lastBlendColor = mat->blendColor;
+        rdpq_set_blend_color(mat->blendColor);
+      }
+
+      if(setEnvColor) {
+        state->lastEnvColor = mat->envColor;
+        rdpq_set_env_color(mat->envColor);
+      }
+
+      if(setOtherMode) {
+        __rdpq_mode_change_som(mat->otherModeMask, mat->otherModeValue);
+        state->lastOtherMode = mat->otherModeValue;
+
+        // workaround for some libdragon changes that handles AA vs. no AA (maps to CVG * alpha)
+        // since we use the raw othermodes here it causes issues in not updating properly
+        if(mat->otherModeValue & SOM_ALPHACOMPARE_THRESHOLD) {
+          rdpq_mode_alphacompare(mat->blendColor.a);
+        } else {
+          rdpq_mode_alphacompare(0);
+        }
+      }
+
+      rdpq_mode_end();
+    }
   }
 
   if(mat->renderFlags != state->lastRenderFlags) {
