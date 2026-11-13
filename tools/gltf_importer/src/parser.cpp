@@ -210,6 +210,7 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
       }
 
       // Read vertices
+      bool hadUVs = false;
       for(int k = 0; k < prim->attributes_count; k++)
       {
         auto attr = &prim->attributes[k];
@@ -270,9 +271,10 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
           }
         }
 
-        if(attr->type == cgltf_attribute_type_texcoord)
+        if(attr->type == cgltf_attribute_type_texcoord && !hadUVs)
         {
           assert(attr->data->type == cgltf_type_vec2);
+          hadUVs = true;
 
           for(int l = 0; l < acc->count; l++)
           {
