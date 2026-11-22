@@ -20,45 +20,44 @@ static int frameIdx = 0;
 // Holds our actor data, relevant for t3d is 'modelMat'.
 typedef struct {
   uint32_t id;
-  float pos[3];
-  float rot[3];
-  float scale[3];
+  fm_vec3_t pos;
+  fm_vec3_t rot;
+  fm_vec3_t scale;
 
   rspq_block_t *dpl;
   T3DMat4FP *modelMat;
 } Actor;
 
-Actor actor_create(uint32_t id, rspq_block_t *dpl)
+Actor* actor_create(uint32_t id, rspq_block_t *dpl)
 {
-  float randScale = (rand() % 100) / 3000.0f + 0.03f;
-  Actor actor = (Actor){
-    .id = id,
-    .pos = {0, 0, 0},
-    .rot = {0, 0, 0},
-    .scale = {randScale, randScale, randScale},
-    .dpl = dpl,
-    .modelMat = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT)
-  };
+  uint32_t rng = (id * 0x123) >> 1;
+  float randScale = (rng % 100) / 3000.0f + 0.03f;
+
+  Actor* actor = malloc(sizeof(Actor));
+  actor->id = id;
+  actor->pos = (fm_vec3_t){{0, 0, 0}};
+  actor->rot = (fm_vec3_t){{0, 0, 0}};
+  actor->scale = (fm_vec3_t){{randScale, randScale, randScale}};
+  actor->dpl = dpl;
+  actor->modelMat = malloc_uncached(sizeof(T3DMat4FP) * FB_COUNT);
   return actor;
 }
 
 void actor_update(Actor *actor) {
-  actor->pos[0] = 0;
-
   // set some random position and rotation
   float randRot = (float)fm_fmodf(actor->id * 123.1f, 5.0f);
   float randDist = (float)fm_fmodf(actor->id * 4645.987f, 30.5f) + 10.0f;
 
-  actor->rot[0] = fm_fmodf(randRot + objTime * 1.05f, RAD_360);
-  actor->rot[1] = fm_fmodf(randRot + objTime * 1.03f, RAD_360);
-  actor->rot[2] = fm_fmodf(randRot + objTime * 1.1f, RAD_360);
+  actor->rot.x = fm_fmodf(randRot + objTime * 1.05f, RAD_360);
+  actor->rot.y = fm_fmodf(randRot + objTime * 1.03f, RAD_360);
+  actor->rot.z = fm_fmodf(randRot + objTime * 1.1f, RAD_360);
 
-  actor->pos[0] = randDist * fm_cosf(objTime * 1.6f + randDist);
-  actor->pos[1] = randDist * fm_sinf(objTime * 1.5f + randRot);
-  actor->pos[2] = randDist * fm_cosf(objTime * 1.4f + randDist*randRot);
+  actor->pos.x = randDist * fm_cosf(objTime * 1.6f + randDist);
+  actor->pos.y = randDist * fm_sinf(objTime * 1.5f + randRot);
+  actor->pos.z = randDist * fm_cosf(objTime * 1.4f + randDist*randRot);
 
   // t3d lets you directly construct a fixed-point matrix from SRT
-  t3d_mat4fp_from_srt_euler(&actor->modelMat[frameIdx], actor->scale, actor->rot, actor->pos);
+  t3d_mat4fp_from_srt_euler(&actor->modelMat[frameIdx], actor->scale.v, actor->rot.v, actor->pos.v);
 }
 
 void actor_draw(Actor *actor) {
@@ -105,7 +104,7 @@ int main()
     dpls[i] = rspq_block_end();
   }
 
-  Actor actors[ACTOR_COUNT];
+  Actor* actors[ACTOR_COUNT];
   for(int i=0; i<ACTOR_COUNT; ++i) {
     actors[i] = actor_create(i, dpls[i*3 % 2]);
   }
@@ -144,7 +143,7 @@ int main()
 
     float timeUpdate = get_time_ms();
     for(int i=0; i<actorCount; ++i) {
-      actor_update(&actors[i]);
+      actor_update(actors[i]);
     }
     timeUpdate = get_time_ms() - timeUpdate;
 
@@ -167,7 +166,7 @@ int main()
 
     t3d_matrix_push_pos(1);
     for(int i=0; i<actorCount; ++i) {
-      actor_draw(&actors[i]);
+      actor_draw(actors[i]);
     }
     t3d_matrix_pop(1);
 
