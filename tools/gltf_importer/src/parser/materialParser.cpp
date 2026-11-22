@@ -207,6 +207,10 @@ T3DM::Material T3DM::parseMaterial(const Config &config, const fs::path &gltfBas
     printf("Empty fast64 extras.data!\n");
   }
   auto &f3dData = data["f3d_mat"];
+  if(f3dData.empty()) {
+    // blender 5+ seems to export data inside a copy for some reason
+    f3dData = data["f3d_mat.001"];
+  }
 
   uint64_t otherModeValue = 0;
   uint64_t otherModeMask = RDP::SOM::ALPHA_COMPARE_MASK | RDP::SOM::SAMPLE_MASK;
