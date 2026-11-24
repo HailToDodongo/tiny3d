@@ -1,2 +1,0 @@
-"catherine.blend" Model from: https://github.com/buu342/N64-Sausage64
-License: WTFPL license
