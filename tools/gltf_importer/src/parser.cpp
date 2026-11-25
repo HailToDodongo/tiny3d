@@ -346,6 +346,15 @@ T3DM::T3DMData T3DM::parseGLTF(const char *gltfPath, const T3DM::Config &config)
         );
       }
 
+      // gltf uses negative scales as a flipped winding order:
+      // https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#instantiation
+      if(mat.det3x3() <= 0.0f) 
+      {
+        for(int k=0; (k+2) < indices.size(); k += 3) {
+          std::swap(indices[k + 1], indices[k + 2]);
+        }
+      }
+
       // optimizations
       meshopt_optimizeVertexCache(indices.data(), indices.data(), indices.size(), vertices.size());
       //meshopt_optimizeOverdraw(indices.data(), indices.data(), indices.size(), &vertices[0].pos.data[0], vertices.size(), sizeof(VertexNorm), 1.05f);

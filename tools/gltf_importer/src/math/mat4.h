@@ -182,6 +182,12 @@ struct Mat4
       return invMat * (1.0f / dot);
     }
 
+  [[nodiscard]] float det3x3() const {
+    return data[0][0] * (data[1][1]*data[2][2] - data[2][1]*data[1][2])
+         - data[1][0] * (data[0][1]*data[2][2] - data[2][1]*data[0][2])
+         + data[2][0] * (data[0][1]*data[1][2] - data[1][1]*data[0][2]);
+  }
+
   Mat4& operator*=(const Mat4& b) { return *this = *this * b; }
   Mat4& operator*=(f32 b) { return *this = *this * b; }
 
